@@ -1,0 +1,49 @@
+const express = require('express');
+const { 
+  recordContribution,
+  getContributionHistory,
+  getAllContributions
+} = require('../controllers/contributionController');
+
+const { 
+  getDashboard,
+  getTreasurerDashboard
+} = require('../controllers/dashboardController');
+
+const { 
+  sendReminderToMember,
+  sendBulkRemindersToOverdue,
+  sendRemindersToMembers,
+  getReminderHistory
+} = require('../controllers/notificationController');
+
+const { 
+  getAllMemberBalances,
+  processAutomaticDeduction,
+  checkLowBalanceMembers,
+  sendLowBalanceNotifications
+} = require('../controllers/deductionController');
+
+const router = express.Router();
+
+// Dashboard routes (Treasurer can view fund overview)
+router.get('/dashboard', getTreasurerDashboard);
+
+// Contribution management routes (Treasurer can manage all contributions)
+router.post('/contributions/record', recordContribution);
+router.get('/contributions/:memberId', getContributionHistory);
+router.get('/contributions', getAllContributions);
+
+// Member balance management routes
+router.get('/balances/all', getAllMemberBalances);
+router.post('/balances/automatic-deduction', processAutomaticDeduction);
+router.get('/balances/low-balance-check', checkLowBalanceMembers);
+router.post('/balances/send-low-balance-notifications', sendLowBalanceNotifications);
+
+// SMS notification routes (Treasurer can send notifications)
+router.post('/notifications/send-reminder', sendReminderToMember);
+router.post('/notifications/send-bulk-overdue', sendBulkRemindersToOverdue);
+router.post('/notifications/send-to-members', sendRemindersToMembers);
+router.get('/notifications/history/:memberId', getReminderHistory);
+
+module.exports = router;

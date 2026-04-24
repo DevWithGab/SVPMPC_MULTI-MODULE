@@ -1,0 +1,1 @@
+// Shared QR generator component

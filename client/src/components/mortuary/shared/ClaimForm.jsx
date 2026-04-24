@@ -1,0 +1,1 @@
+// Shared claim form component

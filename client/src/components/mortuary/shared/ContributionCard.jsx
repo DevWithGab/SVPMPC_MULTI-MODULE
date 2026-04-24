@@ -1,0 +1,1 @@
+// Shared contribution card component
