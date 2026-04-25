@@ -1,5 +1,10 @@
 const express = require('express');
+const { authenticateToken, authorizeMortuaryRoles } = require('../../../middleware');
 const router = express.Router();
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
+router.use(authorizeMortuaryRoles);
 
 // Import role-based routes
 const memberRoutes = require('./memberRoutes');

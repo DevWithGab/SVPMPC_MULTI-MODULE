@@ -87,7 +87,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   // Data fetching functions
   const fetchMembers = async () => {
     try {
+      console.log('Fetching members...');
       const response = await api.get('/mortuary/treasurer/balances/all');
+      console.log('Members response:', response.data);
       if (response.data.success) {
         setMembers(response.data.data.members || []);
       }

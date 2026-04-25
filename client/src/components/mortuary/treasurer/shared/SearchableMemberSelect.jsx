@@ -7,6 +7,10 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
   const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
 
+  // Debug logging
+  console.log('SearchableMemberSelect received members:', members);
+  console.log('Members length:', members?.length);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -18,12 +22,12 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredMembers = members
-    .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.toString().includes(search))
+  const filteredMembers = (members || [])
+    .filter((m) => m?.name?.toLowerCase().includes(search.toLowerCase()) || m?.id?.toString().includes(search))
     .slice(0, 50); // limit for UX performance
 
-  const selectedMember = members.find((m) => m.id.toString() === value?.toString());
-  const selectedExtraOption = extraOptions.find((opt) => opt.value === value);
+  const selectedMember = (members || []).find((m) => m?.id?.toString() === value?.toString());
+  const selectedExtraOption = (extraOptions || []).find((opt) => opt.value === value);
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
@@ -49,9 +53,9 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
               </span>
             ) : selectedMember ? (
               <span className="font-bold text-slate-900 text-sm">
-                {selectedMember.name} 
+                {selectedMember.name || 'Unknown Member'} 
                 <span className="text-slate-400 text-xs font-normal ml-2">
-                  UID: {selectedMember.id.toString().padStart(6, '0')}
+                  UID: {selectedMember.id?.toString().padStart(6, '0') || '000000'}
                 </span>
               </span>
             ) : (
@@ -103,14 +107,16 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
                    }}
                  >
                    <div>
-                     <p className="text-sm font-bold text-slate-900 group-hover:text-coop-green transition-colors">{m.name}</p>
+                     <p className="text-sm font-bold text-slate-900 group-hover:text-coop-green transition-colors">
+                       {m.name || 'Unknown Member'}
+                     </p>
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                       UID: {m.id.toString().padStart(6, '0')} • {(m.address || '').split(',')[0]}
+                       UID: {m.id?.toString().padStart(6, '0') || '000000'} • {(m.address || '').split(',')[0] || 'No Address'}
                      </p>
                    </div>
                    <div className="text-right">
-                      <p className={`text-xs font-black ${m.balance >= 1000 ? 'text-coop-green' : 'text-rose-500'}`}>
-                        ₱{m.balance?.toLocaleString()}
+                      <p className={`text-xs font-black ${(m.balance || 0) >= 1000 ? 'text-coop-green' : 'text-rose-500'}`}>
+                        ₱{(m.balance || 0).toLocaleString()}
                       </p>
                    </div>
                  </button>

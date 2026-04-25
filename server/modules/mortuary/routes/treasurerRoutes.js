@@ -1,5 +1,10 @@
 const express = require('express');
 const { 
+  authenticateToken, 
+  authorizeTreasurerOnly
+} = require('../../../middleware');
+
+const { 
   recordContribution,
   getContributionHistory,
   getAllContributions
@@ -25,6 +30,10 @@ const {
 } = require('../controllers/deductionController');
 
 const router = express.Router();
+
+// Apply authentication and authorization middleware to all routes
+router.use(authenticateToken);
+router.use(authorizeTreasurerOnly);
 
 // Dashboard routes (Treasurer can view fund overview)
 router.get('/dashboard', getTreasurerDashboard);
