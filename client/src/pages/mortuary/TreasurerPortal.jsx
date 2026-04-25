@@ -387,6 +387,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             handleQuickDeposit={handleQuickDeposit}
             setSmsData={setSmsData}
             setIsSmsModalOpen={setIsSmsModalOpen}
+            setIsBulkDeductOpen={setIsBulkDeductOpen}
+            setIsAddClaimOpen={setIsAddClaimOpen}
           />
         );
       case 'contributions':

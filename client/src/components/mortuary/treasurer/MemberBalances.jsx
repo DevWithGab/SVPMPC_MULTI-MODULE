@@ -25,7 +25,9 @@ const MemberBalances = ({
   itemsPerPage,
   handleQuickDeposit,
   setSmsData,
-  setIsSmsModalOpen
+  setIsSmsModalOpen,
+  setIsBulkDeductOpen,
+  setIsAddClaimOpen
 }) => {
   const lowBalanceMembers = members.filter(m => m.balance < 1000);
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
@@ -49,12 +51,14 @@ const MemberBalances = ({
         </div>
         <div className="flex flex-wrap gap-4">
           <Button 
+            onClick={setIsBulkDeductOpen}
             variant="outline" 
             className="rounded-2xl border-rose-200 text-rose-700 hover:bg-rose-50 font-black uppercase text-[10px] tracking-widest px-6 h-12 shadow-sm"
           >
             Custom Bulk Deduction
           </Button>
           <Button 
+            onClick={setIsAddClaimOpen}
             className="bg-rose-600 hover:bg-rose-700 text-white rounded-2xl shadow-xl shadow-rose-100 font-black uppercase text-[10px] tracking-widest px-8 h-12 transform hover:-translate-y-1 transition-all"
           >
             Trigger Death Deduction
