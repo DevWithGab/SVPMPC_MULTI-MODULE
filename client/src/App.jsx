@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { AuthProvider } from './hooks/useAuth.jsx';
 import SystemSelector from './pages/SystemSelector';
 import SuperAdmin from './pages/SuperAdmin';
-import MortuaryMemberPortal from './pages/mortuary/MemberPortal';
 import MortuaryAdminPortal from './pages/mortuary/AdminPortal';
 import MortuaryTreasurerPortal from './pages/mortuary/TreasurerPortal';
 import AttendanceMemberPortal from './pages/attendance/MemberPortal';
@@ -25,9 +24,7 @@ function App() {
     setSelectedModule({ module, role });
     setAuthenticatedUser({ user, token });
     
-    if (module === 'mortuary' && role === 'member') {
-      setCurrentView('mortuary-member-portal');
-    } else if (module === 'mortuary' && role === 'admin') {
+    if (module === 'mortuary' && role === 'admin') {
       setCurrentView('mortuary-admin-portal');
     } else if (module === 'mortuary' && role === 'treasurer') {
       setCurrentView('mortuary-treasurer-portal');
@@ -58,13 +55,6 @@ function App() {
         )}
         {currentView === 'selector' && (
           <SystemSelector onModuleSelect={handleModuleSelect} />
-        )}
-        {currentView === 'mortuary-member-portal' && (
-          <MortuaryMemberPortal 
-            onBack={handleBackToSelector}
-            user={authenticatedUser?.user}
-            token={authenticatedUser?.token}
-          />
         )}
         {currentView === 'mortuary-admin-portal' && (
           <MortuaryAdminPortal 

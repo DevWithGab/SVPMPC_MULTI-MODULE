@@ -1,7 +1,3 @@
-// Role-based controllers
-const memberControllers = require('./member');
-const treasurerControllers = require('./treasurer');
-
 // Legacy controllers (for backward compatibility)
 const dashboardController = require('./dashboardController');
 const claimController = require('./claimController');
@@ -9,17 +5,19 @@ const contributionController = require('./contributionController');
 const ledgerController = require('./ledgerController');
 const paymentScheduleController = require('./paymentScheduleController');
 const notificationController = require('./notificationController');
+const deductionController = require('./deductionController');
+const adminController = require('./adminController');
+const payoutController = require('./payoutController');
 
 module.exports = {
-  // Role-based exports
-  member: memberControllers,
-  treasurer: treasurerControllers,
-  
-  // Legacy exports (for backward compatibility)
+  // Controllers
   dashboardController,
   claimController,
   contributionController,
   ledgerController,
   paymentScheduleController,
   notificationController,
+  deductionController,
+  adminController,
+  payoutController,
 };

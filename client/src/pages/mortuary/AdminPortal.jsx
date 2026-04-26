@@ -7,30 +7,34 @@ import {
   Dashboard, 
   MemberManagement, 
   Contributions, 
-  Claims, 
   Payouts,
-  ProfileUpdates,
   Settings as SettingsView,
   Reports
 } from '../../components/mortuary/admin';
+import AddMemberModal from '../../components/mortuary/admin/modals/AddMemberModal';
+import AddContributionModal from '../../components/mortuary/admin/modals/AddContributionModal';
+import AddPayoutModal from '../../components/mortuary/admin/modals/AddPayoutModal';
+import SendSMSModal from '../../components/mortuary/admin/modals/SendSMSModal';
+import { ToastContainer, useToast } from '../../components/ui/toast';
 import { 
   memberAPI, 
   contributionAPI, 
-  claimAPI, 
-  mortuaryDashboardAPI 
+  mortuaryDashboardAPI,
+  adminAPI,
+  treasurerAPI,
+  payoutAPI
 } from '../../services/api';
 
 const AdminPortal = ({ onBack }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const { toasts, addToast, removeToast } = useToast();
   
   // State for data
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
-  const [claims, setClaims] = useState([]);
   const [payouts, setPayouts] = useState([]);
-  const [profileUpdates, setProfileUpdates] = useState([]);
   const [stats, setStats] = useState(null);
   
   // Filter states
@@ -61,9 +65,11 @@ const AdminPortal = ({ onBack }) => {
     setLoading(true);
     try {
       // Fetch all data in parallel
-      const [membersRes, contributionsRes] = await Promise.all([
-        memberAPI.getAllMembers(),
-        contributionAPI.getAllContributions()
+      const [membersRes, contributionsRes, payoutsRes, dashboardRes] = await Promise.all([
+        adminAPI.getAllMembers(),
+        contributionAPI.getAllContributions(),
+        payoutAPI.getAllPayouts(),
+        treasurerAPI.getDashboard().catch(() => null) // Don't fail if dashboard fails
       ]);
 
       if (membersRes.members) {
@@ -74,44 +80,119 @@ const AdminPortal = ({ onBack }) => {
         setContributions(contributionsRes.contributions);
       }
 
-      // Mock data for now - replace with actual API calls
-      setClaims([]);
-      setPayouts([]);
-      setProfileUpdates([]);
-      setStats({
-        fundBalance: 75000,
-        activeMembers: membersRes.members?.length || 0,
-        totalPayouts: 0,
-      });
+      if (payoutsRes.payouts) {
+        setPayouts(payoutsRes.payouts);
+      }
+      
+      if (dashboardRes) {
+        setStats({
+          fundBalance: dashboardRes.fundBalance || 75000,
+          activeMembers: membersRes.members?.length || 0,
+          totalPayouts: payoutsRes.payouts?.reduce((sum, p) => sum + p.amount, 0) || 0,
+        });
+      } else {
+        setStats({
+          fundBalance: 75000,
+          activeMembers: membersRes.members?.length || 0,
+          totalPayouts: payoutsRes.payouts?.reduce((sum, p) => sum + p.amount, 0) || 0,
+        });
+      }
     } catch (error) {
       console.error('Error fetching initial data:', error);
+      // Set fallback data
+      setStats({
+        fundBalance: 75000,
+        activeMembers: members.length,
+        totalPayouts: 0,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const updateClaimStatus = async (claimId, newStatus) => {
-    // TODO: Implement claim status update
-    console.log('Update claim status:', claimId, newStatus);
+    // Claims functionality removed from admin portal
+    console.log('Claims functionality moved to treasurer portal');
   };
 
   const updateProfileStatus = async (id, status) => {
-    // TODO: Implement profile update status
-    console.log('Update profile status:', id, status);
+    // Profile updates functionality removed from admin portal
+    console.log('Profile updates functionality removed');
   };
 
   const showToast = (message, type) => {
-    // TODO: Implement toast notification
-    console.log('Toast:', message, type);
+    addToast(message, type);
+  };
+
+  // Add member function
+  const handleAddMember = async (memberData) => {
+    try {
+      const response = await adminAPI.createMember(memberData);
+      if (response.success) {
+        setMembers(prev => [...prev, response.member]);
+        setIsAddMemberOpen(false);
+        showToast('Member added successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error adding member:', error);
+      showToast('Failed to add member', 'error');
+    }
+  };
+
+  // Record contribution function
+  const handleRecordContribution = async (contributionData) => {
+    try {
+      const response = await contributionAPI.recordContribution(contributionData);
+      if (response.success) {
+        setContributions(prev => [...prev, response.contribution]);
+        setIsAddContributionOpen(false);
+        showToast('Contribution recorded successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error recording contribution:', error);
+      showToast('Failed to record contribution', 'error');
+    }
+  };
+
+  // Record payout function
+  const handleRecordPayout = async (payoutData) => {
+    try {
+      const response = await payoutAPI.recordPayout(payoutData);
+      if (response.success) {
+        setPayouts(prev => [...prev, response.payout]);
+        setIsAddPayoutOpen(false);
+        showToast('Payout recorded successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error recording payout:', error);
+      showToast('Failed to record payout', 'error');
+    }
+  };
+
+  // Send SMS function
+  const handleSendSMS = async (smsData) => {
+    try {
+      const response = await treasurerAPI.sendReminderToMember({
+        memberId: smsData.memberId,
+        message: smsData.message,
+        type: 'manual'
+      });
+      if (response.success) {
+        setIsSmsModalOpen(false);
+        setSmsData({ memberId: null, message: '', memberName: '' });
+        showToast('SMS sent successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+      showToast('Failed to send SMS', 'error');
+    }
   };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
     { id: 'members', label: 'Members', icon: Users },
     { id: 'contributions', label: 'Contributions', icon: CreditCard },
-    { id: 'claims', label: 'Claims', icon: FileText },
     { id: 'payouts', label: 'Payouts', icon: Banknote },
-    { id: 'profiles', label: 'Profile Updates', icon: UserCheck },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -239,6 +320,8 @@ const AdminPortal = ({ onBack }) => {
               setIsSmsModalOpen={setIsSmsModalOpen}
               setSmsData={setSmsData}
               setSelectedMember={setSelectedMember}
+              onAddMember={handleAddMember}
+              onSendSMS={handleSendSMS}
             />
           )}
 
@@ -250,13 +333,7 @@ const AdminPortal = ({ onBack }) => {
               contributionStatusFilter={contributionStatusFilter}
               setContributionStatusFilter={setContributionStatusFilter}
               setIsAddContributionOpen={setIsAddContributionOpen}
-            />
-          )}
-
-          {activeSection === 'claims' && (
-            <Claims
-              claims={claims}
-              updateClaimStatus={updateClaimStatus}
+              onRecordContribution={handleRecordContribution}
             />
           )}
 
@@ -264,13 +341,7 @@ const AdminPortal = ({ onBack }) => {
             <Payouts
               payouts={payouts}
               setIsAddPayoutOpen={setIsAddPayoutOpen}
-            />
-          )}
-
-          {activeSection === 'profiles' && (
-            <ProfileUpdates
-              profileUpdates={profileUpdates}
-              updateProfileStatus={updateProfileStatus}
+              onRecordPayout={handleRecordPayout}
             />
           )}
 
@@ -292,6 +363,38 @@ const AdminPortal = ({ onBack }) => {
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      <AddMemberModal
+        isOpen={isAddMemberOpen}
+        onClose={() => setIsAddMemberOpen(false)}
+        onAddMember={handleAddMember}
+      />
+
+      <AddContributionModal
+        isOpen={isAddContributionOpen}
+        onClose={() => setIsAddContributionOpen(false)}
+        onRecordContribution={handleRecordContribution}
+        members={members}
+      />
+
+      <AddPayoutModal
+        isOpen={isAddPayoutOpen}
+        onClose={() => setIsAddPayoutOpen(false)}
+        onRecordPayout={handleRecordPayout}
+        members={members}
+      />
+
+      <SendSMSModal
+        isOpen={isSmsModalOpen}
+        onClose={() => setIsSmsModalOpen(false)}
+        onSendSMS={handleSendSMS}
+        smsData={smsData}
+        setSmsData={setSmsData}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

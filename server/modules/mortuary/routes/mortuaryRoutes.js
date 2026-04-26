@@ -7,12 +7,10 @@ router.use(authenticateToken);
 router.use(authorizeMortuaryRoles);
 
 // Import role-based routes
-const memberRoutes = require('./memberRoutes');
 const treasurerRoutes = require('./treasurerRoutes');
 const adminRoutes = require('./adminRoutes');
 
 // Route organization by role
-router.use('/member', memberRoutes);
 router.use('/treasurer', treasurerRoutes);
 router.use('/admin', adminRoutes);
 

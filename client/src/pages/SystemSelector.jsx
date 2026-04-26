@@ -53,13 +53,6 @@ export default function SystemSelector({ onModuleSelect }) {
   const getRolesForSystem = (systemId) => {
     const baseRoles = [
       {
-        id: 'member',
-        title: 'Member',
-        description: 'Access member services',
-        icon: User,
-        code: 'MBR'
-      },
-      {
         id: 'admin',
         title: 'Admin',
         description: 'Administrative access',
@@ -70,6 +63,15 @@ export default function SystemSelector({ onModuleSelect }) {
 
     // Add specific roles based on system
     if (systemId === 'attendance') {
+      // Add member role for attendance
+      baseRoles.unshift({
+        id: 'member',
+        title: 'Member',
+        description: 'Access member services',
+        icon: User,
+        code: 'MBR'
+      });
+      // Add secretary role
       baseRoles.splice(1, 0, {
         id: 'secretary',
         title: 'Secretary',
@@ -78,7 +80,8 @@ export default function SystemSelector({ onModuleSelect }) {
         code: 'SEC'
       });
     } else if (systemId === 'mortuary') {
-      baseRoles.splice(1, 0, {
+      // Only treasurer and admin for mortuary
+      baseRoles.unshift({
         id: 'treasurer',
         title: 'Treasurer / Staff',
         description: 'Manage fund & contributions',

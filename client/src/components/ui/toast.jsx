@@ -1,71 +1,88 @@
-import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
-export const Toast = ({ message, type = 'info', onClose, duration = 5000 }) => {
+const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
+  const [isVisible, setIsVisible] = useState(true);
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onClose();
+      setIsVisible(false);
+      setTimeout(onClose, 300); // Wait for fade out animation
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [onClose, duration]);
+  }, [duration, onClose]);
 
-  const config = {
-    success: {
-      icon: CheckCircle,
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      textColor: 'text-green-700',
-      iconColor: 'text-green-500'
-    },
-    error: {
-      icon: XCircle,
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      textColor: 'text-red-700',
-      iconColor: 'text-red-500'
-    },
-    warning: {
-      icon: AlertCircle,
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
-      textColor: 'text-yellow-700',
-      iconColor: 'text-yellow-500'
-    },
-    info: {
-      icon: Info,
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      textColor: 'text-blue-700',
-      iconColor: 'text-blue-500'
-    }
+  const icons = {
+    success: CheckCircle,
+    error: XCircle,
+    warning: AlertCircle,
+    info: Info
   };
 
-  const currentConfig = config[type] || config.info;
-  const IconComponent = currentConfig.icon;
+  const colors = {
+    success: 'bg-green-50 border-green-200 text-green-800',
+    error: 'bg-red-50 border-red-200 text-red-800',
+    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800'
+  };
+
+  const Icon = icons[type];
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -50, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -50, scale: 0.9 }}
-        className={`fixed top-4 right-4 z-50 ${currentConfig.bgColor} ${currentConfig.borderColor} ${currentConfig.textColor} border rounded-2xl p-4 shadow-lg max-w-sm`}
-      >
-        <div className="flex items-start gap-3">
-          <IconComponent className={`w-5 h-5 ${currentConfig.iconColor} flex-shrink-0 mt-0.5`} />
-          <div className="flex-1">
-            <p className="text-sm font-bold">{message}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </motion.div>
-    </AnimatePresence>
+    <div className={`fixed top-4 right-4 z-50 transition-all duration-300 ${
+      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+    }`}>
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg max-w-sm ${colors[type]}`}>
+        <Icon className="w-5 h-5 flex-shrink-0" />
+        <p className="text-sm font-medium flex-1">{message}</p>
+        <button
+          onClick={() => {
+            setIsVisible(false);
+            setTimeout(onClose, 300);
+          }}
+          className="p-1 hover:bg-black/10 rounded transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
   );
 };
+
+// Toast container component
+export const ToastContainer = ({ toasts, removeToast }) => {
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      {toasts.map((toast) => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={() => removeToast(toast.id)}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Hook for managing toasts
+export const useToast = () => {
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (message, type = 'info', duration = 3000) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type, duration }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  return { toasts, addToast, removeToast };
+};
+
+// Export Toast as both named and default export
+export { Toast };
+export default Toast;

@@ -9,7 +9,6 @@ export { mortuaryAPI } from './mortuary/index.js';
 export { attendanceAPI } from './attendance/index.js';
 
 // Individual role services for direct import
-export { default as mortuaryMemberAPI } from './mortuary/member.js';
 export { default as mortuaryTreasurerAPI } from './mortuary/treasurer.js';
 export { default as mortuaryAdminAPI } from './mortuary/admin.js';
 
@@ -28,10 +27,6 @@ export { default as api } from './api.js';
 // 1. Using module APIs (RECOMMENDED)
 import { mortuaryAPI, attendanceAPI } from '@/services';
 
-// Member operations
-const memberData = await mortuaryAPI.member.dashboard.getDashboardData();
-const contributions = await mortuaryAPI.member.contributions.getContributions();
-
 // Treasurer operations
 const claims = await mortuaryAPI.treasurer.claims.getClaims();
 const notifications = await mortuaryAPI.treasurer.notifications.sendSMSNotification(data);
@@ -41,9 +36,9 @@ const events = await attendanceAPI.secretary.events.getEvents();
 const attendance = await attendanceAPI.secretary.attendance.getAttendanceRecords();
 
 // 2. Using individual role APIs
-import { mortuaryMemberAPI, attendanceSecretaryAPI } from '@/services';
+import { mortuaryTreasurerAPI, attendanceSecretaryAPI } from '@/services';
 
-const dashboardData = await mortuaryMemberAPI.dashboard.getDashboardData();
+const claims = await mortuaryTreasurerAPI.claims.getClaims();
 const eventData = await attendanceSecretaryAPI.events.createEvent(eventData);
 
 // 3. Using authentication APIs

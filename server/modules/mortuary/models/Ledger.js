@@ -14,7 +14,7 @@ const ledgerSchema = new mongoose.Schema(
     },
     transactionType: {
       type: String,
-      enum: ['contribution', 'claim_payout', 'adjustment', 'penalty', 'automatic_deduction'],
+      enum: ['contribution', 'claim_payout', 'payout', 'adjustment', 'penalty', 'automatic_deduction'],
       required: true,
     },
     description: {
@@ -42,6 +42,14 @@ const ledgerSchema = new mongoose.Schema(
     },
     recordedBy: {
       type: String,
+    },
+    // Payout-specific fields
+    beneficiary: {
+      type: String,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['Cash', 'Bank Transfer', 'Check', 'GCash', 'PayMaya'],
     },
   },
   { timestamps: true }

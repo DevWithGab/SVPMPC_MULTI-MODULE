@@ -444,32 +444,52 @@ export const notificationAPI = {
 // ============================================
 export const adminAPI = {
   createMember: async (memberData) => {
-    const response = await api.post('/admin/members/create', memberData);
+    const response = await api.post('/mortuary/admin/members/create', memberData);
     return response.data;
   },
 
   bulkCreateMembers: async (members) => {
-    const response = await api.post('/admin/members/bulk-create', { members });
+    const response = await api.post('/mortuary/admin/members/bulk-create', { members });
     return response.data;
   },
 
   getAllMembers: async (params = {}) => {
-    const response = await api.get('/admin/members', { params });
+    const response = await api.get('/mortuary/admin/members', { params });
     return response.data;
   },
 
   updateMember: async (memberId, updateData) => {
-    const response = await api.put(`/admin/members/${memberId}`, updateData);
+    const response = await api.put(`/mortuary/admin/members/${memberId}`, updateData);
     return response.data;
   },
 
   deleteMember: async (memberId) => {
-    const response = await api.delete(`/admin/members/${memberId}`);
+    const response = await api.delete(`/mortuary/admin/members/${memberId}`);
     return response.data;
   },
 
   resetMemberPassword: async (memberId) => {
-    const response = await api.post(`/admin/members/${memberId}/reset-password`);
+    const response = await api.post(`/mortuary/admin/members/${memberId}/reset-password`);
+    return response.data;
+  },
+};
+
+// ============================================
+// ADMIN - PAYOUT MANAGEMENT API
+// ============================================
+export const payoutAPI = {
+  getAllPayouts: async () => {
+    const response = await api.get('/mortuary/admin/payouts');
+    return response.data;
+  },
+
+  recordPayout: async (payoutData) => {
+    const response = await api.post('/mortuary/admin/payouts', payoutData);
+    return response.data;
+  },
+
+  getPayoutById: async (payoutId) => {
+    const response = await api.get(`/mortuary/admin/payouts/${payoutId}`);
     return response.data;
   },
 };
