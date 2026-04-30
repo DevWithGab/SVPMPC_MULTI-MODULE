@@ -40,6 +40,7 @@ const login = async (req, res) => {
         memberId: user.memberId,
         username: user.username,
         modules: user.modules,
+        role: user.role,
       },
       process.env.JWT_SECRET || 'your_jwt_secret_key',
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
@@ -55,6 +56,7 @@ const login = async (req, res) => {
         email: user.email,
         isTemporaryPassword: user.isTemporaryPassword,
         modules: user.modules,
+        role: user.role,
       },
     });
   } catch (error) {

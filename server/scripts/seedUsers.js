@@ -88,48 +88,7 @@ const seedData = {
 
   // Sample Members
   sampleMembers: [
-    {
-      memberId: 'MEM-2024-001',
-      memberName: 'Juan Dela Cruz',
-      email: 'juan.delacruz@example.com',
-      phoneNumber: '09176666666',
-      barangay: 'Barangay 1',
-      address: '123 Main Street, City',
-      beneficiaries: 'Maria Dela Cruz (Wife)',
-      status: 'active',
-      modules: ['attendance', 'mortuary'],
-      userId: 'USER-MEM-001',
-      username: 'juan.delacruz',
-      password: 'Member2024!',
-    },
-    {
-      memberId: 'MEM-2024-002',
-      memberName: 'Maria Santos',
-      email: 'maria.santos@example.com',
-      phoneNumber: '09177777777',
-      barangay: 'Barangay 2',
-      address: '456 Oak Avenue, City',
-      beneficiaries: 'Pedro Santos (Husband)',
-      status: 'active',
-      modules: ['attendance', 'mortuary'],
-      userId: 'USER-MEM-002',
-      username: 'maria.santos',
-      password: 'Member2024!',
-    },
-    {
-      memberId: 'MEM-2024-003',
-      memberName: 'Pedro Garcia',
-      email: 'pedro.garcia@example.com',
-      phoneNumber: '09178888888',
-      barangay: 'Barangay 3',
-      address: '789 Pine Road, City',
-      beneficiaries: 'Ana Garcia (Wife)',
-      status: 'active',
-      modules: ['attendance', 'mortuary'],
-      userId: 'USER-MEM-003',
-      username: 'pedro.garcia',
-      password: 'Member2024!',
-    },
+    // Removed - use CSV upload instead
   ],
 };
 
@@ -202,44 +161,8 @@ const createStaffMembers = async () => {
 
 // Create sample members
 const createSampleMembers = async () => {
-  for (const memberData of seedData.sampleMembers) {
-    const existingMember = await Member.findOne({ memberId: memberData.memberId });
-    if (!existingMember) {
-      const member = new Member({
-        memberId: memberData.memberId,
-        memberName: memberData.memberName,
-        email: memberData.email,
-        phoneNumber: memberData.phoneNumber,
-        barangay: memberData.barangay,
-        address: memberData.address,
-        beneficiaries: memberData.beneficiaries,
-        status: memberData.status,
-        modules: memberData.modules,
-      });
-      await member.save();
-      console.log(`✅ Created sample member: ${memberData.memberName}`);
-
-      // Create user account for member
-      const existingUser = await User.findOne({ userId: memberData.userId });
-      if (!existingUser) {
-        const user = new User({
-          userId: memberData.userId,
-          memberId: memberData.memberId,
-          username: memberData.username,
-          email: memberData.email,
-          phoneNumber: memberData.phoneNumber,
-          passwordHash: memberData.password,
-          isTemporaryPassword: true,
-          status: 'active',
-          modules: memberData.modules,
-        });
-        await user.save();
-        console.log(`✅ Created user account: ${memberData.username}`);
-      }
-    } else {
-      console.log(`⏭️  Sample member already exists: ${memberData.memberName}`);
-    }
-  }
+  // Skipped - use CSV upload instead
+  console.log('⏭️  Skipping sample members - use CSV upload in SuperAdmin portal');
 };
 
 // Create admin users
@@ -311,10 +234,7 @@ const seedDatabase = async () => {
     console.log('   - Password: MortuaryTreasurer2024!\n');
 
     console.log('👥 SAMPLE MEMBERS:');
-    console.log('   All members have password: Member2024!');
-    console.log('   - juan.delacruz');
-    console.log('   - maria.santos');
-    console.log('   - pedro.garcia\n');
+    console.log('   Use CSV upload in SuperAdmin portal to add members\n');
 
     console.log('═══════════════════════════════════════════════════════════\n');
 

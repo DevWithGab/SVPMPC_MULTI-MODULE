@@ -22,7 +22,8 @@ import {
   mortuaryDashboardAPI,
   adminAPI,
   treasurerAPI,
-  payoutAPI
+  payoutAPI,
+  mortuaryMemberAPI
 } from '../../services/api';
 
 const AdminPortal = ({ onBack }) => {
@@ -64,9 +65,9 @@ const AdminPortal = ({ onBack }) => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      // Fetch all data in parallel
+      // Fetch all data in parallel - use mortuary-specific endpoints
       const [membersRes, contributionsRes, payoutsRes, dashboardRes] = await Promise.all([
-        adminAPI.getAllMembers(),
+        mortuaryMemberAPI.getAllMembers(), // Use mortuaryMemberAPI
         contributionAPI.getAllContributions(),
         payoutAPI.getAllPayouts(),
         treasurerAPI.getDashboard().catch(() => null) // Don't fail if dashboard fails

@@ -43,17 +43,48 @@ const SuperAdmin = () => {
   const [csvFile, setCsvFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
 
-  // Super Admin password (in production, this should be environment variable)
-  const SUPER_ADMIN_PASSWORD = 'SuperAdmin2024!';
+  // Check for existing authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (token && user) {
+      const userData = JSON.parse(user);
+      if (userData.role === 'super_admin') {
+        setIsAuthenticated(true);
+        fetchMembers();
+      }
+    }
+  }, []);
 
-  const handleAuth = (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault();
-    if (authPassword === SUPER_ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setAuthError('');
-      fetchMembers();
-    } else {
-      setAuthError('Invalid super admin password');
+    setLoading(true);
+    setAuthError('');
+    
+    try {
+      // Clear any existing tokens before login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      // Login with super_admin credentials
+      const response = await adminAPI.login('superadmin', authPassword);
+      
+      if (response.token) {
+        // Store token in localStorage
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        
+        setIsAuthenticated(true);
+        fetchMembers();
+      } else {
+        setAuthError('Invalid super admin credentials');
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setAuthError(error.response?.data?.message || 'Invalid super admin password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -233,10 +264,20 @@ const SuperAdmin = () => {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold"
+                  disabled={loading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Shield className="w-5 h-5 mr-2" />
-                  Access Super Admin
+                  {loading ? (
+                    <>
+                      <Loader className="w-5 h-5 mr-2 animate-spin" />
+                      Authenticating...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-5 h-5 mr-2" />
+                      Access Super Admin
+                    </>
+                  )}
                 </Button>
               </form>
               <div className="mt-6 text-center">
@@ -362,6 +403,17 @@ const SuperAdmin = () => {
             >
               <Upload className="w-4 h-4 mr-2" />
               Bulk Upload
+            </Button>
+            <Button
+              onClick={fetchMembers}
+              variant="outline"
+              className="rounded-xl"
+              disabled={loading}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
             </Button>
             <Button
               onClick={() => setShowCreateModal(true)}
@@ -566,9 +618,9 @@ const SuperAdmin = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl"
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
             >
-              <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <div className="p-6 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
                 <h3 className="text-xl font-black text-slate-900">Bulk Upload Members</h3>
                 <button
                   onClick={() => {
@@ -581,7 +633,7 @@ const SuperAdmin = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center">
                   <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                   <p className="text-sm font-bold text-slate-700 mb-2">Upload CSV File</p>
@@ -611,12 +663,12 @@ const SuperAdmin = () => {
                 {csvPreview.length > 0 && (
                   <div>
                     <p className="text-sm font-bold text-slate-700 mb-2">Preview (first 5 rows):</p>
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="border border-slate-200 rounded-lg overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead className="bg-slate-50">
                           <tr>
                             {Object.keys(csvPreview[0]).map(key => (
-                              <th key={key} className="px-3 py-2 text-left font-bold text-slate-600">{key}</th>
+                              <th key={key} className="px-3 py-2 text-left font-bold text-slate-600 whitespace-nowrap">{key}</th>
                             ))}
                           </tr>
                         </thead>
@@ -624,7 +676,7 @@ const SuperAdmin = () => {
                           {csvPreview.map((row, idx) => (
                             <tr key={idx} className="border-t border-slate-200">
                               {Object.values(row).map((val, i) => (
-                                <td key={i} className="px-3 py-2 text-slate-600">{val}</td>
+                                <td key={i} className="px-3 py-2 text-slate-600 whitespace-nowrap">{val}</td>
                               ))}
                             </tr>
                           ))}
@@ -633,28 +685,28 @@ const SuperAdmin = () => {
                     </div>
                   </div>
                 )}
-                <div className="flex gap-4 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowBulkModal(false);
-                      setCsvFile(null);
-                      setCsvPreview([]);
-                    }}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleBulkUpload}
-                    disabled={!csvFile || loading}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                    Upload Members
-                  </Button>
-                </div>
+              </div>
+              <div className="p-6 border-t border-slate-200 flex gap-4 flex-shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowBulkModal(false);
+                    setCsvFile(null);
+                    setCsvPreview([]);
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleBulkUpload}
+                  disabled={!csvFile || loading}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                  Upload Members
+                </Button>
               </div>
             </motion.div>
           </div>

@@ -5,26 +5,19 @@ const adminController = {
   // Get all members for admin
   getAllMembers: async (req, res) => {
     try {
-      const members = await Member.find({}, {
-        memberId: 1,
-        memberName: 1,
-        phoneNumber: 1,
-        status: 1,
-        joinDate: 1,
-        createdAt: 1
-      }).sort({ createdAt: -1 });
+      const members = await Member.find({}).sort({ createdAt: -1 });
 
       const formattedMembers = members.map(member => ({
         id: member.memberId,
         name: member.memberName,
-        contact: member.phoneNumber,
+        contact: member.phoneNumber || member.email,
         status: member.status,
-        join_date: member.joinDate ? member.joinDate.toISOString().split('T')[0] : null
+        join_date: member.joinDate ? new Date(member.joinDate).toISOString().split('T')[0] : new Date(member.createdAt).toISOString().split('T')[0]
       }));
 
       res.json({
         success: true,
-        members: formattedMembers || []
+        members: formattedMembers
       });
     } catch (error) {
       console.error('Error fetching all members:', error);

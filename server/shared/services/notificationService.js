@@ -8,11 +8,18 @@ const nodemailer = require('nodemailer');
 // Email configuration (using Gmail as example)
 // In production, use environment variables for credentials
 const createEmailTransporter = () => {
+  // Check if email is configured
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD || 
+      process.env.EMAIL_USER === 'your_email@gmail.com' ||
+      process.env.EMAIL_PASSWORD === 'your_app_password_here') {
+    return null;
+  }
+  
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.EMAIL_USER || 'your-email@gmail.com',
-      pass: process.env.EMAIL_PASSWORD || 'your-app-password',
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
     },
   });
 };
@@ -23,6 +30,12 @@ const createEmailTransporter = () => {
 const sendCredentialsEmail = async (memberData) => {
   try {
     const transporter = createEmailTransporter();
+    
+    // If email is not configured, skip sending
+    if (!transporter) {
+      console.warn('⚠️  Email not configured - skipping email notification');
+      return { success: false, error: 'Email service not configured' };
+    }
 
     const mailOptions = {
       from: process.env.EMAIL_USER || 'SVPMPC <noreply@svpmpc.com>',
@@ -230,6 +243,12 @@ const sendBulkCredentials = async (membersData, options = { email: true, sms: fa
 const sendPasswordResetNotification = async (memberData) => {
   try {
     const transporter = createEmailTransporter();
+    
+    // If email is not configured, skip sending
+    if (!transporter) {
+      console.warn('⚠️  Email not configured - skipping password reset email');
+      return { success: false, error: 'Email service not configured' };
+    }
 
     const mailOptions = {
       from: process.env.EMAIL_USER || 'SVPMPC <noreply@svpmpc.com>',

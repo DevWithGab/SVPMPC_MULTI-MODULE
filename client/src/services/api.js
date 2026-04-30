@@ -9,14 +9,32 @@ const api = axios.create({
   },
 });
 
-// Add token to requests if it exists
+// Add token to requests if it exists (except for login)
 api.interceptors.request.use((config) => {
+  // Don't add token to login requests
+  if (config.url === '/auth/login') {
+    return config;
+  }
+  
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// Handle 401 errors by clearing invalid tokens
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && error.config?.url !== '/auth/login') {
+      // Clear invalid token
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    return Promise.reject(error);
+  }
+);
 
 // ============================================
 // AUTHENTICATION API
@@ -92,6 +110,8 @@ export const bulkImportAPI = {
   },
 };
 
+// ============================================
+// ATTENDANCE - MEMBER API
 // ============================================
 // ATTENDANCE - MEMBER API
 // ============================================
@@ -261,6 +281,16 @@ export const attendanceAPI = {
 
   getAllAttendance: async () => {
     const response = await api.get('/attendance/attendance');
+    return response.data;
+  },
+};
+
+// ============================================
+// MORTUARY - MEMBER API
+// ============================================
+export const mortuaryMemberAPI = {
+  getAllMembers: async () => {
+    const response = await api.get('/mortuary/admin/members');
     return response.data;
   },
 };
@@ -443,33 +473,38 @@ export const notificationAPI = {
 // ADMIN - MEMBER MANAGEMENT API
 // ============================================
 export const adminAPI = {
+  login: async (username, password) => {
+    const response = await api.post('/auth/login', { username, password });
+    return response.data;
+  },
+
   createMember: async (memberData) => {
-    const response = await api.post('/mortuary/admin/members/create', memberData);
+    const response = await api.post('/admin/members/create', memberData);
     return response.data;
   },
 
   bulkCreateMembers: async (members) => {
-    const response = await api.post('/mortuary/admin/members/bulk-create', { members });
+    const response = await api.post('/admin/members/bulk-create', { members });
     return response.data;
   },
 
   getAllMembers: async (params = {}) => {
-    const response = await api.get('/mortuary/admin/members', { params });
+    const response = await api.get('/admin/members', { params });
     return response.data;
   },
 
   updateMember: async (memberId, updateData) => {
-    const response = await api.put(`/mortuary/admin/members/${memberId}`, updateData);
+    const response = await api.put(`/admin/members/${memberId}`, updateData);
     return response.data;
   },
 
   deleteMember: async (memberId) => {
-    const response = await api.delete(`/mortuary/admin/members/${memberId}`);
+    const response = await api.delete(`/admin/members/${memberId}`);
     return response.data;
   },
 
   resetMemberPassword: async (memberId) => {
-    const response = await api.post(`/mortuary/admin/members/${memberId}/reset-password`);
+    const response = await api.post(`/admin/members/${memberId}/reset-password`);
     return response.data;
   },
 };
