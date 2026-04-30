@@ -87,13 +87,13 @@ const AdminPortal = ({ onBack }) => {
       
       if (dashboardRes) {
         setStats({
-          fundBalance: dashboardRes.fundBalance || 75000,
+          fundBalance: dashboardRes.fundBalance || 0,
           activeMembers: membersRes.members?.length || 0,
           totalPayouts: payoutsRes.payouts?.reduce((sum, p) => sum + p.amount, 0) || 0,
         });
       } else {
         setStats({
-          fundBalance: 75000,
+          fundBalance: 0,
           activeMembers: membersRes.members?.length || 0,
           totalPayouts: payoutsRes.payouts?.reduce((sum, p) => sum + p.amount, 0) || 0,
         });
@@ -102,7 +102,7 @@ const AdminPortal = ({ onBack }) => {
       console.error('Error fetching initial data:', error);
       // Set fallback data
       setStats({
-        fundBalance: 75000,
+        fundBalance: 0,
         activeMembers: members.length,
         totalPayouts: 0,
       });

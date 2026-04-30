@@ -10,9 +10,17 @@ const adminController = {
       const formattedMembers = members.map(member => ({
         id: member.memberId,
         name: member.memberName,
-        contact: member.phoneNumber || member.email,
+        email: member.email,
+        contact: member.phoneNumber,
+        barangay: member.barangay,
+        address: member.address,
+        beneficiaries: member.beneficiaries,
+        dateOfBirth: member.dateOfBirth,
+        gender: member.gender,
         status: member.status,
-        join_date: member.joinDate ? new Date(member.joinDate).toISOString().split('T')[0] : new Date(member.createdAt).toISOString().split('T')[0]
+        modules: member.modules,
+        join_date: member.joinDate ? new Date(member.joinDate).toISOString().split('T')[0] : new Date(member.createdAt).toISOString().split('T')[0],
+        created_at: new Date(member.createdAt).toISOString().split('T')[0]
       }));
 
       res.json({
