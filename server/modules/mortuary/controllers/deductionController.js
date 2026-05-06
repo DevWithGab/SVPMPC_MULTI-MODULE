@@ -9,8 +9,8 @@ const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
 // Get all member balances
 const getAllMemberBalances = async (req, res) => {
   try {
-    // Get all active members
-    const members = await Member.find({ status: 'active' }).select('memberId memberName phoneNumber');
+    // Get all active members with full details
+    const members = await Member.find({ status: 'active' });
     
     const memberBalances = [];
     
@@ -23,9 +23,18 @@ const getAllMemberBalances = async (req, res) => {
       const isLowBalance = balance < MINIMUM_BALANCE;
       
       memberBalances.push({
+        id: member.memberId, // Frontend expects 'id'
         memberId: member.memberId,
+        name: member.memberName, // Frontend expects 'name'
         memberName: member.memberName,
+        email: member.email,
+        contact: member.phoneNumber, // Frontend expects 'contact'
         phoneNumber: member.phoneNumber,
+        address: member.address,
+        barangay: member.barangay,
+        beneficiaries: member.beneficiaries,
+        status: member.status,
+        join_date: member.joinDate,
         balance: balance,
         isLowBalance: isLowBalance,
         lastUpdated: latestLedger ? latestLedger.transactionDate : null

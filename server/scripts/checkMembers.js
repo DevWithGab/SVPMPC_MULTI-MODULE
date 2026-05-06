@@ -1,52 +1,53 @@
 const mongoose = require('mongoose');
-require('dotenv').config();
-
-// Import models
+const path = require('path');
 const { Member } = require('../shared/models');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-// Database connection
-const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/svpmpc-multi-module');
-    console.log('✅ MongoDB Connected');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
-  }
-};
-
-// Check members
 const checkMembers = async () => {
   try {
-    console.log('🔍 Checking members in database...\n');
-
-    await connectDB();
-
-    const members = await Member.find({}).sort({ createdAt: -1 }).limit(20);
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ Connected to MongoDB\n');
     
-    console.log(`📊 Total members found: ${members.length}\n`);
+    // Get all members
+    const allMembers = await Member.find({});
     
-    if (members.length === 0) {
-      console.log('⚠️  No members found in database!');
-      console.log('   Upload CSV in SuperAdmin portal to add members\n');
-    } else {
-      console.log('👥 Recent members:');
-      members.forEach((member, index) => {
-        console.log(`\n${index + 1}. ${member.memberName}`);
-        console.log(`   ID: ${member.memberId}`);
-        console.log(`   Email: ${member.email}`);
-        console.log(`   Phone: ${member.phoneNumber}`);
-        console.log(`   Status: ${member.status}`);
-      });
+    console.log(`📋 Total members in database: ${allMembers.length}\n`);
+    
+    if (allMembers.length === 0) {
+      console.log('💡 Database is empty - no members found');
+      process.exit(0);
     }
-
-    console.log('\n');
+    
+    // Group by status
+    const byStatus = {};
+    allMembers.forEach(member => {
+      const status = member.status || 'undefined';
+      if (!byStatus[status]) byStatus[status] = [];
+      byStatus[status].push(member);
+    });
+    
+    console.log('📊 Members by status:\n');
+    Object.keys(byStatus).forEach(status => {
+      console.log(`   ${status.toUpperCase()}: ${byStatus[status].length} members`);
+      byStatus[status].forEach(member => {
+        console.log(`      - ${member.memberName} (${member.memberId})`);
+      });
+      console.log('');
+    });
+    
+    // Check for staff pattern
+    const staffPattern = allMembers.filter(m => 
+      m.memberId.match(/^(SUPER-ADMIN|ATT-|MORT-)/)
+    );
+    
+    console.log(`🔧 Staff members (by ID pattern): ${staffPattern.length}`);
+    console.log(`👥 Regular members: ${allMembers.length - staffPattern.length}\n`);
+    
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error checking members:', error);
+    console.error('❌ Error:', error);
     process.exit(1);
   }
 };
 
-// Run the check
 checkMembers();

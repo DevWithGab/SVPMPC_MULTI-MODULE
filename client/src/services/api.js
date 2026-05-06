@@ -571,6 +571,29 @@ export const treasurerAPI = {
     return response.data;
   },
 
+  // Ledger Management
+  getMemberLedger: async (memberId, limit = 100) => {
+    const response = await api.get(`/mortuary/treasurer/ledger/${memberId}?limit=${limit}`);
+    return response.data;
+  },
+
+  getAllLedger: async (transactionType = null, limit = 100) => {
+    const params = new URLSearchParams({ limit });
+    if (transactionType) params.append('transactionType', transactionType);
+    const response = await api.get(`/mortuary/treasurer/ledger?${params}`);
+    return response.data;
+  },
+
+  getMemberBalance: async (memberId) => {
+    const response = await api.get(`/mortuary/treasurer/balance/${memberId}`);
+    return response.data;
+  },
+
+  bulkUploadLedger: async (ledgerEntries) => {
+    const response = await api.post('/mortuary/treasurer/ledger/bulk-upload', { ledgerEntries });
+    return response.data;
+  },
+
   // Notifications
   sendReminderToMember: async (reminderData) => {
     const response = await api.post('/mortuary/treasurer/notifications/send-reminder', reminderData);

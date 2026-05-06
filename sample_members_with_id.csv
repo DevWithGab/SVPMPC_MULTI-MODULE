@@ -1,0 +1,6 @@
+memberId,memberName,email,phoneNumber,barangay,address,beneficiaries,dateOfBirth,gender
+M001,Juan Dela Cruz,juan@example.com,09123456789,Barangay 1,"123 Main St, Barangay 1",Maria Dela Cruz,1980-01-15,male
+M002,Maria Santos,maria@example.com,09234567890,Barangay 2,"456 Oak Ave, Barangay 2",Pedro Santos,1985-05-20,female
+M003,Pedro Garcia,pedro@example.com,09345678901,Barangay 1,"789 Pine Rd, Barangay 1",Ana Garcia,1978-03-10,male
+M004,Ana Lopez,ana@example.com,09456789012,Barangay 3,"321 Elm St, Barangay 3",Carlos Lopez,1990-07-25,female
+M005,Carlos Reyes,carlos@example.com,09567890123,Barangay 2,"654 Maple Dr, Barangay 2",Rosa Reyes,1982-11-30,male

@@ -138,18 +138,35 @@ const bulkCreateMembers = async (req, res) => {
 
     for (const memberData of members) {
       try {
+        console.log(`📝 Processing member: ${memberData.memberName} (${memberData.email})`);
+        
         // Check if email already exists
         const existingMember = await Member.findOne({ email: memberData.email });
         if (existingMember) {
+          console.log(`❌ Email already exists: ${memberData.email}`);
           results.failed.push({
             email: memberData.email,
+            memberName: memberData.memberName,
             reason: 'Email already exists',
           });
           continue;
         }
 
-        // Generate unique memberId
-        const memberId = `MEM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Use provided memberId or generate unique one
+        const memberId = memberData.memberId || `MEM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`🆔 Using memberId: ${memberId}`);
+
+        // Check if memberId already exists
+        const existingMemberId = await Member.findOne({ memberId });
+        if (existingMemberId) {
+          console.log(`❌ MemberId already exists: ${memberId}`);
+          results.failed.push({
+            email: memberData.email,
+            memberName: memberData.memberName,
+            reason: `MemberId ${memberId} already exists`,
+          });
+          continue;
+        }
 
         // Create member
         const member = new Member({
@@ -167,6 +184,7 @@ const bulkCreateMembers = async (req, res) => {
         });
 
         await member.save();
+        console.log(`✅ Member saved: ${member.memberId}`);
 
         // Generate temporary password
         const temporaryPassword = generatePassword();
@@ -188,6 +206,7 @@ const bulkCreateMembers = async (req, res) => {
         });
 
         await user.save();
+        console.log(`✅ User account created: ${user.username}`);
 
         results.success.push({
           memberId: member.memberId,
@@ -197,8 +216,10 @@ const bulkCreateMembers = async (req, res) => {
           temporaryPassword,
         });
       } catch (error) {
+        console.error(`❌ Error processing ${memberData.email}:`, error.message);
         results.failed.push({
           email: memberData.email,
+          memberName: memberData.memberName || 'Unknown',
           reason: error.message,
         });
       }

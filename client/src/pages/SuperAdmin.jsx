@@ -147,12 +147,35 @@ const SuperAdmin = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target.result;
-        const lines = text.split('\n');
-        const headers = lines[0].split(',');
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        // Parse CSV properly handling quoted fields
+        const parseCSVLine = (line) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+        
+        const headers = parseCSVLine(lines[0]);
         const preview = lines.slice(1, 6).map(line => {
-          const values = line.split(',');
+          const values = parseCSVLine(line);
           return headers.reduce((obj, header, index) => {
-            obj[header.trim()] = values[index]?.trim();
+            obj[header] = values[index] || '';
             return obj;
           }, {});
         });
@@ -170,14 +193,40 @@ const SuperAdmin = () => {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const text = event.target.result;
-        const lines = text.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim());
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        // Parse CSV properly handling quoted fields
+        const parseCSVLine = (line) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+        
+        const headers = parseCSVLine(lines[0]);
+        console.log('CSV Headers:', headers);
         
         const members = lines.slice(1)
           .filter(line => line.trim())
-          .map(line => {
-            const values = line.split(',').map(v => v.trim());
-            return {
+          .map((line, index) => {
+            const values = parseCSVLine(line);
+            console.log(`Row ${index + 1} values:`, values);
+            
+            const memberData = {
               memberName: values[headers.indexOf('memberName')],
               email: values[headers.indexOf('email')],
               phoneNumber: values[headers.indexOf('phoneNumber')],
@@ -188,9 +237,21 @@ const SuperAdmin = () => {
               gender: values[headers.indexOf('gender')] || 'male',
               modules: ['attendance', 'mortuary']
             };
+            
+            // Include memberId if provided in CSV
+            const memberIdIndex = headers.indexOf('memberId');
+            if (memberIdIndex !== -1 && values[memberIdIndex]) {
+              memberData.memberId = values[memberIdIndex];
+            }
+            
+            console.log(`Parsed member ${index + 1}:`, memberData);
+            return memberData;
           });
 
+        console.log('Sending members to API:', members);
         const response = await adminAPI.bulkCreateMembers(members);
+        console.log('API Response:', response);
+        
         showToast(`Bulk upload complete! ${response.summary.successful} successful, ${response.summary.failed} failed`, 'success');
         setShowBulkModal(false);
         setCsvFile(null);
@@ -199,6 +260,7 @@ const SuperAdmin = () => {
       };
       reader.readAsText(csvFile);
     } catch (error) {
+      console.error('Upload error:', error);
       showToast('Error uploading CSV', 'error');
     } finally {
       setLoading(false);

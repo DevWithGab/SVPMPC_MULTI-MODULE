@@ -7,10 +7,21 @@ const { v4: uuidv4 } = require('uuid');
 // Record contribution (admin)
 const recordContribution = async (req, res) => {
   try {
-    const { memberId, amount, paymentDate, dueDate, paymentMethod, referenceNumber, notes } = req.body;
+    console.log('📦 Full request body:', req.body);
+    
+    const { memberId: memberIdParam, member_id, amount, paymentDate, payment_date, dueDate, due_date, paymentMethod, payment_method, referenceNumber, notes } = req.body;
+    
+    // Accept both naming conventions
+    const memberId = memberIdParam || member_id;
+    const finalPaymentDate = paymentDate || payment_date;
+    const finalDueDate = dueDate || due_date || new Date();
+    const finalPaymentMethod = paymentMethod || payment_method || 'cash';
 
-    if (!memberId || !amount || !dueDate) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
+
+    if (!memberId || !amount) {
+      console.log('❌ Missing required fields:', { memberId, amount });
+      return res.status(400).json({ message: 'Missing required fields: memberId and amount' });
     }
 
     // Verify member exists
@@ -29,10 +40,10 @@ const recordContribution = async (req, res) => {
       contributionId: `CONTRIB-${Date.now()}`,
       memberId,
       amount,
-      paymentDate: paymentDate || new Date(),
-      dueDate,
+      paymentDate: finalPaymentDate || new Date(),
+      dueDate: finalDueDate,
       status: 'paid',
-      paymentMethod: paymentMethod || 'cash',
+      paymentMethod: finalPaymentMethod,
       referenceNumber,
       notes,
     });
@@ -44,16 +55,19 @@ const recordContribution = async (req, res) => {
       ledgerId: uuidv4(),
       memberId,
       transactionType: 'contribution',
-      description: `Contribution payment - ${paymentMethod || 'cash'}`,
+      description: `Contribution payment - ${finalPaymentMethod}`,
       credit: amount,
       balance: newBalance,
       referenceId: contribution.contributionId,
       recordedBy: 'admin',
+      paymentMethod: finalPaymentMethod.charAt(0).toUpperCase() + finalPaymentMethod.slice(1).replace('_', ' '),
+      transactionDate: finalPaymentDate || new Date()
     });
 
     await ledgerEntry.save();
 
     res.status(201).json({
+      success: true,
       message: 'Contribution recorded successfully',
       contribution: contribution,
       ledgerEntry: ledgerEntry,

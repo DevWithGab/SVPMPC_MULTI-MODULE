@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Search, ArrowLeft, Printer, CreditCard, FileText, DollarSign, 
-  ChevronRight, MessageSquare, ArrowRight 
+  ChevronRight, MessageSquare, ArrowRight, Upload, X, Loader
 } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
+import { treasurerAPI } from '../../../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const extractBarangay = (address) => {
   if (!address) return 'Not Specified';
@@ -28,8 +30,141 @@ const MemberLedger = ({
   itemsPerPage,
   handleQuickDeposit,
   setIsAddContributionOpen,
-  handleTriggerAutomatedNotice
+  handleTriggerAutomatedNotice,
+  showToast,
+  refreshData
 }) => {
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvPreview, setCsvPreview] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleCSVUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setCsvFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        // Parse CSV properly handling quoted fields
+        const parseCSVLine = (line) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+        
+        const headers = parseCSVLine(lines[0]);
+        const preview = lines.slice(1, 6).map(line => {
+          const values = parseCSVLine(line);
+          return headers.reduce((obj, header, index) => {
+            obj[header] = values[index] || '';
+            return obj;
+          }, {});
+        });
+        setCsvPreview(preview);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!csvFile) return;
+    
+    setLoading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const text = event.target.result;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        // Parse CSV properly handling quoted fields
+        const parseCSVLine = (line) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+        
+        const headers = parseCSVLine(lines[0]);
+        console.log('Ledger CSV Headers:', headers);
+        
+        const ledgerEntries = lines.slice(1)
+          .filter(line => line.trim())
+          .map((line, index) => {
+            const values = parseCSVLine(line);
+            console.log(`Ledger Row ${index + 1}:`, values);
+            
+            return {
+              memberId: values[headers.indexOf('memberId')],
+              transactionDate: values[headers.indexOf('transactionDate')],
+              credit: parseFloat(values[headers.indexOf('credit')]) || 0,
+              debit: parseFloat(values[headers.indexOf('debit')]) || 0,
+              description: values[headers.indexOf('description')] || 'Bulk upload',
+              transactionType: values[headers.indexOf('transactionType')] || '',
+              referenceId: values[headers.indexOf('referenceId')] || values[headers.indexOf('ref_no')] || '',
+              paymentMethod: values[headers.indexOf('paymentMethod')] || 'Cash',
+              status: values[headers.indexOf('status')] || 'completed'
+            };
+          });
+
+        console.log('Sending ledger entries:', ledgerEntries);
+        const response = await treasurerAPI.bulkUploadLedger(ledgerEntries);
+        console.log('Ledger upload response:', response);
+        
+        showToast(`Bulk upload complete! ${response.results.success.length} successful, ${response.results.failed.length} failed`, 'success');
+        
+        if (response.results.failed.length > 0) {
+          console.log('Failed entries:', response.results.failed);
+        }
+        
+        setShowBulkModal(false);
+        setCsvFile(null);
+        setCsvPreview([]);
+        
+        // Refresh ledger data without reloading page
+        if (refreshData) {
+          await refreshData();
+        }
+      };
+      reader.readAsText(csvFile);
+    } catch (error) {
+      console.error('Upload error:', error);
+      showToast('Error uploading CSV: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
   // Individual Member Ledger View
   if (selectedLedgerMember) {
     const currentMember = members.find(m => m.id === selectedLedgerMember.id) || selectedLedgerMember;
@@ -244,6 +379,14 @@ const MemberLedger = ({
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <div className="w-full sm:w-auto self-end">
+            <Button 
+              onClick={() => setShowBulkModal(true)}
+              className="w-full h-12 bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 text-emerald-700 hover:text-white transition-all shadow-sm rounded-2xl font-black uppercase tracking-widest text-[10px] px-6 gap-2"
+            >
+              <Upload className="w-4 h-4" /> Bulk Upload CSV
+            </Button>
+          </div>
           {barangayFilter !== 'All' && (
             <div className="w-full sm:w-auto self-end">
               <Button 
@@ -307,7 +450,7 @@ const MemberLedger = ({
                     <div className="flex justify-end gap-2">
                       <Button 
                         variant="ghost"
-                        onClick={() => handleQuickDeposit(member.id)}
+                        onClick={() => handleQuickDeposit(member.memberId || member.id)}
                         className="bg-transparent border border-green-200 text-coop-green hover:bg-green-50 hover:text-coop-green hover:border-green-300 font-bold uppercase text-[10px] tracking-widest h-12 px-6 rounded-2xl transition-all"
                       >
                         + Quick Deposit
@@ -362,6 +505,123 @@ const MemberLedger = ({
           </div>
         </div>
       </Card>
+
+      {/* Bulk Upload Modal */}
+      <AnimatePresence>
+        {showBulkModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Bulk Upload Ledger Entries</h3>
+                  <p className="text-xs text-slate-500 mt-1">Upload CSV file with member ledger transactions</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowBulkModal(false);
+                    setCsvFile(null);
+                    setCsvPreview([]);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center">
+                  <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-sm font-bold text-slate-700 mb-2">Upload CSV File</p>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Required columns: memberId, transactionDate, credit, debit, description
+                  </p>
+                  <p className="text-xs text-slate-400 mb-4">
+                    Optional: transactionType, referenceId, paymentMethod, status
+                  </p>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    className="hidden"
+                    id="ledger-csv-upload"
+                  />
+                  <label
+                    htmlFor="ledger-csv-upload"
+                    className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer transition-colors"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose File
+                  </label>
+                  {csvFile && (
+                    <p className="text-sm text-emerald-600 mt-4 font-bold">
+                      {csvFile.name} selected
+                    </p>
+                  )}
+                </div>
+                {csvPreview.length > 0 && (
+                  <div>
+                    <p className="text-sm font-bold text-slate-700 mb-2">Preview (first 5 rows):</p>
+                    <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            {Object.keys(csvPreview[0]).map(key => (
+                              <th key={key} className="px-3 py-2 text-left font-bold text-slate-600 whitespace-nowrap">{key}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {csvPreview.map((row, idx) => (
+                            <tr key={idx} className="border-t border-slate-200">
+                              {Object.values(row).map((val, i) => (
+                                <td key={i} className="px-3 py-2 text-slate-600 whitespace-nowrap">{val}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-xs font-bold text-blue-900 mb-2">CSV Format Example:</p>
+                  <pre className="text-xs text-blue-700 font-mono overflow-x-auto">
+{`memberId,transactionDate,credit,debit,description
+M001,2024-01-15,500,0,Monthly contribution
+M002,2024-01-15,0,5000,Death benefit payout`}
+                  </pre>
+                </div>
+              </div>
+              <div className="p-6 border-t border-slate-200 flex gap-4 flex-shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowBulkModal(false);
+                    setCsvFile(null);
+                    setCsvPreview([]);
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleBulkUpload}
+                  disabled={!csvFile || loading}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                  Upload Ledger Entries
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

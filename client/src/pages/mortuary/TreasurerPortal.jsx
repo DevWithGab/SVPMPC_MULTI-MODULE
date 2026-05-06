@@ -156,9 +156,26 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   // Utility functions
   const showToast = (message, type) => setToast({ message, type });
 
+  // Refresh all data
+  const refreshAllData = async () => {
+    await Promise.all([
+      fetchMembers(),
+      fetchContributions(),
+      fetchClaims(),
+      fetchDashboardStats(),
+      fetchLedger()
+    ]);
+  };
+
   // Event handlers
   const handleQuickDeposit = (memberId) => {
-    setNewContribution({ ...newContribution, member_id: memberId.toString() });
+    console.log('🔍 handleQuickDeposit called with:', memberId);
+    setNewContribution({ 
+      member_id: memberId, 
+      amount: '', 
+      payment_date: new Date().toISOString().split('T')[0], 
+      status: 'paid' 
+    });
     setIsAddContributionOpen(true);
   };
 
@@ -431,6 +448,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             handleQuickDeposit={handleQuickDeposit}
             setIsAddContributionOpen={setIsAddContributionOpen}
             handleTriggerAutomatedNotice={handleTriggerAutomatedNotice}
+            showToast={showToast}
+            refreshData={refreshAllData}
           />
         );
       default:

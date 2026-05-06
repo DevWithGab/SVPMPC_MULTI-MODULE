@@ -51,7 +51,7 @@ const memberSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'inactive', 'deceased'],
+      enum: ['active', 'inactive', 'deceased', 'staff'],
       default: 'active',
     },
     // Shared fields

@@ -8,7 +8,7 @@ import {
   MemberManagement, 
   Reports
 } from '../../components/mortuary/admin';
-import Settings from '../../components/mortuary/admin/Settings';
+import SettingsView from '../../components/mortuary/admin/Settings';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import AddMemberModal from '../../components/mortuary/admin/modals/AddMemberModal';
@@ -527,7 +527,7 @@ const AdminPortal = ({ onBack }) => {
           )}
 
           {activeSection === 'settings' && (
-            <Settings
+            <SettingsView
               systemSettings={systemSettings}
               setSystemSettings={setSystemSettings}
               showToast={showToast}

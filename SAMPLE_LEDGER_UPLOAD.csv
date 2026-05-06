@@ -1,0 +1,11 @@
+memberId,transactionDate,credit,debit,description,referenceId
+M001,2024-01-15,500,0,Monthly contribution,OR-001
+M002,2024-01-15,1000,0,Initial deposit,OR-002
+M003,2024-01-20,500,0,Monthly contribution,OR-003
+M001,2024-02-15,500,0,Monthly contribution,OR-004
+M004,2024-02-20,750,0,Special contribution,OR-005
+M002,2024-03-15,1000,0,Monthly contribution,OR-006
+M005,2024-03-25,500,0,Initial deposit,OR-007
+M001,2024-04-15,500,0,Monthly contribution,OR-008
+M003,2024-04-20,500,0,Monthly contribution,OR-009
+M004,2024-04-25,500,0,Monthly contribution,OR-010
