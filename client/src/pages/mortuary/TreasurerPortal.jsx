@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, CreditCard, FileText, LayoutDashboard, LayoutGrid, 
   Heart, LogOut, BarChart3
@@ -10,7 +10,6 @@ import {
   Dashboard, 
   MemberBalances, 
   Contributions, 
-  DeathVerifications, 
   Reports, 
   MemberLedger 
 } from '../../components/mortuary/treasurer';
@@ -62,7 +61,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   // Modal states
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
   const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
-  const [isBulkDeductOpen, setIsBulkDeductOpen] = useState(false);
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
   
   // Form data states
@@ -72,24 +70,15 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     payment_date: new Date().toISOString().split('T')[0], 
     status: 'paid' 
   });
-  const [newClaim, setNewClaim] = useState({
-    member_id: '',
-    date_of_death: new Date().toISOString().split('T')[0],
-    cause: '',
-    claimant_name: '',
-    claimant_relationship: '',
-    deduction_amount: '25'
-  });
-  const [bulkDeductData, setBulkDeductData] = useState({ amount: '', reason: '' });
+  const [deductionAmount, setDeductionAmount] = useState('25');
   const [smsData, setSmsData] = useState({ memberId: null, message: '', memberName: '' });
   const [selectedLedgerMember, setSelectedLedgerMember] = useState(null);
+  const prevMembersRef = useRef([]);
 
   // Data fetching functions
   const fetchMembers = async () => {
     try {
-      console.log('Fetching members...');
       const response = await api.get('/mortuary/treasurer/balances/all');
-      console.log('Members response:', response.data);
       if (response.data.success) {
         setMembers(response.data.data.members || []);
       }
@@ -161,7 +150,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     await Promise.all([
       fetchMembers(),
       fetchContributions(),
-      fetchClaims(),
       fetchDashboardStats(),
       fetchLedger()
     ]);
@@ -169,7 +157,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
   // Event handlers
   const handleQuickDeposit = (memberId) => {
-    console.log('🔍 handleQuickDeposit called with:', memberId);
     setNewContribution({ 
       member_id: memberId, 
       amount: '', 
@@ -187,17 +174,39 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     try {
       const response = await api.post('/mortuary/treasurer/contributions/record', {
         ...newContribution,
-        amount: parseFloat(newContribution.amount),
-        member_id: parseInt(newContribution.member_id)
+        amount: parseFloat(newContribution.amount)
       });
 
       if (response.data.success) {
+        const contributedMemberId = newContribution.member_id;
+        
         setIsAddContributionOpen(false);
         setNewContribution({ member_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'paid' });
-        fetchContributions();
-        fetchDashboardStats();
-        fetchMembers();
-        fetchLedger();
+        
+        // Refresh all data after contribution is recorded
+        await Promise.all([
+          fetchContributions(),
+          fetchLedger(),
+          fetchDashboardStats()
+        ]);
+        
+        // Fetch members last so we can update the selected member
+        const membersResponse = await api.get('/mortuary/treasurer/balances/all');
+        if (membersResponse.data.success) {
+          const updatedMembers = membersResponse.data.data.members || [];
+          setMembers(updatedMembers);
+          
+          // If we're viewing the member we just added a contribution for, update the selection
+          if (selectedLedgerMember) {
+            if (selectedLedgerMember.id === contributedMemberId || selectedLedgerMember.memberId === contributedMemberId) {
+              const updatedMember = updatedMembers.find(m => m.id === contributedMemberId || m.memberId === contributedMemberId);
+              if (updatedMember) {
+                setSelectedLedgerMember(updatedMember);
+              }
+            }
+          }
+        }
+        
         showToast('Contribution recorded.', 'success');
       }
     } catch (error) {
@@ -269,98 +278,35 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  const handleAddClaim = async (e) => {
+  const handleDeathDeduction = async (e) => {
     e.preventDefault();
-    if (!newClaim.member_id) return showToast('Please select a deceased member.', 'error');
-    if (!newClaim.deduction_amount || parseFloat(newClaim.deduction_amount) <= 0) return showToast('Please enter a valid deduction amount.', 'error');
     
-    // Check for bulk deduction shortcut
-    if (newClaim.member_id === 'all') {
-      const amount = parseFloat(newClaim.deduction_amount);
-      if (isNaN(amount) || amount <= 0) {
-        showToast('Please enter a valid deduction amount.', 'error');
-        return;
-      }
-
-      if (!confirm(`This will immediately deduct ₱${amount} from ALL active members for a general death fund contribution. Proceed?`)) return;
-      
-      try {
-        const response = await api.post('/mortuary/treasurer/balances/automatic-deduction', {
-          deceasedMemberName: "General Death Fund Deduction (All Members)",
-          recordedBy: user?.name || 'treasurer',
-          customAmount: amount
-        });
-
-        if (response.data.success) {
-          setIsAddClaimOpen(false);
-          setNewClaim({
-            member_id: '',
-            date_of_death: new Date().toISOString().split('T')[0],
-            cause: '',
-            claimant_name: '',
-            claimant_relationship: '',
-            deduction_amount: '25'
-          });
-          fetchMembers();
-          fetchDashboardStats();
-          fetchLedger();
-          showToast('Bulk ₱25 deduction processed for all active members.', 'success');
-        }
-      } catch (error) {
-        console.error('Error processing bulk deduction:', error);
-        showToast('Failed to process bulk deduction.', 'error');
-      }
+    const amount = parseFloat(deductionAmount);
+    if (isNaN(amount) || amount <= 0) {
+      showToast('Please enter a valid deduction amount.', 'error');
       return;
     }
 
+    if (!confirm(`This will immediately deduct ₱${amount} from ALL active members for death fund contribution. Proceed?`)) return;
+    
     try {
-      const response = await api.post('/mortuary/claims', {
-        ...newClaim,
-        member_id: parseInt(newClaim.member_id)
+      const response = await api.post('/mortuary/treasurer/balances/automatic-deduction', {
+        deceasedMemberName: "Death Fund Deduction (All Members)",
+        recordedBy: user?.name || 'treasurer',
+        customAmount: amount
       });
 
       if (response.data.success) {
         setIsAddClaimOpen(false);
-        setNewClaim({
-          member_id: '',
-          date_of_death: new Date().toISOString().split('T')[0],
-          cause: '',
-          claimant_name: '',
-          claimant_relationship: '',
-          deduction_amount: '25'
-        });
-        fetchClaims();
-        showToast('Death case recorded. Please verify in the Verifications tab to trigger deductions.', 'success');
-        setActiveTab('verifications');
-      }
-    } catch (error) {
-      console.error('Error adding claim:', error);
-      showToast('Error recording death case.', 'error');
-    }
-  };
-
-  const handleBulkDeduct = async (e) => {
-    e.preventDefault();
-    if (!confirm(`Are you sure you want to deduct ₱${bulkDeductData.amount} from ALL active members for "${bulkDeductData.reason}"?`)) return;
-
-    try {
-      const response = await api.post('/mortuary/treasurer/balances/automatic-deduction', {
-        deceasedMemberName: bulkDeductData.reason,
-        recordedBy: user?.name || 'treasurer',
-        customAmount: parseFloat(bulkDeductData.amount)
-      });
-
-      if (response.data.success) {
-        setIsBulkDeductOpen(false);
-        setBulkDeductData({ amount: '', reason: '' });
+        setDeductionAmount('25');
         fetchMembers();
         fetchDashboardStats();
         fetchLedger();
-        showToast(`Bulk deduction of ₱${bulkDeductData.amount} processed.`, 'success');
+        showToast(`₱${amount} deduction processed for all active members.`, 'success');
       }
     } catch (error) {
-      console.error('Error processing bulk deduction:', error);
-      showToast('Failed to process bulk deduction.', 'error');
+      console.error('Error processing deduction:', error);
+      showToast('Failed to process deduction.', 'error');
     }
   };
 
@@ -368,10 +314,26 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   useEffect(() => {
     fetchMembers();
     fetchContributions();
-    fetchClaims();
     fetchDashboardStats();
     fetchLedger();
   }, []);
+
+  // Update selected ledger member when members array changes
+  useEffect(() => {
+    if (selectedLedgerMember && members.length > 0) {
+      const updatedMember = members.find(m => 
+        (m.id === selectedLedgerMember.id) || 
+        (m.memberId === selectedLedgerMember.id) ||
+        (m.id === selectedLedgerMember.memberId) ||
+        (m.memberId === selectedLedgerMember.memberId)
+      );
+      
+      if (updatedMember && updatedMember.balance !== selectedLedgerMember.balance) {
+        setSelectedLedgerMember(updatedMember);
+      }
+    }
+    prevMembersRef.current = members;
+  }, [members, selectedLedgerMember]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -404,7 +366,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             handleQuickDeposit={handleQuickDeposit}
             setSmsData={setSmsData}
             setIsSmsModalOpen={setIsSmsModalOpen}
-            setIsBulkDeductOpen={setIsBulkDeductOpen}
             setIsAddClaimOpen={setIsAddClaimOpen}
           />
         );
@@ -415,13 +376,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             paymentSearchQuery={paymentSearchQuery}
             setPaymentSearchQuery={setPaymentSearchQuery}
             setIsAddContributionOpen={setIsAddContributionOpen}
-          />
-        );
-      case 'verifications':
-        return (
-          <DeathVerifications 
-            claims={claims}
-            updateClaimStatus={updateClaimStatus}
           />
         );
       case 'reports':
@@ -476,7 +430,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} />
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} />
           <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="verifications" icon={Heart} label="Death Verifications" activeTab={activeTab} setActiveTab={setActiveTab} />
           <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} />
         </nav>
 
@@ -537,113 +490,48 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         </form>
       </Modal>
 
-      {/* Trigger Death Deduction (Add Claim) Modal */}
+      {/* Trigger Death Deduction Modal */}
       <Modal isOpen={isAddClaimOpen} onClose={() => setIsAddClaimOpen(false)} title="Trigger Death Deduction">
-        <form onSubmit={handleAddClaim} className="space-y-6">
+        <form onSubmit={handleDeathDeduction} className="space-y-6">
           <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl mb-6">
             <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest flex items-center gap-2">
-              <Heart className="w-3 h-3" /> Important Notice
+              <Heart className="w-3 h-3" /> Death Fund Contribution
             </p>
             <p className="text-xs text-rose-600 mt-1 font-medium leading-relaxed">
-              Recording a death case allows you to trigger the automatic ₱25 deduction from all members.
+              This will immediately deduct the specified amount from ALL active members for the death fund.
             </p>
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Deceased Member</label>
-              <SearchableMemberSelect 
-                members={members}
-                value={newClaim.member_id}
-                onChange={(val) => setNewClaim({ ...newClaim, member_id: val })}
-                placeholder="Search deceased member..."
-                extraOptions={[{ value: 'all', label: 'ALL ACTIVE MEMBERS (Rapid Death Relief)', className: 'text-rose-600 bg-rose-50/50' }]}
-              />
-            </div>
-
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Deduction Amount (₱ per member)</label>
               <Input 
                 type="number" 
                 placeholder="25" 
-                value={newClaim.deduction_amount}
-                onChange={e => setNewClaim({ ...newClaim, deduction_amount: e.target.value })}
+                value={deductionAmount}
+                onChange={e => setDeductionAmount(e.target.value)}
                 required
+                className="h-14 text-lg font-bold"
+                min="1"
+                step="0.01"
               />
-              <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 italic">Standard contribution is ₱25 unless adjusted by treasurer</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 italic">Standard contribution is ₱25 per member</p>
             </div>
 
-            {newClaim.member_id !== 'all' && newClaim.member_id !== '' && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Date of Death</label>
-                    <Input type="date" value={newClaim.date_of_death} onChange={e => setNewClaim({ ...newClaim, date_of_death: e.target.value })} required />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Cause of Death</label>
-                    <Input placeholder="e.g. Natural Causes" value={newClaim.cause} onChange={e => setNewClaim({ ...newClaim, cause: e.target.value })} required />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Claimant Name</label>
-                    <Input placeholder="Full Name" value={newClaim.claimant_name} onChange={e => setNewClaim({ ...newClaim, claimant_name: e.target.value })} required />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Relationship</label>
-                    <Input placeholder="e.g. Spouse" value={newClaim.claimant_relationship} onChange={e => setNewClaim({ ...newClaim, claimant_relationship: e.target.value })} required />
-                  </div>
-                </div>
+            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Members</p>
+                <p className="text-lg font-black text-slate-900">{members.length}</p>
               </div>
-            )}
-          </div>
-
-          <Button type="submit" className={`w-full h-14 text-white rounded-2xl font-black uppercase tracking-widest ${newClaim.member_id === 'all' ? 'bg-slate-950 hover:bg-slate-800' : 'bg-rose-600 hover:bg-rose-700'}`}>
-            {newClaim.member_id === 'all' ? `Apply Bulk ₱${newClaim.deduction_amount} Deduction` : 'Record & Continue to Verify'}
-          </Button>
-        </form>
-      </Modal>
-
-      {/* General Bulk Deduction Modal */}
-      <Modal isOpen={isBulkDeductOpen} onClose={() => setIsBulkDeductOpen(false)} title="General Bulk Deduction">
-        <form onSubmit={handleBulkDeduct} className="space-y-6">
-          <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl mb-6">
-            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
-              Manual Fund Adjustment
-            </p>
-            <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
-              This will deduct the specified amount from the balance of ALL active members simultaneously.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Deduction Amount (₱)</label>
-              <Input 
-                type="number" 
-                placeholder="0.00" 
-                value={bulkDeductData.amount} 
-                onChange={e => setBulkDeductData({...bulkDeductData, amount: e.target.value})} 
-                required 
-                className="h-12 rounded-xl" 
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Reason for Deduction</label>
-              <Input 
-                placeholder="e.g. Annual Maintenance Fee" 
-                value={bulkDeductData.reason} 
-                onChange={e => setBulkDeductData({...bulkDeductData, reason: e.target.value})} 
-                required 
-                className="h-12 rounded-xl" 
-              />
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Deduction</p>
+                <p className="text-2xl font-black text-rose-600">₱{(parseFloat(deductionAmount || 0) * members.length).toLocaleString()}</p>
+              </div>
             </div>
           </div>
 
-          <Button type="submit" className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800">
-            Apply Bulk Deduction
+          <Button type="submit" className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-rose-100">
+            Apply ₱{deductionAmount} Deduction to All Members
           </Button>
         </form>
       </Modal>

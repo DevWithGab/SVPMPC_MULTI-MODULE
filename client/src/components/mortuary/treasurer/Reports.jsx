@@ -18,13 +18,49 @@ const Reports = ({ members, contributions }) => {
     { name: 'At Risk (<1k)', value: members.filter(m => m.balance < 1000).length },
   ];
 
-  const monthlyData = [
-    { month: 'Dec', value: 145000 },
-    { month: 'Jan', value: 124000 },
-    { month: 'Feb', value: 185000 },
-    { month: 'Mar', value: 154000 },
-    { month: 'Apr', value: 210000 },
-  ];
+  // Calculate real monthly contribution data from actual contributions
+  const calculateMonthlyData = () => {
+    const monthlyTotals = {};
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // Group contributions by month
+    contributions.forEach(c => {
+      if (c.payment_date) {
+        const date = new Date(c.payment_date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthLabel = monthNames[date.getMonth()];
+        
+        if (!monthlyTotals[monthKey]) {
+          monthlyTotals[monthKey] = { month: monthLabel, value: 0, fullKey: monthKey };
+        }
+        monthlyTotals[monthKey].value += c.amount || 0;
+      }
+    });
+    
+    // Convert to array and sort by date
+    const sortedData = Object.values(monthlyTotals)
+      .sort((a, b) => a.fullKey.localeCompare(b.fullKey))
+      .slice(-5); // Get last 5 months
+    
+    // If no data, return empty array
+    return sortedData.length > 0 ? sortedData : [
+      { month: 'No Data', value: 0 }
+    ];
+  };
+
+  const monthlyData = calculateMonthlyData();
+  
+  // Calculate growth trend
+  const calculateGrowthTrend = () => {
+    if (monthlyData.length < 2) return '+0%';
+    const current = monthlyData[monthlyData.length - 1].value;
+    const previous = monthlyData[monthlyData.length - 2].value;
+    if (previous === 0) return '+0%';
+    const growth = ((current - previous) / previous * 100).toFixed(1);
+    return growth > 0 ? `+${growth}%` : `${growth}%`;
+  };
+
+  const growthTrend = calculateGrowthTrend();
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
@@ -85,10 +121,10 @@ const Reports = ({ members, contributions }) => {
             </ResponsiveContainer>
           </div>
           <div className="mt-8 pt-8 border-t border-slate-50 flex justify-between items-center relative z-10">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Growth Trend: +12.4% vs Prev Month</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Growth Trend: {growthTrend} vs Prev Month</p>
             <div className="flex items-center gap-1 text-coop-green font-black text-xs">
               <TrendingUp className="w-3 h-3" /> 
-              <span>Optimized</span>
+              <span>{monthlyData.length > 0 && monthlyData[0].value > 0 ? 'Active' : 'No Data'}</span>
             </div>
           </div>
         </Card>

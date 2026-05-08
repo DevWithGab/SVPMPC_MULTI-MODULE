@@ -15,9 +15,9 @@ const getAllMemberBalances = async (req, res) => {
     const memberBalances = [];
     
     for (const member of members) {
-      // Get latest balance for each member
+      // Get latest balance for each member - sort by createdAt for accuracy
       const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-        .sort({ transactionDate: -1 });
+        .sort({ createdAt: -1 });
       
       const balance = latestLedger ? latestLedger.balance : 0;
       const isLowBalance = balance < MINIMUM_BALANCE;

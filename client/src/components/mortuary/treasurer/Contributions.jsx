@@ -20,8 +20,10 @@ const Contributions = ({
   const totalMonth = contributionsMonth.reduce((sum, c) => sum + (c.amount || 0), 0);
   
   const filteredContributions = contributions.filter(c => 
+    c.memberName?.toLowerCase().includes(paymentSearchQuery.toLowerCase()) ||
     c.member_name?.toLowerCase().includes(paymentSearchQuery.toLowerCase()) ||
-    c.member_id.toString().includes(paymentSearchQuery)
+    c.memberId?.toString().includes(paymentSearchQuery) ||
+    c.member_id?.toString().includes(paymentSearchQuery)
   );
 
   return (

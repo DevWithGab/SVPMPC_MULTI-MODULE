@@ -17,7 +17,6 @@ router.use('/admin', adminRoutes);
 // Legacy routes for backward compatibility (if needed)
 // These can be removed once frontend is fully updated
 const dashboardController = require('../controllers/dashboardController');
-const claimController = require('../controllers/claimController');
 const contributionController = require('../controllers/contributionController');
 const ledgerController = require('../controllers/ledgerController');
 const paymentScheduleController = require('../controllers/paymentScheduleController');
@@ -25,16 +24,6 @@ const notificationController = require('../controllers/notificationController');
 
 // Legacy dashboard routes
 router.get('/dashboard/:memberId', dashboardController.getDashboard);
-
-// Legacy claim routes
-router.get('/claims', claimController.getAllClaims);
-router.post('/claims/file', claimController.fileNewClaim);
-router.post('/claims', claimController.fileNewClaim); // Alternative endpoint
-router.get('/claims/:memberId', claimController.getClaimHistory);
-router.get('/claims/detail/:claimId', claimController.getClaimById);
-router.put('/claims/:claimId/approve', claimController.approveClaim);
-router.put('/claims/:claimId/reject', claimController.rejectClaim);
-router.put('/claims/:claimId/pay', claimController.payClaim);
 
 // Legacy contribution routes
 router.post('/contributions/record', contributionController.recordContribution);

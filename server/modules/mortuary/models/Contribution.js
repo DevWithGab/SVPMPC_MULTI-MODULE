@@ -31,7 +31,7 @@ const contributionSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['cash', 'check', 'bank_transfer', 'online'],
+      enum: ['cash'],
       default: 'cash',
     },
     referenceNumber: {

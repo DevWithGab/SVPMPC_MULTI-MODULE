@@ -6,7 +6,6 @@ const {
 
 // Import existing controllers
 const dashboardController = require('../controllers/dashboardController');
-const claimController = require('../controllers/claimController');
 const contributionController = require('../controllers/contributionController');
 const ledgerController = require('../controllers/ledgerController');
 const paymentScheduleController = require('../controllers/paymentScheduleController');
@@ -38,12 +37,6 @@ router.post('/contributions', contributionController.recordContribution);
 router.get('/payouts', payoutController.getAllPayouts);
 router.post('/payouts', payoutController.recordPayout);
 router.get('/payouts/:payoutId', payoutController.getPayoutById);
-
-// Claim management routes (admin has full access)
-router.get('/claims/:memberId', claimController.getClaimHistory);
-router.get('/claims/detail/:claimId', claimController.getClaimById);
-router.put('/claims/:claimId/approve', claimController.approveClaim);
-router.put('/claims/:claimId/reject', claimController.rejectClaim);
 
 // Ledger management routes
 router.get('/ledger', ledgerController.getAllLedger);

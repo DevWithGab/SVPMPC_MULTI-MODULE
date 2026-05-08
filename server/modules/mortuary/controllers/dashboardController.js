@@ -75,30 +75,27 @@ const getTreasurerDashboard = async (req, res) => {
     const totalMembers = await Member.countDocuments();
     const activeMembers = await Member.countDocuments({ status: 'active' });
 
-    // Get fund balance (sum of all member balances)
-    const allLedgers = await Ledger.aggregate([
-      {
-        $group: {
-          _id: '$memberId',
-          latestBalance: { $last: '$balance' }
-        }
-      }
-    ]);
+    // Get fund balance (sum of all member balances from latest ledger entries)
+    const members = await Member.find({ status: 'active' });
+    let fundBalance = 0;
+    let lowBalanceCount = 0;
     
-    const fundBalance = allLedgers.reduce((sum, ledger) => sum + (ledger.latestBalance || 0), 0);
+    for (const member of members) {
+      const latestLedger = await Ledger.findOne({ memberId: member.memberId })
+        .sort({ createdAt: -1 });
+      
+      const balance = latestLedger ? latestLedger.balance : 0;
+      fundBalance += balance;
+      
+      if (balance < 1000) {
+        lowBalanceCount++;
+      }
+    }
 
-    // Get low balance members (less than 1000)
-    const lowBalanceMembers = allLedgers.filter(ledger => (ledger.latestBalance || 0) < 1000).length;
-
-    // Get total contributions this month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const monthlyContributions = await Contribution.aggregate([
+    // Get total contributions (all time)
+    const allContributions = await Contribution.aggregate([
       {
         $match: {
-          paymentDate: { $gte: startOfMonth },
           status: 'paid'
         }
       },
@@ -110,7 +107,7 @@ const getTreasurerDashboard = async (req, res) => {
       }
     ]);
 
-    const totalCollected = monthlyContributions.length > 0 ? monthlyContributions[0].total : 0;
+    const totalCollected = allContributions.length > 0 ? allContributions[0].total : 0;
 
     res.status(200).json({
       success: true,
@@ -118,12 +115,13 @@ const getTreasurerDashboard = async (req, res) => {
         fundBalance,
         activeMembers,
         totalMembers,
-        lowBalanceMembers,
+        lowBalanceMembers: lowBalanceCount,
         totalCollected,
-        healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceMembers) / totalMembers) * 100) : 0
+        healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceCount) / totalMembers) * 100) : 0
       }
     });
   } catch (error) {
+    console.error('Error fetching treasurer dashboard:', error);
     res.status(500).json({ 
       success: false,
       message: 'Error fetching treasurer dashboard', 

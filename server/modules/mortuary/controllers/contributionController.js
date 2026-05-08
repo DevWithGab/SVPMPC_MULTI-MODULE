@@ -30,8 +30,8 @@ const recordContribution = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // Get current balance
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1 });
+    // Get current balance - sort by createdAt to ensure we get the absolute latest entry
+    const latestLedger = await Ledger.findOne({ memberId }).sort({ createdAt: -1 });
     const currentBalance = latestLedger ? latestLedger.balance : 0;
     const newBalance = currentBalance + amount;
 
@@ -60,7 +60,7 @@ const recordContribution = async (req, res) => {
       balance: newBalance,
       referenceId: contribution.contributionId,
       recordedBy: 'admin',
-      paymentMethod: finalPaymentMethod.charAt(0).toUpperCase() + finalPaymentMethod.slice(1).replace('_', ' '),
+      paymentMethod: finalPaymentMethod,
       transactionDate: finalPaymentDate || new Date()
     });
 
@@ -122,12 +122,38 @@ const getAllContributions = async (req, res) => {
       .sort({ paymentDate: -1 })
       .limit(parseInt(limit));
 
+    // Populate member names
+    const contributionsWithMemberNames = await Promise.all(
+      contributions.map(async (contribution) => {
+        const member = await Member.findOne({ memberId: contribution.memberId });
+        return {
+          id: contribution.contributionId,
+          member_id: contribution.memberId,
+          member_name: member ? member.memberName : 'Unknown Member',
+          amount: contribution.amount,
+          payment_date: contribution.paymentDate.toISOString().split('T')[0],
+          due_date: contribution.dueDate.toISOString().split('T')[0],
+          status: contribution.status,
+          payment_method: contribution.paymentMethod,
+          reference_number: contribution.referenceNumber,
+          notes: contribution.notes,
+          created_at: contribution.createdAt,
+          updated_at: contribution.updatedAt
+        };
+      })
+    );
+
     res.status(200).json({
-      count: contributions.length,
-      contributions: contributions,
+      success: true,
+      count: contributionsWithMemberNames.length,
+      data: contributionsWithMemberNames,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching contributions', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching contributions', 
+      error: error.message 
+    });
   }
 };
 

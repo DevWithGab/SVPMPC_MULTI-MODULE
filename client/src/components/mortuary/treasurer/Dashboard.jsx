@@ -11,21 +11,43 @@ import { CardTitle } from '../../ui/card';
 import { Badge } from '../../ui/badge';
 import StatCard from './shared/StatCard';
 
-const Dashboard = ({ stats, claims }) => {
-  const pendingClaimsCount = claims.filter(c => c.status === 'Pending').length;
+const Dashboard = ({ stats, contributions = [] }) => {
   const atRiskMembersCount = stats?.lowBalanceMembers || 0;
   const totalMembersCount = stats?.totalMembers || 1;
   const healthyRatio = Math.round(((totalMembersCount - atRiskMembersCount) / totalMembersCount) * 100) || 0;
   const isOptimal = healthyRatio >= 80;
 
-  const chartData = [
-    {month: 'Jan', val: 124000}, 
-    {month: 'Feb', val: 185000}, 
-    {month: 'Mar', val: 154000}, 
-    {month: 'Apr', val: 210000},
-    {month: 'May', val: 198000},
-    {month: 'Jun', val: 245000}
-  ];
+  // Calculate real monthly contribution data
+  const calculateChartData = () => {
+    const monthlyTotals = {};
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // Group contributions by month
+    contributions.forEach(c => {
+      if (c.payment_date) {
+        const date = new Date(c.payment_date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthLabel = monthNames[date.getMonth()];
+        
+        if (!monthlyTotals[monthKey]) {
+          monthlyTotals[monthKey] = { month: monthLabel, val: 0, fullKey: monthKey };
+        }
+        monthlyTotals[monthKey].val += c.amount || 0;
+      }
+    });
+    
+    // Convert to array and sort by date
+    const sortedData = Object.values(monthlyTotals)
+      .sort((a, b) => a.fullKey.localeCompare(b.fullKey))
+      .slice(-6); // Get last 6 months
+    
+    // If no data, return placeholder
+    return sortedData.length > 0 ? sortedData : [
+      { month: 'No Data', val: 0 }
+    ];
+  };
+
+  const chartData = calculateChartData();
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -45,7 +67,7 @@ const Dashboard = ({ stats, claims }) => {
       </div>
       
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard 
           title="Mortuary Fund" 
           value={`₱${stats?.fundBalance?.toLocaleString() || '0'}`} 
@@ -62,12 +84,6 @@ const Dashboard = ({ stats, claims }) => {
           value={`₱${stats?.totalCollected?.toLocaleString() || '0'}`} 
           icon={CreditCard} 
           color="amber" 
-        />
-        <StatCard 
-          title="In Review" 
-          value={pendingClaimsCount} 
-          icon={FileText} 
-          color="rose" 
         />
       </div>
 
@@ -150,13 +166,9 @@ const Dashboard = ({ stats, claims }) => {
           </div>
           
           <div className="relative z-10 space-y-6 mt-auto">
-            <div className="grid grid-cols-2 gap-4 mb-4 mt-2 border-t border-white/10 pt-6">
+            <div className="mb-4 mt-2 border-t border-white/10 pt-6">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Pending Claims</p>
-                <p className="text-2xl font-black">{pendingClaimsCount}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Mbrs At Risk</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Members At Risk</p>
                 <p className={`text-2xl font-black ${atRiskMembersCount > 0 ? 'text-rose-400' : 'text-slate-200'}`}>
                   {atRiskMembersCount}
                 </p>

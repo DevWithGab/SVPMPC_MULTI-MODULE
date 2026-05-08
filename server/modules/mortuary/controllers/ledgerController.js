@@ -188,7 +188,8 @@ const bulkUploadLedger = async (req, res) => {
           debit: debit,
           balance: newBalance,
           referenceId: entry.referenceId || entry.ref_no || null,
-          paymentMethod: entry.paymentMethod || 'Cash'
+          // paymentMethod will default to 'cash' from schema if not provided
+          ...(entry.paymentMethod && { paymentMethod: entry.paymentMethod })
         });
 
         await ledgerEntry.save();
