@@ -1,6 +1,6 @@
 const { User, Member, ImportOperation, CredentialLog } = require('../models');
 const { v4: uuidv4 } = require('uuid');
-const { sendEmailReminder, sendSMSReminder } = require('../../modules/mortuary/services/notificationService');
+const { sendCredentialEmail, sendCredentialSMS } = require('./credentialNotificationService');
 
 // Generate temporary password
 const generateTempPassword = () => {
@@ -100,16 +100,11 @@ const processRow = async (rowData, rowNumber, operationId) => {
     const sendVia = rowData.sendVia || ['email', 'sms'];
 
     if (sendVia.includes('email')) {
-      const emailResult = await sendEmailReminder(
+      const emailResult = await sendCredentialEmail(
         rowData.email,
         rowData.memberName,
-        new Date(),
-        0,
-        {
-          username: username,
-          tempPassword: tempPassword,
-          isCredentials: true,
-        }
+        username,
+        tempPassword
       );
 
       if (emailResult.success) {
@@ -118,16 +113,11 @@ const processRow = async (rowData, rowNumber, operationId) => {
     }
 
     if (sendVia.includes('sms')) {
-      const smsResult = await sendSMSReminder(
+      const smsResult = await sendCredentialSMS(
         rowData.phoneNumber,
         rowData.memberName,
-        new Date(),
-        0,
-        {
-          username: username,
-          tempPassword: tempPassword,
-          isCredentials: true,
-        }
+        username,
+        tempPassword
       );
 
       if (smsResult.success) {

@@ -177,6 +177,10 @@ const bulkUploadLedger = async (req, res) => {
 
         console.log(`💰 Creating ledger: ${entry.memberId}, Credit: ${credit}, Debit: ${debit}, New Balance: ${newBalance}`);
 
+        const normalizedPaymentMethod = typeof entry.paymentMethod === 'string'
+          ? entry.paymentMethod.trim().toLowerCase()
+          : undefined;
+
         // Create ledger entry
         const ledgerEntry = new Ledger({
           ledgerId: entry.ledgerId || `L${Date.now()}_${entry.memberId}`,
@@ -188,8 +192,8 @@ const bulkUploadLedger = async (req, res) => {
           debit: debit,
           balance: newBalance,
           referenceId: entry.referenceId || entry.ref_no || null,
-          // paymentMethod will default to 'cash' from schema if not provided
-          ...(entry.paymentMethod && { paymentMethod: entry.paymentMethod })
+          // paymentMethod defaults to schema value when omitted.
+          ...(normalizedPaymentMethod && { paymentMethod: normalizedPaymentMethod })
         });
 
         await ledgerEntry.save();

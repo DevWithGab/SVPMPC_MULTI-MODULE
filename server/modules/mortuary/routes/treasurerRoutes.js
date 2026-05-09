@@ -29,6 +29,10 @@ const {
   bulkUploadLedger
 } = require('../controllers/ledgerController');
 
+const {
+  sendReminderToMember
+} = require('../controllers/simpleNotificationController');
+
 const router = express.Router();
 
 // Apply authentication and authorization middleware to all routes
@@ -54,5 +58,8 @@ router.get('/ledger', getAllLedger);
 router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLedger);
+
+// Simple notification routes (send custom messages to members)
+router.post('/notifications/send-reminder', sendReminderToMember);
 
 module.exports = router;

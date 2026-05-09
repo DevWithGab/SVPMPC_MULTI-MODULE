@@ -271,11 +271,11 @@ const MemberLedger = ({
           {/* Ledger Table */}
           <div className="flex-1">
             <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 flex py-4 px-10 print:static print:bg-transparent">
-              <div className="grid grid-cols-6 w-full text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <div className="grid grid-cols-5 w-full text-[10px] font-black uppercase tracking-widest text-slate-400">
                 <div className="col-span-1">Date</div>
                 <div className="col-span-1">OR/DV Number</div>
-                <div className="col-span-2 px-4">Description</div>
-                <div className="col-span-1 text-right">Flow (In/Out)</div>
+                <div className="col-span-1 text-right">Received (In)</div>
+                <div className="col-span-1 text-right">Withdrawn (Out)</div>
                 <div className="col-span-1 text-right">End Balance</div>
               </div>
             </div>
@@ -283,22 +283,18 @@ const MemberLedger = ({
             <div className="divide-y divide-slate-100">
               {mEntries.length > 0 ? (
                 mEntries.map((entry, idx) => (
-                  <div key={entry.id} className="grid grid-cols-6 w-full items-center py-5 px-10 hover:bg-slate-50/50 transition-colors group">
+                  <div key={entry.id} className="grid grid-cols-5 w-full items-center py-5 px-10 hover:bg-slate-50/50 transition-colors group">
                     <div className="col-span-1 font-mono text-xs font-bold text-slate-500">{entry.date}</div>
                     <div className="col-span-1 font-mono text-xs font-black text-slate-900 uppercase">{entry.ref_no}</div>
-                    <div className="col-span-2 px-4">
-                      <p className="text-xs font-bold text-slate-600 leading-snug">{entry.description}</p>
-                      {entry.withdrawn > 0 && <p className="text-[8px] font-black uppercase text-rose-400 mt-1">Deduction applied</p>}
-                      {entry.received > 500 && <p className="text-[8px] font-black uppercase text-coop-green mt-1">Lump sum contribution</p>}
+                    <div className="col-span-1 text-right">
+                      <p className={`text-sm font-black font-mono ${entry.received > 0 ? 'text-coop-green' : 'text-slate-300'}`}>
+                        {entry.received > 0 ? `+₱${entry.received.toLocaleString()}` : '0.00'}
+                      </p>
                     </div>
                     <div className="col-span-1 text-right">
-                      {entry.received > 0 ? (
-                        <p className="text-sm font-black text-coop-green font-mono">+₱{entry.received.toLocaleString()}</p>
-                      ) : entry.withdrawn > 0 ? (
-                        <p className="text-sm font-black text-rose-600 font-mono">-₱{entry.withdrawn.toLocaleString()}</p>
-                      ) : (
-                        <p className="text-sm font-black text-slate-300">0.00</p>
-                      )}
+                      <p className={`text-sm font-black font-mono ${entry.withdrawn > 0 ? 'text-rose-600' : 'text-slate-300'}`}>
+                        {entry.withdrawn > 0 ? `-₱${entry.withdrawn.toLocaleString()}` : '0.00'}
+                      </p>
                     </div>
                     <div className="col-span-1 text-right">
                       <p className="text-sm font-black text-slate-950 font-mono tracking-tighter">₱{entry.balance.toLocaleString()}</p>
