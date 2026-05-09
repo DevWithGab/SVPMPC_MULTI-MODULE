@@ -1,6 +1,5 @@
 const Ledger = require('../models/Ledger');
 const Contribution = require('../models/Contribution');
-const PaymentSchedule = require('../models/PaymentSchedule');
 const { Member } = require('../../../shared/models');
 
 // Get member dashboard data
@@ -17,9 +16,6 @@ const getDashboard = async (req, res) => {
     // Get current balance
     const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1 });
     const currentBalance = latestLedger ? latestLedger.balance : 0;
-
-    // Get next payment due
-    const nextPayment = await PaymentSchedule.findOne({ memberId, status: 'active' });
 
     // Get contribution history (last 12 months)
     const twelveMonthsAgo = new Date();
@@ -46,14 +42,6 @@ const getDashboard = async (req, res) => {
         accumulated: currentBalance,
         currency: 'PHP',
       },
-      nextPayment: nextPayment
-        ? {
-            amount: nextPayment.contributionAmount,
-            dueDate: nextPayment.nextDueDate,
-            frequency: nextPayment.frequency,
-            status: new Date() > nextPayment.nextDueDate ? 'overdue' : 'pending',
-          }
-        : null,
       contributionStats: {
         totalContributions,
         paidCount,

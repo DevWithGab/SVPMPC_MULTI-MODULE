@@ -16,13 +16,6 @@ const {
 } = require('../controllers/dashboardController');
 
 const { 
-  sendReminderToMember,
-  sendBulkRemindersToOverdue,
-  sendRemindersToMembers,
-  getReminderHistory
-} = require('../controllers/notificationController');
-
-const { 
   getAllMemberBalances,
   processAutomaticDeduction,
   checkLowBalanceMembers,
@@ -61,11 +54,5 @@ router.get('/ledger', getAllLedger);
 router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLedger);
-
-// SMS notification routes (Treasurer can send notifications)
-router.post('/notifications/send-reminder', sendReminderToMember);
-router.post('/notifications/send-bulk-overdue', sendBulkRemindersToOverdue);
-router.post('/notifications/send-to-members', sendRemindersToMembers);
-router.get('/notifications/history/:memberId', getReminderHistory);
 
 module.exports = router;

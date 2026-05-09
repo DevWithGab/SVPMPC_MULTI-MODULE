@@ -8,8 +8,6 @@ const {
 const dashboardController = require('../controllers/dashboardController');
 const contributionController = require('../controllers/contributionController');
 const ledgerController = require('../controllers/ledgerController');
-const paymentScheduleController = require('../controllers/paymentScheduleController');
-const notificationController = require('../controllers/notificationController');
 const adminController = require('../controllers/adminController');
 const payoutController = require('../controllers/payoutController');
 
@@ -41,12 +39,5 @@ router.get('/payouts/:payoutId', payoutController.getPayoutById);
 // Ledger management routes
 router.get('/ledger', ledgerController.getAllLedger);
 router.get('/ledger/:memberId', ledgerController.getMemberLedger);
-
-// Payment schedule routes
-router.get('/schedule', paymentScheduleController.getAllPaymentSchedules);
-router.post('/schedule/create', paymentScheduleController.createPaymentSchedule);
-
-// Notification routes (admin can send to all)
-router.post('/notifications/send-to-members', notificationController.sendRemindersToMembers);
 
 module.exports = router;

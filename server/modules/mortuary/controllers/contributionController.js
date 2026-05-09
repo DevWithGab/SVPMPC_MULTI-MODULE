@@ -1,6 +1,5 @@
 const Contribution = require('../models/Contribution');
 const Ledger = require('../models/Ledger');
-const PaymentSchedule = require('../models/PaymentSchedule');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 
