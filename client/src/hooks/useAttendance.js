@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
 import { memberPortalAPI, attendanceAPI, eventAPI } from '../services/api';
 
@@ -8,81 +8,49 @@ export const useAttendance = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const normalizeAttendance = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.attendance)) return data.attendance;
+    if (Array.isArray(data?.attendanceLogs)) return data.attendanceLogs;
+    if (Array.isArray(data?.attendanceHistory)) return data.attendanceHistory;
+    if (Array.isArray(data?.records)) return data.records;
+    return [];
+  };
+
   // Fetch real data from API
-  const fetchAttendanceData = async () => {
+  const fetchAttendanceData = useCallback(async () => {
     if (user && token) {
       setLoading(true);
       try {
-        // Fetch attendance history
-        const attendanceData = await memberPortalAPI.getAttendanceHistory(user.memberId);
-        setAttendanceLogs(attendanceData.attendance || []);
+        // Fetch attendance history for members, or all recent attendance for scanner operators.
+        const attendanceData = user?.role === 'scanner_operator'
+          ? await attendanceAPI.getAllAttendance()
+          : await memberPortalAPI.getAttendanceHistory(user.memberId);
+
+        setAttendanceLogs(normalizeAttendance(attendanceData));
 
         // Fetch events
         const eventsData = await eventAPI.getAllEvents();
-        setEvents(eventsData.events || []);
+        setEvents(
+          Array.isArray(eventsData)
+            ? eventsData
+            : Array.isArray(eventsData?.events)
+            ? eventsData.events
+            : []
+        );
       } catch (error) {
         console.error('Error fetching attendance data:', error);
-        // Set mock data on error for development
-        setAttendanceLogs([
-          {
-            id: 1,
-            member_name: user.name || 'John Doe',
-            event: 'Weekly Meeting',
-            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-          },
-          {
-            id: 2,
-            member_name: user.name || 'John Doe',
-            event: 'Community Service',
-            timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-          },
-          {
-            id: 3,
-            member_name: user.name || 'John Doe',
-            event: 'Training Session',
-            timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-          },
-          {
-            id: 4,
-            member_name: user.name || 'John Doe',
-            event: 'Monthly Assembly',
-            timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
-          },
-          {
-            id: 5,
-            member_name: user.name || 'John Doe',
-            event: 'Orientation',
-            timestamp: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 2 weeks ago
-          },
-        ]);
-        
-        setEvents([
-          {
-            id: 1,
-            eventName: 'Weekly Meeting',
-            eventDate: new Date().toISOString(),
-            eventTime: '14:00',
-            location: 'Main Hall',
-            status: 'active'
-          },
-          {
-            id: 2,
-            eventName: 'Community Service',
-            eventDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            eventTime: '09:00',
-            location: 'Community Center',
-            status: 'upcoming'
-          }
-        ]);
+        setAttendanceLogs([]);
+        setEvents([]);
       } finally {
         setLoading(false);
       }
     }
-  };
+  }, [user, token]);
 
   useEffect(() => {
     fetchAttendanceData();
-  }, [user, token]);
+  }, [fetchAttendanceData]);
 
   const recordAttendance = async (eventId, scanData) => {
     setLoading(true);

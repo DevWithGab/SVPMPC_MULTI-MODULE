@@ -1,4 +1,5 @@
 import { pdfReportGenerator } from './pdfReportGenerator';
+import { formatDate } from './date';
 
 /**
  * Helper functions for generating various types of reports
@@ -150,7 +151,7 @@ export const generateEventComparisonReport = (events, attendanceData) => {
     // Create a summary table data for the PDF
     const comparisonData = eventStats.map(stat => ({
       eventName: stat.eventName,
-      eventDate: new Date(stat.eventDate).toLocaleDateString(),
+      eventDate: stat.eventDate ? formatDate(stat.eventDate) : 'N/A',
       totalAttendees: stat.totalAttendees,
       attendanceRate: `${stat.attendanceRate}%`,
       scanTime: new Date().toISOString(), // Dummy field for table compatibility
@@ -247,10 +248,10 @@ export const formatDateRange = (startDate, endDate) => {
   const end = new Date(endDate);
   
   if (start.toDateString() === end.toDateString()) {
-    return start.toLocaleDateString();
+    return formatDate(start);
   }
-  
-  return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+
+  return `${formatDate(start)} - ${formatDate(end)}`;
 };
 
 /**

@@ -1,14 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Download, FileText, Calendar, Users, Filter, Search, FileDown } from 'lucide-react';
-import { attendanceAPI } from '../../../services/api';
-import { pdfReportGenerator } from '../../../utils/pdfReportGenerator';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  Download,
+  FileText,
+  Calendar,
+  Users,
+  Filter,
+  Search,
+  FileDown,
+} from "lucide-react";
+import { attendanceAPI } from "../../../services/api";
+import { pdfReportGenerator } from "../../../utils/pdfReportGenerator";
+import {
+  formatDate,
+  formatTime,
+  formatDateTime,
+  formatForFilename,
+} from "../../../utils/date";
 
 const Reports = ({ events }) => {
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBarangay, setSelectedBarangay] = useState("all");
 
   useEffect(() => {
     fetchAttendanceLogs();
@@ -22,17 +37,22 @@ const Reports = ({ events }) => {
         setAttendanceLogs(response.attendance);
       }
     } catch (error) {
-      console.error('Error fetching attendance logs:', error);
+      console.error("Error fetching attendance logs:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const filteredLogs = attendanceLogs.filter((log) => {
-    const matchesEvent = selectedEvent === 'all' || log.eventId === selectedEvent;
-    const matchesSearch = log.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.memberId.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesEvent && matchesSearch;
+    const matchesEvent =
+      selectedEvent === "all" || log.eventId === selectedEvent;
+    const matchesSearch =
+      log.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.memberId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesBarangay =
+      selectedBarangay === "all" ||
+      (log.barangay || "").toLowerCase() === selectedBarangay;
+    return matchesEvent && matchesSearch && matchesBarangay;
   });
 
   const exportToPDF = () => {
@@ -41,100 +61,120 @@ const Reports = ({ events }) => {
         data: filteredLogs,
         filters: {
           event: selectedEvent,
-          eventName: selectedEvent !== 'all' ? events.find(e => e.id === selectedEvent)?.name : null,
+          eventName:
+            selectedEvent !== "all"
+              ? events.find((e) => e.id === selectedEvent)?.name
+              : null,
           search: searchTerm,
-          dateRange: 'All time' // You can add date range filtering later
+          dateRange: "All time", // You can add date range filtering later
         },
         stats: {
           totalRecords: stats.totalRecords,
           uniqueMembers: stats.uniqueMembers,
           uniqueEvents: stats.uniqueEvents,
-          presentCount: stats.presentCount
+          presentCount: stats.presentCount,
         },
-        title: 'Attendance Report',
-        subtitle: 'Cooperative Management System'
+        title: "Attendance Report",
+        subtitle: "Cooperative Management System",
       };
 
       const result = pdfReportGenerator.generateAttendanceReport(reportOptions);
-      
+
       if (result.success) {
         // You could add a toast notification here
         console.log(`PDF report generated: ${result.filename}`);
       }
     } catch (error) {
-      console.error('Error generating PDF report:', error);
+      console.error("Error generating PDF report:", error);
       // You could add error handling/notification here
     }
   };
 
   const exportEventSummary = () => {
-    if (selectedEvent === 'all') {
-      alert('Please select a specific event to generate an event summary report.');
+    if (selectedEvent === "all") {
+      alert(
+        "Please select a specific event to generate an event summary report.",
+      );
       return;
     }
 
     try {
-      const selectedEventData = events.find(e => e.id === selectedEvent);
-      const eventAttendance = filteredLogs.filter(log => log.eventId === selectedEvent);
+      const selectedEventData = events.find((e) => e.id === selectedEvent);
+      const eventAttendance = filteredLogs.filter(
+        (log) => log.eventId === selectedEvent,
+      );
 
       const reportOptions = {
         eventData: selectedEventData,
         attendanceData: eventAttendance,
-        title: 'Event Summary Report',
-        subtitle: `${selectedEventData?.name || 'Event'} - Attendance Analysis`
+        title: "Event Summary Report",
+        subtitle: `${selectedEventData?.name || "Event"} - Attendance Analysis`,
       };
 
-      const result = pdfReportGenerator.generateEventSummaryReport(reportOptions);
-      
+      const result =
+        pdfReportGenerator.generateEventSummaryReport(reportOptions);
+
       if (result.success) {
         console.log(`Event summary PDF generated: ${result.filename}`);
       }
     } catch (error) {
-      console.error('Error generating event summary PDF:', error);
+      console.error("Error generating event summary PDF:", error);
     }
   };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Time', 'Member ID', 'Member Name', 'Event', 'Barangay', 'Status'];
+    const headers = [
+      "Date",
+      "Time",
+      "Member ID",
+      "Member Name",
+      "Event",
+      "Barangay",
+      "Status",
+    ];
     const rows = filteredLogs.map((log) => {
       const date = new Date(log.scanTime);
       return [
-        date.toLocaleDateString(),
-        date.toLocaleTimeString(),
+        formatDate(date),
+        formatTime(date),
         log.memberId,
         log.memberName,
         log.eventName,
         log.barangay,
-        log.status
+        log.status,
       ];
     });
 
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `attendance_report_${formatForFilename(new Date())}.csv`,
+    );
+    link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const generatePrintReport = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const rows = filteredLogs.map((log) => {
-      const date = new Date(log.scanTime);
-      return `
+    const rows = filteredLogs
+      .map((log) => {
+        const date = new Date(log.scanTime);
+        return `
         <tr>
-          <td>${date.toLocaleDateString()}</td>
-          <td>${date.toLocaleTimeString()}</td>
+          <td>${formatDate(date)}</td>
+          <td>${formatTime(date)}</td>
           <td>${log.memberId}</td>
           <td>${log.memberName}</td>
           <td>${log.eventName}</td>
@@ -142,7 +182,8 @@ const Reports = ({ events }) => {
           <td><span class="status-badge">${log.status}</span></td>
         </tr>
       `;
-    }).join('');
+      })
+      .join("");
 
     printWindow.document.write(`
       <html>
@@ -166,7 +207,7 @@ const Reports = ({ events }) => {
         <body>
           <div class="header">
             <h1>Attendance Report</h1>
-            <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+            <p>Generated on ${formatDateTime(new Date())}</p>
           </div>
           <div class="stats">
             <div class="stat">
@@ -174,11 +215,11 @@ const Reports = ({ events }) => {
               <p>Total Records</p>
             </div>
             <div class="stat">
-              <h3>${new Set(filteredLogs.map(l => l.memberId)).size}</h3>
+              <h3>${new Set(filteredLogs.map((l) => l.memberId)).size}</h3>
               <p>Unique Members</p>
             </div>
             <div class="stat">
-              <h3>${new Set(filteredLogs.map(l => l.eventId)).size}</h3>
+              <h3>${new Set(filteredLogs.map((l) => l.eventId)).size}</h3>
               <p>Events</p>
             </div>
           </div>
@@ -207,9 +248,9 @@ const Reports = ({ events }) => {
 
   const stats = {
     totalRecords: filteredLogs.length,
-    uniqueMembers: new Set(filteredLogs.map(l => l.memberId)).size,
-    uniqueEvents: new Set(filteredLogs.map(l => l.eventId)).size,
-    presentCount: filteredLogs.filter(l => l.status === 'present').length
+    uniqueMembers: new Set(filteredLogs.map((l) => l.memberId)).size,
+    uniqueEvents: new Set(filteredLogs.map((l) => l.eventId)).size,
+    presentCount: filteredLogs.filter((l) => l.status === "present").length,
   };
 
   return (
@@ -217,10 +258,15 @@ const Reports = ({ events }) => {
       {/* Header with Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight" style={{ color: '#2D7A3E' }}>
+          <h2
+            className="text-3xl font-bold tracking-tight"
+            style={{ color: "#2D7A3E" }}
+          >
             Attendance Reports
           </h2>
-          <p className="text-gray-600 font-medium">Export and analyze attendance data</p>
+          <p className="text-gray-600 font-medium">
+            Export and analyze attendance data
+          </p>
         </div>
         <div className="flex gap-3">
           <button
@@ -237,19 +283,11 @@ const Reports = ({ events }) => {
             <FileDown className="w-4 h-4 mr-2 inline" />
             Export PDF
           </button>
-          {selectedEvent !== 'all' && (
-            <button
-              onClick={exportEventSummary}
-              className="h-12 px-6 bg-white border border-gray-200 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors"
-            >
-              <Calendar className="w-4 h-4 mr-2 inline" />
-              Event Summary
-            </button>
-          )}
+
           <button
             onClick={exportToCSV}
             className="h-12 px-6 text-white rounded-xl font-bold text-sm shadow-lg"
-            style={{ backgroundColor: '#2D7A3E' }}
+            style={{ backgroundColor: "#2D7A3E" }}
           >
             <Download className="w-4 h-4 mr-2 inline" />
             Export CSV
@@ -262,8 +300,15 @@ const Reports = ({ events }) => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Records</p>
-              <p className="text-3xl font-bold mt-2" style={{ color: '#2D7A3E' }}>{stats.totalRecords}</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Total Records
+              </p>
+              <p
+                className="text-3xl font-bold mt-2"
+                style={{ color: "#2D7A3E" }}
+              >
+                {stats.totalRecords}
+              </p>
             </div>
             <FileText className="w-8 h-8 text-gray-400" />
           </div>
@@ -272,8 +317,15 @@ const Reports = ({ events }) => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Unique Members</p>
-              <p className="text-3xl font-bold mt-2" style={{ color: '#2D7A3E' }}>{stats.uniqueMembers}</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Unique Members
+              </p>
+              <p
+                className="text-3xl font-bold mt-2"
+                style={{ color: "#2D7A3E" }}
+              >
+                {stats.uniqueMembers}
+              </p>
             </div>
             <Users className="w-8 h-8 text-gray-400" />
           </div>
@@ -282,8 +334,15 @@ const Reports = ({ events }) => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Events Tracked</p>
-              <p className="text-3xl font-bold mt-2" style={{ color: '#2D7A3E' }}>{stats.uniqueEvents}</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Events Tracked
+              </p>
+              <p
+                className="text-3xl font-bold mt-2"
+                style={{ color: "#2D7A3E" }}
+              >
+                {stats.uniqueEvents}
+              </p>
             </div>
             <Calendar className="w-8 h-8 text-gray-400" />
           </div>
@@ -292,8 +351,15 @@ const Reports = ({ events }) => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Present Count</p>
-              <p className="text-3xl font-bold mt-2" style={{ color: '#2D7A3E' }}>{stats.presentCount}</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Present Count
+              </p>
+              <p
+                className="text-3xl font-bold mt-2"
+                style={{ color: "#2D7A3E" }}
+              >
+                {stats.presentCount}
+              </p>
             </div>
             <Users className="w-8 h-8 text-gray-400" />
           </div>
@@ -331,11 +397,52 @@ const Reports = ({ events }) => {
                 className="h-12 w-full pl-11 pr-4 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500 appearance-none"
               >
                 <option value="all">All Events</option>
-                {events.map((event) => (
-                  <option key={event.id} value={event.id}>
-                    {event.name}
-                  </option>
-                ))}
+                {events.map((event) => {
+                  const eventKey = String(
+                    event.eventId ||
+                      event.id ||
+                      event._id ||
+                      event.name ||
+                      event.eventName ||
+                      "",
+                  );
+                  const eventName =
+                    event.eventName ||
+                    event.name ||
+                    event.title ||
+                    "Untitled Event";
+                  return (
+                    <option key={eventKey} value={eventKey}>
+                      {eventName}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
+              Barangay
+            </label>
+            <div className="relative">
+              <select
+                value={selectedBarangay}
+                onChange={(e) => setSelectedBarangay(e.target.value)}
+                className="h-12 w-full pl-3 pr-4 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500 appearance-none"
+              >
+                <option value="all">All Barangays</option>
+                {[
+                  ...new Set(
+                    attendanceLogs.map((l) => l.barangay).filter(Boolean),
+                  ),
+                ]
+                  .sort()
+                  .map((b) => (
+                    <option key={b} value={String(b).toLowerCase()}>
+                      {b}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
@@ -345,7 +452,7 @@ const Reports = ({ events }) => {
       {/* Attendance Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-bold" style={{ color: '#2D7A3E' }}>
+          <h3 className="text-lg font-bold" style={{ color: "#2D7A3E" }}>
             Attendance Logs
           </h3>
           <p className="text-sm text-gray-500 mt-1">
@@ -400,23 +507,40 @@ const Reports = ({ events }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3" style={{ backgroundColor: '#2D7A3E' }}>
-                            {log.memberName.split(' ').map(n => n[0]).join('')}
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3"
+                            style={{ backgroundColor: "#2D7A3E" }}
+                          >
+                            {log.memberName
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{log.memberName}</div>
-                            <div className="text-sm text-gray-500">ID: {log.memberId}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {log.memberName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ID: {log.memberId}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{log.eventName}</div>
+                        <div className="text-sm text-gray-900">
+                          {log.eventName}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{log.barangay}</div>
+                        <div className="text-sm text-gray-900">
+                          {log.barangay}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full text-white" style={{ backgroundColor: '#2D7A3E' }}>
+                        <span
+                          className="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full text-white"
+                          style={{ backgroundColor: "#2D7A3E" }}
+                        >
                           {log.status}
                         </span>
                       </td>

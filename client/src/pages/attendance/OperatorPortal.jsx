@@ -2,73 +2,48 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
-  Calendar,
-  User,
+  QrCode,
   Menu,
   ChevronLeft,
   ChevronRight,
   LogOut,
   LifeBuoy,
+  User,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.jsx";
 import { useAttendance } from "../../hooks/useAttendance";
-import { memberPortalAPI } from "../../services/api";
-
-// Import the attendance member components
 import {
   Dashboard,
-  AttendanceHistory,
-  Profile,
-} from "../../components/attendance/member";
+  QRScanner,
+} from "../../components/attendance/scanner_operator";
+import { LiveAttendanceList } from "../../components/attendance/shared";
 
-export default function AttendanceMemberPortal({
+export default function AttendanceOperatorPortal({
   onBack,
   user: propUser,
   token: propToken,
 }) {
-  const { user, token, updateAuth } = useAuth();
-
-  // Use props if provided, otherwise use context
+  const { user, setUser, token, setToken, updateAuth } = useAuth();
   const currentUser = propUser || user;
   const currentToken = propToken || token;
-  const [memberProfile, setMemberProfile] = useState(null);
 
-  // Update context if props are provided
   useEffect(() => {
     if (propUser && propToken) {
       updateAuth(propUser, propToken);
     }
   }, [propUser, propToken, updateAuth]);
 
-  // Fetch the full member profile for the portal
-  useEffect(() => {
-    const fetchMemberProfile = async () => {
-      if (!currentUser?.memberId || !currentToken) {
-        return;
-      }
-
-      try {
-        const profile = await memberPortalAPI.getMemberProfile(
-          currentUser.memberId,
-        );
-        setMemberProfile(profile);
-      } catch (error) {
-        console.error("Error loading member profile:", error);
-        setMemberProfile(null);
-      }
-    };
-
-    fetchMemberProfile();
-  }, [currentUser?.memberId, currentToken]);
-
-  const activeUser = memberProfile || currentUser;
-
-  const { attendanceLogs, events, loading } = useAttendance();
-
+  const { attendanceLogs, events, loading, refreshData } = useAttendance();
   const [activeTab, setActiveTab] = useState("home");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  const activeEvents = Array.isArray(events)
+    ? events.filter((event) => event?.status === "active")
+    : [];
+  const hasActiveEvent = activeEvents.length > 0;
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -78,24 +53,36 @@ export default function AttendanceMemberPortal({
 
   const sidebarItems = [
     { id: "home", label: "Home", icon: Home },
-    { id: "history", label: "History", icon: Calendar },
-    { id: "profile", label: "Profile", icon: User },
+    { id: "scanner", label: "QR Scanner", icon: QrCode },
+    { id: "live", label: "Live Attendance", icon: Activity },
     { id: "support", label: "Support", icon: LifeBuoy },
   ];
 
+  const handleScanSuccess = (scanData) => {
+    console.log("Scanner operator scan successful:", scanData);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
-      case "history":
+      case "scanner":
         return (
-          <AttendanceHistory
-            user={activeUser}
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Banner removed per request */}
+            <QRScanner
+              user={currentUser}
+              events={activeEvents}
+              onScanSuccess={handleScanSuccess}
+            />
+          </div>
+        );
+      case "live":
+        return (
+          <LiveAttendanceList
             attendanceLogs={attendanceLogs}
+            events={events}
+            onRefresh={refreshData}
           />
         );
-
-      case "profile":
-        return <Profile user={activeUser} />;
-
       case "support":
         return (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -104,16 +91,18 @@ export default function AttendanceMemberPortal({
               <h3 className="text-xl font-black text-slate-400 mb-2">
                 Support Center
               </h3>
-              <p className="text-slate-400">Support features coming soon.</p>
+              <p className="text-slate-500">
+                Need help with the scanner? Contact your admin team.
+              </p>
             </div>
           </div>
         );
-
-      default: // 'home'
+      default:
         return (
           <Dashboard
-            user={activeUser}
+            user={currentUser}
             attendanceLogs={attendanceLogs}
+            events={events}
             setActiveTab={setActiveTab}
           />
         );
@@ -122,7 +111,6 @@ export default function AttendanceMemberPortal({
 
   return (
     <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
-      {/* Sidebar Overlay for Mobile */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-coop-darkGreen/60 backdrop-blur-sm z-40 lg:hidden"
@@ -130,7 +118,6 @@ export default function AttendanceMemberPortal({
         />
       )}
 
-      {/* Sidebar */}
       <motion.aside
         initial={false}
         animate={{
@@ -164,7 +151,7 @@ export default function AttendanceMemberPortal({
                 </div>
                 <div>
                   <h1 className="text-white font-black text-sm tracking-tight">
-                    Member Portal
+                    Scanner Operator
                   </h1>
                   <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
                     Attendance System
@@ -188,7 +175,6 @@ export default function AttendanceMemberPortal({
           )}
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-4 pb-6">
           <div className="space-y-2">
             {sidebarItems.map((item) => (
@@ -223,7 +209,6 @@ export default function AttendanceMemberPortal({
           </div>
         </nav>
 
-        {/* User Profile Section */}
         <div className="p-4 border-t border-green-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-coop-green rounded-2xl flex items-center justify-center shadow-lg shrink-0">
@@ -239,17 +224,10 @@ export default function AttendanceMemberPortal({
                   className="flex-1 min-w-0"
                 >
                   <p className="text-white font-bold text-sm truncate">
-                    {activeUser?.memberName ||
-                      activeUser?.name ||
-                      activeUser?.username ||
-                      "Member"}
+                    {currentUser?.name || "Operator"}
                   </p>
                   <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
-                    ID:{" "}
-                    {activeUser?.memberId ||
-                      activeUser?.id ||
-                      activeUser?.userId ||
-                      "Loading..."}
+                    Scanner Operator
                   </p>
                 </motion.div>
               )}
@@ -274,9 +252,7 @@ export default function AttendanceMemberPortal({
         </div>
       </motion.aside>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
         <div className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
@@ -285,30 +261,20 @@ export default function AttendanceMemberPortal({
             <Menu className="w-5 h-5 text-slate-600" />
           </button>
           <div className="text-center">
-            <h1 className="font-black text-slate-950 text-lg tracking-tight">
-              Member Portal
-            </h1>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
-              Attendance System
-            </p>
+            <p className="text-sm font-bold text-slate-900">Scanner Operator</p>
+            <p className="text-xs text-slate-500">Attendance System</p>
           </div>
-          <div className="w-10 h-10" /> {/* Spacer */}
+          <button
+            onClick={onBack}
+            className="w-10 h-10 bg-slate-100 rounded-2xl flex items-center justify-center"
+          >
+            <LogOut className="w-5 h-5 text-slate-600" />
+          </button>
         </div>
 
-        {/* Content Area */}
         <main className="flex-1 overflow-y-auto">
           <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {renderContent()}
-              </motion.div>
-            </AnimatePresence>
+            {renderContent()}
           </div>
         </main>
       </div>

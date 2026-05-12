@@ -313,96 +313,6 @@ export const memberAPI = {
   }
 };
 
-// Scanner Station Management APIs
-export const scannerAPI = {
-  // Get all scanner stations
-  getScannerStations: async (params = {}) => {
-    try {
-      const response = await api.get('/scanners', { params });
-      return {
-        success: true,
-        data: response.data.data
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to get scanner stations',
-        error: error.response?.data
-      };
-    }
-  },
-
-  // Create scanner station
-  createScannerStation: async (scannerData) => {
-    try {
-      const response = await api.post('/scanners', scannerData);
-      return {
-        success: true,
-        data: response.data.data,
-        message: response.data.message
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to create scanner station',
-        error: error.response?.data
-      };
-    }
-  },
-
-  // Update scanner station
-  updateScannerStation: async (scannerId, scannerData) => {
-    try {
-      const response = await api.put(`/scanners/${scannerId}`, scannerData);
-      return {
-        success: true,
-        data: response.data.data,
-        message: response.data.message
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to update scanner station',
-        error: error.response?.data
-      };
-    }
-  },
-
-  // Delete scanner station
-  deleteScannerStation: async (scannerId) => {
-    try {
-      const response = await api.delete(`/scanners/${scannerId}`);
-      return {
-        success: true,
-        message: response.data.message
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to delete scanner station',
-        error: error.response?.data
-      };
-    }
-  },
-
-  // Get scanner logs
-  getScannerLogs: async (scannerId, params = {}) => {
-    try {
-      const response = await api.get(`/scanners/${scannerId}/logs`, { params });
-      return {
-        success: true,
-        data: response.data.data
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to get scanner logs',
-        error: error.response?.data
-      };
-    }
-  }
-};
-
 // Report Generation APIs
 export const reportAPI = {
   // Generate comprehensive attendance report
@@ -534,7 +444,6 @@ export const attendanceAdminAPI = {
   dashboard: dashboardAPI,
   events: eventAPI,
   members: memberAPI,
-  scanners: scannerAPI,
   reports: reportAPI,
   config: configAPI
 };

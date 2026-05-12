@@ -19,7 +19,6 @@ const memberController = require('../controllers/memberController');
 const eventController = require('../controllers/eventController');
 const attendanceController = require('../controllers/attendanceController');
 const memberAuthController = require('../controllers/memberAuthController');
-const scannerController = require('../controllers/scannerController');
 
 // Configure multer for CSV uploads
 const storage = multer.diskStorage({
@@ -66,14 +65,5 @@ router.get('/attendance/event/:eventId', attendanceController.getAttendanceByEve
 router.get('/attendance/stats/:eventId', attendanceController.getAttendanceStats);
 router.post('/attendance/report', attendanceController.generateReport);
 router.get('/attendance', attendanceController.getAllAttendance);
-
-// Legacy scanner routes
-router.post('/scanner/register', scannerController.registerScanner);
-router.post('/scanner/heartbeat', scannerController.heartbeat);
-router.post('/scanner/scan', scannerController.processScan);
-router.get('/scanner', scannerController.getAllScanners);
-router.get('/scanner/:stationId', scannerController.getScannerById);
-router.get('/scanner/:stationId/logs', scannerController.getScanLogs);
-router.put('/scanner/:stationId/status', scannerController.updateScannerStatus);
 
 module.exports = router;

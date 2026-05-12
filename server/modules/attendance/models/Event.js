@@ -19,6 +19,14 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    startTime: {
+      type: String,
+      required: true,
+    },
+    endTime: {
+      type: String,
+      required: true,
+    },
     location: {
       type: String,
       required: true,
@@ -28,7 +36,7 @@ const eventSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['upcoming', 'ongoing', 'completed'],
+      enum: ['upcoming', 'active', 'completed'],
       default: 'upcoming',
     },
     createdBy: {

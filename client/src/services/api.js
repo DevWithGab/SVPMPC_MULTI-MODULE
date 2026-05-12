@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -165,6 +165,12 @@ export const eventAPI = {
     return response.data;
   },
 
+  // Get events with query params (search, location, status, etc.)
+  getEvents: async (params = {}) => {
+    const response = await api.get('/attendance/events', { params });
+    return response.data;
+  },
+
   getEventById: async (eventId) => {
     const response = await api.get(`/attendance/events/${eventId}`);
     return response.data;
@@ -181,53 +187,6 @@ export const eventAPI = {
   },
 };
 
-// ============================================
-// ATTENDANCE - SCANNER API
-// ============================================
-export const scannerAPI = {
-  registerScanner: async (scannerData) => {
-    const response = await api.post('/attendance/scanner/register', scannerData);
-    return response.data;
-  },
-
-  sendHeartbeat: async (stationId) => {
-    const response = await api.post('/attendance/scanner/heartbeat', {
-      stationId,
-    });
-    return response.data;
-  },
-
-  processScan: async (stationId, qrCodeData, eventId) => {
-    const response = await api.post('/attendance/scanner/scan', {
-      stationId,
-      qrCodeData,
-      eventId,
-    });
-    return response.data;
-  },
-
-  getAllScanners: async () => {
-    const response = await api.get('/attendance/scanner');
-    return response.data;
-  },
-
-  getScannerById: async (stationId) => {
-    const response = await api.get(`/attendance/scanner/${stationId}`);
-    return response.data;
-  },
-
-  getScanLogs: async (stationId) => {
-    const response = await api.get(`/attendance/scanner/${stationId}/logs`);
-    return response.data;
-  },
-
-  updateScannerStatus: async (stationId, status) => {
-    const response = await api.put(`/attendance/scanner/${stationId}/status`, {
-      status,
-    });
-    return response.data;
-  },
-};
 
 // ============================================
 // ATTENDANCE - MEMBER PORTAL API
@@ -252,36 +211,92 @@ export const memberPortalAPI = {
 // ATTENDANCE - ATTENDANCE RECORDS API
 // ============================================
 export const attendanceAPI = {
-  recordAttendance: async (memberId, eventId, scanTime) => {
-    const response = await api.post('/attendance/attendance/record', {
+  recordAttendance: async (memberId, eventId, scanTime, scannedBy) => {
+    const payload = {
       memberId,
       eventId,
       scanTime,
-    });
-    return response.data;
+      scannedBy,
+    };
+
+    const endpoints = ['/attendance/record', '/attendance/attendance/record'];
+
+    let lastError = null;
+    for (const endpoint of endpoints) {
+      try {
+        const response = await api.post(endpoint, payload);
+        return response.data;
+      } catch (error) {
+        lastError = error;
+        if (error.response?.status !== 404) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
   },
 
   getAttendanceByEvent: async (eventId) => {
-    const response = await api.get(`/attendance/attendance/event/${eventId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/attendance/event/${eventId}`);
+      return response.data;
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        throw error;
+      }
+
+      const response = await api.get(`/attendance/attendance/event/${eventId}`);
+      return response.data;
+    }
   },
 
   getAttendanceStats: async (eventId) => {
-    const response = await api.get(`/attendance/attendance/stats/${eventId}`);
-    return response.data;
+    try {
+      const response = await api.get(`/attendance/stats/${eventId}`);
+      return response.data;
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        throw error;
+      }
+
+      const response = await api.get(`/attendance/attendance/stats/${eventId}`);
+      return response.data;
+    }
   },
 
   generateReport: async (eventId, format = 'pdf') => {
-    const response = await api.post('/attendance/attendance/report', {
-      eventId,
-      format,
-    });
-    return response.data;
+    try {
+      const response = await api.post('/attendance/report', {
+        eventId,
+        format,
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        throw error;
+      }
+
+      const response = await api.post('/attendance/attendance/report', {
+        eventId,
+        format,
+      });
+      return response.data;
+    }
   },
 
   getAllAttendance: async () => {
-    const response = await api.get('/attendance/attendance');
-    return response.data;
+    try {
+      const response = await api.get('/attendance');
+      return response.data;
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        throw error;
+      }
+
+      const response = await api.get('/attendance/attendance');
+      return response.data;
+    }
   },
 };
 
@@ -612,6 +627,53 @@ export const treasurerAPI = {
 
   getReminderHistory: async (memberId) => {
     const response = await api.get(`/mortuary/treasurer/notifications/history/${memberId}`);
+    return response.data;
+  },
+};
+
+// ============================================
+// AUDIT LOGGING API
+// ============================================
+export const auditAPI = {
+  // Get all audit logs with filtering
+  getLogs: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.userId) params.append('userId', filters.userId);
+    if (filters.action) params.append('action', filters.action);
+    if (filters.module) params.append('module', filters.module);
+    if (filters.userRole) params.append('userRole', filters.userRole);
+    if (filters.entityType) params.append('entityType', filters.entityType);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.page) params.append('page', filters.page);
+    if (filters.limit) params.append('limit', filters.limit);
+
+    const response = await api.get(`/audit/logs?${params}`);
+    return response.data;
+  },
+
+  // Get audit trail for specific entity
+  getEntityAuditTrail: async (entityType, entityId, limit = 20) => {
+    const response = await api.get(`/audit/trail/${entityType}/${entityId}?limit=${limit}`);
+    return response.data;
+  },
+
+  // Get audit logs summary statistics
+  getStats: async (startDate, endDate) => {
+    const params = new URLSearchParams({ startDate, endDate });
+    const response = await api.get(`/audit/stats?${params}`);
+    return response.data;
+  },
+
+  // Get activity by user
+  getUserActivity: async (userId, page = 1, limit = 30) => {
+    const response = await api.get(`/audit/user/${userId}?page=${page}&limit=${limit}`);
+    return response.data;
+  },
+
+  // Get activity by role
+  getRoleActivity: async (role, page = 1, limit = 50) => {
+    const response = await api.get(`/audit/role/${role}?page=${page}&limit=${limit}`);
     return response.data;
   },
 };

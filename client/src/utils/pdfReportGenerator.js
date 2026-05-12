@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+import { formatDate, formatTime, formatDateTime, formatForFilename } from './date';
 
 /**
  * Professional PDF Report Generator for Attendance System
@@ -58,7 +59,7 @@ class PDFReportGenerator {
     this._addFooter(doc, pageWidth, pageHeight);
 
     // Generate filename with timestamp
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = formatForFilename(new Date());
     const filename = `attendance_report_${timestamp}.pdf`;
 
     // Save the PDF
@@ -104,7 +105,7 @@ class PDFReportGenerator {
     // Add footer
     this._addFooter(doc, pageWidth, pageHeight);
 
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = formatForFilename(new Date());
     const filename = `event_summary_${eventData.eventName || 'report'}_${timestamp}.pdf`;
 
     doc.save(filename);
@@ -150,7 +151,7 @@ class PDFReportGenerator {
     // Add footer
     this._addFooter(doc, pageWidth, pageHeight);
 
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = formatForFilename(new Date());
     const filename = `member_summary_${memberData.memberId || 'report'}_${timestamp}.pdf`;
 
     doc.save(filename);
@@ -203,7 +204,7 @@ class PDFReportGenerator {
 
     // Generation date
     const now = new Date();
-    doc.text(`Generated: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 20, yPosition);
+    doc.text(`Generated: ${formatDate(now)} at ${formatTime(now)}`, 20, yPosition);
 
     // Applied filters
     let filterText = 'Filters: ';
@@ -276,8 +277,8 @@ class PDFReportGenerator {
     const tableData = data.map(log => {
       const date = new Date(log.scanTime || log.timestamp);
       return [
-        date.toLocaleDateString(),
-        date.toLocaleTimeString(),
+        formatDate(date),
+        formatTime(date),
         log.memberId || '',
         log.memberName || '',
         log.eventName || log.event || '',
@@ -287,7 +288,7 @@ class PDFReportGenerator {
     });
 
     // Configure table
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPosition,
       head: [['Date', 'Time', 'Member ID', 'Member Name', 'Event', 'Barangay', 'Status']],
       body: tableData,
@@ -333,7 +334,7 @@ class PDFReportGenerator {
       }
     });
 
-    return doc.lastAutoTable.finalY + 10;
+    return doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : yPosition + 10;
   }
 
   _addEventDetails(doc, pageWidth, yPosition, eventData) {
@@ -346,7 +347,7 @@ class PDFReportGenerator {
 
     const details = [
       ['Event Name:', eventData.eventName || 'N/A'],
-      ['Date:', eventData.eventDate ? new Date(eventData.eventDate).toLocaleDateString() : 'N/A'],
+      ['Date:', eventData.eventDate ? formatDate(eventData.eventDate) : 'N/A'],
       ['Time:', eventData.eventTime || 'N/A'],
       ['Location:', eventData.location || 'N/A'],
       ['Status:', eventData.status || 'N/A'],
@@ -416,13 +417,14 @@ class PDFReportGenerator {
     const tableData = data.map(record => [
       record.memberName || '',
       record.memberId || '',
-      record.scanTime ? new Date(record.scanTime).toLocaleTimeString() : '',
+      record.barangay || '',
+      record.scanTime ? formatTime(record.scanTime) : '',
       record.status || 'Present'
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPosition,
-      head: [['Member Name', 'Member ID', 'Check-in Time', 'Status']],
+      head: [['Member Name', 'Member ID', 'Barangay', 'Check-in Time', 'Status']],
       body: tableData,
       theme: 'grid',
       styles: {
@@ -438,10 +440,17 @@ class PDFReportGenerator {
       alternateRowStyles: {
         fillColor: this.cooperativeColors.background
       },
+      columnStyles: {
+        0: { cellWidth: 42 },
+        1: { cellWidth: 28 },
+        2: { cellWidth: 34 },
+        3: { cellWidth: 26 },
+        4: { cellWidth: 22 }
+      },
       margin: { left: 20, right: 20 }
     });
 
-    return doc.lastAutoTable.finalY + 10;
+    return doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : yPosition + 10;
   }
 
   _addMemberDetails(doc, pageWidth, yPosition, memberData) {
@@ -523,14 +532,14 @@ class PDFReportGenerator {
     const tableData = data.map(record => {
       const date = new Date(record.scanTime || record.timestamp);
       return [
-        date.toLocaleDateString(),
-        date.toLocaleTimeString(),
+        formatDate(date),
+        formatTime(date),
         record.eventName || record.event || '',
         record.status || 'Present'
       ];
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPosition,
       head: [['Date', 'Time', 'Event', 'Status']],
       body: tableData,
@@ -551,7 +560,7 @@ class PDFReportGenerator {
       margin: { left: 20, right: 20 }
     });
 
-    return doc.lastAutoTable.finalY + 10;
+    return doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : yPosition + 10;
   }
 
   _addFooter(doc, pageWidth, pageHeight) {
@@ -570,7 +579,7 @@ class PDFReportGenerator {
     doc.text('Cooperative Management System - Attendance Module', 20, footerY + 4);
     
     // Add generation timestamp
-    const timestamp = new Date().toLocaleString();
+    const timestamp = formatDateTime(new Date());
     doc.text(`Generated: ${timestamp}`, pageWidth - 20, footerY, { align: 'right' });
   }
 

@@ -10,18 +10,22 @@ if (!fs.existsSync(QR_CODE_DIR)) {
   fs.mkdirSync(QR_CODE_DIR, { recursive: true });
 }
 
+const buildMemberQRCodePayload = (member, qrCodeId) => ({
+  type: 'member',
+  memberId: member.memberId,
+  name: member.memberName,
+  barangay: member.barangay || null,
+  qrId: qrCodeId || member.qrCode || null,
+});
+
 const generateQRCode = async (member) => {
   try {
     const qrCodeId = uuidv4();
     const qrCodeFileName = `${member.memberId}_${qrCodeId}.png`;
     const qrCodePath = path.join(QR_CODE_DIR, qrCodeFileName);
 
-    // Generate QR code data (contains member ID for scanning)
-    const qrData = JSON.stringify({
-      memberId: member.memberId,
-      memberName: member.memberName,
-      barangay: member.barangay,
-    });
+    // Generate QR code payload with full member details
+    const qrData = JSON.stringify(buildMemberQRCodePayload(member, qrCodeId));
 
     // Generate and save QR code image
     await QRCode.toFile(qrCodePath, qrData, {
@@ -54,11 +58,7 @@ const generateQRCode = async (member) => {
 
 const generateQRCodeDataUrl = async (member) => {
   try {
-    const qrData = JSON.stringify({
-      memberId: member.memberId,
-      memberName: member.memberName,
-      barangay: member.barangay,
-    });
+    const qrData = JSON.stringify(buildMemberQRCodePayload(member, member.qrCode));
 
     // Generate QR code as data URL (for display in browser)
     const dataUrl = await QRCode.toDataURL(qrData, {

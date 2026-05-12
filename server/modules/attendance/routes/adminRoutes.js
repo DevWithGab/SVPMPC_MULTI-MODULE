@@ -9,7 +9,6 @@ const memberController = require('../controllers/memberController');
 const eventController = require('../controllers/eventController');
 const attendanceController = require('../controllers/attendanceController');
 const memberAuthController = require('../controllers/memberAuthController');
-const scannerController = require('../controllers/scannerController');
 
 const router = express.Router();
 
@@ -24,16 +23,13 @@ router.get('/members/:id', memberController.getMemberById);
 // Event management routes (admin has full access)
 router.get('/events', eventController.getAllEvents);
 router.post('/events', eventController.createEvent);
-router.get('/events/:id', eventController.getEventById);
-router.put('/events/:id', eventController.updateEvent);
-router.delete('/events/:id', eventController.deleteEvent);
+router.get('/events/:eventId', eventController.getEventById);
+router.put('/events/:eventId', eventController.updateEvent);
+router.delete('/events/:eventId', eventController.deleteEvent);
 
 // Attendance management routes (admin has full access)
 router.get('/attendance', attendanceController.getAllAttendance);
 router.post('/attendance', attendanceController.recordAttendance);
 
-// Scanner station management
-router.get('/scanners', scannerController.getAllScanners);
-router.get('/scanners/:id', scannerController.getScannerById);
 
 module.exports = router;

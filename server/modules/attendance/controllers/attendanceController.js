@@ -3,11 +3,12 @@ const Attendance = require('../models/Attendance');
 const Event = require('../models/Event');
 const AttendanceReport = require('../models/AttendanceReport');
 const { v4: uuidv4 } = require('uuid');
+const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 
 // Record attendance via QR scan
 const recordAttendance = async (req, res) => {
   try {
-    const { memberId, eventId, scannedBy } = req.body;
+    const { memberId, eventId, scannedBy, scanTime } = req.body;
 
     if (!memberId || !eventId) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -33,6 +34,23 @@ const recordAttendance = async (req, res) => {
     });
 
     if (existingAttendance) {
+      // Log duplicate scan attempt
+      await createAuditLog({
+        userId: scannedBy || 'scanner',
+        userName: scannedBy || 'Scanner Device',
+        userRole: 'scanner',
+        action: 'attendance_recorded',
+        module: 'attendance',
+        entityType: 'attendance',
+        entityId: `${memberId}-${eventId}`,
+        entityName: member.memberName,
+        description: `Duplicate scan attempt for member "${member.memberName}" at event "${event.eventName}"`,
+        status: 'failed',
+        errorMessage: 'Member already marked present for this event',
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
       return res.status(400).json({
         message: 'Member already marked present for this event',
       });
@@ -47,18 +65,59 @@ const recordAttendance = async (req, res) => {
       eventId,
       eventName: event.eventName,
       barangay: member.barangay,
-      scanTime: new Date(),
+      scanTime: scanTime ? new Date(scanTime) : new Date(),
       status: 'present',
       scannedBy: scannedBy || 'system',
     });
 
     const saved = await newAttendance.save();
 
+    // Log audit event
+    await createAuditLog({
+      userId: scannedBy || 'system',
+      userName: scannedBy || 'Scanner Device',
+      userRole: 'scanner',
+      action: 'attendance_recorded',
+      module: 'attendance',
+      entityType: 'attendance',
+      entityId: saved.attendanceId,
+      entityName: member.memberName,
+      description: `Attendance recorded for member "${member.memberName}" at event "${event.eventName}"`,
+      changes: {
+        before: null,
+        after: saved.toObject(),
+      },
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      metadata: {
+        memberId,
+        eventId,
+        eventLocation: event.location,
+        barangay: member.barangay,
+      },
+    });
+
     res.status(201).json({
       message: 'Attendance recorded successfully',
       attendance: saved,
     });
   } catch (error) {
+    // Log failed attempt
+    await createAuditLog({
+      userId: req.body.scannedBy || 'system',
+      userName: req.body.scannedBy || 'Scanner Device',
+      userRole: 'scanner',
+      action: 'attendance_recorded',
+      module: 'attendance',
+      entityType: 'attendance',
+      description: `Failed to record attendance`,
+      status: 'failed',
+      errorMessage: error.message,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
     res.status(500).json({ message: 'Error recording attendance', error: error.message });
   }
 };

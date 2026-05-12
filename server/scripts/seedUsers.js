@@ -59,6 +59,19 @@ const seedData = {
     role: 'secretary',
   },
 
+  attendanceOperator: {
+    userId: 'ATT-OP-001',
+    memberId: 'ATT-OP-MEM',
+    username: 'attendance.scanner',
+    email: 'attendance.scanner@svpmpc.com',
+    phoneNumber: '09176666666',
+    passwordHash: 'AttendanceOperator2024!',
+    isTemporaryPassword: false,
+    status: 'active',
+    modules: ['attendance'],
+    role: 'scanner_operator',
+  },
+
   // Mortuary Module Staff
   mortuaryAdmin: {
     userId: 'MORT-ADMIN-001',
@@ -126,6 +139,16 @@ const createStaffMembers = async () => {
       modules: ['attendance'],
     },
     {
+      memberId: 'ATT-OP-MEM',
+      memberName: 'Attendance Operator',
+      email: 'attendance.scanner@svpmpc.com',
+      phoneNumber: '09176666666',
+      barangay: 'Admin Office',
+      address: 'SVPMPC Attendance Office',
+      status: 'active',
+      modules: ['attendance'],
+    },
+    {
       memberId: 'MORT-ADMIN-MEM',
       memberName: 'Mortuary Administrator',
       email: 'mortuary.admin@svpmpc.com',
@@ -171,18 +194,35 @@ const createAdminUsers = async () => {
     seedData.superAdmin,
     seedData.attendanceAdmin,
     seedData.attendanceSecretary,
+    seedData.attendanceOperator,
     seedData.mortuaryAdmin,
     seedData.mortuaryTreasurer,
   ];
 
   for (const userData of adminUsers) {
-    const existingUser = await User.findOne({ userId: userData.userId });
+    const existingUser = await User.findOne({
+      $or: [
+        { userId: userData.userId },
+        { username: userData.username },
+        { email: userData.email },
+        { memberId: userData.memberId },
+      ],
+    });
+
     if (!existingUser) {
       const user = new User(userData);
       await user.save();
       console.log(`✅ Created admin user: ${userData.username}`);
     } else {
-      console.log(`⏭️  Admin user already exists: ${userData.username}`);
+      const passwordMatches = await existingUser.comparePassword(userData.passwordHash);
+      if (!passwordMatches) {
+        existingUser.passwordHash = userData.passwordHash;
+        existingUser.isTemporaryPassword = false;
+        await existingUser.save();
+        console.log(`🔄 Updated password for admin user: ${userData.username}`);
+      } else {
+        console.log(`⏭️  Admin user already exists: ${userData.username}`);
+      }
     }
   }
 };
@@ -223,7 +263,10 @@ const seedDatabase = async () => {
     console.log('   - Password: AttendanceAdmin2024!');
     console.log('   Secretary:');
     console.log('   - Username: attendance.secretary');
-    console.log('   - Password: AttendanceSecretary2024!\n');
+    console.log('   - Password: AttendanceSecretary2024!');
+    console.log('   Scanner Operator:');
+    console.log('   - Username: attendance.scanner');
+    console.log('   - Password: AttendanceOperator2024!\n');
 
     console.log('💰 MORTUARY MODULE:');
     console.log('   Admin:');

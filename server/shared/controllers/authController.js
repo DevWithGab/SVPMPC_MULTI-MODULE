@@ -6,14 +6,16 @@ const { v4: uuidv4 } = require('uuid');
 // Login
 const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, expectedRole } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password required' });
     }
 
-    // Find user
-    const user = await User.findOne({ username });
+    // Find user by username or email
+    const user = await User.findOne({
+      $or: [{ username }, { email: username }],
+    });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -27,6 +29,25 @@ const login = async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Optional role gate to prevent cross-role logins from specific login forms
+    if (expectedRole) {
+      const allowedRolesByExpectedRole = {
+        member: ['member'],
+        secretary: ['secretary'],
+        scanner_operator: ['scanner_operator'],
+        treasurer: ['treasurer'],
+        admin: ['admin', 'super_admin'],
+        super_admin: ['super_admin'],
+      };
+
+      const allowedRoles = allowedRolesByExpectedRole[expectedRole] || [expectedRole];
+      if (!allowedRoles.includes(user.role)) {
+        return res.status(403).json({
+          message: `This account cannot sign in as ${expectedRole.replace('_', ' ')}.`,
+        });
+      }
     }
 
     // Update last login

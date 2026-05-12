@@ -7,7 +7,6 @@ const memberController = require('./memberController');
 const eventController = require('./eventController');
 const attendanceController = require('./attendanceController');
 const memberAuthController = require('./memberAuthController');
-const scannerController = require('./scannerController');
 
 module.exports = {
   // Role-based exports
@@ -19,5 +18,4 @@ module.exports = {
   eventController,
   attendanceController,
   memberAuthController,
-  scannerController,
 };

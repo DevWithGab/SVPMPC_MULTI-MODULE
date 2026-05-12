@@ -9,6 +9,7 @@ const authRoutes = require('./shared/routes/authRoutes');
 const adminRoutes = require('./shared/routes/adminRoutes');
 const attendanceRoutes = require('./modules/attendance/routes/attendanceRoutes');
 const mortuaryRoutes = require('./modules/mortuary/routes/mortuaryRoutes');
+const auditLogRoutes = require('./shared/routes/auditLogRoutes');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/mortuary', mortuaryRoutes);
+app.use('/api/audit', auditLogRoutes);
 
 // Global error handling middleware
 app.use(globalErrorHandler);

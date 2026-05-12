@@ -1,11 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Home, Calendar, Users, FileText, Menu, ChevronLeft, ChevronRight, 
-  LogOut, ClipboardList, UserCheck, BarChart3
-} from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth.jsx';
-import { useAttendance } from '../../hooks/useAttendance';
+import React, { useState, useEffect, useCallback } from "react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import {
+  Home,
+  Calendar,
+  Users,
+  FileText,
+  Menu,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  ClipboardList,
+  UserCheck,
+  BarChart3,
+  Activity,
+} from "lucide-react";
+import { useAuth } from "../../hooks/useAuth.jsx";
+import { useAttendance } from "../../hooks/useAttendance";
+import { attendanceAPI } from "../../services/api";
 
 // Import the attendance secretary components
 import {
@@ -13,82 +24,140 @@ import {
   EventManagement,
   AttendanceReports,
   MemberDirectory,
-  ManualAttendance
-} from '../../components/attendance/secretary';
+  ManualAttendance,
+} from "../../components/attendance/secretary";
+import { LiveAttendanceList } from "../../components/attendance/shared";
 
-export default function AttendanceSecretaryPortal({ onBack, user: propUser, token: propToken }) {
-  const { user, setUser, token, setToken, updateAuth } = useAuth();
-  
+export default function AttendanceSecretaryPortal({
+  onBack,
+  user: propUser,
+  token: propToken,
+}) {
+  const { user, updateAuth } = useAuth();
+
   // Use props if provided, otherwise use context
   const currentUser = propUser || user;
-  const currentToken = propToken || token;
-  
+
   // Update context if props are provided
   useEffect(() => {
     if (propUser && propToken) {
       updateAuth(propUser, propToken);
     }
   }, [propUser, propToken, updateAuth]);
-  
-  const { attendanceLogs, events, loading, refreshData } = useAttendance();
-  
-  const [activeTab, setActiveTab] = useState('home');
+
+  const { attendanceLogs, events, refreshData } = useAttendance();
+
+  const [allAttendance, setAllAttendance] = useState([]);
+
+  useEffect(() => {
+    const loadAttendance = async () => {
+      try {
+        const response = await attendanceAPI.getAllAttendance();
+        setAllAttendance(response.attendance || []);
+      } catch (error) {
+        console.error("Error fetching all attendance:", error);
+        setAllAttendance([]);
+      }
+    };
+
+    loadAttendance();
+  }, []);
+
+  const refreshAllAttendance = useCallback(() => {
+    const loadAttendance = async () => {
+      try {
+        const response = await attendanceAPI.getAllAttendance();
+        setAllAttendance(response.attendance || []);
+      } catch (error) {
+        console.error("Error fetching all attendance:", error);
+        setAllAttendance([]);
+      }
+    };
+
+    loadAttendance();
+  }, []);
+
+  const [activeTab, setActiveTab] = useState("home");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    if (activeTab === "events") {
+      refreshData();
+    }
+  }, [activeTab, refreshData]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (activeTab === "events") {
+        refreshData();
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => window.removeEventListener("focus", handleWindowFocus);
+  }, [activeTab, refreshData]);
+
   const sidebarItems = [
-    { id: 'home', label: 'Dashboard', icon: Home },
-    { id: 'events', label: 'Event Management', icon: Calendar },
-    { id: 'reports', label: 'Attendance Reports', icon: BarChart3 },
-    { id: 'manual', label: 'Manual Attendance', icon: UserCheck },
-    { id: 'directory', label: 'Member Directory', icon: Users },
+    { id: "home", label: "Dashboard", icon: Home },
+    { id: "events", label: "Event Management", icon: Calendar },
+    { id: "reports", label: "Attendance Reports", icon: BarChart3 },
+    { id: "live", label: "Live Attendance", icon: Activity },
+    { id: "manual", label: "Manual Attendance", icon: UserCheck },
+    { id: "directory", label: "Member Directory", icon: Users },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'events':
+      case "events":
         return (
-          <EventManagement 
+          <EventManagement
             user={currentUser}
             events={events}
             onRefreshEvents={refreshData}
           />
         );
-      
-      case 'reports':
+
+      case "reports":
         return (
-          <AttendanceReports 
+          <AttendanceReports
             user={currentUser}
             attendanceLogs={attendanceLogs}
             events={events}
           />
         );
-      
-      case 'manual':
+
+      case "manual":
         return (
-          <ManualAttendance 
+          <ManualAttendance
             user={currentUser}
             events={events}
+            onAttendanceRecorded={refreshAllAttendance}
           />
         );
-      
-      case 'directory':
+
+      case "directory":
+        return <MemberDirectory user={currentUser} />;
+
+      case "live":
         return (
-          <MemberDirectory 
-            user={currentUser}
+          <LiveAttendanceList
+            attendanceLogs={allAttendance}
+            events={events}
+            onRefresh={refreshAllAttendance}
           />
         );
-      
+
       default: // 'home'
         return (
-          <Dashboard 
+          <Dashboard
             user={currentUser}
             attendanceLogs={attendanceLogs}
             events={events}
@@ -102,25 +171,31 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
     <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
       {/* Sidebar Overlay for Mobile */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-coop-darkGreen/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <motion.aside
+      <Motion.aside
         initial={false}
         animate={{
-          width: isDesktop ? (isSidebarCollapsed ? 80 : 280) : isMobileMenuOpen ? 280 : 0,
+          width: isDesktop
+            ? isSidebarCollapsed
+              ? 80
+              : 280
+            : isMobileMenuOpen
+              ? 280
+              : 0,
         }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
         className="bg-coop-darkGreen border-r border-green-900 flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 shadow-2xl"
       >
         <div className="p-6 flex items-center justify-between relative z-10">
           <AnimatePresence mode="wait">
             {!isSidebarCollapsed && (
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -128,16 +203,24 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
                 className="flex items-center gap-3"
               >
                 <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-slate-100">
-                  <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-8 h-8 object-contain" />
+                  <img
+                    src="/SVPMPC-LOGO(MAIN).png"
+                    alt="SVMPC Logo"
+                    className="w-8 h-8 object-contain"
+                  />
                 </div>
                 <div>
-                  <h1 className="text-white font-black text-sm tracking-tight">Secretary Portal</h1>
-                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">Attendance System</p>
+                  <h1 className="text-white font-black text-sm tracking-tight">
+                    Secretary Portal
+                  </h1>
+                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
+                    Attendance System
+                  </p>
                 </div>
-              </motion.div>
+              </Motion.div>
             )}
           </AnimatePresence>
-          
+
           {isDesktop && (
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -164,14 +247,14 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
                 }}
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 group relative overflow-hidden ${
                   activeTab === item.id
-                    ? 'bg-coop-green text-white shadow-lg'
-                    : 'text-green-200 hover:bg-green-800/30 hover:text-white'
+                    ? "bg-coop-green text-white shadow-lg"
+                    : "text-green-200 hover:bg-green-800/30 hover:text-white"
                 }`}
               >
                 <item.icon className="w-5 h-5 shrink-0" />
                 <AnimatePresence mode="wait">
                   {!isSidebarCollapsed && (
-                    <motion.span
+                    <Motion.span
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -10 }}
@@ -179,7 +262,7 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
                       className="font-bold text-sm tracking-tight"
                     >
                       {item.label}
-                    </motion.span>
+                    </Motion.span>
                   )}
                 </AnimatePresence>
               </button>
@@ -195,23 +278,27 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
             </div>
             <AnimatePresence mode="wait">
               {!isSidebarCollapsed && (
-                <motion.div
+                <Motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
                   transition={{ duration: 0.15 }}
                   className="flex-1 min-w-0"
                 >
-                  <p className="text-white font-bold text-sm truncate">{currentUser?.name || 'Secretary'}</p>
-                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">Secretary Role</p>
-                </motion.div>
+                  <p className="text-white font-bold text-sm truncate">
+                    {currentUser?.name || "Secretary"}
+                  </p>
+                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
+                    Secretary Role
+                  </p>
+                </Motion.div>
               )}
             </AnimatePresence>
           </div>
-          
+
           <AnimatePresence mode="wait">
             {!isSidebarCollapsed && (
-              <motion.button
+              <Motion.button
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -221,11 +308,11 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
               >
                 <LogOut className="w-4 h-4" />
                 <span className="font-bold text-sm">Sign Out</span>
-              </motion.button>
+              </Motion.button>
             )}
           </AnimatePresence>
         </div>
-      </motion.aside>
+      </Motion.aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -238,17 +325,21 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
             <Menu className="w-5 h-5 text-slate-600" />
           </button>
           <div className="text-center">
-            <h1 className="font-black text-slate-950 text-lg tracking-tight">Secretary Portal</h1>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Attendance System</p>
+            <h1 className="font-black text-slate-950 text-lg tracking-tight">
+              Secretary Portal
+            </h1>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
+              Attendance System
+            </p>
           </div>
           <div className="w-10 h-10" /> {/* Spacer */}
         </div>
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6 lg:p-12 max-w-7xl mx-auto">
+          <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <AnimatePresence mode="wait">
-              <motion.div
+              <Motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -256,7 +347,7 @@ export default function AttendanceSecretaryPortal({ onBack, user: propUser, toke
                 transition={{ duration: 0.3 }}
               >
                 {renderContent()}
-              </motion.div>
+              </Motion.div>
             </AnimatePresence>
           </div>
         </main>

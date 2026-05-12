@@ -3,6 +3,7 @@ const { parseCSV, validateMemberData } = require('../services/csvParserService')
 const { generateQRCode } = require('../services/qrCodeService');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
+const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 
 // Upload members from CSV
 const uploadMembers = async (req, res) => {
@@ -18,6 +19,22 @@ const uploadMembers = async (req, res) => {
     const validation = validateMemberData(members);
     if (!validation.isValid) {
       fs.unlinkSync(req.file.path);
+
+      // Log failed validation
+      await createAuditLog({
+        userId: req.user?.id,
+        userName: req.user?.name || 'Unknown',
+        userRole: req.user?.role || 'secretary',
+        action: 'member_imported',
+        module: 'attendance',
+        entityType: 'member',
+        description: `CSV import failed validation`,
+        status: 'failed',
+        errorMessage: `Validation failed: ${JSON.stringify(validation.errors)}`,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
       return res.status(400).json({
         message: 'CSV validation failed',
         errors: validation.errors,
@@ -52,6 +69,26 @@ const uploadMembers = async (req, res) => {
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
 
+    // Log successful import
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: req.user?.name || 'Unknown',
+      userRole: req.user?.role || 'secretary',
+      action: 'member_imported',
+      module: 'attendance',
+      entityType: 'member',
+      description: `Bulk imported ${savedMembers.length} members from CSV`,
+      status: savedMembers.length === members.length ? 'success' : 'partial',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      metadata: {
+        totalRecords: members.length,
+        successCount: savedMembers.length,
+        errorCount: errors.length,
+        fileName: req.file.originalname,
+      },
+    });
+
     res.status(201).json({
       message: 'Members uploaded successfully',
       savedCount: savedMembers.length,
@@ -63,6 +100,22 @@ const uploadMembers = async (req, res) => {
     if (req.file) {
       fs.unlinkSync(req.file.path);
     }
+
+    // Log failed import
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: req.user?.name || 'Unknown',
+      userRole: req.user?.role || 'secretary',
+      action: 'member_imported',
+      module: 'attendance',
+      entityType: 'member',
+      description: `CSV import failed`,
+      status: 'failed',
+      errorMessage: error.message,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
     res.status(500).json({ message: 'Error uploading members', error: error.message });
   }
 };
@@ -114,6 +167,25 @@ const generateQRCodes = async (req, res) => {
       }
     }
 
+    // Log audit event
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: req.user?.name || 'Unknown',
+      userRole: req.user?.role || 'secretary',
+      action: 'qr_code_generated',
+      module: 'attendance',
+      entityType: 'member',
+      description: `Generated QR codes for ${results.length} members`,
+      status: results.length === memberIds.length ? 'success' : 'partial',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      metadata: {
+        requestedCount: memberIds.length,
+        successCount: results.length,
+        errorCount: errors.length,
+      },
+    });
+
     res.status(200).json({
       message: 'QR codes generated successfully',
       generatedCount: results.length,
@@ -122,6 +194,21 @@ const generateQRCodes = async (req, res) => {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
+    // Log failed attempt
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: req.user?.name || 'Unknown',
+      userRole: req.user?.role || 'secretary',
+      action: 'qr_code_generated',
+      module: 'attendance',
+      entityType: 'member',
+      description: `Failed to generate QR codes`,
+      status: 'failed',
+      errorMessage: error.message,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
     res.status(500).json({ message: 'Error generating QR codes', error: error.message });
   }
 };

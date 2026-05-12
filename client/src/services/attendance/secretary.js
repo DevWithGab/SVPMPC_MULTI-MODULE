@@ -80,7 +80,7 @@ export const eventAPI = {
       const response = await api.get('/events', { params });
       return {
         success: true,
-        data: response.data.data
+        data: response.data,
       };
     } catch (error) {
       return {
@@ -97,7 +97,7 @@ export const eventAPI = {
       const response = await api.post('/events', eventData);
       return {
         success: true,
-        data: response.data.data,
+        data: response.data,
         message: response.data.message
       };
     } catch (error) {
@@ -115,7 +115,7 @@ export const eventAPI = {
       const response = await api.get(`/events/${eventId}`);
       return {
         success: true,
-        data: response.data.data
+        data: response.data,
       };
     } catch (error) {
       return {
@@ -132,7 +132,7 @@ export const eventAPI = {
       const response = await api.put(`/events/${eventId}`, eventData);
       return {
         success: true,
-        data: response.data.data,
+        data: response.data,
         message: response.data.message
       };
     } catch (error) {
