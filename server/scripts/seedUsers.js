@@ -61,7 +61,7 @@ const seedData = {
 
   attendanceOperator: {
     userId: 'ATT-OP-001',
-    memberId: 'ATT-OP-MEM',
+    staffId: 'ATT-OP-MEM',
     username: 'attendance.scanner',
     email: 'attendance.scanner@svpmpc.com',
     phoneNumber: '09176666666',
@@ -105,7 +105,6 @@ const seedData = {
   ],
 };
 
-<<<<<<< HEAD
 // Create Member records for staff (they need to be members too)
 const createStaffMembers = async () => {
   const staffMembers = [
@@ -183,8 +182,6 @@ const createStaffMembers = async () => {
   }
 };
 
-=======
->>>>>>> df31a89314cfe8e2df6e649d5ddcb4dd2c001bd3
 // Create sample members
 const createSampleMembers = async () => {
   // Skipped - use CSV upload instead
