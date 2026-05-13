@@ -38,6 +38,7 @@ const login = async (req, res) => {
       {
         userId: user.userId,
         memberId: user.memberId,
+        staffId: user.staffId,
         username: user.username,
         modules: user.modules,
         role: user.role,
@@ -52,6 +53,7 @@ const login = async (req, res) => {
       user: {
         userId: user.userId,
         memberId: user.memberId,
+        staffId: user.staffId,
         username: user.username,
         email: user.email,
         isTemporaryPassword: user.isTemporaryPassword,
@@ -96,7 +98,8 @@ const changePassword = async (req, res) => {
     const credentialLog = new CredentialLog({
       logId: uuidv4(),
       userId: user.userId,
-      memberId: user.memberId,
+      memberId: user.memberId || null,
+      staffId: user.staffId || null,
       action: 'password_changed',
       status: 'success',
     });
@@ -128,6 +131,7 @@ const getUserProfile = async (req, res) => {
     res.status(200).json({
       userId: user.userId,
       memberId: user.memberId,
+      staffId: user.staffId,
       username: user.username,
       email: user.email,
       phoneNumber: user.phoneNumber,
