@@ -150,7 +150,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         message: response.message || "Event created successfully!",
         type: "success",
       });
-
+      // Close modal and reset form
       setShowCreateModal(false);
       setNewEvent({
         name: "",

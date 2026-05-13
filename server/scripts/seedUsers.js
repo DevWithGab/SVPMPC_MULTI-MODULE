@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 // Import models
-const { User, Member } = require('../shared/models');
+const { User } = require('../shared/models');
 
 // Database connection
 const connectDB = async () => {
@@ -21,7 +21,7 @@ const seedData = {
   // Super Admin (not a member, just admin access)
   superAdmin: {
     userId: 'SUPER-ADMIN-001',
-    memberId: 'SUPER-ADMIN-MEM',
+    staffId: 'STAFF-SUPER-001',
     username: 'superadmin',
     email: 'superadmin@svpmpc.com',
     phoneNumber: '09171111111',
@@ -35,7 +35,7 @@ const seedData = {
   // Attendance Module Staff
   attendanceAdmin: {
     userId: 'ATT-ADMIN-001',
-    memberId: 'ATT-ADMIN-MEM',
+    staffId: 'STAFF-ATT-001',
     username: 'attendance.admin',
     email: 'attendance.admin@svpmpc.com',
     phoneNumber: '09172222222',
@@ -48,7 +48,7 @@ const seedData = {
 
   attendanceSecretary: {
     userId: 'ATT-SEC-001',
-    memberId: 'ATT-SEC-MEM',
+    staffId: 'STAFF-ATT-002',
     username: 'attendance.secretary',
     email: 'attendance.secretary@svpmpc.com',
     phoneNumber: '09173333333',
@@ -75,7 +75,7 @@ const seedData = {
   // Mortuary Module Staff
   mortuaryAdmin: {
     userId: 'MORT-ADMIN-001',
-    memberId: 'MORT-ADMIN-MEM',
+    staffId: 'STAFF-MORT-001',
     username: 'mortuary.admin',
     email: 'mortuary.admin@svpmpc.com',
     phoneNumber: '09174444444',
@@ -88,7 +88,7 @@ const seedData = {
 
   mortuaryTreasurer: {
     userId: 'MORT-TREAS-001',
-    memberId: 'MORT-TREAS-MEM',
+    staffId: 'STAFF-MORT-002',
     username: 'mortuary.treasurer',
     email: 'mortuary.treasurer@svpmpc.com',
     phoneNumber: '09175555555',
@@ -105,6 +105,7 @@ const seedData = {
   ],
 };
 
+<<<<<<< HEAD
 // Create Member records for staff (they need to be members too)
 const createStaffMembers = async () => {
   const staffMembers = [
@@ -182,6 +183,8 @@ const createStaffMembers = async () => {
   }
 };
 
+=======
+>>>>>>> df31a89314cfe8e2df6e649d5ddcb4dd2c001bd3
 // Create sample members
 const createSampleMembers = async () => {
   // Skipped - use CSV upload instead
@@ -235,9 +238,17 @@ const seedDatabase = async () => {
     // Connect to database
     await connectDB();
 
-    // Create staff members first
-    console.log('\n📋 Creating staff member records...');
-    await createStaffMembers();
+    // Attempt to drop any legacy memberId index that can cause duplicate-null errors.
+    try {
+      const coll = mongoose.connection.collection('users');
+      const indexes = await coll.indexes();
+      if (indexes.some(ix => ix.name === 'memberId_1')) {
+        await coll.dropIndex('memberId_1');
+        console.log('🗑️ Dropped legacy index: memberId_1');
+      }
+    } catch (idxErr) {
+      console.warn('⚠️  Could not drop legacy index (continuing):', idxErr.message);
+    }
 
     // Create admin users
     console.log('\n👤 Creating admin user accounts...');

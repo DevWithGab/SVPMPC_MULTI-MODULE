@@ -30,6 +30,8 @@ const showCredentials = async () => {
     for (const user of users) {
       console.log(`\n👤 ${user.username}`);
       console.log(`   Role: ${user.role || 'member'}`);
+      console.log(`   Member ID: ${user.memberId || 'N/A'}`);
+      console.log(`   Staff ID: ${user.staffId || 'N/A'}`);
       console.log(`   Email: ${user.email}`);
       console.log(`   Status: ${user.status}`);
       console.log(`   Modules: ${user.modules.join(', ')}`);
@@ -50,7 +52,8 @@ const showCredentials = async () => {
     console.log('   attendance.secretary / AttendanceSecretary2024!');
     console.log('   mortuary.admin / MortuaryAdmin2024!');
     console.log('   mortuary.treasurer / MortuaryTreasurer2024!');
-    console.log('\n💡 Member accounts use their username and temporary password shown above\n');
+    console.log('\n💡 Member accounts use their username and temporary password shown above');
+    console.log('💡 Staff accounts use staffId instead of memberId\n');
 
     process.exit(0);
   } catch (error) {
