@@ -63,7 +63,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre('validate', function () {
-  const staffRoles = ['admin', 'secretary', 'treasurer', 'super_admin'];
+  const staffRoles = ['admin', 'secretary', 'treasurer', 'scanner_operator', 'super_admin'];
   const isStaffAccount = staffRoles.includes(this.role);
 
   if (isStaffAccount) {

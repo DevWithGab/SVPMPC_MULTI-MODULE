@@ -449,40 +449,9 @@ export const paymentScheduleAPI = {
 };
 
 // ============================================
-// MORTUARY - NOTIFICATIONS API
+// MORTUARY - NOTIFICATIONS API (Removed - Now Automated)
 // ============================================
-export const notificationAPI = {
-  sendReminderToMember: async (memberId, reminderData) => {
-    const response = await api.post(
-      '/mortuary/notifications/send-reminder',
-      { memberId, ...reminderData }
-    );
-    return response.data;
-  },
-
-  sendBulkRemindersToOverdue: async (reminderData) => {
-    const response = await api.post(
-      '/mortuary/notifications/send-bulk-overdue',
-      reminderData
-    );
-    return response.data;
-  },
-
-  sendRemindersToMembers: async (memberIds, reminderData) => {
-    const response = await api.post(
-      '/mortuary/notifications/send-to-members',
-      { memberIds, ...reminderData }
-    );
-    return response.data;
-  },
-
-  getReminderHistory: async (memberId) => {
-    const response = await api.get(
-      `/mortuary/notifications/history/${memberId}`
-    );
-    return response.data;
-  },
-};
+// Manual notification methods removed - system now uses automatic threshold notifications
 
 // ============================================
 // ADMIN - MEMBER MANAGEMENT API
@@ -609,26 +578,8 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  // Notifications
-  sendReminderToMember: async (reminderData) => {
-    const response = await api.post('/mortuary/treasurer/notifications/send-reminder', reminderData);
-    return response.data;
-  },
-
-  sendBulkReminders: async (reminderData) => {
-    const response = await api.post('/mortuary/treasurer/notifications/send-bulk-overdue', reminderData);
-    return response.data;
-  },
-
-  sendRemindersToMembers: async (memberIds, reminderData) => {
-    const response = await api.post('/mortuary/treasurer/notifications/send-to-members', { memberIds, ...reminderData });
-    return response.data;
-  },
-
-  getReminderHistory: async (memberId) => {
-    const response = await api.get(`/mortuary/treasurer/notifications/history/${memberId}`);
-    return response.data;
-  },
+  // Notifications (Removed - Now Automated via Threshold System)
+  // Manual notification methods removed
 };
 
 // ============================================

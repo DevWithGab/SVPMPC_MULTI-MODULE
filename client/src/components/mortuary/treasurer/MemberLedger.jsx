@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   Search, ArrowLeft, Printer, CreditCard, FileText, DollarSign, 
-  ChevronRight, MessageSquare, ArrowRight, Upload, X, Loader
+  ChevronRight, MessageSquare, ArrowRight, Upload, X, Loader,
+  Download, Filter, Calendar, TrendingUp, TrendingDown, Activity
 } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
@@ -28,7 +29,6 @@ const MemberLedger = ({
   currentPage,
   setCurrentPage,
   itemsPerPage,
-  handleQuickDeposit,
   setIsAddContributionOpen,
   handleTriggerAutomatedNotice,
   showToast,
@@ -38,6 +38,9 @@ const MemberLedger = ({
   const [csvFile, setCsvFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [transactionFilter, setTransactionFilter] = useState('all'); // all, deposits, withdrawals
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
 
   const handleCSVUpload = (event) => {
     const file = event.target.files?.[0];
@@ -165,43 +168,203 @@ const MemberLedger = ({
       setLoading(false);
     }
   };
+  // Export ledger to CSV
+  const exportLedgerToCSV = (entries, memberName) => {
+    const headers = ['Date', 'Reference Number', 'Received', 'Withdrawn', 'Balance', 'Description'];
+    const csvContent = [
+      headers.join(','),
+      ...entries.map(e => [
+        e.date,
+        e.ref_no,
+        e.received || 0,
+        e.withdrawn || 0,
+        e.balance,
+        `"${e.description || 'N/A'}"`
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${memberName.replace(/\s+/g, '_')}_Ledger_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   // Individual Member Ledger View
   if (selectedLedgerMember) {
     const currentMember = members.find(m => m.id === selectedLedgerMember.id) || selectedLedgerMember;
-    const mEntries = [...ledger].filter(l => l.member_id === currentMember.id).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    // Filter and sort entries
+    let mEntries = [...ledger].filter(l => l.member_id === currentMember.id);
+    
+    // Apply transaction type filter
+    if (transactionFilter === 'deposits') {
+      mEntries = mEntries.filter(e => e.received > 0);
+    } else if (transactionFilter === 'withdrawals') {
+      mEntries = mEntries.filter(e => e.withdrawn > 0);
+    }
+    
+    // Apply date range filter
+    if (dateRange.start) {
+      mEntries = mEntries.filter(e => new Date(e.date) >= new Date(dateRange.start));
+    }
+    if (dateRange.end) {
+      mEntries = mEntries.filter(e => new Date(e.date) <= new Date(dateRange.end));
+    }
+    
+    // Sort entries
+    mEntries.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+    
     const totalReceived = mEntries.reduce((sum, e) => sum + (e.received || 0), 0);
     const totalWithdrawn = mEntries.reduce((sum, e) => sum + (e.withdrawn || 0), 0);
+    const transactionCount = mEntries.length;
 
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
         {/* Header Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
-          <Button 
-            variant="ghost" 
-            onClick={() => setSelectedLedgerMember(null)}
-            className="rounded-xl hover:bg-slate-100 flex items-center gap-2 font-black text-slate-600 uppercase text-[10px] tracking-widest px-4"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to Member List
-          </Button>
-          <div className="flex gap-3">
+        <div className="flex flex-col gap-4 print:hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <Button 
-              variant="outline"
-              onClick={() => window.print()}
-              className="border-slate-200 text-slate-600 rounded-xl font-black uppercase text-[10px] tracking-widest px-6"
+              variant="ghost" 
+              onClick={() => {
+                setSelectedLedgerMember(null);
+                setTransactionFilter('all');
+                setDateRange({ start: '', end: '' });
+                setSortOrder('desc');
+              }}
+              className="rounded-lg hover:bg-slate-100 flex items-center gap-2 font-black text-slate-600 uppercase text-[10px] tracking-widest px-4"
             >
-              <Printer className="w-4 h-4 mr-2" /> Print Official Copy
+              <ArrowLeft className="w-4 h-4" /> Back to Member List
             </Button>
-            <Button 
-              className="bg-coop-green text-white rounded-xl shadow-lg hover:bg-coop-darkGreen font-black uppercase text-[10px] tracking-widest px-6"
-              onClick={() => setIsAddContributionOpen(true)}
-            >
-              <CreditCard className="w-4 h-4 mr-2" /> Add Deposit
-            </Button>
+            <div className="flex gap-3 flex-wrap">
+              <Button 
+                variant="outline"
+                onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
+                className="border-slate-200 text-slate-600 rounded-lg font-black uppercase text-[10px] tracking-widest px-6"
+              >
+                <Download className="w-4 h-4 mr-2" /> Export CSV
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => window.print()}
+                className="border-slate-200 text-slate-600 rounded-lg font-black uppercase text-[10px] tracking-widest px-6"
+              >
+                <Printer className="w-4 h-4 mr-2" /> Print Official Copy
+              </Button>
+              <Button 
+                className="bg-coop-green text-white rounded-lg shadow-lg hover:bg-coop-darkGreen font-black uppercase text-[10px] tracking-widest px-6"
+                onClick={() => setIsAddContributionOpen(true)}
+              >
+                <CreditCard className="w-4 h-4 mr-2" /> Add Deposit
+              </Button>
+            </div>
           </div>
+
+          {/* Filters */}
+          <Card className="p-6 rounded-lg border-slate-200 bg-slate-50/50">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                    <Filter className="w-3 h-3" /> Transaction Type
+                  </label>
+                  <select
+                    value={transactionFilter}
+                    onChange={(e) => setTransactionFilter(e.target.value)}
+                    className="w-full h-10 rounded-lg bg-white border-slate-200 text-xs font-bold px-3 cursor-pointer"
+                  >
+                    <option value="all">All Transactions</option>
+                    <option value="deposits">Deposits Only</option>
+                    <option value="withdrawals">Withdrawals Only</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                    <Calendar className="w-3 h-3" /> Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                    className="w-full h-10 rounded-lg bg-white border-slate-200 text-xs font-bold px-3"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                    <Calendar className="w-3 h-3" /> End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                    className="w-full h-10 rounded-lg bg-white border-slate-200 text-xs font-bold px-3"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="rounded-lg font-black uppercase text-[9px] tracking-widest px-4 h-10"
+                >
+                  {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setTransactionFilter('all');
+                    setDateRange({ start: '', end: '' });
+                    setSortOrder('desc');
+                  }}
+                  className="rounded-lg font-black uppercase text-[9px] tracking-widest px-4 h-10 text-slate-500"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+            
+            {/* Filter Summary */}
+            <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Transactions</p>
+                <p className="text-lg font-black text-slate-900">{transactionCount}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[8px] font-black uppercase text-coop-green tracking-widest flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" /> Total Deposits
+                </p>
+                <p className="text-lg font-black text-coop-green">₱{totalReceived.toLocaleString()}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[8px] font-black uppercase text-rose-600 tracking-widest flex items-center gap-1">
+                  <TrendingDown className="w-3 h-3" /> Total Withdrawals
+                </p>
+                <p className="text-lg font-black text-rose-600">₱{totalWithdrawn.toLocaleString()}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1">
+                  <Activity className="w-3 h-3" /> Net Change
+                </p>
+                <p className={`text-lg font-black ${(totalReceived - totalWithdrawn) >= 0 ? 'text-coop-green' : 'text-rose-600'}`}>
+                  ₱{(totalReceived - totalWithdrawn).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Ledger Document */}
-        <div id="printable-ledger" className="bg-white rounded-[3rem] border border-slate-200 shadow-2xl overflow-hidden print:border-none print:shadow-none min-h-[900px] flex flex-col relative">
+        <div id="printable-ledger" className="bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden print:border-none print:shadow-none min-h-[900px] flex flex-col relative">
           {/* Visual Anchor */}
           <div className="absolute top-10 right-10 opacity-[0.03] pointer-events-none select-none hidden lg:block">
             <p className="text-[12rem] font-black leading-none tracking-tighter">MAF</p>
@@ -238,7 +401,7 @@ const MemberLedger = ({
 
               {/* Balance Card */}
               <div className="flex flex-col gap-4">
-                <div className="bg-slate-950 p-6 rounded-[2rem] text-white shadow-xl shadow-slate-200 min-w-[280px]">
+                <div className="bg-slate-950 p-6 rounded-lg text-white shadow-xl shadow-slate-200 min-w-[280px]">
                   <div className="flex justify-between items-start mb-4">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Fund Standing</p>
                     <div className="w-8 h-8 bg-coop-green rounded-full flex items-center justify-center">
@@ -255,11 +418,11 @@ const MemberLedger = ({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-green-50/50 p-4 rounded-2xl border border-green-100/50">
+                  <div className="bg-green-50/50 p-4 rounded-lg border border-green-100/50">
                     <p className="text-[8px] font-black uppercase text-coop-green mb-1">Total Inflow</p>
                     <p className="text-sm font-black text-coop-green">₱{totalReceived.toLocaleString()}</p>
                   </div>
-                  <div className="bg-rose-50/50 p-4 rounded-2xl border border-rose-100/50">
+                  <div className="bg-rose-50/50 p-4 rounded-lg border border-rose-100/50">
                     <p className="text-[8px] font-black uppercase text-rose-600 mb-1">Total Outflow</p>
                     <p className="text-sm font-black text-rose-700">₱{totalWithdrawn.toLocaleString()}</p>
                   </div>
@@ -271,9 +434,10 @@ const MemberLedger = ({
           {/* Ledger Table */}
           <div className="flex-1">
             <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 flex py-4 px-10 print:static print:bg-transparent">
-              <div className="grid grid-cols-5 w-full text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <div className="grid grid-cols-6 w-full text-[10px] font-black uppercase tracking-widest text-slate-400">
                 <div className="col-span-1">Date</div>
                 <div className="col-span-1">OR/DV Number</div>
+                <div className="col-span-1">Description</div>
                 <div className="col-span-1 text-right">Received (In)</div>
                 <div className="col-span-1 text-right">Withdrawn (Out)</div>
                 <div className="col-span-1 text-right">End Balance</div>
@@ -283,9 +447,14 @@ const MemberLedger = ({
             <div className="divide-y divide-slate-100">
               {mEntries.length > 0 ? (
                 mEntries.map((entry, idx) => (
-                  <div key={entry.id} className="grid grid-cols-5 w-full items-center py-5 px-10 hover:bg-slate-50/50 transition-colors group">
+                  <div key={entry.id} className="grid grid-cols-6 w-full items-center py-5 px-10 hover:bg-slate-50/50 transition-colors group">
                     <div className="col-span-1 font-mono text-xs font-bold text-slate-500">{entry.date}</div>
                     <div className="col-span-1 font-mono text-xs font-black text-slate-900 uppercase">{entry.ref_no}</div>
+                    <div className="col-span-1">
+                      <p className="text-xs font-medium text-slate-600 truncate" title={entry.description || 'N/A'}>
+                        {entry.description || 'N/A'}
+                      </p>
+                    </div>
                     <div className="col-span-1 text-right">
                       <p className={`text-sm font-black font-mono ${entry.received > 0 ? 'text-coop-green' : 'text-slate-300'}`}>
                         {entry.received > 0 ? `+₱${entry.received.toLocaleString()}` : '0.00'}
@@ -304,7 +473,11 @@ const MemberLedger = ({
               ) : (
                 <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50">
                   <FileText className="w-16 h-16 mb-4 opacity-[0.05]" />
-                  <p className="text-xs font-black uppercase tracking-widest">No transaction history recorded yet</p>
+                  <p className="text-xs font-black uppercase tracking-widest">
+                    {transactionFilter !== 'all' || dateRange.start || dateRange.end 
+                      ? 'No transactions match the selected filters' 
+                      : 'No transaction history recorded yet'}
+                  </p>
                 </div>
               )}
             </div>
@@ -378,18 +551,20 @@ const MemberLedger = ({
           <div className="w-full sm:w-auto self-end">
             <Button 
               onClick={() => setShowBulkModal(true)}
-              className="w-full h-12 bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 text-emerald-700 hover:text-white transition-all shadow-sm rounded-2xl font-black uppercase tracking-widest text-[10px] px-6 gap-2"
+              className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 hover:border-emerald-700 text-white transition-all shadow-sm rounded-lg font-black uppercase tracking-widest text-[10px] px-6 flex items-center justify-center gap-2"
             >
-              <Upload className="w-4 h-4" /> Bulk Upload CSV
+              <Upload className="w-4 h-4" /> 
+              <span>Bulk Upload CSV</span>
             </Button>
           </div>
           {barangayFilter !== 'All' && (
             <div className="w-full sm:w-auto self-end">
               <Button 
                 onClick={handleTriggerAutomatedNotice}
-                className="w-full h-12 bg-blue-50 hover:bg-blue-600 border border-blue-200 hover:border-blue-600 text-blue-700 hover:text-white transition-all shadow-sm rounded-2xl font-black uppercase tracking-widest text-[10px] px-6 gap-2"
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white transition-all shadow-sm rounded-lg font-black uppercase tracking-widest text-[10px] px-6 flex items-center justify-center gap-2"
               >
-                <MessageSquare className="w-4 h-4" /> Trigger Automated Notice
+                <MessageSquare className="w-4 h-4" /> 
+                <span>Trigger Automated Notice</span>
               </Button>
             </div>
           )}
@@ -397,7 +572,7 @@ const MemberLedger = ({
       </div>
 
       {/* Members Table */}
-      <Card className="rounded-[3rem] border-slate-200 overflow-hidden shadow-2xl shadow-slate-200/40 bg-white border relative">
+      <Card className="rounded-lg border-slate-200 overflow-hidden shadow-2xl shadow-slate-200/40 bg-white border relative">
         <div className="absolute top-0 left-0 w-1 h-full bg-coop-green" />
         <div className="overflow-x-auto">
           <Table>
@@ -414,12 +589,50 @@ const MemberLedger = ({
                 <TableRow key={member.id} className="hover:bg-slate-50/80 transition-all duration-300 group cursor-default border-b border-slate-50">
                   <TableCell className="px-10 py-8">
                     <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 rounded-[2rem] bg-slate-100 text-slate-400 flex items-center justify-center font-black text-2xl tracking-tighter transition-all duration-500 group-hover:bg-slate-900 group-hover:text-white group-hover:rotate-6 shadow-inner">
-                        {member.name.charAt(0)}
+                      <div className="relative group/avatar">
+                        {/* Main Avatar - Circular with professional colors */}
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl tracking-tighter shadow-md transition-all duration-500 group-hover:scale-110 relative overflow-hidden ${
+                          member.balance < 1000 
+                            ? 'bg-slate-700 text-white group-hover:shadow-lg group-hover:shadow-slate-400/30' 
+                            : 'bg-slate-800 text-white group-hover:shadow-lg group-hover:shadow-slate-500/30'
+                        }`}>
+                          {/* Subtle shine effect */}
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                          <span className="relative z-10">{member.name.charAt(0)}</span>
+                        </div>
+                        
+                        {/* Status Badge - Professional styling */}
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-3 border-white shadow-sm flex items-center justify-center ${
+                          member.balance >= 1000 
+                            ? 'bg-emerald-600' 
+                            : 'bg-amber-500'
+                        }`}>
+                          {member.balance >= 1000 ? (
+                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-black text-slate-950 text-xl leading-tight tracking-tight">{member.name}</p>
-                        <p className="text-[10px] font-black text-coop-green uppercase tracking-[0.3em] mt-1.5 opacity-60">UID {member.id.toString().padStart(6, '0')}</p>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-slate-950 text-lg leading-tight tracking-tight truncate group-hover:text-slate-700 transition-colors">{member.name}</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
+                            UID {member.id.toString().padStart(6, '0')}
+                          </p>
+                          <span className="text-slate-300">•</span>
+                          <div className="flex items-center gap-1.5">
+                            <div className={`w-2 h-2 rounded-full ${member.balance >= 1000 ? 'bg-emerald-600' : 'bg-amber-500'}`}></div>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                              {member.balance >= 1000 ? 'Active' : 'Needs Attention'}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </TableCell>
@@ -431,33 +644,25 @@ const MemberLedger = ({
                   </TableCell>
                   <TableCell>
                     <div className="space-y-2">
-                      <p className={`text-2xl font-black tracking-tighter tabular-nums leading-none ${member.balance < 1000 ? 'text-rose-600' : 'text-slate-900 group-hover:text-coop-green transition-colors'}`}>
+                      <p className={`text-2xl font-black tracking-tighter tabular-nums leading-none ${member.balance < 1000 ? 'text-slate-700' : 'text-slate-900 group-hover:text-slate-700 transition-colors'}`}>
                         ₱{member.balance?.toLocaleString()}
                       </p>
                       <div className="flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${member.balance >= 1000 ? 'bg-coop-green' : 'bg-rose-500 animate-pulse'}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full ${member.balance >= 1000 ? 'bg-emerald-600' : 'bg-amber-500'}`} />
                         <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
-                          Standing: {member.balance >= 1000 ? 'Verified' : 'At Risk'}
+                          Standing: {member.balance >= 1000 ? 'Verified' : 'Review Required'}
                         </p>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="px-10 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="ghost"
-                        onClick={() => handleQuickDeposit(member.memberId || member.id)}
-                        className="bg-transparent border border-green-200 text-coop-green hover:bg-green-50 hover:text-coop-green hover:border-green-300 font-bold uppercase text-[10px] tracking-widest h-12 px-6 rounded-2xl transition-all"
-                      >
-                        + Quick Deposit
-                      </Button>
-                      <Button 
-                        onClick={() => setSelectedLedgerMember(member)}
-                        className="bg-white border border-slate-200 text-slate-900 hover:bg-slate-950 hover:text-white hover:border-slate-950 font-black uppercase text-[10px] tracking-widest h-12 px-8 rounded-2xl shadow-sm transition-all transform group-hover:scale-105 active:scale-95"
-                      >
-                        Open Ledger <ArrowRight className="ml-2 w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                      </Button>
-                    </div>
+                    <Button 
+                      onClick={() => setSelectedLedgerMember(member)}
+                      className="bg-coop-green border border-coop-green text-white hover:bg-coop-darkGreen hover:border-coop-darkGreen font-black uppercase text-[10px] tracking-widest h-12 px-8 rounded-lg shadow-sm transition-all transform group-hover:scale-105 active:scale-95 inline-flex items-center justify-center gap-2"
+                    >
+                      <span>Open Ledger</span>
+                      <ArrowRight className="w-4 h-4 transition-all" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

@@ -2,6 +2,7 @@ const Contribution = require('../models/Contribution');
 const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
+const { checkAndNotify } = require('../services/thresholdNotificationService');
 
 // Record contribution (admin)
 const recordContribution = async (req, res) => {
@@ -64,6 +65,22 @@ const recordContribution = async (req, res) => {
     });
 
     await ledgerEntry.save();
+
+    // Check thresholds and send notifications if needed
+    try {
+      await checkAndNotify(
+        memberId,
+        member.memberName,
+        member.phoneNumber,
+        currentBalance,
+        newBalance,
+        'contribution',
+        ledgerEntry.ledgerId
+      );
+    } catch (notificationError) {
+      // Log but don't fail the contribution if notification fails
+      console.error('Error sending threshold notification:', notificationError);
+    }
 
     res.status(201).json({
       success: true,

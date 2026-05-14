@@ -30,8 +30,12 @@ const {
 } = require('../controllers/ledgerController');
 
 const {
-  sendReminderToMember
-} = require('../controllers/simpleNotificationController');
+  getMemberNotificationHistory,
+  getAllNotifications,
+  getPending,
+  retryFailed,
+  getNotificationStats
+} = require('../controllers/smsNotificationController');
 
 const router = express.Router();
 
@@ -59,7 +63,11 @@ router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLedger);
 
-// Simple notification routes (send custom messages to members)
-router.post('/notifications/send-reminder', sendReminderToMember);
+// SMS notification history and stats (automatic threshold notifications)
+router.get('/notifications/history/:memberId', getMemberNotificationHistory);
+router.get('/notifications/all', getAllNotifications);
+router.get('/notifications/pending', getPending);
+router.post('/notifications/retry-failed', retryFailed);
+router.get('/notifications/stats', getNotificationStats);
 
 module.exports = router;

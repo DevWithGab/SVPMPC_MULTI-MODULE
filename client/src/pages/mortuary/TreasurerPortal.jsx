@@ -61,7 +61,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   // Modal states
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
   const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
-  const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
+  const [isProcessingDeduction, setIsProcessingDeduction] = useState(false);
   
   // Form data states
   const [newContribution, setNewContribution] = useState({ 
@@ -71,7 +71,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     status: 'paid' 
   });
   const [deductionAmount, setDeductionAmount] = useState('25');
-  const [smsData, setSmsData] = useState({ memberId: null, message: '', memberName: '' });
   const [selectedLedgerMember, setSelectedLedgerMember] = useState(null);
   const prevMembersRef = useRef([]);
 
@@ -156,16 +155,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   };
 
   // Event handlers
-  const handleQuickDeposit = (memberId) => {
-    setNewContribution({ 
-      member_id: memberId, 
-      amount: '', 
-      payment_date: new Date().toISOString().split('T')[0], 
-      status: 'paid' 
-    });
-    setIsAddContributionOpen(true);
-  };
-
   const handleAddContribution = async (e) => {
     e.preventDefault();
     if (!newContribution.member_id) return showToast('Please select a member.', 'error');
@@ -230,25 +219,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  const handleSendSms = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await api.post('/mortuary/treasurer/notifications/send-reminder', {
-        memberId: smsData.memberId,
-        message: smsData.message
-      });
-
-      if (response.data.success) {
-        setIsSmsModalOpen(false);
-        setSmsData({ memberId: null, message: '', memberName: '' });
-        showToast('SMS notification sent.', 'success');
-      }
-    } catch (error) {
-      console.error('Error sending SMS:', error);
-      showToast('Error sending SMS.', 'error');
-    }
-  };
-
   const handleTriggerAutomatedNotice = async () => {
     if (barangayFilter === 'All') {
        return showToast('Please select a specific sector to trigger an automated notice.', 'error');
@@ -281,6 +251,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const handleDeathDeduction = async (e) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (isProcessingDeduction) {
+      return;
+    }
+    
     const amount = parseFloat(deductionAmount);
     if (isNaN(amount) || amount <= 0) {
       showToast('Please enter a valid deduction amount.', 'error');
@@ -288,6 +263,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
 
     if (!confirm(`This will immediately deduct ₱${amount} from ALL active members for death fund contribution. Proceed?`)) return;
+    
+    setIsProcessingDeduction(true);
     
     try {
       const response = await api.post('/mortuary/treasurer/balances/automatic-deduction', {
@@ -299,14 +276,18 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       if (response.data.success) {
         setIsAddClaimOpen(false);
         setDeductionAmount('25');
-        fetchMembers();
-        fetchDashboardStats();
-        fetchLedger();
+        await Promise.all([
+          fetchMembers(),
+          fetchDashboardStats(),
+          fetchLedger()
+        ]);
         showToast(`₱${amount} deduction processed for all active members.`, 'success');
       }
     } catch (error) {
       console.error('Error processing deduction:', error);
       showToast('Failed to process deduction.', 'error');
+    } finally {
+      setIsProcessingDeduction(false);
     }
   };
 
@@ -363,9 +344,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
-            handleQuickDeposit={handleQuickDeposit}
-            setSmsData={setSmsData}
-            setIsSmsModalOpen={setIsSmsModalOpen}
             setIsAddClaimOpen={setIsAddClaimOpen}
           />
         );
@@ -399,7 +377,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
-            handleQuickDeposit={handleQuickDeposit}
             setIsAddContributionOpen={setIsAddContributionOpen}
             handleTriggerAutomatedNotice={handleTriggerAutomatedNotice}
             showToast={showToast}
@@ -447,25 +424,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       </main>
 
       {/* Modals */}
-      {/* SMS Modal */}
-      <Modal isOpen={isSmsModalOpen} onClose={() => setIsSmsModalOpen(false)} title={`Notify: ${smsData.memberName}`}>
-        <form onSubmit={handleSendSms} className="space-y-6">
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Message Content</label>
-            <textarea 
-              className="w-full min-h-[150px] p-4 rounded-2xl bg-slate-50 border-slate-100 font-medium text-sm focus:bg-white focus:ring-coop-green/20"
-              placeholder="Enter message for member..."
-              value={smsData.message}
-              onChange={e => setSmsData({...smsData, message: e.target.value})}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full h-14 bg-coop-green text-white rounded-2xl font-black uppercase tracking-widest">
-            Send SMS Notification
-          </Button>
-        </form>
-      </Modal>
-
       {/* Add Contribution Modal */}
       <Modal isOpen={isAddContributionOpen} onClose={() => setIsAddContributionOpen(false)} title="Record Contribution">
         <form onSubmit={handleAddContribution} className="space-y-6">
@@ -530,8 +488,12 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             </div>
           </div>
 
-          <Button type="submit" className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-rose-100">
-            Apply ₱{deductionAmount} Deduction to All Members
+          <Button 
+            type="submit" 
+            disabled={isProcessingDeduction}
+            className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isProcessingDeduction ? 'Processing Deduction...' : `Apply ₱${deductionAmount} Deduction to All Members`}
           </Button>
         </form>
       </Modal>

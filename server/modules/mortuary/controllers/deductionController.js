@@ -1,6 +1,7 @@
 const Member = require('../../../shared/models/Member');
 const Ledger = require('../models/Ledger');
 const { v4: uuidv4 } = require('uuid');
+const { checkAndNotify } = require('../services/thresholdNotificationService');
 
 // Constants
 const DEDUCTION_AMOUNT = 25; // 25 pesos per death
@@ -102,9 +103,9 @@ const processAutomaticDeduction = async (req, res) => {
     
     for (const member of members) {
       try {
-        // Get current balance
+        // Get current balance - sort by createdAt for accuracy
         const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-          .sort({ transactionDate: -1 });
+          .sort({ createdAt: -1 });
         
         const currentBalance = latestLedger ? latestLedger.balance : 0;
         const newBalance = currentBalance - deductionAmount;
@@ -123,6 +124,22 @@ const processAutomaticDeduction = async (req, res) => {
         });
         
         await ledgerEntry.save();
+        
+        // Check thresholds and send notifications if needed
+        try {
+          await checkAndNotify(
+            member.memberId,
+            member.memberName,
+            member.phoneNumber,
+            currentBalance,
+            newBalance,
+            'deduction',
+            ledgerEntry.ledgerId
+          );
+        } catch (notificationError) {
+          // Log but don't fail the deduction if notification fails
+          console.error(`Error sending threshold notification for ${member.memberId}:`, notificationError);
+        }
         
         const result = {
           memberId: member.memberId,

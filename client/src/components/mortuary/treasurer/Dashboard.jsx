@@ -57,13 +57,6 @@ const Dashboard = ({ stats, contributions = [] }) => {
           <h2 className="text-4xl font-black text-slate-950 tracking-tighter leading-none mb-2">Financial Overview</h2>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em]">Treasurer Portfolio & Fund Performance</p>
         </div>
-        <div className="px-6 py-3 bg-white border border-slate-200 rounded-[1.5rem] flex items-center gap-3 shadow-xl shadow-slate-100/50 transform hover:-translate-y-0.5 transition-all">
-          <div className="w-2 h-2 bg-coop-green rounded-full animate-pulse" />
-          <Calendar className="w-4 h-4 text-coop-green" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
-            Active Fiscal Cycle: {new Date().getFullYear()}
-          </span>
-        </div>
       </div>
       
       {/* Stats Grid */}

@@ -61,7 +61,7 @@ const seedData = {
 
   attendanceOperator: {
     userId: 'ATT-OP-001',
-    staffId: 'ATT-OP-MEM',
+    staffId: 'STAFF-ATT-003',
     username: 'attendance.scanner',
     email: 'attendance.scanner@svpmpc.com',
     phoneNumber: '09176666666',
@@ -200,13 +200,22 @@ const createAdminUsers = async () => {
   ];
 
   for (const userData of adminUsers) {
+    const userLookupConditions = [
+      { userId: userData.userId },
+      { username: userData.username },
+      { email: userData.email },
+    ];
+
+    if (userData.memberId) {
+      userLookupConditions.push({ memberId: userData.memberId });
+    }
+
+    if (userData.staffId) {
+      userLookupConditions.push({ staffId: userData.staffId });
+    }
+
     const existingUser = await User.findOne({
-      $or: [
-        { userId: userData.userId },
-        { username: userData.username },
-        { email: userData.email },
-        { memberId: userData.memberId },
-      ],
+      $or: userLookupConditions,
     });
 
     if (!existingUser) {
