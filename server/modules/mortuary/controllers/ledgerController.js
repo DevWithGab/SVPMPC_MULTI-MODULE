@@ -24,17 +24,34 @@ const getMemberLedger = async (req, res) => {
     const totalCredits = ledgerEntries.reduce((sum, entry) => sum + entry.credit, 0);
     const totalDebits = ledgerEntries.reduce((sum, entry) => sum + entry.debit, 0);
 
+    // Format ledger entries for consistency with frontend expectations
+    const formattedEntries = ledgerEntries.map(entry => ({
+      id: entry.ledgerId,
+      member_id: entry.memberId,
+      date: entry.transactionDate.toISOString().split('T')[0],
+      ref_no: entry.referenceId || entry.ledgerId,
+      description: entry.description,
+      received: entry.credit || 0,
+      withdrawn: entry.debit || 0,
+      balance: entry.balance
+    }));
+
     res.status(200).json({
+      success: true,
       memberId,
       memberName: member.memberName,
       currentBalance,
       totalCredits,
       totalDebits,
-      transactionCount: ledgerEntries.length,
-      ledger: ledgerEntries,
+      transactionCount: formattedEntries.length,
+      data: formattedEntries,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching ledger', error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching ledger', 
+      error: error.message 
+    });
   }
 };
 

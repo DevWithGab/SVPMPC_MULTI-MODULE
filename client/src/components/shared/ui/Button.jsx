@@ -12,7 +12,7 @@ export default function Button({
   className = '',
   ...props
 }) {
-  const baseClasses = 'font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none';
+  const baseClasses = 'font-semibold rounded-lg transition-all duration-200 inline-flex items-center justify-center gap-2 whitespace-nowrap focus:outline-none';
   
   const variants = {
     primary: 'bg-coop-green hover:bg-coop-darkGreen text-white shadow-md hover:shadow-lg',
@@ -48,7 +48,7 @@ export default function Button({
       {...props}
     >
       {IconComponent && <IconComponent className="w-4 h-4" />}
-      <span>{loading ? 'Loading...' : children}</span>
+      {loading ? 'Loading...' : children}
     </motion.button>
   );
 }

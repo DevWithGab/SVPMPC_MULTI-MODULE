@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, TrendingUp, Calendar } from 'lucide-react';
+import { Search, Plus, TrendingUp, Calendar, CreditCard, BarChart3, Clock3 } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
 import { Badge } from '../../ui/badge';
@@ -29,56 +29,105 @@ const Contributions = ({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
           <h2 className="text-4xl font-black text-slate-950 tracking-tighter leading-none mb-2">Record Payments</h2>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em]">Contribution Processing & Inflow Management</p>
+          </div>
+          <Button 
+            onClick={() => setIsAddContributionOpen(true)} 
+            className="inline-flex items-center gap-3 rounded-2xl border border-coop-green/20 bg-coop-green px-6 h-12 text-white shadow-xl shadow-emerald-100 font-black uppercase text-[10px] tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 hover:bg-coop-darkGreen hover:shadow-2xl hover:shadow-emerald-200 focus:ring-2 focus:ring-coop-green/20"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
+              <Plus className="w-4 h-4" />
+            </span>
+            <span>Record New Payment</span>
+          </Button>
         </div>
-        <Button 
-          onClick={() => setIsAddContributionOpen(true)} 
-          className="bg-coop-green hover:bg-coop-darkGreen text-white rounded-2xl shadow-xl shadow-green-100 font-black uppercase text-[10px] tracking-widest px-8 h-14 transform hover:-translate-y-1 transition-all"
-        >
-          <Plus className="w-5 h-5 mr-3" /> Record New Payment
-        </Button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-950 p-6 rounded-[2rem] text-white shadow-xl shadow-slate-200">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Collection Today</p>
-          <p className="text-3xl font-black tracking-tighter mb-1">₱{totalToday.toLocaleString()}</p>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-coop-green animate-pulse" />
-            <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">{contributionsToday.length} Transactions processed</p>
+        <div className="bg-white p-8 rounded-xl border border-slate-200/60 shadow-2xl shadow-slate-200/50 group hover:shadow-slate-300/50 transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-50 rounded-lg">
+              <CreditCard className="w-6 h-6 text-coop-green" />
+            </div>
+            <Badge className="bg-green-50 text-coop-green border-none uppercase tracking-widest text-[9px] font-black">
+              Today
+            </Badge>
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">Collection Today</p>
+          <p className="text-4xl font-black text-slate-900 tracking-tighter mb-3">₱{totalToday.toLocaleString()}</p>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Clock3 className="w-4 h-4 text-coop-green" />
+            <p className="text-xs font-bold">{contributionsToday.length} transactions processed</p>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-lg">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Current Month Cycle</p>
-          <p className="text-3xl font-black text-slate-900 tracking-tighter">₱{totalMonth.toLocaleString()}</p>
-          <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Active Fiscal Month: {new Date().toLocaleString('default', { month: 'long' })}</p>
+
+        <div className="bg-white p-8 rounded-xl border border-slate-200/60 shadow-2xl shadow-slate-200/50 group hover:shadow-slate-300/50 transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-slate-50 rounded-lg">
+              <Calendar className="w-6 h-6 text-slate-600" />
+            </div>
+            <Badge className="bg-slate-50 text-slate-600 border-none uppercase tracking-widest text-[9px] font-black">
+              Month
+            </Badge>
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">Current Month Cycle</p>
+          <p className="text-4xl font-black text-slate-900 tracking-tighter mb-3">₱{totalMonth.toLocaleString()}</p>
+          <div className="flex items-center gap-2 text-slate-500">
+            <BarChart3 className="w-4 h-4 text-slate-600" />
+            <p className="text-xs font-bold">Active fiscal month: {new Date().toLocaleString('default', { month: 'long' })}</p>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-lg">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">System Performance</p>
-          <p className="text-3xl font-black text-slate-900 tracking-tighter">{contributions.length}</p>
-          <p className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Total Transaction Logs Verified</p>
+
+        <div className="bg-white p-8 rounded-xl border border-slate-200/60 shadow-2xl shadow-slate-200/50 group hover:shadow-slate-300/50 transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-emerald-50 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-coop-green" />
+            </div>
+            <Badge className="bg-emerald-50 text-coop-green border-none uppercase tracking-widest text-[9px] font-black">
+              Verified
+            </Badge>
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">System Performance</p>
+          <p className="text-4xl font-black text-slate-900 tracking-tighter mb-3">{contributions.length}</p>
+          <div className="flex items-center gap-2 text-slate-500">
+            <CreditCard className="w-4 h-4 text-coop-green" />
+            <p className="text-xs font-bold">Total transaction logs verified</p>
+          </div>
         </div>
       </div>
 
       {/* Search */}
-      <div className="flex flex-col md:flex-row md:items-center justify-end gap-4 mt-8">
-        <div className="relative w-full md:w-80">
+      <Card className="p-6 rounded-xl border-slate-200 shadow-lg bg-white">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-center gap-3 text-slate-500">
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <Search className="w-4 h-4 text-slate-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Search records</p>
+              <p className="text-xs font-bold text-slate-500">Match by member name, ID, or OR reference</p>
+            </div>
+          </div>
+
+          <div className="relative w-full lg:w-80">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
             placeholder="Search OR / Member Identity..." 
-            className="pl-12 rounded-2xl h-12 bg-white border-slate-200 shadow-xl shadow-slate-100 focus:ring-coop-green/20" 
+            className="pl-12 rounded-lg h-11 bg-white border-slate-200 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500 font-medium" 
             value={paymentSearchQuery} 
             onChange={e => setPaymentSearchQuery(e.target.value)} 
           />
         </div>
-      </div>
+        </div>
+      </Card>
 
       {/* Contributions Table */}
-      <Card className="rounded-[3rem] border-slate-200 shadow-2xl overflow-hidden bg-white border">
+      <Card className="rounded-lg border-slate-200/60 shadow-2xl overflow-hidden bg-white border">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50/50">
@@ -133,8 +182,9 @@ const Contributions = ({
           </Table>
         </div>
         {filteredContributions.length > 50 && (
-          <div className="p-6 bg-slate-50/50 border-t border-slate-100 text-center">
+          <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Showing most recent 50 transactions for processing speed</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">{filteredContributions.length} total records match the current search</p>
           </div>
         )}
       </Card>

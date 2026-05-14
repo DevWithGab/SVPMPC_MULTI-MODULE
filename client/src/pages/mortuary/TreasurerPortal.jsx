@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, CreditCard, FileText, LayoutDashboard, LayoutGrid, 
-  Heart, LogOut, BarChart3
+  Heart, LogOut, BarChart3, CalendarDays, BadgeDollarSign, ArrowLeft
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
@@ -34,6 +34,12 @@ const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab }) => (
   </button>
 );
 
+const extractBarangay = (address) => {
+  if (!address) return 'Not Specified';
+  const parts = address.split(',');
+  return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
+};
+
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -62,6 +68,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
   const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
   const [isProcessingDeduction, setIsProcessingDeduction] = useState(false);
+  const [contributionBarangayFilter, setContributionBarangayFilter] = useState('All');
   
   // Form data states
   const [newContribution, setNewContribution] = useState({ 
@@ -143,6 +150,12 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
   // Utility functions
   const showToast = (message, type) => setToast({ message, type });
+
+  const contributionMemberOptions = members.filter(member => (
+    contributionBarangayFilter === 'All' || extractBarangay(member.address) === contributionBarangayFilter
+  ));
+
+  const contributionBarangays = ['All', ...Array.from(new Set(members.map(member => extractBarangay(member.address))))].sort();
 
   // Refresh all data
   const refreshAllData = async () => {
@@ -427,24 +440,105 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       {/* Add Contribution Modal */}
       <Modal isOpen={isAddContributionOpen} onClose={() => setIsAddContributionOpen(false)} title="Record Contribution">
         <form onSubmit={handleAddContribution} className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Member</label>
-              <SearchableMemberSelect 
-                members={members}
-                value={newContribution.member_id}
-                onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
-                placeholder="Search member by name..."
-              />
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2 flex items-center gap-2">
+                  <BadgeDollarSign className="w-3.5 h-3.5 text-coop-green" />
+                  Contribution Details
+                </p>
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
+                  Filter members by barangay, then record the contribution details.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-[9px] font-black uppercase tracking-[0.25em] text-coop-green border border-emerald-100">
+                Required
+              </div>
             </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Amount (₱)</label>
-              <Input type="number" value={newContribution.amount} onChange={e => setNewContribution({...newContribution, amount: e.target.value})} required className="rounded-xl h-12" />
+
+            <div className="space-y-5">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Filter by Barangay</label>
+                <div className="relative">
+                  <select
+                    value={contributionBarangayFilter}
+                    onChange={(e) => setContributionBarangayFilter(e.target.value)}
+                    className="w-full h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 pr-10 text-sm font-bold text-slate-900 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none"
+                  >
+                    {contributionBarangays.map((barangay) => (
+                      <option key={barangay} value={barangay}>
+                        {barangay}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="mt-2 text-[10px] font-medium text-slate-400">
+                  Showing {contributionMemberOptions.length} member{contributionMemberOptions.length !== 1 ? 's' : ''} in this selection.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Member</label>
+                <SearchableMemberSelect 
+                  members={contributionMemberOptions}
+                  value={newContribution.member_id}
+                  onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
+                  placeholder="Search member by name..."
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Amount (₱)</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    placeholder="500"
+                    value={newContribution.amount}
+                    onChange={e => setNewContribution({ ...newContribution, amount: e.target.value })}
+                    required
+                    className="rounded-xl h-12 bg-slate-50 border-slate-200 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Payment Date</label>
+                  <Input
+                    type="date"
+                    value={newContribution.payment_date}
+                    onChange={e => setNewContribution({ ...newContribution, payment_date: e.target.value })}
+                    required
+                    className="rounded-xl h-12 bg-slate-50 border-slate-200 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-          <Button type="submit" className="w-full h-14 bg-coop-green text-white rounded-2xl font-black tracking-widest uppercase">
-            Submit Payment
-          </Button>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 flex items-center gap-3 text-sm text-slate-500">
+            <CalendarDays className="w-4 h-4 text-coop-green shrink-0" />
+            <span>Make sure the contribution date matches the deposit slip before submitting.</span>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsAddContributionOpen(false)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 h-12 text-slate-600 font-black uppercase text-[10px] tracking-[0.28em] shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-coop-green/20 bg-coop-green px-6 h-12 text-white font-black uppercase text-[10px] tracking-[0.28em] shadow-xl shadow-emerald-100 transition-all hover:-translate-y-0.5 hover:bg-coop-darkGreen hover:shadow-2xl hover:shadow-emerald-200 focus:ring-2 focus:ring-coop-green/20"
+            >
+              <CreditCard className="w-4 h-4" />
+              Submit Payment
+            </Button>
+          </div>
         </form>
       </Modal>
 

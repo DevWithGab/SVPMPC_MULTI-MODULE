@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   Search, ArrowLeft, Printer, CreditCard, FileText, DollarSign, 
   ChevronRight, MessageSquare, ArrowRight, Upload, X, Loader,
-  Download, Filter, Calendar, TrendingUp, TrendingDown, Activity
+  Download, Filter, Calendar, TrendingUp, TrendingDown, Activity,
+  User, MapPin, Users
 } from 'lucide-react';
 import { Card } from '../../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
@@ -216,11 +217,20 @@ const MemberLedger = ({
       mEntries = mEntries.filter(e => new Date(e.date) <= new Date(dateRange.end));
     }
     
-    // Sort entries
+    // Sort entries by date (pure chronological order regardless of type)
     mEntries.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      // Get dates with fallback handling
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      
+      // Primary sort: by transaction date
+      const dateDiff = sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      if (dateDiff !== 0) return dateDiff;
+      
+      // Secondary sort (if dates are identical): by received amount (newer transactions first)
+      // This ensures stable sorting when dates are the same
+      const receivedDiff = (b.received || 0) - (a.received || 0);
+      return receivedDiff;
     });
     
     const totalReceived = mEntries.reduce((sum, e) => sum + (e.received || 0), 0);
@@ -228,7 +238,7 @@ const MemberLedger = ({
     const transactionCount = mEntries.length;
 
     return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
         {/* Header Controls */}
         <div className="flex flex-col gap-4 print:hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -240,7 +250,7 @@ const MemberLedger = ({
                 setDateRange({ start: '', end: '' });
                 setSortOrder('desc');
               }}
-              className="rounded-lg hover:bg-slate-100 flex items-center gap-2 font-black text-slate-600 uppercase text-[10px] tracking-widest px-4"
+              className="rounded-lg hover:bg-slate-100 flex items-center gap-2 font-black text-slate-700 uppercase text-[9px] tracking-[0.15em] px-4 h-11 border border-slate-200"
             >
               <ArrowLeft className="w-4 h-4" /> Back to Member List
             </Button>
@@ -248,19 +258,19 @@ const MemberLedger = ({
               <Button 
                 variant="outline"
                 onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
-                className="border-slate-200 text-slate-600 rounded-lg font-black uppercase text-[10px] tracking-widest px-6"
+                className="border-slate-300 text-slate-700 rounded-lg font-black uppercase text-[9px] tracking-[0.15em] px-6 h-11"
               >
                 <Download className="w-4 h-4 mr-2" /> Export CSV
               </Button>
               <Button 
                 variant="outline"
                 onClick={() => window.print()}
-                className="border-slate-200 text-slate-600 rounded-lg font-black uppercase text-[10px] tracking-widest px-6"
+                className="border-slate-300 text-slate-700 rounded-lg font-black uppercase text-[9px] tracking-[0.15em] px-6 h-11"
               >
                 <Printer className="w-4 h-4 mr-2" /> Print Official Copy
               </Button>
               <Button 
-                className="bg-coop-green text-white rounded-lg shadow-lg hover:bg-coop-darkGreen font-black uppercase text-[10px] tracking-widest px-6"
+                className="bg-coop-green text-white rounded-lg shadow-lg hover:bg-coop-darkGreen font-black uppercase text-[9px] tracking-[0.15em] px-6 h-11"
                 onClick={() => setIsAddContributionOpen(true)}
               >
                 <CreditCard className="w-4 h-4 mr-2" /> Add Deposit
@@ -364,138 +374,133 @@ const MemberLedger = ({
         </div>
 
         {/* Ledger Document */}
-        <div id="printable-ledger" className="bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden print:border-none print:shadow-none min-h-[900px] flex flex-col relative">
-          {/* Visual Anchor */}
-          <div className="absolute top-10 right-10 opacity-[0.03] pointer-events-none select-none hidden lg:block">
-            <p className="text-[12rem] font-black leading-none tracking-tighter">MAF</p>
+        <div id="printable-ledger" className="bg-white border border-slate-200 shadow-2xl overflow-hidden print:border-none print:shadow-none min-h-screen flex flex-col relative">
+          {/* Visual Anchor - Watermark */}
+          <div className="absolute top-20 right-20 opacity-[0.02] pointer-events-none select-none hidden lg:block">
+            <p className="text-[14rem] font-black leading-none tracking-tighter">MAF</p>
           </div>
 
           {/* Header Section */}
-          <div className="p-10 border-b border-slate-100 bg-slate-50/30 print:bg-transparent relative z-10">
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-12 gap-8">
-              <div className="space-y-6">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-coop-green rounded-full text-[9px] font-black uppercase tracking-widest mb-4">
-                    <FileText className="w-3 h-3" /> Digital Ledger System
-                  </div>
-                  <h1 className="text-5xl font-black text-slate-950 tracking-tighter leading-none mb-2">Member Ledger</h1>
-                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.4em]">Official Mortuary Assistance Fund Record</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Full Legal Name</p>
-                    <p className="text-xl font-black text-slate-900 leading-tight">{currentMember.name}</p>
-                    <p className="text-[9px] font-bold text-slate-400">UUID: {currentMember.id.toString().padStart(6, '0')}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Address</p>
-                    <p className="text-sm font-bold text-slate-600 leading-snug max-w-xs">{currentMember.address || 'Not Provided'}</p>
-                  </div>
-                  <div className="space-y-1 md:col-span-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Beneficiary Information</p>
-                    <p className="text-sm font-bold text-slate-600 leading-snug">{currentMember.beneficiaries || 'No recorded beneficiaries'}</p>
-                  </div>
-                </div>
-              </div>
+          <div className="p-12 border-b-2 border-slate-300 bg-white print:bg-white relative z-10">
+            {/* Centered Professional Header */}
+            <div className="text-center mb-10 space-y-2">
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-600">Mortuary Assistance Fund</p>
+              <h1 className="text-4xl font-black text-slate-950 tracking-tight">MEMBER LEDGER</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Official Financial Record</p>
+              <div className="w-24 h-1 bg-gradient-to-r from-transparent via-coop-green to-transparent mx-auto mt-4" />
+            </div>
 
-              {/* Balance Card */}
-              <div className="flex flex-col gap-4">
-                <div className="bg-slate-950 p-6 rounded-lg text-white shadow-xl shadow-slate-200 min-w-[280px]">
-                  <div className="flex justify-between items-start mb-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Fund Standing</p>
-                    <div className="w-8 h-8 bg-coop-green rounded-full flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-                  <p className="text-4xl font-black tracking-tighter mb-1">₱{currentMember.balance?.toLocaleString()}</p>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${currentMember.balance >= 1000 ? 'bg-coop-green' : 'bg-rose-500 animate-pulse'}`} />
-                    <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">
-                      {currentMember.balance >= 1000 ? 'Maintaining Balance Met' : 'Action Required: Low Balance'}
+            {/* Member Information */}
+            <div className="grid grid-cols-3 gap-x-12 gap-y-6 text-sm mb-8 border-t border-b border-slate-200 py-6">
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Full Legal Name</p>
+                <p className="text-base font-bold text-slate-900">{currentMember.name}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Member ID</p>
+                <p className="text-base font-mono font-black text-slate-900">{currentMember.id.toString().padStart(6, '0')}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Current Address</p>
+                <p className="text-sm font-medium text-slate-700">{currentMember.address || 'Not Provided'}</p>
+              </div>
+              <div className="space-y-1 col-span-3">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Beneficiary Information</p>
+                <p className="text-sm font-medium text-slate-700">{currentMember.beneficiaries || 'Not Recorded'}</p>
+              </div>
+            </div>
+
+            {/* Financial Summary Section */}
+            <table className="w-full text-left border-collapse">
+              <tbody>
+                <tr className="border-b border-slate-300">
+                  <td className="py-5 pr-8">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Current Fund Standing</p>
+                    <p className="text-3xl font-black text-slate-950">₱{currentMember.balance?.toLocaleString()}</p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mt-2">
+                      {currentMember.balance >= 1000 ? 'Status: Maintained' : 'Status: Below Threshold'}
                     </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-green-50/50 p-4 rounded-lg border border-green-100/50">
-                    <p className="text-[8px] font-black uppercase text-coop-green mb-1">Total Inflow</p>
-                    <p className="text-sm font-black text-coop-green">₱{totalReceived.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-rose-50/50 p-4 rounded-lg border border-rose-100/50">
-                    <p className="text-[8px] font-black uppercase text-rose-600 mb-1">Total Outflow</p>
-                    <p className="text-sm font-black text-rose-700">₱{totalWithdrawn.toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  </td>
+                  <td className="py-5 px-8 border-l border-slate-300">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Total Inflow</p>
+                    <p className="text-2xl font-black text-slate-950">₱{totalReceived.toLocaleString()}</p>
+                  </td>
+                  <td className="py-5 px-8 border-l border-slate-300 text-right">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Total Outflow</p>
+                    <p className="text-2xl font-black text-slate-950">₱{totalWithdrawn.toLocaleString()}</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          
           {/* Ledger Table */}
-          <div className="flex-1">
-            <div className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 flex py-4 px-10 print:static print:bg-transparent">
-              <div className="grid grid-cols-6 w-full text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <div className="col-span-1">Date</div>
-                <div className="col-span-1">OR/DV Number</div>
-                <div className="col-span-1">Description</div>
-                <div className="col-span-1 text-right">Received (In)</div>
-                <div className="col-span-1 text-right">Withdrawn (Out)</div>
-                <div className="col-span-1 text-right">End Balance</div>
-              </div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-900 text-white print:bg-slate-800 border-b-2 border-slate-700">
+                <th className="py-4 px-10 text-left text-[9px] font-black uppercase tracking-[0.2em]">Transaction Date</th>
+                <th className="py-4 px-10 text-left text-[9px] font-black uppercase tracking-[0.2em]">Reference Number</th>
+                <th className="py-4 px-10 text-right text-[9px] font-black uppercase tracking-[0.2em]">Received</th>
+                <th className="py-4 px-10 text-right text-[9px] font-black uppercase tracking-[0.2em]">Withdrawn</th>
+                <th className="py-4 px-10 text-right text-[9px] font-black uppercase tracking-[0.2em]">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
               {mEntries.length > 0 ? (
                 mEntries.map((entry, idx) => (
-                  <div key={entry.id} className="grid grid-cols-6 w-full items-center py-5 px-10 hover:bg-slate-50/50 transition-colors group">
-                    <div className="col-span-1 font-mono text-xs font-bold text-slate-500">{entry.date}</div>
-                    <div className="col-span-1 font-mono text-xs font-black text-slate-900 uppercase">{entry.ref_no}</div>
-                    <div className="col-span-1">
-                      <p className="text-xs font-medium text-slate-600 truncate" title={entry.description || 'N/A'}>
-                        {entry.description || 'N/A'}
+                  <tr key={entry.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors print:hover:bg-white">
+                    <td className="py-4 px-10 font-mono text-sm font-bold text-slate-600">{entry.date}</td>
+                    <td className="py-4 px-10 font-mono text-xs font-black text-slate-900 uppercase tracking-wide">{entry.ref_no}</td>
+                    <td className="py-4 px-10 text-right">
+                      <p className="text-sm font-black font-mono text-slate-950">
+                        {entry.received > 0 ? `+₱${entry.received.toLocaleString()}` : '—'}
                       </p>
-                    </div>
-                    <div className="col-span-1 text-right">
-                      <p className={`text-sm font-black font-mono ${entry.received > 0 ? 'text-coop-green' : 'text-slate-300'}`}>
-                        {entry.received > 0 ? `+₱${entry.received.toLocaleString()}` : '0.00'}
+                    </td>
+                    <td className="py-4 px-10 text-right">
+                      <p className="text-sm font-black font-mono text-slate-950">
+                        {entry.withdrawn > 0 ? `-₱${entry.withdrawn.toLocaleString()}` : '—'}
                       </p>
-                    </div>
-                    <div className="col-span-1 text-right">
-                      <p className={`text-sm font-black font-mono ${entry.withdrawn > 0 ? 'text-rose-600' : 'text-slate-300'}`}>
-                        {entry.withdrawn > 0 ? `-₱${entry.withdrawn.toLocaleString()}` : '0.00'}
-                      </p>
-                    </div>
-                    <div className="col-span-1 text-right">
+                    </td>
+                    <td className="py-4 px-10 text-right">
                       <p className="text-sm font-black text-slate-950 font-mono tracking-tighter">₱{entry.balance.toLocaleString()}</p>
-                    </div>
-                  </div>
+                    </td>
+                  </tr>
                 ))
               ) : (
-                <div className="h-64 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50">
-                  <FileText className="w-16 h-16 mb-4 opacity-[0.05]" />
-                  <p className="text-xs font-black uppercase tracking-widest">
-                    {transactionFilter !== 'all' || dateRange.start || dateRange.end 
-                      ? 'No transactions match the selected filters' 
-                      : 'No transaction history recorded yet'}
-                  </p>
-                </div>
+                <tr>
+                  <td colSpan="5" className="h-64">
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                      <FileText className="w-16 h-16 mb-4 opacity-[0.05]" />
+                      <p className="text-xs font-black uppercase tracking-widest">
+                        {transactionFilter !== 'all' || dateRange.start || dateRange.end 
+                          ? 'No transactions match the selected filters' 
+                          : 'No transaction history recorded yet'}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
               )}
-            </div>
-          </div>
+            </tbody>
+          </table>
+        </div>
 
-          {/* Footer */}
-          <div className="p-12 border-t border-slate-100 bg-slate-50/50 mt-auto flex flex-col md:flex-row justify-between items-end gap-12">
-            <div className="text-left space-y-4 max-w-sm">
-              <div className="w-12 h-1 bg-slate-200" />
-              <p className="text-[9px] leading-relaxed font-bold text-slate-400 uppercase tracking-widest">
-                This document serves as an official electronic transcript of the Mortuary Assistance Fund ledger. Validated as of {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}.
+          {/* Footer - Official Document Section */}
+          <div className="p-12 border-t-2 border-slate-300 bg-white mt-auto flex flex-col md:flex-row justify-between items-end gap-12">
+            <div className="text-left space-y-3 max-w-md">
+              <p className="text-[8px] leading-tight font-bold text-slate-600 uppercase tracking-[0.15em]">
+                This document is an official record of the Mortuary Assistance Fund Financial Ledger and is intended for authorized personnel only.
+              </p>
+              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.1em]">
+                Generated: {new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })} • {new Date().toLocaleTimeString()}
               </p>
             </div>
-            <div className="text-right flex flex-col items-end">
-              <p className="text-[10px] font-black text-slate-400 mb-16 uppercase tracking-[0.3em]">Authorized Certification:</p>
-              <div className="pt-2 border-t-2 border-slate-950 inline-block min-w-[300px]">
-                <p className="font-black text-slate-950 text-base uppercase tracking-tighter">Federation Treasurer Signature</p>
-                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest tracking-[0.5em]">SYSTEM AUDIT COMPLETE</p>
+            <div className="text-right flex flex-col items-end space-y-6">
+              <div className="space-y-2">
+                <p className="text-[8px] font-black text-slate-700 uppercase tracking-[0.2em]">Authorized By:</p>
+                <div className="pt-12 border-t-2 border-slate-950 inline-block min-w-[320px] text-center">
+                  <p className="font-black text-slate-950 text-sm uppercase tracking-tight">Federation Treasurer</p>
+                  <p className="text-[8px] font-bold text-slate-500 mt-1 uppercase tracking-[0.1em]">Signature / Date</p>
+                </div>
               </div>
             </div>
           </div>

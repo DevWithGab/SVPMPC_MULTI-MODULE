@@ -50,9 +50,11 @@ const MemberBalances = ({
           {/* Action Button */}
           <Button 
             onClick={setIsAddClaimOpen}
-            className="bg-red-700 hover:bg-red-800 text-white rounded-lg shadow-lg font-black uppercase text-[10px] tracking-widest px-6 h-11 flex items-center gap-2 transition-all hover:shadow-xl"
+            className="inline-flex items-center gap-3 rounded-2xl border border-rose-200 bg-linear-to-r from-rose-600 to-red-700 px-6 h-12 text-white shadow-xl shadow-rose-100 font-black uppercase text-[10px] tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-rose-200 focus:ring-2 focus:ring-rose-500/20"
           >
-            <TrendingDown className="w-4 h-4" />
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
+              <TrendingDown className="w-4 h-4" />
+            </span>
             <span>Trigger Death Deduction</span>
           </Button>
         </div>
@@ -199,7 +201,7 @@ const MemberBalances = ({
                           : 'bg-slate-800 text-white group-hover:shadow-lg group-hover:shadow-slate-500/30'
                       }`}>
                         {/* Subtle shine effect */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                        <div className="absolute inset-0 bg-linear-to-tr from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                         <span className="relative z-10">{m.name.charAt(0)}</span>
                       </div>
                       
