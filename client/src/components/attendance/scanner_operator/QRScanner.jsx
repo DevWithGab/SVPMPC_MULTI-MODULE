@@ -622,41 +622,41 @@ export default function QRScanner({
       ];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black text-slate-950 tracking-tight">
-            QR Scanner
-          </h2>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-            Scan member QR codes to record attendance
-          </p>
+          <h2 className="text-4xl font-black text-slate-950 tracking-tight leading-tight">QR Scanner</h2>
+          <p className="text-slate-500 text-xs font-extrabold uppercase tracking-widest mt-2">Scan member QR codes to record attendance</p>
         </div>
-        <div className="rounded-3xl bg-slate-50 px-4 py-3 text-slate-700 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.35em] font-bold">
-            Status
-          </p>
-          <p className="text-sm font-black mt-1">{statusMessage}</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="rounded-2xl bg-gradient-to-r from-slate-50 to-slate-100 px-5 py-3 border border-slate-200 shadow-sm">
+            <p className="text-xs uppercase tracking-widest font-extrabold text-slate-600 mb-1">Status</p>
+            <p className={`text-sm font-black ${hasActiveEvent ? 'text-emerald-700' : 'text-amber-700'}`}>{statusMessage}</p>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 border-slate-200/60 shadow-lg shadow-slate-200/40 rounded-[2rem] overflow-hidden bg-white">
-          <CardHeader className="p-8 border-b border-slate-100">
-            <CardTitle className="text-xl font-black text-slate-950 tracking-tight flex items-center gap-3">
-              <QrCode className="w-6 h-6 text-coop-green" />
-              Scanner Interface
-            </CardTitle>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-              Point your camera at the member QR code
-            </p>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="relative">
-              <div className="space-y-4 mb-4">
-                <label className="block text-sm font-bold text-slate-700">
-                  Active event
-                </label>
+        {/* Main Scanner Section */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Scanner Card */}
+          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                    <QrCode className="w-6 h-6 text-emerald-600" />
+                    Scanner Interface
+                  </h3>
+                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mt-1">Point your camera at the member QR code</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-8 space-y-6">
+              {/* Event Selection */}
+              <div>
+                <label className="block text-sm font-extrabold text-slate-700 mb-3 uppercase tracking-widest">Select Active Event</label>
                 <select
                   value={selectedEventId}
                   onChange={(e) => {
@@ -664,7 +664,7 @@ export default function QRScanner({
                     setError("");
                     setStatusMessage("Ready to scan");
                   }}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 shadow-sm focus:border-coop-green focus:ring-coop-green/20"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-3.5 text-slate-900 font-semibold shadow-sm focus:bg-white focus:border-emerald-300 focus:ring-emerald-100/20 focus:ring-2 transition-all"
                 >
                   {events?.length > 0 ? (
                     events.map((event) => (
@@ -681,169 +681,119 @@ export default function QRScanner({
                 </select>
               </div>
 
-              <div className="aspect-square max-w-md mx-auto bg-slate-900 rounded-3xl overflow-hidden relative">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+              {/* Scanner Display */}
+              <div className="relative">
+                <div className="aspect-square max-w-md mx-auto bg-slate-900 rounded-3xl overflow-hidden relative shadow-2xl border-2 border-slate-800">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
 
-                {!isScanning && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80">
-                    <div className="text-center text-white">
-                      <QrCode className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-bold mb-2">Camera Ready</p>
-                      <p className="text-sm opacity-75">
-                        Tap start to begin scanning
-                      </p>
+                  {!isScanning && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
+                      <div className="text-center text-white">
+                        <QrCode className="w-20 h-20 mx-auto mb-4 opacity-30" />
+                        <p className="text-xl font-black mb-2">Camera Ready</p>
+                        <p className="text-sm opacity-60">Tap start to begin scanning</p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {isScanning && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-48 h-48 border-4 border-coop-green rounded-2xl relative">
-                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-coop-yellow rounded-tl-lg"></div>
-                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-coop-yellow rounded-tr-lg"></div>
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-coop-yellow rounded-bl-lg"></div>
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-coop-yellow rounded-br-lg"></div>
-                      <div className="absolute inset-x-4 top-1/2 h-0.5 bg-coop-yellow animate-pulse"></div>
+                  {isScanning && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-56 h-56 border-4 border-emerald-400 rounded-3xl relative shadow-2xl">
+                        <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-emerald-300 rounded-tl-2xl"></div>
+                        <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-emerald-300 rounded-tr-2xl"></div>
+                        <div className="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-emerald-300 rounded-bl-2xl"></div>
+                        <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-emerald-300 rounded-br-2xl"></div>
+                        <div className="absolute inset-x-6 top-1/2 h-1 bg-gradient-to-r from-transparent via-emerald-300 to-transparent animate-pulse"></div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
                 {!isScanning ? (
                   <Button
                     onClick={startScanning}
                     disabled={!selectedEventId}
-                    className={`${
+                    className={`flex-1 sm:flex-none rounded-2xl font-black px-8 py-4 transition-all duration-300 flex items-center justify-center gap-2 text-white shadow-lg ${
                       selectedEventId
-                        ? "bg-coop-green hover:bg-coop-darkGreen shadow-green-200 hover:scale-105"
-                        : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
-                    } text-white font-black px-8 py-4 rounded-2xl transition-all duration-300`}
+                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:shadow-emerald-300/50 hover:scale-105 cursor-pointer"
+                        : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                    }`}
                   >
-                    <Camera className="w-5 h-5 mr-2" />
+                    <Camera className="w-5 h-5" />
                     Start Scanning
                   </Button>
                 ) : (
                   <Button
                     onClick={stopScanning}
-                    variant="outline"
-                    className="border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold px-6 py-4 rounded-2xl"
+                    className="flex-1 sm:flex-none rounded-2xl font-black px-8 py-4 border-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-all duration-300"
                   >
                     Stop Scanning
                   </Button>
                 )}
               </div>
 
+              {/* Error Message */}
               {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
+                <div className="p-5 bg-red-50/80 border border-red-200 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
                   <p className="text-red-700 font-bold text-sm">{error}</p>
                 </div>
               )}
 
+              {/* Success Message */}
               {scanResult && (
-                <div className="mt-4 p-6 bg-green-50 border border-green-200 rounded-2xl">
-                  <div className="flex items-center gap-3 mb-3">
-                    <CheckCircle2 className="w-6 h-6 text-coop-green" />
-                    <h3 className="text-lg font-black text-coop-darkGreen">
-                      Attendance Recorded!
-                    </h3>
+                <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-2xl animate-in slide-in-from-top">
+                  <div className="flex items-center gap-3 mb-4">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    <h3 className="text-lg font-black text-emerald-900">Attendance Recorded!</h3>
                   </div>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="font-bold text-slate-700">
-                        Member ID:
-                      </span>{" "}
-                      {scanResult.memberId}
-                    </p>
-                    <p>
-                      <span className="font-bold text-slate-700">Event:</span>{" "}
-                      {scanResult.eventName}
-                    </p>
-                    <p>
-                      <span className="font-bold text-slate-700">Time:</span>{" "}
-                      {scanResult.scanTime || scanResult.timestamp
-                        ? formatDateTime(
-                            scanResult.scanTime || scanResult.timestamp,
-                          )
-                        : "Recorded"}
-                    </p>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-slate-700">Member ID:</span>
+                      <span className="text-slate-900 font-black">{scanResult.memberId}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-slate-700">Event:</span>
+                      <span className="text-slate-900 font-black">{scanResult.eventName}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-slate-700">Time:</span>
+                      <span className="text-slate-900 font-semibold">
+                        {scanResult.scanTime || scanResult.timestamp
+                          ? formatDateTime(scanResult.scanTime || scanResult.timestamp)
+                          : "Recorded"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <div className="space-y-6">
-          <Card className="border-slate-200/60 shadow-lg shadow-slate-200/40 rounded-[2rem] p-6 bg-white">
-            <div className="text-center">
-              <div
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
-                  hasActiveEvent ? "bg-green-50" : "bg-slate-50"
-                }`}
-              >
-                <Scan
-                  className={`w-8 h-8 ${hasActiveEvent ? "text-coop-green" : "text-slate-400"}`}
-                />
-              </div>
-              <h3 className="text-lg font-black text-slate-950 tracking-tight mb-2">
-                Scanner Status
-              </h3>
-              <Badge
-                className={`px-4 py-2 rounded-full font-black text-xs ${
-                  hasActiveEvent
-                    ? "bg-green-50 text-coop-green border-green-200"
-                    : "bg-slate-50 text-slate-600 border-slate-200"
-                }`}
-              >
-                {scannerStatusLabel}
-              </Badge>
-              {lastScan && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">
-                    Last Scan
-                  </p>
-                  <p className="text-sm font-bold text-slate-950">
-                    {lastScan.eventName}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {lastScan.scanTime || lastScan.timestamp
-                      ? formatDateTime(lastScan.scanTime || lastScan.timestamp)
-                      : "Now"}
-                  </p>
-                </div>
-              )}
-              {!lastScan && (
-                <p className="mt-4 text-xs text-slate-500 font-bold">
-                  {scannerStatusMessage}
-                </p>
-              )}
-            </div>
-          </Card>
-
-          <Card className="border-slate-200/60 shadow-lg shadow-slate-200/40 rounded-[2rem] overflow-hidden bg-white">
-            <CardHeader className="p-6 border-b border-slate-100">
-              <CardTitle className="text-lg font-black text-slate-950 tracking-tight flex items-center gap-2">
-                <Search className="w-5 h-5 text-coop-green" />
+          {/* Manual Member Lookup */}
+          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
+              <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <Search className="w-6 h-6 text-blue-600" />
                 Manual Member Lookup
-              </CardTitle>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-                Search by name or QR code, then mark attendance manually
-              </p>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
+              </h3>
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mt-1">Search by name or ID and add manually</p>
+            </div>
+            <div className="p-8 space-y-4">
               <Input
                 value={memberSearch}
                 onChange={(e) => setMemberSearch(e.target.value)}
-                placeholder="Search by member name or QR code..."
-                className="h-12 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white"
+                placeholder="Search by member name, ID, or QR code..."
+                className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-300 font-semibold"
               />
 
               {memberLoadError && (
@@ -852,33 +802,27 @@ export default function QRScanner({
                 </div>
               )}
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-96 overflow-y-auto">
                 {loadingMembers ? (
-                  <div className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">
                     Loading members...
                   </div>
                 ) : filteredMembers.length > 0 ? (
                   filteredMembers.map((member) => (
                     <div
                       key={member.memberId || member.qrCode || member.name}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-coop-green hover:bg-green-50/50"
+                      className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 hover:border-emerald-300 hover:bg-emerald-50/40 transition-all duration-200 group"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-black text-slate-950 truncate">
-                            {member.name}
-                          </p>
-                          <p className="text-xs font-bold text-slate-500 mt-1">
-                            Member ID: {member.memberId || "N/A"}
-                          </p>
-                          <p className="text-xs font-bold text-slate-500 mt-1">
-                            Barangay: {member.barangay || "N/A"}
-                          </p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-black text-slate-900 truncate group-hover:text-emerald-900">{member.name}</p>
+                          <p className="text-xs font-semibold text-slate-500 mt-2">ID: {member.memberId || "N/A"}</p>
+                          <p className="text-xs font-semibold text-slate-500 mt-1">Brgy: {member.barangay || "N/A"}</p>
                         </div>
                         <Button
                           type="button"
                           onClick={() => handleManualMemberAdd(member)}
-                          className="shrink-0 rounded-xl bg-coop-green hover:bg-coop-darkGreen text-white font-black text-xs"
+                          className="shrink-0 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2 shadow-sm hover:shadow-md transition-all"
                           disabled={!selectedEventId}
                         >
                           Add
@@ -887,88 +831,103 @@ export default function QRScanner({
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">
                     {memberSearch.trim()
                       ? "No matching members found."
-                      : "Start typing to search existing members."}
+                      : "Start typing to search members."}
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        </div>
 
-          <Card className="border-slate-200/60 shadow-lg shadow-slate-200/40 rounded-[2rem] overflow-hidden bg-white">
-            <CardHeader className="p-6 border-b border-slate-100">
-              <CardTitle className="text-lg font-black text-slate-950 tracking-tight flex items-center gap-2">
-                <Clock className="w-5 h-5 text-coop-green" />
+        {/* Sidebar - Status & Recent Scans */}
+        <div className="space-y-6">
+          {/* Scanner Status */}
+          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
+              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Scan className="w-5 h-5 text-emerald-600" />
+                Status
+              </h3>
+            </div>
+            <div className="p-6 text-center space-y-4">
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto ${hasActiveEvent ? "bg-emerald-100" : "bg-amber-100"}`}>
+                <Scan className={`w-8 h-8 ${hasActiveEvent ? "text-emerald-600" : "text-amber-600"}`} />
+              </div>
+              <div>
+                <h4 className="text-lg font-black text-slate-900 mb-2">{scannerStatusLabel}</h4>
+                <Badge className={`px-4 py-2 rounded-full font-black text-xs ${hasActiveEvent ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
+                  {hasActiveEvent ? "Ready" : "Standby"}
+                </Badge>
+              </div>
+              {lastScan && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Last Scan</p>
+                  <p className="text-sm font-bold text-slate-900">{lastScan.eventName}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {lastScan.scanTime || lastScan.timestamp
+                      ? formatDateTime(lastScan.scanTime || lastScan.timestamp)
+                      : "Now"}
+                  </p>
+                </div>
+              )}
+              {!lastScan && (
+                <p className="mt-4 text-xs text-slate-500 font-semibold">{scannerStatusMessage}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Scans */}
+          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
+              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-600" />
                 Recent Scans
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-slate-100">
-                {recentScansDisplay.map((scan) => (
-                  <div
-                    key={scan.id}
-                    className="p-4 hover:bg-slate-50/50 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-green-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                        <CheckCircle2 className="w-4 h-4 text-coop-green" />
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <p className="text-sm font-black text-slate-950 truncate">
-                          {scan.memberName}
-                        </p>
-                        <p className="text-xs text-slate-500 font-bold">
-                          QR ID: {scan.qrCode}
-                        </p>
-                        <p className="text-xs text-slate-500 font-bold">
-                          Barangay: {scan.barangay}
-                        </p>
-                        {scan.date || scan.time ? (
-                          <p className="text-xs text-slate-500 font-bold">
-                            {scan.date} {scan.time ? `• ${scan.time}` : ""}
-                          </p>
-                        ) : null}
-                      </div>
+              </h3>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+              {recentScansDisplay.map((scan, idx) => (
+                <div key={idx} className="p-4 hover:bg-slate-50/60 transition-colors duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <p className="text-sm font-black text-slate-900 truncate">{scan.memberName}</p>
+                      <p className="text-xs font-semibold text-slate-500">ID: {scan.qrCode}</p>
+                      <p className="text-xs font-semibold text-slate-500">Brgy: {scan.barangay}</p>
+                      {scan.date || scan.time ? (
+                        <p className="text-xs text-slate-500 font-semibold pt-1">{scan.date} {scan.time ? `• ${scan.time}` : ""}</p>
+                      ) : null}
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/60 shadow-lg shadow-slate-200/40 rounded-[2rem] p-6 bg-white">
-            <h3 className="text-lg font-black text-slate-950 tracking-tight mb-4">
-              How to Scan
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-green-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-black text-coop-green">1</span>
                 </div>
-                <p className="text-slate-600 font-bold">
-                  Tap "Start Scanning" to activate camera
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-green-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-black text-coop-green">2</span>
-                </div>
-                <p className="text-slate-600 font-bold">
-                  Point camera at the member QR code
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-green-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-xs font-black text-coop-green">3</span>
-                </div>
-                <p className="text-slate-600 font-bold">
-                  Wait for automatic detection and confirmation
-                </p>
-              </div>
+              ))}
             </div>
-          </Card>
+          </div>
+
+          {/* How to Scan Guide */}
+          <div className="border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/50 rounded-3xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-slate-100">
+              <h3 className="text-lg font-black text-slate-900 tracking-tight">Quick Guide</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              {[
+                { step: 1, text: "Tap 'Start Scanning' to activate camera" },
+                { step: 2, text: "Point camera at the member QR code" },
+                { step: 3, text: "Wait for automatic detection and confirmation" }
+              ].map((item) => (
+                <div key={item.step} className="flex items-start gap-3">
+                  <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-xs font-black text-emerald-700">{item.step}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700 leading-snug">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
       <canvas ref={canvasRef} className="hidden" />

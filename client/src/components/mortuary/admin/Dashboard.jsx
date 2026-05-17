@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  DollarSign, Users, Heart, CreditCard, TrendingUp, Calendar, Download,
+  DollarSign, Users, CreditCard, TrendingUp, Calendar, Download,
   UserPlus, Plus, FileText, BarChart3
 } from 'lucide-react';
 import { 
@@ -14,13 +14,13 @@ import { Badge } from '../../ui/badge';
 
 const StatCard = ({ title, value, icon: Icon, color = "emerald" }) => {
   return (
-    <Card className="p-5 sm:p-6 border-slate-200/60 bg-white shadow-sm hover:shadow-md transition-all duration-300 group relative overflow-hidden rounded-[2rem]">
+    <Card className="p-5 sm:p-6 border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 group relative overflow-hidden rounded-xl">
       <div className="relative z-10 flex items-start justify-between">
         <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">{title}</p>
-          <p className="text-3xl sm:text-4xl font-black mt-1 text-slate-900 tracking-tight">{value}</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{title}</p>
+          <p className="text-3xl sm:text-4xl font-bold mt-1 text-gray-900 tracking-tight">{value}</p>
         </div>
-        <div className={`p-4 rounded-2xl bg-slate-50 text-slate-500 group-hover:bg-${color}-50 group-hover:text-${color}-600 transition-colors duration-300`}>
+        <div className={`p-4 rounded-xl bg-gray-50 text-gray-500 group-hover:bg-${color}-50 group-hover:text-${color}-600 transition-colors duration-300`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>
@@ -47,9 +47,9 @@ const RecentActivities = ({ contributions, payouts }) => {
   ].sort((a, b) => new Date(b.time) - new Date(a.time));
 
   return (
-    <Card className="border-slate-200/50 bg-white/50 backdrop-blur-sm shadow-lg shadow-slate-200/40 h-full">
+    <Card className="border-gray-200 bg-white shadow-sm h-full">
       <CardHeader>
-        <CardTitle className="text-slate-900 text-sm font-bold uppercase tracking-widest">Recent Activity</CardTitle>
+        <CardTitle className="text-gray-900 font-bold uppercase tracking-wider" style={{ color: "#2D7A3E" }}>Recent Activity</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {activities.length > 0 ? (
@@ -60,19 +60,19 @@ const RecentActivities = ({ contributions, payouts }) => {
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900">{act.title}</p>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${act.type === 'contribution' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  <p className="text-sm font-bold text-gray-900">{act.title}</p>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded ${act.type === 'contribution' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                     {act.status}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">{act.desc}</p>
-                <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tight">{act.time}</p>
+                <p className="text-xs text-gray-600">{act.desc}</p>
+                <p className="text-xs text-gray-400 font-medium mt-1 uppercase tracking-tight">{act.time}</p>
               </div>
             </div>
           ))
         ) : (
           <div className="text-center py-8">
-            <p className="text-sm text-slate-400 font-medium">No recent activities</p>
+            <p className="text-sm text-gray-400 font-medium">No recent activities</p>
           </div>
         )}
       </CardContent>
@@ -111,7 +111,7 @@ const ContributionHeatMap = ({ contributions }) => {
   const contributionHeatmapData = generateHeatmapData();
   
   const getColor = (value) => {
-    if (value === 0) return 'bg-slate-100';
+    if (value === 0) return 'bg-gray-100';
     if (value < 3) return 'bg-emerald-100';
     if (value < 6) return 'bg-emerald-300';
     if (value < 10) return 'bg-emerald-500';
@@ -119,19 +119,19 @@ const ContributionHeatMap = ({ contributions }) => {
   };
 
   return (
-    <Card className="border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-      <CardHeader className="p-8 border-b border-slate-50">
+    <Card className="border-gray-200 bg-white shadow-sm rounded-xl overflow-hidden">
+      <CardHeader className="p-8 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-slate-900 text-xs font-black uppercase tracking-[0.2em]">Contribution Intensity</CardTitle>
-            <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Daily collection activity across all sectors</CardDescription>
+            <CardTitle className="text-gray-900 font-bold uppercase tracking-wider" style={{ color: "#2D7A3E" }}>Contribution Intensity</CardTitle>
+            <CardDescription className="text-xs font-medium text-gray-400 uppercase tracking-wider mt-1">Daily collection activity across all sectors</CardDescription>
           </div>
-          <Badge variant="outline" className="text-[9px] font-black uppercase tracking-[0.15em] border-emerald-100 text-emerald-700 bg-emerald-50/50">Activity Heatmap</Badge>
+          <Badge variant="outline" className="text-xs font-bold uppercase tracking-wider border-emerald-100 text-emerald-700 bg-emerald-50/50">Activity Heatmap</Badge>
         </div>
       </CardHeader>
       <CardContent className="p-8">
         <div className="flex gap-2">
-          <div className="flex flex-col justify-between py-1 text-[8px] font-bold text-slate-300 uppercase tracking-tighter">
+          <div className="flex flex-col justify-between py-1 text-xs font-bold text-gray-400 uppercase tracking-tight">
             {days.map(d => <span key={d}>{d}</span>)}
           </div>
           <div className="flex-1 overflow-x-auto custom-scrollbar pb-2">
@@ -151,15 +151,15 @@ const ContributionHeatMap = ({ contributions }) => {
           </div>
         </div>
         <div className="mt-6 flex items-center justify-end gap-2 shrink-0">
-          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Less</span>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Less</span>
           <div className="flex gap-1">
-            <div className="w-2.5 h-2.5 bg-slate-100 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-100 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-300 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-700 rounded-[2px]" />
+            <div className="w-2.5 h-2.5 bg-gray-100 rounded-sm" />
+            <div className="w-2.5 h-2.5 bg-emerald-100 rounded-sm" />
+            <div className="w-2.5 h-2.5 bg-emerald-300 rounded-sm" />
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-sm" />
+            <div className="w-2.5 h-2.5 bg-emerald-700 rounded-sm" />
           </div>
-          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">More</span>
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">More</span>
         </div>
       </CardContent>
     </Card>
@@ -248,8 +248,8 @@ const Dashboard = ({ stats, contributions, payouts, members, setActiveTab }) => 
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-950 tracking-tight">Admin Dashboard</h2>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Overview of your mortuary fund performance</p>
+          <h2 className="text-3xl font-bold tracking-tight" style={{ color: "#2D7A3E" }}>Admin Dashboard</h2>
+          <p className="text-gray-600 font-medium">Overview of your mortuary fund performance</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
@@ -263,20 +263,19 @@ const Dashboard = ({ stats, contributions, payouts, members, setActiveTab }) => 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <StatCard title="Total Fund" value={`₱${stats?.fundBalance?.toLocaleString() || '0'}`} icon={DollarSign} />
         <StatCard title="Active Members" value={stats?.activeMembers?.toLocaleString() || '0'} icon={Users} color="blue" />
-        <StatCard title="Total Payouts" value={stats?.totalPayouts?.toLocaleString() || '0'} icon={Heart} color="rose" />
-        <StatCard title="Total Collected" value={`₱${contributions.reduce((sum, c) => sum + (c.amount || 0), 0).toLocaleString()}`} icon={CreditCard} color="amber" />
+        <StatCard title="Total Collected" value={`₱${stats?.totalCollected?.toLocaleString() || '0'}`} icon={CreditCard} color="amber" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        <Card className="lg:col-span-2 border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="p-8 border-b border-slate-50">
+        <Card className="lg:col-span-2 border-gray-200 bg-white shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="p-8 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-slate-900 text-sm font-black uppercase tracking-[0.2em]">Fund Growth</CardTitle>
-                <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Monthly collection vs balance performance</CardDescription>
+                <CardTitle className="text-gray-900 font-bold uppercase tracking-wider" style={{ color: "#2D7A3E" }}>Fund Growth</CardTitle>
+                <CardDescription className="text-xs font-medium text-gray-400 uppercase tracking-wider mt-1">Monthly collection vs balance performance</CardDescription>
               </div>
               <div className="p-2 bg-emerald-50 rounded-xl">
                 <TrendingUp className="w-4 h-4 text-emerald-700" />
@@ -306,7 +305,7 @@ const Dashboard = ({ stats, contributions, payouts, members, setActiveTab }) => 
               </div>
             ) : (
               <div className="h-[350px] flex items-center justify-center">
-                <p className="text-sm text-slate-400 font-medium">No contribution data available</p>
+                <p className="text-sm text-gray-400 font-medium">No contribution data available</p>
               </div>
             )}
           </CardContent>
@@ -320,37 +319,37 @@ const Dashboard = ({ stats, contributions, payouts, members, setActiveTab }) => 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-        <Card className="border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="p-8 border-b border-slate-50">
-            <CardTitle className="text-slate-900 text-xs font-black uppercase tracking-[0.2em]">Quick Actions</CardTitle>
+        <Card className="border-gray-200 bg-white shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="p-8 border-b border-gray-100">
+            <CardTitle className="text-gray-900 font-bold uppercase tracking-wider" style={{ color: "#2D7A3E" }}>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="p-8">
             <div className="grid grid-cols-2 gap-4">
               <button 
                 onClick={() => setActiveTab('members')}
-                className="flex flex-col items-center justify-center p-6 rounded-3xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all border border-emerald-100/50 group"
+                className="flex flex-col items-center justify-center p-6 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all border border-emerald-100/50 group"
               >
-                <div className="p-3 bg-white rounded-2xl shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                <div className="p-3 bg-white rounded-xl shadow-sm mb-3 group-hover:scale-110 transition-transform">
                   <UserPlus className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">New Member</span>
+                <span className="text-xs font-bold uppercase tracking-wider">New Member</span>
               </button>
               <button 
                 onClick={() => setActiveTab('reports')}
-                className="flex flex-col items-center justify-center p-6 rounded-3xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all border border-blue-100/50 group"
+                className="flex flex-col items-center justify-center p-6 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all border border-blue-100/50 group"
               >
-                <div className="p-3 bg-white rounded-2xl shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                <div className="p-3 bg-white rounded-xl shadow-sm mb-3 group-hover:scale-110 transition-transform">
                   <BarChart3 className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">Reports</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Reports</span>
               </button>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-1 lg:col-span-2 border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="p-8 border-b border-slate-50">
-            <CardTitle className="text-slate-900 text-xs font-black uppercase tracking-[0.2em]">Member Demographics</CardTitle>
+        <Card className="md:col-span-1 lg:col-span-2 border-gray-200 bg-white shadow-sm rounded-xl overflow-hidden">
+          <CardHeader className="p-8 border-b border-gray-100">
+            <CardTitle className="text-gray-900 font-bold uppercase tracking-wider" style={{ color: "#2D7A3E" }}>Member Demographics</CardTitle>
           </CardHeader>
           <CardContent className="p-8">
             <div className="h-[250px] w-full min-h-[250px]">

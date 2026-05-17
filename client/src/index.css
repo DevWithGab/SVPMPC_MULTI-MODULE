@@ -83,6 +83,59 @@
   .maplibregl-popup-tip {
     @apply hidden!;
   }
+
+  /* Print Styles */
+  @media print {
+    @page {
+      margin: 1.5cm;
+      size: A4 portrait;
+    }
+    
+    /* Hide non-printable elements */
+    body > *:not(#root),
+    nav,
+    aside,
+    header:not(#printable-ledger header),
+    footer:not(#printable-ledger footer),
+    .sidebar,
+    button:not(#printable-ledger button),
+    .print\\:hidden {
+      display: none !important;
+    }
+    
+    /* Reset body and root */
+    body,
+    #root {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+    
+    /* Style the printable ledger */
+    #printable-ledger {
+      display: block !important;
+      position: relative !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+      background: white !important;
+      page-break-inside: avoid;
+    }
+    
+    /* Ensure all children are visible */
+    #printable-ledger * {
+      visibility: visible !important;
+    }
+    
+    /* Hide decorative watermark */
+    #printable-ledger .absolute.opacity-\\[0\\.03\\] {
+      display: none !important;
+    }
+  }
 }
 
 @layer components {

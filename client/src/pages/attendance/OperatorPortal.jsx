@@ -151,11 +151,9 @@ export default function AttendanceOperatorPortal({
                 </div>
                 <div>
                   <h1 className="text-white font-black text-sm tracking-tight">
-                    Scanner Operator
+                    Scanner Portal
                   </h1>
-                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
-                    Attendance System
-                  </p>
+                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">Attendance System</p>
                 </div>
               </motion.div>
             )}
@@ -175,7 +173,7 @@ export default function AttendanceOperatorPortal({
           )}
         </div>
 
-        <nav className="flex-1 px-4 pb-6">
+        <nav className="flex-1 px-4 py-6">
           <div className="space-y-2">
             {sidebarItems.map((item) => (
               <button
@@ -209,50 +207,54 @@ export default function AttendanceOperatorPortal({
           </div>
         </nav>
 
-        <div className="p-4 border-t border-green-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-coop-green rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-              <User className="w-5 h-5 text-white" />
+        {/* Logout Button */}
+        {onBack && (
+          <div className="p-4 border-t border-green-800 mt-auto">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-coop-green rounded-2xl flex items-center justify-center shadow-lg shrink-0">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <AnimatePresence mode="wait">
+                {!isSidebarCollapsed && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex-1 min-w-0"
+                  >
+                    <p className="text-white font-bold text-sm truncate">
+                      {currentUser?.name || "Operator"}
+                    </p>
+                    <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
+                      Scanner Operator
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
+
             <AnimatePresence mode="wait">
               {!isSidebarCollapsed && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex-1 min-w-0"
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.15, delay: 0.1 }}
+                  onClick={onBack}
+                  className="w-full mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl text-green-200 hover:bg-green-800/30 hover:text-white transition-all duration-200"
                 >
-                  <p className="text-white font-bold text-sm truncate">
-                    {currentUser?.name || "Operator"}
-                  </p>
-                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
-                    Scanner Operator
-                  </p>
-                </motion.div>
+                  <LogOut className="w-4 h-4" />
+                  <span className="font-bold text-sm">Sign Out</span>
+                </motion.button>
               )}
             </AnimatePresence>
           </div>
-
-          <AnimatePresence mode="wait">
-            {!isSidebarCollapsed && (
-              <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.15, delay: 0.1 }}
-                onClick={onBack}
-                className="w-full mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl text-green-200 hover:bg-green-800/30 hover:text-white transition-all duration-200"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="font-bold text-sm">Sign Out</span>
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
+        )}
       </motion.aside>
 
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Header */}
         <div className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
@@ -261,20 +263,30 @@ export default function AttendanceOperatorPortal({
             <Menu className="w-5 h-5 text-slate-600" />
           </button>
           <div className="text-center">
-            <p className="text-sm font-bold text-slate-900">Scanner Operator</p>
-            <p className="text-xs text-slate-500">Attendance System</p>
+            <h1 className="font-black text-slate-950 text-lg tracking-tight">
+              Scanner Portal
+            </h1>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
+              Attendance System
+            </p>
           </div>
-          <button
-            onClick={onBack}
-            className="w-10 h-10 bg-slate-100 rounded-2xl flex items-center justify-center"
-          >
-            <LogOut className="w-5 h-5 text-slate-600" />
-          </button>
+          <div className="w-10 h-10" /> {/* Spacer */}
         </div>
 
+        {/* Content Area */}
         <main className="flex-1 overflow-y-auto">
           <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            {renderContent()}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
       </div>
