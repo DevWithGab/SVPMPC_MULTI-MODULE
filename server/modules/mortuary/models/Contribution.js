@@ -44,4 +44,10 @@ const contributionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for better query performance
+contributionSchema.index({ memberId: 1 });
+contributionSchema.index({ status: 1 });
+contributionSchema.index({ paymentDate: -1 });
+contributionSchema.index({ memberId: 1, paymentDate: -1 });
+
 module.exports = mongoose.model('Contribution', contributionSchema);

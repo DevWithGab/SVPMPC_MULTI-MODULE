@@ -20,6 +20,7 @@ const extractBarangay = (address) => {
 
 const MemberLedger = ({ 
   members,
+  ledgerMembers = [],
   ledger,
   selectedLedgerMember,
   setSelectedLedgerMember,
@@ -30,6 +31,7 @@ const MemberLedger = ({
   currentPage,
   setCurrentPage,
   itemsPerPage,
+  pagination,
   setIsAddContributionOpen,
   handleTriggerAutomatedNotice,
   showToast,
@@ -512,12 +514,9 @@ const MemberLedger = ({
   // Member List View
   const uniqueBarangays = ['All', ...Array.from(new Set(members.map(m => extractBarangay(m.address))))].sort();
 
-  const filteredMembersList = members
-    .filter(m => (barangayFilter === 'All' ? true : extractBarangay(m.address) === barangayFilter))
-    .filter(m => (m.name?.toLowerCase().includes(searchQuery.toLowerCase()) || m.id?.toString().includes(searchQuery)));
-
-  const totalPages = Math.ceil(filteredMembersList.length / itemsPerPage) || 1;
-  const currentMembersChunk = filteredMembersList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const visibleMembers = ledgerMembers;
+  const totalMembers = pagination?.total ?? visibleMembers.length;
+  const totalPages = pagination?.totalPages ?? (Math.ceil(totalMembers / itemsPerPage) || 1);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -590,7 +589,7 @@ const MemberLedger = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentMembersChunk.map(member => (
+              {visibleMembers.map(member => (
                 <TableRow key={member.id} className="hover:bg-slate-50/80 transition-all duration-300 group cursor-default border-b border-slate-50">
                   <TableCell className="px-10 py-8">
                     <div className="flex items-center gap-6">
@@ -671,7 +670,7 @@ const MemberLedger = ({
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredMembersList.length === 0 && (
+              {visibleMembers.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="h-64 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-400 py-20">
@@ -689,7 +688,7 @@ const MemberLedger = ({
         </div>
         <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
-            Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredMembersList.length)} of {filteredMembersList.length} indexed records
+            Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalMembers)} of {totalMembers} indexed records
           </p>
           <div className="flex gap-2">
             <Button 

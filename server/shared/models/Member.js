@@ -81,5 +81,9 @@ const memberSchema = new mongoose.Schema(
 // Note: memberId already has unique index from schema definition
 memberSchema.index({ email: 1 });
 memberSchema.index({ status: 1 });
+memberSchema.index({ memberName: 1 }); // For search and sorting
+memberSchema.index({ barangay: 1 }); // For barangay filtering
+memberSchema.index({ phoneNumber: 1 }); // For search
+memberSchema.index({ status: 1, memberName: 1 }); // Compound for filtered sorting
 
 module.exports = mongoose.model('Member', memberSchema);

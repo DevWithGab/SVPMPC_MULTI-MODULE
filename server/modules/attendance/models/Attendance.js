@@ -48,4 +48,11 @@ const attendanceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for better query performance
+attendanceSchema.index({ memberId: 1 });
+attendanceSchema.index({ eventId: 1 });
+attendanceSchema.index({ scanTime: -1 });
+attendanceSchema.index({ eventId: 1, scanTime: -1 });
+attendanceSchema.index({ memberId: 1, eventId: 1 });
+
 module.exports = mongoose.model('Attendance', attendanceSchema);

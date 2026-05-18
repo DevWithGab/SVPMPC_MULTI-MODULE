@@ -4,11 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const Reports = ({ contributions = [], payouts = [], stats = {}, members = [] }) => {
   const [reportType, setReportType] = useState('summary');
+  const { page, limit, setPage } = usePagination(1, 10);
 
   // Calculate financial metrics
   const metrics = useMemo(() => {
@@ -27,6 +30,31 @@ const Reports = ({ contributions = [], payouts = [], stats = {}, members = [] })
       totalMembers: members.length
     };
   }, [contributions, members]);
+
+  // Paginate data for display
+  const paginatedData = useMemo(() => {
+    let data = [];
+    let total = 0;
+
+    if (reportType === 'contributions') {
+      data = contributions;
+      total = contributions.length;
+    } else if (reportType === 'members') {
+      data = members;
+      total = members.length;
+    }
+
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    
+    return {
+      data: data.slice(startIndex, endIndex),
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: endIndex < total,
+      hasPrevPage: page > 1
+    };
+  }, [reportType, contributions, members, page, limit]);
 
   // Generate PDF Report
   const generatePDF = () => {
@@ -361,68 +389,104 @@ const Reports = ({ contributions = [], payouts = [], stats = {}, members = [] })
               )}
 
               {reportType === 'contributions' && (
-                <Table>
-                  <TableHeader className="bg-gray-50">
-                    <TableRow>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Date</TableHead>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Member</TableHead>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Amount</TableHead>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {contributions.slice(0, 10).map((c, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="text-xs text-gray-600">
-                          {new Date(c.payment_date || c.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-xs font-bold text-gray-900">
-                          {c.member_name || `Member #${c.member_id}`}
-                        </TableCell>
-                        <TableCell className="text-xs font-bold text-emerald-700">
-                          ₱{(c.amount || 0).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="default" className="bg-emerald-100 text-emerald-800 text-xs">
-                            {c.status || 'Paid'}
-                          </Badge>
-                        </TableCell>
+                <>
+                  <Table>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Date</TableHead>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Member</TableHead>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Amount</TableHead>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedData.data.map((c, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="text-xs text-gray-600">
+                            {new Date(c.payment_date || c.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-xs font-bold text-gray-900">
+                            {c.member_name || `Member #${c.member_id}`}
+                          </TableCell>
+                          <TableCell className="text-xs font-bold text-emerald-700">
+                            ₱{(c.amount || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="default" className="bg-emerald-100 text-emerald-800 text-xs">
+                              {c.status || 'Paid'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {/* Pagination Controls */}
+                  <div className="p-4 border-t border-gray-100 flex items-center justify-between">
+                    <PaginationInfo 
+                      currentPage={page}
+                      limit={limit}
+                      total={paginatedData.total}
+                    />
+                    <Pagination
+                      currentPage={page}
+                      totalPages={paginatedData.totalPages}
+                      onPageChange={setPage}
+                      hasNextPage={paginatedData.hasNextPage}
+                      hasPrevPage={paginatedData.hasPrevPage}
+                    />
+                  </div>
+                </>
               )}
 
               {reportType === 'members' && (
-                <Table>
-                  <TableHeader className="bg-gray-50">
-                    <TableRow>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">ID</TableHead>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Name</TableHead>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Barangay</TableHead>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Status</TableHead>
-                      <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Join Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {members.slice(0, 10).map((m, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="text-xs text-gray-600">#{m.id || m.memberId}</TableCell>
-                        <TableCell className="text-xs font-bold text-gray-900">{m.name || m.memberName}</TableCell>
-                        <TableCell className="text-xs text-gray-600">{m.barangay || 'N/A'}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={m.status === 'active' ? 'default' : 'secondary'}
-                            className={m.status === 'active' ? 'bg-emerald-100 text-emerald-800 text-xs' : 'text-xs'}
-                          >
-                            {m.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-gray-600">{m.join_date || 'N/A'}</TableCell>
+                <>
+                  <Table>
+                    <TableHeader className="bg-gray-50">
+                      <TableRow>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">ID</TableHead>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Name</TableHead>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Barangay</TableHead>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Status</TableHead>
+                        <TableHead className="text-xs font-bold uppercase tracking-wider text-gray-400">Join Date</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedData.data.map((m, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="text-xs text-gray-600">#{m.id || m.memberId}</TableCell>
+                          <TableCell className="text-xs font-bold text-gray-900">{m.name || m.memberName}</TableCell>
+                          <TableCell className="text-xs text-gray-600">{m.barangay || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={m.status === 'active' ? 'default' : 'secondary'}
+                              className={m.status === 'active' ? 'bg-emerald-100 text-emerald-800 text-xs' : 'text-xs'}
+                            >
+                              {m.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-gray-600">{m.join_date || 'N/A'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {/* Pagination Controls */}
+                  <div className="p-4 border-t border-gray-100 flex items-center justify-between">
+                    <PaginationInfo 
+                      currentPage={page}
+                      limit={limit}
+                      total={paginatedData.total}
+                    />
+                    <Pagination
+                      currentPage={page}
+                      totalPages={paginatedData.totalPages}
+                      onPageChange={setPage}
+                      hasNextPage={paginatedData.hasNextPage}
+                      hasPrevPage={paginatedData.hasPrevPage}
+                    />
+                  </div>
+                </>
               )}
             </div>
           </CardContent>

@@ -122,25 +122,41 @@ const recordAttendance = async (req, res) => {
   }
 };
 
-// Get attendance by event
+// Get attendance by event - with pagination
 const getAttendanceByEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
+    const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
 
-    const attendance = await Attendance.find({ eventId }).sort({ scanTime: -1 });
+    // Get total count for pagination
+    const total = await Attendance.countDocuments({ eventId });
 
-    if (attendance.length === 0) {
+    // Get paginated attendance
+    const attendance = await Attendance.find({ eventId })
+      .sort({ scanTime: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    if (total === 0) {
       return res.status(200).json({
+        success: true,
         message: 'No attendance records found for this event',
-        count: 0,
-        attendance: [],
+        data: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPrevPage: false,
+          nextPage: null,
+          prevPage: null
+        }
       });
     }
 
-    res.status(200).json({
-      count: attendance.length,
-      attendance: attendance,
-    });
+    const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
+    res.status(200).json(buildPaginatedResponse(attendance, total, page, limit));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching attendance', error: error.message });
   }
@@ -222,15 +238,22 @@ const generateReport = async (req, res) => {
   }
 };
 
-// Get all attendance records
+// Get all attendance records - with pagination
 const getAllAttendance = async (req, res) => {
   try {
-    const attendance = await Attendance.find().sort({ scanTime: -1 });
+    const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
 
-    res.status(200).json({
-      count: attendance.length,
-      attendance: attendance,
-    });
+    // Get total count for pagination
+    const total = await Attendance.countDocuments();
+
+    // Get paginated attendance
+    const attendance = await Attendance.find()
+      .sort({ scanTime: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
+    res.status(200).json(buildPaginatedResponse(attendance, total, page, limit));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching attendance', error: error.message });
   }

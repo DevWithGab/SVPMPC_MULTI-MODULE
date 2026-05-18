@@ -1,11 +1,12 @@
 const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
+const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 
-// Get member ledger
+// Get member ledger - with pagination
 const getMemberLedger = async (req, res) => {
   try {
     const { memberId } = req.params;
-    const { limit = 100 } = req.query;
+    const { page, limit, skip } = getPaginationParams(req.query);
 
     // Verify member exists
     const member = await Member.findOne({ memberId });
@@ -13,16 +14,23 @@ const getMemberLedger = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
+    // Get total count for pagination
+    const total = await Ledger.countDocuments({ memberId });
+
+    // Get paginated ledger entries
     const ledgerEntries = await Ledger.find({ memberId })
       .sort({ transactionDate: -1 })
-      .limit(parseInt(limit));
+      .skip(skip)
+      .limit(limit);
 
-    // Get current balance
-    const currentBalance = ledgerEntries.length > 0 ? ledgerEntries[0].balance : 0;
+    // Get current balance (from most recent entry)
+    const latestEntry = await Ledger.findOne({ memberId }).sort({ transactionDate: -1 });
+    const currentBalance = latestEntry ? latestEntry.balance : 0;
 
-    // Calculate totals
-    const totalCredits = ledgerEntries.reduce((sum, entry) => sum + entry.credit, 0);
-    const totalDebits = ledgerEntries.reduce((sum, entry) => sum + entry.debit, 0);
+    // Calculate totals (from all entries, not just paginated)
+    const allEntries = await Ledger.find({ memberId });
+    const totalCredits = allEntries.reduce((sum, entry) => sum + entry.credit, 0);
+    const totalDebits = allEntries.reduce((sum, entry) => sum + entry.debit, 0);
 
     // Format ledger entries for consistency with frontend expectations
     const formattedEntries = ledgerEntries.map(entry => ({
@@ -36,15 +44,16 @@ const getMemberLedger = async (req, res) => {
       balance: entry.balance
     }));
 
+    const response = buildPaginatedResponse(formattedEntries, total, page, limit);
+
     res.status(200).json({
-      success: true,
+      ...response,
       memberId,
       memberName: member.memberName,
       currentBalance,
       totalCredits,
       totalDebits,
-      transactionCount: formattedEntries.length,
-      data: formattedEntries,
+      transactionCount: total,
     });
   } catch (error) {
     res.status(500).json({ 
@@ -55,19 +64,25 @@ const getMemberLedger = async (req, res) => {
   }
 };
 
-// Get all ledger entries (admin)
+// Get all ledger entries (admin) - with pagination
 const getAllLedger = async (req, res) => {
   try {
-    const { transactionType, limit = 100 } = req.query;
+    const { transactionType } = req.query;
+    const { page, limit, skip } = getPaginationParams(req.query);
 
     let query = {};
     if (transactionType) {
       query.transactionType = transactionType;
     }
 
+    // Get total count for pagination
+    const total = await Ledger.countDocuments(query);
+
+    // Get paginated ledger entries
     const ledgerEntries = await Ledger.find(query)
       .sort({ transactionDate: -1 })
-      .limit(parseInt(limit));
+      .skip(skip)
+      .limit(limit);
 
     // Format for frontend
     const formattedEntries = ledgerEntries.map(entry => ({
@@ -81,10 +96,7 @@ const getAllLedger = async (req, res) => {
       balance: entry.balance
     }));
 
-    res.status(200).json({
-      success: true,
-      data: formattedEntries,
-    });
+    res.status(200).json(buildPaginatedResponse(formattedEntries, total, page, limit));
   } catch (error) {
     res.status(500).json({ 
       success: false,

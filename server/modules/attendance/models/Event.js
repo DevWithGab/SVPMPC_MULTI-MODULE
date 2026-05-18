@@ -47,4 +47,9 @@ const eventSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for better query performance
+eventSchema.index({ status: 1 });
+eventSchema.index({ eventDate: -1 });
+eventSchema.index({ status: 1, eventDate: -1 });
+
 module.exports = mongoose.model('Event', eventSchema);

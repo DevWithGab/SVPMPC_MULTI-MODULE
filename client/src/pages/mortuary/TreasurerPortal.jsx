@@ -63,6 +63,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [barangayFilter, setBarangayFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+  const [ledgerMembers, setLedgerMembers] = useState([]);
+  const [ledgerPagination, setLedgerPagination] = useState(null);
+  const skipNextLedgerPageFetchRef = useRef(false);
   
   // Modal states
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
@@ -91,6 +94,28 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     } catch (error) {
       console.error('Error fetching members:', error);
       setMembers([]); // Set empty array on error
+    }
+  };
+
+  const fetchLedgerMembers = async (page = currentPage, search = searchQuery, barangay = barangayFilter) => {
+    try {
+      const response = await api.get('/mortuary/treasurer/balances/all', {
+        params: {
+          page,
+          limit: itemsPerPage,
+          search,
+          barangay,
+        },
+      });
+
+      if (response.data.success) {
+        setLedgerMembers(response.data.data.members || []);
+        setLedgerPagination(response.data.data.pagination || null);
+      }
+    } catch (error) {
+      console.error('Error fetching paginated ledger members:', error);
+      setLedgerMembers([]);
+      setLedgerPagination(null);
     }
   };
 
@@ -161,6 +186,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const refreshAllData = async () => {
     await Promise.all([
       fetchMembers(),
+      fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
       fetchContributions(),
       fetchDashboardStats(),
       fetchLedger()
@@ -188,6 +214,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         // Refresh all data after contribution is recorded
         await Promise.all([
           fetchContributions(),
+          fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
           fetchLedger(),
           fetchDashboardStats()
         ]);
@@ -291,6 +318,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         setDeductionAmount('25');
         await Promise.all([
           fetchMembers(),
+          fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
           fetchDashboardStats(),
           fetchLedger()
         ]);
@@ -311,6 +339,29 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     fetchDashboardStats();
     fetchLedger();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'ledger' && currentPage !== 1) {
+      skipNextLedgerPageFetchRef.current = true;
+    }
+
+    setCurrentPage(1);
+
+    if (activeTab === 'ledger') {
+      fetchLedgerMembers(1, searchQuery, barangayFilter);
+    }
+  }, [searchQuery, barangayFilter, memberFilter, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'ledger') return;
+
+    if (skipNextLedgerPageFetchRef.current) {
+      skipNextLedgerPageFetchRef.current = false;
+      return;
+    }
+
+    fetchLedgerMembers(currentPage, searchQuery, barangayFilter);
+  }, [activeTab, currentPage]);
 
   // Update selected ledger member when members array changes
   useEffect(() => {
@@ -380,6 +431,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         return (
           <MemberLedger 
             members={members}
+            ledgerMembers={ledgerMembers}
             ledger={ledger}
             selectedLedgerMember={selectedLedgerMember}
             setSelectedLedgerMember={setSelectedLedgerMember}
@@ -390,6 +442,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
+            pagination={ledgerPagination}
             setIsAddContributionOpen={setIsAddContributionOpen}
             handleTriggerAutomatedNotice={handleTriggerAutomatedNotice}
             showToast={showToast}

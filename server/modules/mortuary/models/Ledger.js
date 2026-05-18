@@ -56,4 +56,10 @@ const ledgerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for better query performance
+ledgerSchema.index({ memberId: 1 });
+ledgerSchema.index({ transactionType: 1 });
+ledgerSchema.index({ transactionDate: -1 });
+ledgerSchema.index({ memberId: 1, transactionDate: -1 });
+
 module.exports = mongoose.model('Ledger', ledgerSchema);

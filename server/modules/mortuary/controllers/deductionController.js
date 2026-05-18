@@ -2,66 +2,245 @@ const Member = require('../../../shared/models/Member');
 const Ledger = require('../models/Ledger');
 const { v4: uuidv4 } = require('uuid');
 const { checkAndNotify } = require('../services/thresholdNotificationService');
+const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
 
 // Constants
 const DEDUCTION_AMOUNT = 25; // 25 pesos per death
 const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
 
+const extractBarangay = (address) => {
+  if (!address) return 'Not Specified';
+  const parts = address.split(',');
+  return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
+};
+
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter }) => {
+  const match = { status: 'active' };
+  const andConditions = [];
+
+  if (Array.isArray(memberIds) && memberIds.length > 0) {
+    andConditions.push({ memberId: { $in: memberIds } });
+  }
+
+  if (barangayFilter && barangayFilter !== 'All') {
+    const barangayRegex = new RegExp(escapeRegex(barangayFilter), 'i');
+    andConditions.push({
+      $or: [
+        { barangay: barangayRegex },
+        { address: barangayRegex },
+      ],
+    });
+  }
+
+  if (searchTerm) {
+    const searchRegex = new RegExp(escapeRegex(searchTerm), 'i');
+    andConditions.push({
+      $or: [
+      { memberName: searchRegex },
+      { memberId: searchRegex },
+      { email: searchRegex },
+      { phoneNumber: searchRegex },
+      { address: searchRegex },
+      { beneficiaries: searchRegex },
+      ],
+    });
+  }
+
+  if (andConditions.length > 0) {
+    match.$and = andConditions;
+  }
+
+  return match;
+};
+
+const getMemberBalanceSnapshots = async ({
+  memberIds,
+  searchTerm = '',
+  barangayFilter = '',
+  shouldPaginate = false,
+  page = 1,
+  limit = 10,
+  skip = 0,
+} = {}) => {
+  const pipeline = [
+    // Stage 1: Match active members with filters (uses indexes)
+    { $match: buildBalanceMatch({ memberIds, searchTerm, barangayFilter }) },
+    
+    // Stage 2: Lookup latest ledger entry (optimized with sorted pipeline)
+    {
+      $lookup: {
+        from: Ledger.collection.name,
+        let: { memberId: '$memberId' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$memberId', '$$memberId'] },
+            },
+          },
+          // Sort uses compound index: memberId + transactionDate
+          { $sort: { transactionDate: -1, createdAt: -1 } },
+          { $limit: 1 },
+          { $project: { balance: 1, transactionDate: 1, _id: 0 } }, // Exclude _id for smaller payload
+        ],
+        as: 'latestLedger',
+      },
+    },
+    
+    // Stage 3: Flatten latestLedger array
+    {
+      $addFields: {
+        latestLedger: { $arrayElemAt: ['$latestLedger', 0] },
+      },
+    },
+    
+    // Stage 4: Calculate derived fields
+    {
+      $addFields: {
+        balance: { $ifNull: ['$latestLedger.balance', 0] },
+        lastUpdated: '$latestLedger.transactionDate',
+        isLowBalance: { $lt: [{ $ifNull: ['$latestLedger.balance', 0] }, MINIMUM_BALANCE] },
+      },
+    },
+    
+    // Stage 5: Project only needed fields (reduces memory usage)
+    {
+      $project: {
+        _id: 0,
+        id: '$memberId',
+        memberId: 1,
+        name: '$memberName',
+        memberName: 1,
+        email: 1,
+        contact: '$phoneNumber',
+        phoneNumber: 1,
+        address: 1,
+        barangay: 1,
+        beneficiaries: 1,
+        status: 1,
+        join_date: '$joinDate',
+        balance: 1,
+        isLowBalance: 1,
+        lastUpdated: 1,
+      },
+    },
+    
+    // Stage 6: Sort (uses balance for low-balance priority)
+    { $sort: { balance: 1, memberName: 1 } },
+    
+    // Stage 7: Facet for pagination + summary (single pass!)
+    {
+      $facet: {
+        members: shouldPaginate ? [{ $skip: skip }, { $limit: limit }] : [],
+        summary: [
+          {
+            $group: {
+              _id: null,
+              totalMembers: { $sum: 1 },
+              totalBalance: { $sum: '$balance' },
+              lowBalanceCount: { $sum: { $cond: ['$isLowBalance', 1, 0] } },
+              minBalance: { $min: '$balance' },
+              maxBalance: { $max: '$balance' },
+            },
+          },
+        ],
+      },
+    },
+    
+    // Stage 8: Format output
+    {
+      $project: {
+        members: { $ifNull: ['$members', []] },
+        summary: {
+          $let: {
+            vars: {
+              stats: {
+                $ifNull: [
+                  { $arrayElemAt: ['$summary', 0] },
+                  { 
+                    totalMembers: 0, 
+                    totalBalance: 0, 
+                    lowBalanceCount: 0,
+                    minBalance: 0,
+                    maxBalance: 0
+                  },
+                ],
+              },
+            },
+            in: {
+              totalMembers: '$$stats.totalMembers',
+              totalBalance: '$$stats.totalBalance',
+              averageBalance: {
+                $cond: [
+                  { $gt: ['$$stats.totalMembers', 0] },
+                  { $divide: ['$$stats.totalBalance', '$$stats.totalMembers'] },
+                  0,
+                ],
+              },
+              lowBalanceCount: '$$stats.lowBalanceCount',
+              minimumBalance: MINIMUM_BALANCE,
+              minBalance: '$$stats.minBalance',
+              maxBalance: '$$stats.maxBalance',
+            },
+          },
+        },
+      },
+    },
+  ];
+
+  // Execute with disk use for large datasets
+  const [result] = await Member.aggregate(pipeline).allowDiskUse(true);
+
+  const summary = result?.summary || {
+    totalMembers: 0,
+    totalBalance: 0,
+    averageBalance: 0,
+    lowBalanceCount: 0,
+    minimumBalance: MINIMUM_BALANCE,
+    minBalance: 0,
+    maxBalance: 0,
+  };
+
+  return {
+    members: result?.members || [],
+    summary,
+    total: summary.totalMembers || 0,
+    pagination: shouldPaginate ? buildPaginationMeta(summary.totalMembers || 0, page, limit) : null,
+  };
+};
+
 // Get all member balances
 const getAllMemberBalances = async (req, res) => {
   try {
-    // Get all active members with full details
-    const members = await Member.find({ status: 'active' });
-    
-    const memberBalances = [];
-    
-    for (const member of members) {
-      // Get latest balance for each member - sort by createdAt for accuracy
-      const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-        .sort({ createdAt: -1 });
-      
-      const balance = latestLedger ? latestLedger.balance : 0;
-      const isLowBalance = balance < MINIMUM_BALANCE;
-      
-      memberBalances.push({
-        id: member.memberId, // Frontend expects 'id'
-        memberId: member.memberId,
-        name: member.memberName, // Frontend expects 'name'
-        memberName: member.memberName,
-        email: member.email,
-        contact: member.phoneNumber, // Frontend expects 'contact'
-        phoneNumber: member.phoneNumber,
-        address: member.address,
-        barangay: member.barangay,
-        beneficiaries: member.beneficiaries,
-        status: member.status,
-        join_date: member.joinDate,
-        balance: balance,
-        isLowBalance: isLowBalance,
-        lastUpdated: latestLedger ? latestLedger.transactionDate : null
-      });
+    const shouldPaginate = req.query.page !== undefined || req.query.limit !== undefined;
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const searchTerm = (req.query.search || '').trim().toLowerCase();
+    const barangayFilter = (req.query.barangay || '').trim();
+    const { members, summary, pagination } = await getMemberBalanceSnapshots({
+      searchTerm,
+      barangayFilter,
+      shouldPaginate,
+      page,
+      limit,
+      skip,
+    });
+
+    const responseData = {
+      members,
+      summary: {
+        ...summary,
+        averageBalance: Math.round(summary.averageBalance || 0),
+      },
+    };
+
+    if (pagination) {
+      responseData.pagination = pagination;
     }
-    
-    // Sort by balance (lowest first to highlight low balances)
-    memberBalances.sort((a, b) => a.balance - b.balance);
-    
-    // Calculate summary statistics
-    const totalBalance = memberBalances.reduce((sum, member) => sum + member.balance, 0);
-    const lowBalanceCount = memberBalances.filter(member => member.isLowBalance).length;
-    const averageBalance = memberBalances.length > 0 ? totalBalance / memberBalances.length : 0;
     
     res.status(200).json({
       success: true,
-      data: {
-        members: memberBalances,
-        summary: {
-          totalMembers: memberBalances.length,
-          totalBalance: totalBalance,
-          averageBalance: Math.round(averageBalance),
-          lowBalanceCount: lowBalanceCount,
-          minimumBalance: MINIMUM_BALANCE
-        }
-      }
+      data: responseData
     });
   } catch (error) {
     console.error('Error fetching member balances:', error);
@@ -95,19 +274,14 @@ const processAutomaticDeduction = async (req, res) => {
       });
     }
     
-    // Get all active members
-    const members = await Member.find({ status: 'active' });
+    const { members } = await getMemberBalanceSnapshots();
     
     const deductionResults = [];
     const lowBalanceMembers = [];
     
     for (const member of members) {
       try {
-        // Get current balance - sort by createdAt for accuracy
-        const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-          .sort({ createdAt: -1 });
-        
-        const currentBalance = latestLedger ? latestLedger.balance : 0;
+        const currentBalance = member.balance || 0;
         const newBalance = currentBalance - deductionAmount;
         
         // Create ledger entry for deduction
@@ -194,27 +368,18 @@ const processAutomaticDeduction = async (req, res) => {
 // Check for members with low balance
 const checkLowBalanceMembers = async (req, res) => {
   try {
-    const members = await Member.find({ status: 'active' }).select('memberId memberName phoneNumber');
-    
-    const lowBalanceMembers = [];
-    
-    for (const member of members) {
-      const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-        .sort({ transactionDate: -1 });
-      
-      const balance = latestLedger ? latestLedger.balance : 0;
-      
-      if (balance < MINIMUM_BALANCE) {
-        lowBalanceMembers.push({
-          memberId: member.memberId,
-          memberName: member.memberName,
-          phoneNumber: member.phoneNumber,
-          balance: balance,
-          deficit: MINIMUM_BALANCE - balance,
-          lastUpdated: latestLedger ? latestLedger.transactionDate : null
-        });
-      }
-    }
+    const { members } = await getMemberBalanceSnapshots();
+
+    const lowBalanceMembers = members
+      .filter((member) => (member.balance || 0) < MINIMUM_BALANCE)
+      .map((member) => ({
+        memberId: member.memberId,
+        memberName: member.memberName,
+        phoneNumber: member.phoneNumber,
+        balance: member.balance || 0,
+        deficit: MINIMUM_BALANCE - (member.balance || 0),
+        lastUpdated: member.lastUpdated || null,
+      }));
     
     res.status(200).json({
       success: true,
@@ -240,48 +405,15 @@ const sendLowBalanceNotifications = async (req, res) => {
   try {
     const { memberIds } = req.body; // Optional: specific member IDs, otherwise send to all low balance members
     
-    let targetMembers = [];
-    
-    if (memberIds && memberIds.length > 0) {
-      // Send to specific members
-      const members = await Member.find({ 
-        memberId: { $in: memberIds }, 
-        status: 'active' 
-      }).select('memberId memberName phoneNumber');
-      
-      for (const member of members) {
-        const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-          .sort({ transactionDate: -1 });
-        
-        const balance = latestLedger ? latestLedger.balance : 0;
-        
-        if (balance < MINIMUM_BALANCE) {
-          targetMembers.push({
-            ...member.toObject(),
-            balance: balance,
-            deficit: MINIMUM_BALANCE - balance
-          });
-        }
-      }
-    } else {
-      // Send to all low balance members
-      const members = await Member.find({ status: 'active' }).select('memberId memberName phoneNumber');
-      
-      for (const member of members) {
-        const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-          .sort({ transactionDate: -1 });
-        
-        const balance = latestLedger ? latestLedger.balance : 0;
-        
-        if (balance < MINIMUM_BALANCE) {
-          targetMembers.push({
-            ...member.toObject(),
-            balance: balance,
-            deficit: MINIMUM_BALANCE - balance
-          });
-        }
-      }
-    }
+    const { members } = await getMemberBalanceSnapshots({ memberIds });
+
+    const targetMembers = members
+      .filter((member) => (member.balance || 0) < MINIMUM_BALANCE)
+      .map((member) => ({
+        ...member,
+        balance: member.balance || 0,
+        deficit: MINIMUM_BALANCE - (member.balance || 0),
+      }));
     
     // TODO: Integrate with SMS service
     // For now, we'll just return the members who should receive notifications

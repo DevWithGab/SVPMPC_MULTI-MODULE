@@ -3,6 +3,7 @@ const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { checkAndNotify } = require('../services/thresholdNotificationService');
+const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 
 // Record contribution (admin)
 const recordContribution = async (req, res) => {
@@ -124,19 +125,25 @@ const getContributionHistory = async (req, res) => {
   }
 };
 
-// Get all contributions (admin)
+// Get all contributions (admin) - with pagination
 const getAllContributions = async (req, res) => {
   try {
-    const { status, limit = 100 } = req.query;
+    const { status } = req.query;
+    const { page, limit, skip } = getPaginationParams(req.query);
 
     let query = {};
     if (status) {
       query.status = status;
     }
 
+    // Get total count for pagination
+    const total = await Contribution.countDocuments(query);
+
+    // Get paginated contributions
     const contributions = await Contribution.find(query)
       .sort({ paymentDate: -1 })
-      .limit(parseInt(limit));
+      .skip(skip)
+      .limit(limit);
 
     // Populate member names
     const contributionsWithMemberNames = await Promise.all(
@@ -159,11 +166,7 @@ const getAllContributions = async (req, res) => {
       })
     );
 
-    res.status(200).json({
-      success: true,
-      count: contributionsWithMemberNames.length,
-      data: contributionsWithMemberNames,
-    });
+    res.status(200).json(buildPaginatedResponse(contributionsWithMemberNames, total, page, limit));
   } catch (error) {
     res.status(500).json({ 
       success: false,

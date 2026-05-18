@@ -111,14 +111,16 @@ const createEvent = async (req, res) => {
   }
 };
 
-// Get all events (supports filtering via query params)
+// Get all events (supports filtering via query params) - with pagination
 const getAllEvents = async (req, res) => {
   try {
     // Check and update completed events
     await checkAndUpdateCompletedEvents();
 
-    // Build filter from query params
     const { q, location, status } = req.query;
+    const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
+
+    // Build filter from query params
     const filter = {};
 
     if (location) {
@@ -135,11 +137,17 @@ const getAllEvents = async (req, res) => {
       filter.$or = [{ eventName: regex }, { location: regex }];
     }
 
-    const events = await Event.find(filter).sort({ eventDate: -1, startTime: -1 });
-    res.status(200).json({
-      count: events.length,
-      events: events,
-    });
+    // Get total count for pagination
+    const total = await Event.countDocuments(filter);
+
+    // Get paginated events
+    const events = await Event.find(filter)
+      .sort({ eventDate: -1, startTime: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
+    res.status(200).json(buildPaginatedResponse(events, total, page, limit));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching events', error: error.message });
   }

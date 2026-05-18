@@ -2,10 +2,35 @@ const { Member } = require('../../../shared/models');
 const { Ledger } = require('../models');
 
 const adminController = {
-  // Get all members for admin
+  // Get all members for admin - with pagination
   getAllMembers: async (req, res) => {
     try {
-      const members = await Member.find({}).sort({ createdAt: -1 });
+      const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
+      const { status, search } = req.query;
+
+      let query = {};
+      
+      // Filter by status if provided
+      if (status) {
+        query.status = status;
+      }
+
+      // Search by name or memberId if provided
+      if (search) {
+        query.$or = [
+          { memberName: { $regex: search, $options: 'i' } },
+          { memberId: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      // Get total count for pagination
+      const total = await Member.countDocuments(query);
+
+      // Get paginated members
+      const members = await Member.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
 
       const formattedMembers = members.map(member => ({
         id: member.memberId,
@@ -23,9 +48,12 @@ const adminController = {
         created_at: new Date(member.createdAt).toISOString().split('T')[0]
       }));
 
+      const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
+      const response = buildPaginatedResponse(formattedMembers, total, page, limit);
+      
       res.json({
-        success: true,
-        members: formattedMembers
+        ...response,
+        members: response.data // Keep backward compatibility
       });
     } catch (error) {
       console.error('Error fetching all members:', error);
