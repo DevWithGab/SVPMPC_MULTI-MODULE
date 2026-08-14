@@ -12,7 +12,7 @@ export default function Button({
   className = '',
   ...props
 }) {
-  const baseClasses = 'font-semibold rounded-lg transition-all duration-200 inline-flex items-center justify-center gap-2 whitespace-nowrap focus:outline-none';
+  const baseClasses = 'font-semibold rounded-lg transition-all duration-200 inline-flex items-center justify-center gap-2 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-coop-green focus-visible:ring-offset-2';
   
   const variants = {
     primary: 'bg-coop-green hover:bg-coop-darkGreen text-white shadow-md hover:shadow-lg',

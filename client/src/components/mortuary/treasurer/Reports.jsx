@@ -1,56 +1,69 @@
 import React from 'react';
-import { Printer, Download, TrendingUp } from 'lucide-react';
-import { Card, CardTitle } from '../../ui/card';
-import { 
-  AreaChart, Area, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell,
-  Tooltip as RechartsTooltip 
-} from 'recharts';
-import Button from '../../shared/ui/Button';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip } from 'recharts';
 
-const Reports = ({ members, contributions }) => {
-  const statusData = [
-    { name: 'Active', value: members.filter(m => m.status === 'active').length },
-    { name: 'Inactive/Grace', value: members.filter(m => m.status !== 'active').length },
-  ];
-  
-  const balanceData = [
-    { name: 'Healthy (>=1k)', value: members.filter(m => m.balance >= 1000).length },
-    { name: 'At Risk (<1k)', value: members.filter(m => m.balance < 1000).length },
+const Reports = ({ members, contributions, stats = {} }) => {
+  const calculateMemberStanding = () => {
+    if (stats.memberStanding && Object.values(stats.memberStanding).some(v => v > 0)) {
+      return stats.memberStanding;
+    }
+    const standing = { excellent: 0, good: 0, fair: 0, atRisk: 0 };
+    members.forEach(m => {
+      const balance = m.balance || 0;
+      if (balance >= 10000) standing.excellent++;
+      else if (balance >= 5000) standing.good++;
+      else if (balance >= 1000) standing.fair++;
+      else standing.atRisk++;
+    });
+    return standing;
+  };
+
+  const calculateStatusComposition = () => {
+    if (stats.statusComposition && Object.values(stats.statusComposition).some(v => v > 0)) {
+      return stats.statusComposition;
+    }
+    return {
+      active: members.filter(m => m.status === 'active').length,
+      inactive: members.filter(m => m.status === 'inactive').length,
+      deceased: members.filter(m => m.status === 'deceased').length,
+    };
+  };
+
+  const memberStanding = calculateMemberStanding();
+  const statusComposition = calculateStatusComposition();
+
+  const memberStandingData = [
+    { standing: "Excellent", members: memberStanding.excellent || 0, fill: "#059669" },
+    { standing: "Good", members: memberStanding.good || 0, fill: "#14b8a6" },
+    { standing: "Fair", members: memberStanding.fair || 0, fill: "#f59e0b" },
+    { standing: "At Risk", members: memberStanding.atRisk || 0, fill: "#ef4444" },
   ];
 
-  // Calculate real monthly contribution data from actual contributions
+  const statusCompositionData = [
+    { status: "Active", members: statusComposition.active || 0, fill: "#3b82f6" },
+    { status: "Inactive", members: statusComposition.inactive || 0, fill: "#94a3b8" },
+    { status: "Deceased", members: statusComposition.deceased || 0, fill: "#1e293b" },
+  ];
+
   const calculateMonthlyData = () => {
     const monthlyTotals = {};
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    // Group contributions by month
     contributions.forEach(c => {
       if (c.payment_date) {
         const date = new Date(c.payment_date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const monthLabel = monthNames[date.getMonth()];
-        
         if (!monthlyTotals[monthKey]) {
           monthlyTotals[monthKey] = { month: monthLabel, value: 0, fullKey: monthKey };
         }
         monthlyTotals[monthKey].value += c.amount || 0;
       }
     });
-    
-    // Convert to array and sort by date
-    const sortedData = Object.values(monthlyTotals)
-      .sort((a, b) => a.fullKey.localeCompare(b.fullKey))
-      .slice(-5); // Get last 5 months
-    
-    // If no data, return empty array
-    return sortedData.length > 0 ? sortedData : [
-      { month: 'No Data', value: 0 }
-    ];
+    const sortedData = Object.values(monthlyTotals).sort((a, b) => a.fullKey.localeCompare(b.fullKey)).slice(-5);
+    return sortedData.length > 0 ? sortedData : [{ month: 'No Data', value: 0 }];
   };
 
   const monthlyData = calculateMonthlyData();
-  
-  // Calculate growth trend
+
   const calculateGrowthTrend = () => {
     if (monthlyData.length < 2) return '+0%';
     const current = monthlyData[monthlyData.length - 1].value;
@@ -61,170 +74,137 @@ const Reports = ({ members, contributions }) => {
   };
 
   const growthTrend = calculateGrowthTrend();
+  const isPositiveGrowth = !growthTrend.startsWith('-');
+
+  const standingColors = ['#059669', '#14b8a6', '#f59e0b', '#ef4444'];
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h2 className="text-4xl font-black text-slate-950 tracking-tighter leading-none mb-2">Fund Reports</h2>
-          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em]">Comprehensive Audit & Financial Intelligence</p>
-        </div>
-        <div className="flex gap-4">
-          <Button 
-            variant="outline" 
-            className="rounded-2xl border-slate-200 font-black uppercase text-[10px] tracking-widest px-6 h-12 shadow-sm"
-            onClick={() => window.print()}
-          >
-            <Printer className="w-4 h-4 mr-2" /> Print Summary
-          </Button>
-          <Button 
-            className="bg-slate-900 text-white rounded-2xl shadow-xl font-black uppercase text-[10px] tracking-widest px-8 h-12 transform hover:-translate-y-1 transition-all"
-            onClick={() => alert('Generating full audit export...')}
-          >
-            <Download className="w-4 h-4 mr-2" /> Export Audit Bundle
-          </Button>
-        </div>
+      <div>
+        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Fund Reports</h2>
+        <p className="text-sm text-slate-500 mt-1">Audit and financial overview</p>
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Inflow Velocity Chart */}
-        <Card className="rounded-[3rem] p-10 border-slate-200/60 shadow-2xl bg-white group overflow-hidden relative border">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-[50px] -mr-16 -mt-16" />
-          <div className="flex items-center justify-between mb-8 relative z-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Inflow Chart */}
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-1">Inflow Velocity</CardTitle>
-              <p className="text-2xl font-black text-slate-900 tracking-tight">Cumulative Contributions</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5" />
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-900">Contributions Trend</p>
+                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${isPositiveGrowth ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {growthTrend}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">Last 5 months</p>
             </div>
           </div>
-          <div className="h-[300px] w-full relative z-10">
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={monthlyData}>
                 <defs>
                   <linearGradient id="colorReport" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="month" stroke="#94a3b8" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
+                <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis hide />
-                <RechartsTooltip 
-                  contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                  labelStyle={{ fontWeight: '900', color: '#1e293b' }}
-                />
-                <Area type="monotone" dataKey="value" stroke="#3b82f6" fillOpacity={1} fill="url(#colorReport)" strokeWidth={4} />
+                <RechartsTooltip contentStyle={{ border: '1px solid #e2e8f0', fontSize: '12px' }} />
+                <Area type="monotone" dataKey="value" stroke="#3b82f6" fillOpacity={1} fill="url(#colorReport)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <div className="mt-8 pt-8 border-t border-slate-50 flex justify-between items-center relative z-10">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Growth Trend: {growthTrend} vs Prev Month</p>
-            <div className="flex items-center gap-1 text-coop-green font-black text-xs">
-              <TrendingUp className="w-3 h-3" /> 
-              <span>{monthlyData.length > 0 && monthlyData[0].value > 0 ? 'Active' : 'No Data'}</span>
+        </div>
+
+        {/* Pie Charts */}
+        <div className="space-y-4">
+          {/* Member Standing */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <p className="text-sm font-semibold text-slate-900 mb-3">Member Standing</p>
+            <div className="h-[140px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={memberStandingData} dataKey="members" innerRadius={40} outerRadius={55} paddingAngle={4}>
+                    {memberStandingData.map((entry, i) => (
+                      <Cell key={i} fill={standingColors[i]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {memberStandingData.map((item, i) => (
+                <div key={item.standing} className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: standingColors[i] }} />
+                  <span className="text-xs text-slate-600">{item.standing}</span>
+                  <span className="text-xs font-bold text-slate-900 ml-auto">{item.members}</span>
+                </div>
+              ))}
             </div>
           </div>
-        </Card>
 
-        {/* Pie Charts Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-          {/* Member Standing Chart */}
-          <Card className="rounded-[3rem] p-8 border-slate-200/60 shadow-xl bg-white flex flex-col justify-between border">
-            <div>
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">Member Standing</CardTitle>
-              <div className="h-[180px]">
+          {/* Status Composition */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <p className="text-sm font-semibold text-slate-900 mb-3">Status Composition</p>
+            <div className="flex items-center gap-4">
+              <div className="h-[100px] w-[100px] shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={balanceData} dataKey="value" innerRadius={50} outerRadius={70} paddingAngle={8} cornerRadius={4}>
-                      <Cell fill="#059669" />
-                      <Cell fill="#f43f5e" strokeWidth={0} />
-                    </Pie>
-                    <RechartsTooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            <div className="space-y-3 mt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-coop-green" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Healthy Account</span>
-                </div>
-                <span className="text-xs font-black text-slate-900">{balanceData[0].value}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">At Risk</span>
-                </div>
-                <span className="text-xs font-black text-rose-600">{balanceData[1].value}</span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Status Composition Chart */}
-          <Card className="rounded-[3rem] p-8 border-slate-200/60 shadow-xl bg-slate-950 text-white flex flex-col justify-between border">
-            <div>
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500 mb-6">Status Composition</CardTitle>
-              <div className="h-[180px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={statusData} dataKey="value" innerRadius={50} outerRadius={70} stroke="none">
+                    <Pie data={statusCompositionData} dataKey="members" innerRadius={30} outerRadius={42} stroke="none">
                       <Cell fill="#3b82f6" />
-                      <Cell fill="rgba(255,255,255,0.1)" />
+                      <Cell fill="#94a3b8" />
+                      <Cell fill="#1e293b" />
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
               </div>
+              <div className="space-y-2 flex-1">
+                {statusCompositionData.map((item) => (
+                  <div key={item.status} className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600">{item.status}</span>
+                    <span className="font-bold text-slate-900">{item.members}</span>
+                  </div>
+                ))}
+                <div className="pt-2 border-t border-slate-100">
+                  <p className="text-xs text-slate-400">Total</p>
+                  <p className="text-sm font-bold text-slate-900">{stats?.totalMembers?.toLocaleString() || members.length}</p>
+                </div>
+              </div>
             </div>
-            <div className="mt-6">
-              <p className="text-3xl font-black tracking-tighter leading-none mb-1">{statusData[0].value}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Verified Active Lifecycle</p>
-            </div>
-          </Card>
+          </div>
         </div>
       </div>
 
-      {/* Recent Activity Timeline */}
-      <Card className="rounded-[3rem] p-10 border-slate-200/60 shadow-2xl bg-white border">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-10">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-1">Lifecycle Analysis</p>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Recent Fund Activity Timeline</h3>
-          </div>
-          <div className="flex gap-2">
-            <div className="px-4 py-2 bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 italic">Audit Log Ver. 2.4.1</div>
-          </div>
+      {/* Recent Activity */}
+      <div className="bg-white border border-slate-200 rounded-xl">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <p className="text-sm font-semibold text-slate-900">Recent Activity</p>
+          <p className="text-xs text-slate-400 mt-0.5">Latest contributions</p>
         </div>
-        
-        <div className="space-y-4">
+        <div className="divide-y divide-slate-100">
           {contributions.slice(0, 5).map((c, i) => (
-            <div key={i} className="flex items-center justify-between p-6 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:border-blue-200 transition-colors">
-              <div className="flex items-center gap-6">
-                <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center font-black text-xs text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-all">
-                  {i + 1}
+            <div key={i} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-xs font-bold text-green-700 shrink-0">
+                  {(c.member_name || 'M').charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-black text-slate-900 leading-none mb-1">Inflow Verification: Member #{c.member_id}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Entry Timestamp: {c.payment_date}</p>
+                  <p className="text-sm font-medium text-slate-900">{c.member_name || `Member #${c.member_id}`}</p>
+                  <p className="text-xs text-slate-400">{c.payment_date}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-lg font-black text-slate-900 leading-none mb-1">₱{c.amount?.toLocaleString()}</p>
-                <span className="text-[9px] font-black uppercase text-coop-green tracking-widest">Verified Inflow</span>
-              </div>
+              <p className="text-sm font-bold text-slate-900">₱{c.amount?.toLocaleString()}</p>
             </div>
           ))}
           {contributions.length === 0 && (
-            <div className="h-32 flex items-center justify-center text-slate-400">
-              <p className="text-[10px] font-black uppercase tracking-widest">No recent data for lifecycle analysis</p>
-            </div>
+            <div className="px-6 py-8 text-center text-sm text-slate-400">No recent activity</div>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

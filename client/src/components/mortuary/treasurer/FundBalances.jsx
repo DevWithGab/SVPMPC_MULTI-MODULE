@@ -4,6 +4,8 @@ import {
   MessageSquare, RefreshCw, Search, CheckCircle2 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
+import { Pie, PieChart } from 'recharts';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import api from '../../../services/api';

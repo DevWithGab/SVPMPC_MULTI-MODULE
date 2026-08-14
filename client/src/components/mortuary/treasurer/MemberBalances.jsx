@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Search, ChevronRight, TrendingDown, AlertCircle, CheckCircle2, Wallet, Users } from 'lucide-react';
-import { Card } from '../../ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
-import { Badge } from '../../ui/badge';
+import { Search, ArrowUpDown, ChevronRight, Wallet, Clock, AlertTriangle } from 'lucide-react';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
+import StatCard from './shared/StatCard';
 
 const extractBarangay = (address) => {
   if (!address) return 'Not Specified';
@@ -12,9 +10,16 @@ const extractBarangay = (address) => {
   return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
 };
 
-const MemberBalances = ({ 
-  members, 
-  searchQuery, 
+const getInitials = (name) => {
+  if (!name) return '?';
+  const parts = name.split(' ').filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts[0][0].toUpperCase();
+};
+
+const MemberBalances = ({
+  members,
+  searchQuery,
   setSearchQuery,
   barangayFilter,
   setBarangayFilter,
@@ -23,8 +28,12 @@ const MemberBalances = ({
   currentPage,
   setCurrentPage,
   itemsPerPage,
-  setIsAddClaimOpen
+  setIsAddClaimOpen,
+  onOpenLedger
 }) => {
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   const lowBalanceMembers = members.filter(m => m.balance < 1000);
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
   const lowBalancePercent = members.length > 0 ? (lowBalanceMembers.length / members.length) * 100 : 0;
@@ -32,279 +41,277 @@ const MemberBalances = ({
   const filteredMembers = members
     .filter(m => (memberFilter === 'low' ? m.balance < 1000 : true))
     .filter(m => (barangayFilter === 'All' ? true : extractBarangay(m.address) === barangayFilter))
-    .filter(m => (m.name?.toLowerCase().includes(searchQuery.toLowerCase()) || m.id?.toString().includes(searchQuery)));
-    
+    .filter(m => (statusFilter === 'all' ? true : m.status === statusFilter))
+    .filter(m => (m.name?.toLowerCase().includes(searchQuery.toLowerCase()) || m.id?.toString().includes(searchQuery)))
+    .sort((a, b) => sortOrder === 'asc' ? a.balance - b.balance : b.balance - a.balance);
+
   const totalPagesMemberBalances = Math.ceil(filteredMembers.length / itemsPerPage) || 1;
   const currentMembersBalancesChunk = filteredMembers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const uniqueBarangays = ['All', ...Array.from(new Set(members.map(m => extractBarangay(m.address))))].sort();
+  const hasActiveFilters = searchQuery !== '' || barangayFilter !== 'All' || statusFilter !== 'all' || memberFilter !== 'all';
+  const clearFilters = () => {
+    setSearchQuery('');
+    setBarangayFilter('All');
+    setStatusFilter('all');
+    setMemberFilter('all');
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-4xl font-black text-slate-950 tracking-tighter leading-none mb-2">Member Balance</h2>
-            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em]">Capital Monitoring & Risk Assessment</p>
-          </div>
-          
-          {/* Action Button */}
-          <Button 
-            onClick={setIsAddClaimOpen}
-            className="inline-flex items-center gap-3 rounded-2xl border border-rose-200 bg-linear-to-r from-rose-600 to-red-700 px-6 h-12 text-white shadow-xl shadow-rose-100 font-black uppercase text-[10px] tracking-[0.28em] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-rose-200 focus:ring-2 focus:ring-rose-500/20"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
-              <TrendingDown className="w-4 h-4" />
-            </span>
-            <span>Trigger Death Deduction</span>
-          </Button>
+    <div className="space-y-6">
+      {/* Header — routine page context on the left, the one hazardous / all-member
+          action kept visually separate on the right so it's never mistaken for a filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+            Member Balances
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Track contributions and spot balances that need attention.
+          </p>
         </div>
+        <button
+          onClick={() => setIsAddClaimOpen(true)}
+          className="inline-flex items-center gap-2 h-11 px-5 text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 shrink-0 self-start sm:self-auto"
+        >
+          <AlertTriangle className="w-4 h-4" /> Death Fund Deduction
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Capital Card */}
-        <div className="bg-white p-8 rounded-xl border border-slate-200/60 shadow-2xl shadow-slate-200/50 group hover:shadow-slate-300/50 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-50 rounded-lg">
-              <Wallet className="w-6 h-6 text-coop-green" />
-            </div>
-            <Badge className="bg-green-50 text-coop-green border-none uppercase tracking-widest text-[9px] font-black">
-              Official Fund
-            </Badge>
-          </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">Total Capital Pool</p>
-          <p className="text-4xl font-black text-slate-900 tracking-tighter mb-3">₱{totalCapital.toLocaleString()}</p>
-          <div className="flex items-center gap-2 text-slate-500">
-            <CheckCircle2 className="w-4 h-4 text-coop-green" />
-            <p className="text-xs font-bold">Verified & Secured</p>
-          </div>
-        </div>
+      {/* Stats — the two risk-related cards double as quick filters (click to
+          jump straight to that segment of the table, click again to clear it) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          title="Total capital"
+          value={`₱${totalCapital.toLocaleString()}`}
+          subtitle={`Across ${members.length} active members`}
+          icon={Wallet}
+          color="emerald"
+        />
+        <StatCard
+          title="Low balance"
+          value={<>{lowBalanceMembers.length} <span className="text-base font-normal text-slate-500">members</span></>}
+          subtitle={memberFilter === 'low' ? 'Showing this filter — click to clear' : 'Below ₱1,000 — click to filter'}
+          icon={Clock}
+          color="amber"
+          active={memberFilter === 'low'}
+          onClick={() => setMemberFilter(memberFilter === 'low' ? 'all' : 'low')}
+        />
+        <StatCard
+          title="At risk"
+          value={`${lowBalancePercent.toFixed(1)}%`}
+          subtitle={memberFilter === 'low' ? 'Showing this filter — click to clear' : 'Requires follow-up — click to filter'}
+          icon={AlertTriangle}
+          color="rose"
+          active={memberFilter === 'low'}
+          onClick={() => setMemberFilter(memberFilter === 'low' ? 'all' : 'low')}
+        />
+      </div>
 
-        {/* Low Balance Warning Card */}
-        <div className="bg-white p-8 rounded-xl border border-slate-200/60 shadow-2xl shadow-slate-200/50 group hover:shadow-slate-300/50 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-50 rounded-lg">
-              <AlertCircle className="w-6 h-6 text-red-700" />
-            </div>
-            <Badge className="bg-red-50 text-red-700 border-none uppercase tracking-widest text-[9px] font-black">
-              Alert Status
-            </Badge>
+      {/* Filter Bar */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          {/* Tabs */}
+          <div className="flex bg-slate-100 rounded-lg p-0.5 shrink-0">
+            <button
+              onClick={() => setMemberFilter('all')}
+              aria-pressed={memberFilter === 'all'}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
+                memberFilter === 'all'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              All <span className="ml-1 text-slate-400">{members.length}</span>
+            </button>
+            <button
+              onClick={() => setMemberFilter('low')}
+              aria-pressed={memberFilter === 'low'}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
+                memberFilter === 'low'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              At risk <span className="ml-1 text-slate-400">{lowBalanceMembers.length}</span>
+            </button>
           </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">Low Balance Warning</p>
-          <p className="text-4xl font-black text-red-700 tracking-tighter mb-3">{lowBalanceMembers.length}</p>
-          <div className="flex items-center gap-2 text-slate-500">
-            <Users className="w-4 h-4 text-red-700" />
-            <p className="text-xs font-bold">Members below ₱1,000</p>
-          </div>
-        </div>
 
-        {/* Exposure Risk Card */}
-        <div className="bg-white p-8 rounded-xl border border-slate-200/60 shadow-2xl shadow-slate-200/50 group hover:shadow-slate-300/50 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <TrendingDown className="w-6 h-6 text-slate-600" />
-            </div>
-            <Badge className={`${lowBalancePercent > 20 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-coop-green'} border-none uppercase tracking-widest text-[9px] font-black`}>
-              {lowBalancePercent > 20 ? 'High Risk' : 'Low Risk'}
-            </Badge>
-          </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2">Exposure Risk</p>
-          <p className="text-4xl font-black text-slate-900 tracking-tighter mb-4">{lowBalancePercent.toFixed(1)}%</p>
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-1000 ${lowBalancePercent > 20 ? 'bg-red-600' : 'bg-coop-green'}`} 
-              style={{ width: `${lowBalancePercent}%` }} 
+          {/* Search */}
+          <div className="relative flex-1 w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              aria-label="Search member by name or ID"
+              placeholder="Search member or ID"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             />
           </div>
+
+          {/* Barangay Dropdown — this filter was previously invisible on this tab
+              (it's shared state set from the Ledger tab), silently hiding members
+              with no on-screen explanation. Surfacing it here makes the filter visible
+              and lets the treasurer control it directly from this screen too. */}
+          <select
+            value={barangayFilter}
+            onChange={e => setBarangayFilter(e.target.value)}
+            aria-label="Filter by barangay"
+            className="h-10 px-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none"
+          >
+            {uniqueBarangays.map(b => (
+              <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>
+            ))}
+          </select>
+
+          {/* Status Dropdown */}
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            aria-label="Filter by status"
+            className="h-10 px-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none"
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded shrink-0"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filters & Search Section */}
-      <Card className="p-6 rounded-xl border-slate-200 shadow-lg bg-white">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          {/* Filter Tabs */}
-          <div className="flex bg-slate-50 p-1.5 rounded-lg border border-slate-200 shadow-sm flex-wrap">
-            <Button 
-              variant="ghost" 
-              onClick={() => setMemberFilter('all')}
-              className={`rounded-lg px-5 py-2.5 font-black uppercase text-[9px] tracking-widest transition-all ${
-                memberFilter === 'all' 
-                  ? 'bg-slate-900 text-white shadow-md' 
-                  : 'text-slate-400 hover:text-slate-600 hover:bg-white'
-              }`}
-            >
-              All Members ({members.length})
-            </Button>
-            <Button 
-              variant="ghost" 
-              onClick={() => setMemberFilter('low')}
-              className={`rounded-lg px-5 py-2.5 font-black uppercase text-[9px] tracking-widest transition-all ${
-                memberFilter === 'low' 
-                  ? 'bg-red-700 text-white shadow-md shadow-red-100' 
-                  : 'text-slate-400 hover:text-red-700 hover:bg-red-50'
-              }`}
-            >
-              At Risk Only ({lowBalanceMembers.length})
-            </Button>
-          </div>
-          
-          {/* Search & Barangay Filter */}
-          <div className="flex gap-3 flex-wrap sm:flex-nowrap w-full lg:w-auto">
-            <div className="relative w-full sm:w-56">
-              <p className="absolute -top-5 left-1 text-[8px] font-black uppercase text-slate-400 tracking-widest">Filter by Barangay</p>
-              <select 
-                className="w-full h-11 rounded-lg bg-white border-slate-200 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-black uppercase tracking-widest px-4 appearance-none cursor-pointer hover:border-slate-300 transition-colors"
-                value={barangayFilter}
-                onChange={(e) => setBarangayFilter(e.target.value)}
-              >
-                {['All', ...Array.from(new Set(members.map(m => extractBarangay(m.address))))].sort().map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                <ChevronRight className="w-4 h-4 rotate-90" />
-              </div>
-            </div>
-            
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input 
-                placeholder="Search member name or ID..." 
-                className="pl-12 rounded-lg h-11 bg-white border-slate-200 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500 font-medium" 
-                value={searchQuery} 
-                onChange={e => setSearchQuery(e.target.value)} 
-              />
-            </div>
-          </div>
-        </div>
-      </Card>
-      {/* Members Table */}
-      <Card className="rounded-lg border-slate-200/60 shadow-2xl overflow-hidden bg-white border">
-        <Table>
-          <TableHeader className="bg-slate-50/50">
-            <TableRow className="border-b border-slate-100">
-              <TableHead className="px-10 h-20 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Account Identity</TableHead>
-              <TableHead className="h-20 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Verified Balance</TableHead>
-              <TableHead className="px-10 h-20 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Lifecycle</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      {/* Table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Member
+              </th>
+              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">
+                Barangay
+              </th>
+              <th className="text-right px-6 py-3.5">
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  aria-label={`Sort by balance, currently ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded"
+                >
+                  Balance
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                </button>
+              </th>
+              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="text-right px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
             {currentMembersBalancesChunk.map(m => (
-              <TableRow key={m.id} className="hover:bg-slate-50/80 transition-all border-b border-slate-100 group">
-                <TableCell className="px-10 py-6">
-                  <div className="flex items-center gap-5">
-                    <div className="relative group/avatar">
-                      {/* Main Avatar - Circular with professional colors */}
-                      <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl tracking-tighter shadow-md transition-all duration-500 group-hover:scale-110 relative overflow-hidden ${
-                        m.balance < 1000 
-                          ? 'bg-slate-700 text-white group-hover:shadow-lg group-hover:shadow-slate-400/30' 
-                          : 'bg-slate-800 text-white group-hover:shadow-lg group-hover:shadow-slate-500/30'
-                      }`}>
-                        {/* Subtle shine effect */}
-                        <div className="absolute inset-0 bg-linear-to-tr from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                        <span className="relative z-10">{m.name.charAt(0)}</span>
-                      </div>
-                      
-                      {/* Status Badge - Professional styling */}
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-3 border-white shadow-sm flex items-center justify-center ${
-                        m.balance >= 1000 
-                          ? 'bg-emerald-600' 
-                          : 'bg-amber-500'
-                      }`}>
-                        {m.balance >= 1000 ? (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
+              <tr
+                key={m.id}
+                onClick={() => onOpenLedger?.(m)}
+                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+              >
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-sm font-bold text-green-700 shrink-0">
+                      {getInitials(m.name)}
                     </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-slate-900 leading-tight text-base truncate group-hover:text-slate-700 transition-colors">{m.name}</p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          UID-{m.id.toString().padStart(6, '0')}
-                        </p>
-                        <span className="text-slate-300">•</span>
-                        <div className="flex items-center gap-1.5">
-                          <div className={`w-2 h-2 rounded-full ${m.balance >= 1000 ? 'bg-emerald-600' : 'bg-amber-500'}`}></div>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                            {m.balance >= 1000 ? 'Good Standing' : 'Needs Attention'}
-                          </p>
-                        </div>
-                      </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {m.name}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        #{m.id.toString().padStart(6, '0')}
+                      </p>
                     </div>
                   </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-2">
-                    <p className={`text-2xl font-black tabular-nums transition-colors ${
-                      m.balance < 1000 ? 'text-slate-700' : 'text-slate-900 group-hover:text-slate-700'
-                    }`}>
-                      ₱{m.balance?.toLocaleString()}
-                    </p>
-                    {m.balance < 1000 && (
-                      <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg w-fit">
-                        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                        <p className="text-[9px] font-black uppercase text-amber-700 tracking-widest">Requires Attention</p>
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="px-10">
-                  <Badge 
-                    variant="outline" 
-                    className={`rounded-lg px-3 py-1.5 text-[8px] font-black uppercase tracking-widest transition-all ${
-                      m.status === 'active' 
-                        ? 'border-green-200 text-coop-green bg-green-50 group-hover:border-green-300 group-hover:bg-green-100' 
-                        : 'border-slate-200 text-slate-500 bg-slate-50'
+                </td>
+                <td className="px-6 py-4 text-sm text-slate-600 hidden md:table-cell">
+                  {extractBarangay(m.address)}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <span
+                    className={`text-sm font-bold tabular-nums ${m.balance < 1000 ? 'text-red-500' : 'text-slate-900'}`}
+                  >
+                    ₱{m.balance?.toLocaleString()}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${
+                      m.status === 'active'
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'bg-slate-100 text-slate-500 border border-slate-200'
                     }`}
                   >
-                    {m.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
+                    <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'active' ? 'bg-green-500' : 'bg-slate-400'}`} />
+                    {m.status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onOpenLedger?.(m); }}
+                    aria-label={`Open ledger for ${m.name}`}
+                    className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
             ))}
             {filteredMembers.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="h-64 text-center">
-                  <div className="flex flex-col items-center justify-center text-slate-400">
-                    <Search className="w-12 h-12 mb-4 opacity-10" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em]">No member identifiers matched</p>
-                  </div>
-                </TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">
+                  {hasActiveFilters ? (
+                    <>
+                      No members match these filters.{' '}
+                      <button onClick={clearFilters} className="text-emerald-700 font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded">
+                        Clear filters
+                      </button>
+                    </>
+                  ) : 'No members found.'}
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
-        <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
-            Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredMembers.length)} of {filteredMembers.length} active records
-          </p>
-          <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              className="text-[10px] font-black uppercase tracking-widest hover:text-coop-green focus:ring-2 focus:ring-coop-green/20 px-4"
-            >
-              Previous
-            </Button>
-            <Button 
-              variant="ghost" 
-              disabled={currentPage === totalPagesMemberBalances}
-              onClick={() => setCurrentPage(p => Math.min(totalPagesMemberBalances, p + 1))}
-              className="text-[10px] font-black uppercase tracking-widest text-coop-green hover:bg-green-50 focus:ring-2 focus:ring-coop-green/20 px-4"
-            >
-              Next Page
-            </Button>
-          </div>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-500">
+          {filteredMembers.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredMembers.length)} of {filteredMembers.length}
+        </p>
+        <div className="flex gap-2">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+          >
+            Previous
+          </button>
+          <button
+            disabled={currentPage === totalPagesMemberBalances}
+            onClick={() => setCurrentPage(p => Math.min(totalPagesMemberBalances, p + 1))}
+            className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+          >
+            Next
+          </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

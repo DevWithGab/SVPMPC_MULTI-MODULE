@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Users, CreditCard, FileText, LayoutDashboard, LayoutGrid, 
-  Heart, LogOut, BarChart3, CalendarDays, BadgeDollarSign, ArrowLeft
+import {
+  Users, CreditCard, FileText, LayoutDashboard, LayoutGrid,
+  LogOut, BarChart3, ChevronLeft, ChevronRight, AlertTriangle, Loader2
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
@@ -22,15 +22,22 @@ import Button from '../../components/shared/ui/Button';
 import Input from '../../components/shared/ui/Input';
 import api from '../../services/api';
 
-const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab }) => (
+const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed }) => (
   <button
     onClick={() => setActiveTab(id)}
-    className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${
-      activeTab === id ? 'bg-coop-green text-white shadow-lg shadow-green-200' : 'text-slate-500 hover:bg-slate-50 hover:text-coop-green'
+    title={collapsed ? label : undefined}
+    aria-label={label}
+    aria-current={activeTab === id ? 'page' : undefined}
+    className={`w-full flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-inset ${
+      collapsed ? 'justify-center px-0 py-3' : 'px-4 py-3'
+    } ${
+      activeTab === id
+        ? 'bg-coop-green text-white'
+        : 'text-slate-500 hover:bg-slate-50 hover:text-coop-green'
     }`}
   >
-    <Icon className="w-5 h-5 mr-3" />
-    <span className="text-sm font-bold tracking-tight">{label}</span>
+    <Icon className="w-5 h-5 shrink-0" />
+    {!collapsed && <span className="text-sm font-bold tracking-tight">{label}</span>}
   </button>
 );
 
@@ -39,6 +46,21 @@ const extractBarangay = (address) => {
   const parts = address.split(',');
   return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
 };
+
+const PortalSkeleton = () => (
+  <div className="space-y-6 animate-pulse" role="status" aria-label="Loading treasurer data">
+    <div className="space-y-2">
+      <div className="h-8 w-56 bg-slate-200 rounded" />
+      <div className="h-4 w-72 bg-slate-100 rounded" />
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="bg-white border border-slate-200 rounded-xl p-5 h-24" />
+      ))}
+    </div>
+    <div className="bg-white border border-slate-200 rounded-xl h-72" />
+  </div>
+);
 
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
@@ -51,7 +73,18 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     activeMembers: 0,
     totalMembers: 0,
     lowBalanceMembers: 0,
-    totalCollected: 0
+    totalCollected: 0,
+    memberStanding: {
+      excellent: 0,
+      good: 0,
+      fair: 0,
+      atRisk: 0
+    },
+    statusComposition: {
+      active: 0,
+      inactive: 0,
+      deceased: 0
+    }
   });
   const [ledger, setLedger] = useState([]);
   const [toast, setToast] = useState(null);
@@ -66,11 +99,19 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [ledgerMembers, setLedgerMembers] = useState([]);
   const [ledgerPagination, setLedgerPagination] = useState(null);
   const skipNextLedgerPageFetchRef = useRef(false);
+  const ledgerFetchTimeoutRef = useRef(null);
   
   // Modal states
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
   const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
+  const [confirmDeduction, setConfirmDeduction] = useState(false);
   const [isProcessingDeduction, setIsProcessingDeduction] = useState(false);
+  const [isSubmittingContribution, setIsSubmittingContribution] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('treasurerSidebarCollapsed') === 'true';
+  });
   const [contributionBarangayFilter, setContributionBarangayFilter] = useState('All');
   
   // Form data states
@@ -152,7 +193,18 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           activeMembers: 0,
           totalMembers: 0,
           lowBalanceMembers: 0,
-          totalCollected: 0
+          totalCollected: 0,
+          memberStanding: {
+            excellent: 0,
+            good: 0,
+            fair: 0,
+            atRisk: 0
+          },
+          statusComposition: {
+            active: 0,
+            inactive: 0,
+            deceased: 0
+          }
         });
       }
     } catch (error) {
@@ -176,6 +228,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   // Utility functions
   const showToast = (message, type) => setToast({ message, type });
 
+  const openMemberLedger = (member) => {
+    setSelectedLedgerMember(member);
+    setActiveTab('ledger');
+  };
+
   const contributionMemberOptions = members.filter(member => (
     contributionBarangayFilter === 'All' || extractBarangay(member.address) === contributionBarangayFilter
   ));
@@ -198,7 +255,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     e.preventDefault();
     if (!newContribution.member_id) return showToast('Please select a member.', 'error');
     if (!newContribution.amount || parseFloat(newContribution.amount) <= 0) return showToast('Please enter a valid amount.', 'error');
+    if (isSubmittingContribution) return;
 
+    setIsSubmittingContribution(true);
     try {
       const response = await api.post('/mortuary/treasurer/contributions/record', {
         ...newContribution,
@@ -240,7 +299,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       }
     } catch (error) {
       console.error('Error adding contribution:', error);
-      showToast('Error recording contribution.', 'error');
+      showToast(error.response?.data?.message || 'Error recording contribution.', 'error');
+    } finally {
+      setIsSubmittingContribution(false);
     }
   };
 
@@ -277,35 +338,42 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         return brgy === barangayFilter;
     }).length;
 
-    const res = await fetch('/api/admin/trigger-sector-notice', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetSector: barangayFilter, count: targetedMembersCount }),
-    });
-    
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/admin/trigger-sector-notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetSector: barangayFilter, count: targetedMembersCount }),
+      });
+
+      if (res.ok) {
         showToast(`Event triggered: Automated Notice queued for ${targetedMembersCount} members in Brgy ${barangayFilter}.`, 'success');
+      } else {
+        showToast('Failed to queue automated notice.', 'error');
+      }
+    } catch (error) {
+      console.error('Error triggering automated notice:', error);
+      showToast('Failed to queue automated notice.', 'error');
     }
   };
 
-  const handleDeathDeduction = async (e) => {
+  // Step 1: validate the amount and move to the in-modal confirmation step
+  const handleDeductionFormSubmit = (e) => {
     e.preventDefault();
-    
-    // Prevent double submission
-    if (isProcessingDeduction) {
-      return;
-    }
-    
     const amount = parseFloat(deductionAmount);
     if (isNaN(amount) || amount <= 0) {
       showToast('Please enter a valid deduction amount.', 'error');
       return;
     }
+    setConfirmDeduction(true);
+  };
 
-    if (!confirm(`This will immediately deduct ₱${amount} from ALL active members for death fund contribution. Proceed?`)) return;
-    
+  // Step 2: the actual, irreversible deduction — only reachable from the confirmation step
+  const executeDeathDeduction = async () => {
+    if (isProcessingDeduction) return;
+
+    const amount = parseFloat(deductionAmount);
     setIsProcessingDeduction(true);
-    
+
     try {
       const response = await api.post('/mortuary/treasurer/balances/automatic-deduction', {
         deceasedMemberName: "Death Fund Deduction (All Members)",
@@ -315,6 +383,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
       if (response.data.success) {
         setIsAddClaimOpen(false);
+        setConfirmDeduction(false);
         setDeductionAmount('25');
         await Promise.all([
           fetchMembers(),
@@ -326,19 +395,33 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       }
     } catch (error) {
       console.error('Error processing deduction:', error);
-      showToast('Failed to process deduction.', 'error');
+      showToast(error.response?.data?.message || 'Failed to process deduction.', 'error');
     } finally {
       setIsProcessingDeduction(false);
     }
   };
 
+  const closeDeductionModal = () => {
+    setIsAddClaimOpen(false);
+    setConfirmDeduction(false);
+  };
+
   // Effects
   useEffect(() => {
-    fetchMembers();
-    fetchContributions();
-    fetchDashboardStats();
-    fetchLedger();
+    (async () => {
+      await Promise.all([
+        fetchMembers(),
+        fetchContributions(),
+        fetchDashboardStats(),
+        fetchLedger()
+      ]);
+      setInitialLoading(false);
+    })();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('treasurerSidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     if (activeTab === 'ledger' && currentPage !== 1) {
@@ -347,9 +430,17 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
     setCurrentPage(1);
 
-    if (activeTab === 'ledger') {
+    if (activeTab !== 'ledger') return;
+
+    // Debounce so typing in the search box doesn't fire a request per keystroke
+    if (ledgerFetchTimeoutRef.current) clearTimeout(ledgerFetchTimeoutRef.current);
+    ledgerFetchTimeoutRef.current = setTimeout(() => {
       fetchLedgerMembers(1, searchQuery, barangayFilter);
-    }
+    }, 350);
+
+    return () => {
+      if (ledgerFetchTimeoutRef.current) clearTimeout(ledgerFetchTimeoutRef.current);
+    };
   }, [searchQuery, barangayFilter, memberFilter, activeTab]);
 
   useEffect(() => {
@@ -409,6 +500,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
             setIsAddClaimOpen={setIsAddClaimOpen}
+            onOpenLedger={openMemberLedger}
           />
         );
       case 'contributions':
@@ -425,6 +517,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <Reports 
             members={members}
             contributions={contributions}
+            stats={stats}
           />
         );
       case 'ledger':
@@ -457,192 +550,236 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col p-6 space-y-8">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg border border-slate-100">
-            <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-8 h-8 object-contain" />
-          </div>
-          <div>
-            <h1 className="font-black text-sm tracking-tight text-slate-950 uppercase">Treasurer Portal</h1>
-            <p className="text-[10px] font-bold text-coop-green uppercase tracking-widest">Mortuary Fund Control</p>
-          </div>
+      <aside className={`${sidebarCollapsed ? 'w-[68px]' : 'w-64'} bg-white border-r border-slate-200 flex flex-col transition-all duration-200`}>
+        {/* Header */}
+        <div className={`border-b border-slate-100 flex items-center ${sidebarCollapsed ? 'justify-center py-4' : 'justify-between px-4 py-4'}`}>
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-2.5">
+              <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-7 h-7 object-contain" />
+              <div>
+                <h1 className="text-sm font-bold text-slate-900 leading-none">Treasurer</h1>
+                <p className="text-[11px] text-slate-400 mt-0.5">Mortuary Fund</p>
+              </div>
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-6 h-6 object-contain" />
+          )}
         </div>
 
-        <nav className="flex-1 space-y-2">
-          <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} />
+        {/* Nav */}
+        <nav className={`flex-1 space-y-1 ${sidebarCollapsed ? 'px-2 py-3' : 'px-3 py-4'}`}>
+          <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
+          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
+          <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
+          <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
+          <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
         </nav>
 
-        <div className="pt-6 border-t border-slate-100">
-           <button onClick={onBack} className="w-full flex items-center px-4 py-3 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-all">
-             <LogOut className="w-5 h-5 mr-3" />
-             <span className="text-sm font-bold">Logout Portal</span>
-           </button>
+        {/* Footer */}
+        <div className={`border-t border-slate-100 ${sidebarCollapsed ? 'px-2 py-3' : 'px-3 py-3'}`}>
+          <button
+            onClick={onBack}
+            title={sidebarCollapsed ? 'Logout' : undefined}
+            aria-label="Logout"
+            className={`w-full flex items-center gap-3 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50 focus-visible:ring-inset ${
+              sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
+            }`}
+          >
+            <LogOut className="w-4.5 h-4.5 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Logout</span>}
+          </button>
         </div>
+
+        {/* Collapse Toggle */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="border-t border-slate-100 py-3 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-inset"
+        >
+          {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-        {renderActiveView()}
+        {initialLoading ? <PortalSkeleton /> : renderActiveView()}
       </main>
 
-      {/* Modals */}
-      {/* Add Contribution Modal */}
+      {/* Record Contribution Modal */}
       <Modal isOpen={isAddContributionOpen} onClose={() => setIsAddContributionOpen(false)} title="Record Contribution">
-        <form onSubmit={handleAddContribution} className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2 flex items-center gap-2">
-                  <BadgeDollarSign className="w-3.5 h-3.5 text-coop-green" />
-                  Contribution Details
-                </p>
-                <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                  Filter members by barangay, then record the contribution details.
-                </p>
-              </div>
-              <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-[9px] font-black uppercase tracking-[0.25em] text-coop-green border border-emerald-100">
-                Required
-              </div>
+        <form onSubmit={handleAddContribution} className="space-y-5">
+          {/* Barangay Filter */}
+          <div>
+            <label className="text-sm font-semibold text-slate-700 mb-1 block">Barangay</label>
+            <select
+              value={contributionBarangayFilter}
+              onChange={(e) => setContributionBarangayFilter(e.target.value)}
+              className="w-full h-11 border border-slate-200 px-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none"
+            >
+              {contributionBarangays.map((barangay) => (
+                <option key={barangay} value={barangay}>{barangay}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1">{contributionMemberOptions.length} member{contributionMemberOptions.length !== 1 ? 's' : ''}</p>
+          </div>
+
+          {/* Member */}
+          <div>
+            <label className="text-sm font-semibold text-slate-700 mb-1 block">Member</label>
+            <SearchableMemberSelect
+              members={contributionMemberOptions}
+              value={newContribution.member_id}
+              onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
+              placeholder="Search by name..."
+            />
+          </div>
+
+          {/* Amount & Date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount (₱)</label>
+              <Input
+                type="number"
+                min="1"
+                step="0.01"
+                placeholder="500"
+                value={newContribution.amount}
+                onChange={e => setNewContribution({ ...newContribution, amount: e.target.value })}
+                required
+                className="h-11 text-sm"
+              />
             </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Filter by Barangay</label>
-                <div className="relative">
-                  <select
-                    value={contributionBarangayFilter}
-                    onChange={(e) => setContributionBarangayFilter(e.target.value)}
-                    className="w-full h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 pr-10 text-sm font-bold text-slate-900 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none"
-                  >
-                    {contributionBarangays.map((barangay) => (
-                      <option key={barangay} value={barangay}>
-                        {barangay}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <p className="mt-2 text-[10px] font-medium text-slate-400">
-                  Showing {contributionMemberOptions.length} member{contributionMemberOptions.length !== 1 ? 's' : ''} in this selection.
-                </p>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Member</label>
-                <SearchableMemberSelect 
-                  members={contributionMemberOptions}
-                  value={newContribution.member_id}
-                  onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
-                  placeholder="Search member by name..."
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Amount (₱)</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    placeholder="500"
-                    value={newContribution.amount}
-                    onChange={e => setNewContribution({ ...newContribution, amount: e.target.value })}
-                    required
-                    className="rounded-xl h-12 bg-slate-50 border-slate-200 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Payment Date</label>
-                  <Input
-                    type="date"
-                    value={newContribution.payment_date}
-                    onChange={e => setNewContribution({ ...newContribution, payment_date: e.target.value })}
-                    required
-                    className="rounded-xl h-12 bg-slate-50 border-slate-200 shadow-sm focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
-              </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Payment Date</label>
+              <Input
+                type="date"
+                value={newContribution.payment_date}
+                onChange={e => setNewContribution({ ...newContribution, payment_date: e.target.value })}
+                required
+                className="h-11 text-sm"
+              />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 flex items-center gap-3 text-sm text-slate-500">
-            <CalendarDays className="w-4 h-4 text-coop-green shrink-0" />
-            <span>Make sure the contribution date matches the deposit slip before submitting.</span>
-          </div>
-
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
             <Button
               type="button"
               variant="ghost"
+              disabled={isSubmittingContribution}
               onClick={() => setIsAddContributionOpen(false)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 h-12 text-slate-600 font-black uppercase text-[10px] tracking-[0.28em] shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
+              className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
             >
-              <ArrowLeft className="w-4 h-4" />
               Cancel
             </Button>
             <Button
               type="submit"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-coop-green/20 bg-coop-green px-6 h-12 text-white font-black uppercase text-[10px] tracking-[0.28em] shadow-xl shadow-emerald-100 transition-all hover:-translate-y-0.5 hover:bg-coop-darkGreen hover:shadow-2xl hover:shadow-emerald-200 focus:ring-2 focus:ring-coop-green/20"
+              disabled={isSubmittingContribution}
+              className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <CreditCard className="w-4 h-4" />
-              Submit Payment
+              {isSubmittingContribution ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Recording...
+                </>
+              ) : 'Record Payment'}
             </Button>
           </div>
         </form>
       </Modal>
 
       {/* Trigger Death Deduction Modal */}
-      <Modal isOpen={isAddClaimOpen} onClose={() => setIsAddClaimOpen(false)} title="Trigger Death Deduction">
-        <form onSubmit={handleDeathDeduction} className="space-y-6">
-          <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl mb-6">
-            <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest flex items-center gap-2">
-              <Heart className="w-3 h-3" /> Death Fund Contribution
+      <Modal isOpen={isAddClaimOpen} onClose={closeDeductionModal} title={confirmDeduction ? 'Confirm Deduction' : 'Death Fund Deduction'}>
+        {!confirmDeduction ? (
+          <form onSubmit={handleDeductionFormSubmit} className="space-y-5">
+            {/* Purpose */}
+            <p className="text-sm text-slate-600">
+              Deduct <span className="font-bold text-slate-800">₱{parseFloat(deductionAmount || 0).toLocaleString()}</span> from each of the <span className="font-bold text-slate-800">{members.length}</span> active members.
             </p>
-            <p className="text-xs text-rose-600 mt-1 font-medium leading-relaxed">
-              This will immediately deduct the specified amount from ALL active members for the death fund.
-            </p>
-          </div>
 
-          <div className="space-y-4">
+            {/* Amount Input */}
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Deduction Amount (₱ per member)</label>
-              <Input 
-                type="number" 
-                placeholder="25" 
-                value={deductionAmount}
-                onChange={e => setDeductionAmount(e.target.value)}
-                required
-                className="h-14 text-lg font-bold"
-                min="1"
-                step="0.01"
-              />
-              <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 italic">Standard contribution is ₱25 per member</p>
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount per member</label>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-slate-400">₱</span>
+                <Input
+                  type="number"
+                  placeholder="25"
+                  value={deductionAmount}
+                  onChange={e => setDeductionAmount(e.target.value)}
+                  required
+                  className="h-12 text-lg font-bold flex-1"
+                  min="1"
+                  step="0.01"
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Standard is ₱25 per member</p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Members</p>
-                <p className="text-lg font-black text-slate-900">{members.length}</p>
+            {/* Impact Summary */}
+            <div className="border border-slate-200 divide-y divide-slate-200">
+              <div className="flex justify-between items-center px-4 py-3">
+                <span className="text-sm text-slate-500">Active members</span>
+                <span className="text-sm font-bold text-slate-800">{members.length}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Deduction</p>
-                <p className="text-2xl font-black text-rose-600">₱{(parseFloat(deductionAmount || 0) * members.length).toLocaleString()}</p>
+              <div className="flex justify-between items-center px-4 py-3 bg-slate-50">
+                <span className="text-sm text-slate-500">Total deduction</span>
+                <span className="text-lg font-bold text-rose-600">₱{(parseFloat(deductionAmount || 0) * members.length).toLocaleString()}</span>
               </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={closeDeductionModal}
+                className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm"
+              >
+                Review Deduction
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3 p-4 border border-rose-200 bg-rose-50 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-rose-800">
+                This will immediately deduct <span className="font-bold">₱{parseFloat(deductionAmount || 0).toLocaleString()}</span> from all <span className="font-bold">{members.length}</span> active members (total <span className="font-bold">₱{(parseFloat(deductionAmount || 0) * members.length).toLocaleString()}</span>). This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isProcessingDeduction}
+                onClick={() => setConfirmDeduction(false)}
+                className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
+              >
+                Go back
+              </Button>
+              <Button
+                type="button"
+                onClick={executeDeathDeduction}
+                disabled={isProcessingDeduction}
+                className="flex-1 h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessingDeduction ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Processing...
+                  </>
+                ) : 'Yes, deduct now'}
+              </Button>
             </div>
           </div>
-
-          <Button 
-            type="submit" 
-            disabled={isProcessingDeduction}
-            className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isProcessingDeduction ? 'Processing Deduction...' : `Apply ₱${deductionAmount} Deduction to All Members`}
-          </Button>
-        </form>
+        )}
       </Modal>
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

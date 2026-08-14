@@ -59,14 +59,22 @@ const getDashboard = async (req, res) => {
 // Get treasurer dashboard data
 const getTreasurerDashboard = async (req, res) => {
   try {
-    // Get all members count
+    // Get all members count by status
     const totalMembers = await Member.countDocuments();
     const activeMembers = await Member.countDocuments({ status: 'active' });
+    const inactiveMembers = await Member.countDocuments({ status: 'inactive' });
+    const deceasedMembers = await Member.countDocuments({ status: 'deceased' });
 
-    // Get fund balance (sum of all member balances from latest ledger entries)
+    // Get fund balance and member standing (sum of all member balances from latest ledger entries)
     const members = await Member.find({ status: 'active' });
     let fundBalance = 0;
     let lowBalanceCount = 0;
+    let goodStandingCount = 0;
+    let excellentStandingCount = 0;
+    
+    const MINIMUM_BALANCE = 1000;
+    const GOOD_STANDING_THRESHOLD = 5000;
+    const EXCELLENT_STANDING_THRESHOLD = 10000;
     
     for (const member of members) {
       const latestLedger = await Ledger.findOne({ memberId: member.memberId })
@@ -75,10 +83,20 @@ const getTreasurerDashboard = async (req, res) => {
       const balance = latestLedger ? latestLedger.balance : 0;
       fundBalance += balance;
       
-      if (balance < 1000) {
+      // Categorize member standing
+      if (balance < MINIMUM_BALANCE) {
         lowBalanceCount++;
+      } else if (balance >= EXCELLENT_STANDING_THRESHOLD) {
+        excellentStandingCount++;
+      } else if (balance >= GOOD_STANDING_THRESHOLD) {
+        goodStandingCount++;
+      } else {
+        // Fair standing (between minimum and good)
+        // This will be calculated as: activeMembers - (low + good + excellent)
       }
     }
+
+    const fairStandingCount = activeMembers - (lowBalanceCount + goodStandingCount + excellentStandingCount);
 
     // Get total contributions (all time)
     const allContributions = await Contribution.aggregate([
@@ -103,9 +121,24 @@ const getTreasurerDashboard = async (req, res) => {
         fundBalance,
         activeMembers,
         totalMembers,
+        inactiveMembers,
+        deceasedMembers,
         lowBalanceMembers: lowBalanceCount,
         totalCollected,
-        healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceCount) / totalMembers) * 100) : 0
+        healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceCount) / totalMembers) * 100) : 0,
+        // Member standing breakdown
+        memberStanding: {
+          excellent: excellentStandingCount,
+          good: goodStandingCount,
+          fair: fairStandingCount,
+          atRisk: lowBalanceCount
+        },
+        // Status composition
+        statusComposition: {
+          active: activeMembers,
+          inactive: inactiveMembers,
+          deceased: deceasedMembers
+        }
       }
     });
   } catch (error) {

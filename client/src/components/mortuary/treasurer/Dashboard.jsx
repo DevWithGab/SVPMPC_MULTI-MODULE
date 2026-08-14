@@ -1,12 +1,7 @@
 import React from 'react';
-import { 
-  DollarSign, Users, CreditCard, FileText, Calendar, TrendingUp 
-} from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, ResponsiveContainer,
-  Tooltip as RechartsTooltip 
-} from 'recharts';
-import { CardTitle } from '../../ui/card';
+import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { LineChart, Line, AreaChart, Area, Pie, PieChart, XAxis, YAxis } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
 import StatCard from './shared/StatCard';
 
 const Dashboard = ({ stats, contributions = [] }) => {
@@ -15,184 +10,260 @@ const Dashboard = ({ stats, contributions = [] }) => {
   const healthyRatio = Math.round(((totalMembersCount - atRiskMembersCount) / totalMembersCount) * 100) || 0;
   const isOptimal = healthyRatio >= 80;
 
-  // Calculate real monthly contribution data
+  const memberStandingData = [
+    { standing: "excellent", members: stats?.memberStanding?.excellent || 0, fill: "#10b981" },
+    { standing: "good", members: stats?.memberStanding?.good || 0, fill: "#3b82f6" },
+    { standing: "fair", members: stats?.memberStanding?.fair || 0, fill: "#f59e0b" },
+    { standing: "atRisk", members: stats?.memberStanding?.atRisk || 0, fill: "#ef4444" },
+  ].filter(item => item.members > 0);
+
+  const statusCompositionData = [
+    { status: "active", members: stats?.statusComposition?.active || stats?.activeMembers || 0, fill: "#2D7A3E" },
+    { status: "inactive", members: stats?.statusComposition?.inactive || stats?.inactiveMembers || 0, fill: "#64748b" },
+    { status: "deceased", members: stats?.statusComposition?.deceased || stats?.deceasedMembers || 0, fill: "#1e293b" },
+  ].filter(item => item.members > 0);
+
+  const memberStandingConfig = {
+    members: { label: "Members" },
+    excellent: { label: "Excellent (₱10k+)", color: "#10b981" },
+    good: { label: "Good (₱5k-10k)", color: "#3b82f6" },
+    fair: { label: "Fair (₱1k-5k)", color: "#f59e0b" },
+    atRisk: { label: "At Risk (<₱1k)", color: "#ef4444" },
+  };
+
+  const statusCompositionConfig = {
+    members: { label: "Members" },
+    active: { label: "Active", color: "#2D7A3E" },
+    inactive: { label: "Inactive", color: "#64748b" },
+    deceased: { label: "Deceased", color: "#1e293b" },
+  };
+
   const calculateChartData = () => {
     const monthlyTotals = {};
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    // Group contributions by month
     contributions.forEach(c => {
       if (c.payment_date) {
         const date = new Date(c.payment_date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const monthLabel = monthNames[date.getMonth()];
-        
         if (!monthlyTotals[monthKey]) {
-          monthlyTotals[monthKey] = { month: monthLabel, val: 0, fullKey: monthKey };
+          monthlyTotals[monthKey] = { month: monthLabel, contributions: 0, fullKey: monthKey, count: 0 };
         }
-        monthlyTotals[monthKey].val += c.amount || 0;
+        monthlyTotals[monthKey].contributions += c.amount || 0;
+        monthlyTotals[monthKey].count += 1;
       }
     });
-    
-    // Convert to array and sort by date
-    const sortedData = Object.values(monthlyTotals)
-      .sort((a, b) => a.fullKey.localeCompare(b.fullKey))
-      .slice(-6); // Get last 6 months
-    
-    // If no data, return placeholder
-    return sortedData.length > 0 ? sortedData : [
-      { month: 'No Data', val: 0 }
-    ];
+    const sortedData = Object.values(monthlyTotals).sort((a, b) => a.fullKey.localeCompare(b.fullKey)).slice(-6);
+    let cumulativeBalance = 0;
+    const dataWithBalance = sortedData.map(item => {
+      cumulativeBalance += item.contributions;
+      return { ...item, balance: cumulativeBalance };
+    });
+    return dataWithBalance.length > 0 ? dataWithBalance : [{ month: 'No Data', contributions: 0, balance: 0, count: 0 }];
   };
 
   const chartData = calculateChartData();
 
+  const calculateGrowthRate = () => {
+    if (chartData.length < 2) return 0;
+    const lastMonth = chartData[chartData.length - 1].contributions;
+    const previousMonth = chartData[chartData.length - 2].contributions;
+    if (previousMonth === 0) return 0;
+    return (((lastMonth - previousMonth) / previousMonth) * 100).toFixed(1);
+  };
+
+  const growthRate = calculateGrowthRate();
+  const isPositiveGrowth = growthRate >= 0;
+
+  const chartConfig = {
+    contributions: { label: "Contributions", color: "#2D7A3E" },
+    balance: { label: "Fund Balance", color: "#10b981" },
+  };
+
+  const standingColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
+
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h2 className="text-4xl font-black text-slate-950 tracking-tighter leading-none mb-2">Financial Overview</h2>
-          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.4em]">Treasurer Portfolio & Fund Performance</p>
-        </div>
+      <div>
+        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h2>
+        <p className="text-sm text-slate-500 mt-1">Financial overview and member insights</p>
       </div>
-      
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Mortuary Fund"
+          title="Total Fund"
           value={`₱${stats?.fundBalance?.toLocaleString() || '0'}`}
-          icon={DollarSign}
+          subtitle="Mortuary fund balance"
+          icon={Wallet}
+          color="emerald"
         />
         <StatCard
-          title="Active Contributors"
+          title="Active Members"
           value={stats?.activeMembers?.toLocaleString() || '0'}
+          subtitle="Currently contributing"
           icon={Users}
           color="blue"
         />
         <StatCard
+          title="Low Balance"
+          value={<>{stats?.lowBalanceMembers || 0} <span className="text-base font-normal text-slate-500">members</span></>}
+          subtitle="Below ₱1,000"
+          icon={AlertTriangle}
+          color="amber"
+        />
+        <StatCard
           title="Capital Adequacy"
           value={`${healthyRatio}%`}
-          icon={TrendingUp}
-          color={isOptimal ? 'emerald' : 'amber'}
+          subtitle={isOptimal ? 'Optimal' : 'Needs attention'}
+          icon={ShieldCheck}
+          color={isOptimal ? 'emerald' : 'rose'}
         />
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Fund Growth Chart */}
-        <div className="lg:col-span-2 bg-white rounded-[3rem] border border-slate-200/60 p-10 shadow-2xl shadow-slate-200/50 group">
-          <div className="flex items-center justify-between mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Fund Growth Line Chart */}
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <CardTitle className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 mb-1">
-                Fund Growth Analytics
-              </CardTitle>
-              <p className="text-2xl font-black text-slate-900 tracking-tight">Financial Inflow Velocity</p>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-2xl">
-              <TrendingUp className="w-5 h-5 text-coop-green" />
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-900">Fund Growth</p>
+                <span className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded ${isPositiveGrowth ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                  {isPositiveGrowth ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                  {Math.abs(growthRate)}%
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">Last 6 months</p>
             </div>
           </div>
-          <div className="h-75 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2D7A3E" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#2D7A3E" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#94a3b8" 
-                  fontSize={10} 
-                  fontWeight="bold" 
-                  axisLine={false} 
-                  tickLine={false} 
-                />
-                <YAxis hide />
-                <RechartsTooltip 
-                  contentStyle={{ 
-                    borderRadius: '20px', 
-                    border: 'none', 
-                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', 
-                    padding: '15px' 
-                  }}
-                  labelStyle={{ fontWeight: '900', color: '#0f172a', marginBottom: '4px' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="val" 
-                  stroke="#2D7A3E" 
-                  fillOpacity={1} 
-                  fill="url(#colorVal)" 
-                  strokeWidth={4} 
-                  dot={{ r: 4, fill: '#2D7A3E', strokeWidth: 2, stroke: '#fff' }} 
-                  activeDot={{ r: 8, strokeWidth: 0 }} 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+
+          <ChartContainer config={chartConfig} className="h-[240px] w-full">
+            <LineChart data={chartData}>
+              <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${(v / 1000).toFixed(0)}k`} />
+              <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
+              <Line type="monotone" dataKey="contributions" stroke="var(--color-contributions)" strokeWidth={2} dot={{ fill: "var(--color-contributions)", r: 3 }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ChartContainer>
+
+          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
+            <div>
+              <p className="text-xs text-slate-400">Total Collected</p>
+              <p className="text-sm font-bold text-slate-900">₱{chartData.reduce((s, d) => s + d.contributions, 0).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400">Avg/Month</p>
+              <p className="text-sm font-bold text-slate-900">₱{(chartData.reduce((s, d) => s + d.contributions, 0) / Math.max(chartData.length, 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400">Transactions</p>
+              <p className="text-sm font-bold text-slate-900">{chartData.reduce((s, d) => s + (d.count || 0), 0).toLocaleString()}</p>
+            </div>
           </div>
         </div>
 
-        <div className="bg-slate-950 rounded-[3rem] p-8 text-white shadow-2xl relative overflow-hidden group flex flex-col justify-between">
-          <div className={`absolute top-0 right-0 w-64 h-64 ${isOptimal ? 'bg-coop-green/10' : 'bg-amber-500/10'} blur-[80px] -mr-32 -mt-32 transition-colors duration-700`} />
+        {/* Cumulative Balance Area Chart */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-slate-900">Fund Balance</p>
+            <p className="text-xs text-slate-400 mt-0.5">Cumulative over time</p>
+          </div>
 
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className={`text-[10px] font-black uppercase tracking-[0.4em] ${isOptimal ? 'text-coop-green' : 'text-amber-400'}`}>
-                  Capital Snapshot
-                </p>
-                <p className="mt-3 text-4xl font-black tracking-tighter leading-none text-white">
-                  {healthyRatio}%
-                </p>
+          <ChartContainer config={chartConfig} className="h-[180px] w-full">
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="fillBalance" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-balance)" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="var(--color-balance)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis hide />
+              <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
+              <Area type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} fill="url(#fillBalance)" />
+            </AreaChart>
+          </ChartContainer>
+
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <p className="text-xs text-slate-400">Current Balance</p>
+            <p className="text-lg font-bold text-slate-900">₱{stats?.fundBalance?.toLocaleString() || '0'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Pie Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Member Standing */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <p className="text-sm font-semibold text-slate-900 mb-1">Member Standing</p>
+          <p className="text-xs text-slate-400 mb-4">Balance-based categories</p>
+
+          <div className="h-[220px]">
+            <ChartContainer config={memberStandingConfig} className="w-full h-full">
+              <PieChart>
+                <ChartTooltip
+                  content={<ChartTooltipContent
+                    hideLabel
+                    formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
+                  />}
+                />
+                <Pie
+                  data={memberStandingData}
+                  dataKey="members"
+                  label={({ standing, percent }) =>
+                    `${standing === 'atRisk' ? 'At Risk' : standing.charAt(0).toUpperCase() + standing.slice(1)}: ${(percent * 100).toFixed(0)}%`
+                  }
+                  nameKey="standing"
+                />
+              </PieChart>
+            </ChartContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-100">
+            {memberStandingData.map((item, i) => (
+              <div key={item.standing} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: standingColors[i] }} />
+                  <span className="text-slate-600">{item.standing === 'atRisk' ? 'At Risk' : item.standing.charAt(0).toUpperCase() + item.standing.slice(1)}</span>
+                </span>
+                <span className="font-bold text-slate-900">{item.members}</span>
               </div>
-              <div className={`px-3 py-2 rounded-2xl text-[9px] font-black uppercase tracking-[0.3em] ${isOptimal ? 'bg-coop-green/20 text-coop-green' : 'bg-amber-500/20 text-amber-300'}`}>
-                {isOptimal ? 'Healthy' : 'Watch List'}
-              </div>
-            </div>
+            ))}
+          </div>
+        </div>
 
-            <p className="text-sm font-medium text-slate-400 leading-relaxed">
-              {isOptimal
-                ? 'Most members are maintaining the required minimum balance, so the mortuary fund is currently in a stable position.'
-                : 'A noticeable portion of members are below the minimum balance, so deductions and collections may need closer monitoring.'}
-            </p>
+        {/* Status Composition */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <p className="text-sm font-semibold text-slate-900 mb-1">Status Composition</p>
+          <p className="text-xs text-slate-400 mb-4">Member status breakdown</p>
 
-            <div className="space-y-4 pt-2">
-              <div>
-                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-2 text-slate-400">
-                  <span>Fund Coverage</span>
-                  <span className={isOptimal ? 'text-coop-green' : 'text-amber-400'}>{healthyRatio}%</span>
-                </div>
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${isOptimal ? 'bg-coop-green' : 'bg-amber-500'}`}
-                    style={{ width: `${healthyRatio}%` }}
+          <div className="flex items-center gap-6">
+            <div className="h-[180px] w-[180px] shrink-0">
+              <ChartContainer config={statusCompositionConfig} className="w-full h-full">
+                <PieChart>
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent
+                      hideLabel
+                      formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
+                    />}
                   />
+                  <Pie data={statusCompositionData} dataKey="members" nameKey="status" stroke="0" />
+                </PieChart>
+              </ChartContainer>
+            </div>
+            <div className="space-y-3 flex-1">
+              {statusCompositionData.map((item) => (
+                <div key={item.status} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
+                  <span className="font-bold text-slate-900">{item.members}</span>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Members Healthy</p>
-                  <p className="text-2xl font-black text-white">{Math.max(totalMembersCount - atRiskMembersCount, 0)}</p>
-                </div>
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Members At Risk</p>
-                  <p className={`text-2xl font-black ${atRiskMembersCount > 0 ? 'text-rose-400' : 'text-slate-200'}`}>{atRiskMembersCount}</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-3">
-                <div className="flex items-center justify-between text-sm font-bold">
-                  <span className="text-slate-300">Fund Balance</span>
-                  <span className="text-white">₱{stats?.fundBalance?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm font-bold">
-                  <span className="text-slate-300">Total Collected</span>
-                  <span className="text-white">₱{stats?.totalCollected?.toLocaleString() || '0'}</span>
-                </div>
+              ))}
+              <div className="pt-3 border-t border-slate-100">
+                <p className="text-xs text-slate-400">Total members</p>
+                <p className="text-lg font-bold text-slate-900">{stats?.totalMembers?.toLocaleString() || '0'}</p>
               </div>
             </div>
           </div>
