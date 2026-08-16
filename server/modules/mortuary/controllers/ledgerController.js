@@ -39,6 +39,7 @@ const getMemberLedger = async (req, res) => {
       date: entry.transactionDate.toISOString().split('T')[0],
       ref_no: entry.referenceId || entry.ledgerId,
       description: entry.description,
+      transactionType: entry.transactionType,
       received: entry.credit || 0,
       withdrawn: entry.debit || 0,
       balance: entry.balance
@@ -91,6 +92,7 @@ const getAllLedger = async (req, res) => {
       date: entry.transactionDate.toISOString().split('T')[0],
       ref_no: entry.referenceId || entry.ledgerId,
       description: entry.description,
+      transactionType: entry.transactionType,
       received: entry.credit || 0,
       withdrawn: entry.debit || 0,
       balance: entry.balance

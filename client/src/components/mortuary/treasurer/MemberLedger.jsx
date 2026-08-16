@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ArrowLeft, Printer, Upload, X, Loader, Download, ArrowDownCircle, ArrowUpCircle, Scale, Receipt } from 'lucide-react';
+import { Search, ArrowLeft, Printer, Upload, X, Loader, Download } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
 
 const extractBarangay = (address) => {
@@ -15,25 +15,67 @@ const getInitials = (name) => {
   return parts[0][0].toUpperCase();
 };
 
-// Compact stat used inside the ledger card — same colored-icon language as the
-// page-level StatCard, scaled down to fit this denser, nested context.
-const LedgerMiniStat = ({ label, value, icon: Icon, color = 'slate' }) => {
-  const styles = {
-    emerald: 'bg-green-50 text-green-600',
-    rose: 'bg-red-50 text-red-500',
-    slate: 'bg-slate-100 text-slate-600',
-  };
-  return (
-    <div className="flex items-center gap-3">
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${styles[color] || styles.slate}`}>
-        <Icon className="w-4 h-4" />
-      </div>
-      <div>
-        <p className="text-xs text-slate-400">{label}</p>
-        <p className="text-base font-bold text-slate-900">{value}</p>
-      </div>
-    </div>
+// Always two decimals, statement-style. `signed` prefixes +/- instead of
+// relying on color alone to carry the direction (accessibility).
+const formatPeso = (amount, { signed = false } = {}) => {
+  const value = amount || 0;
+  const formatted = Math.abs(value).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return signed ? `${value < 0 ? '-' : '+'}₱${formatted}` : `₱${formatted}`;
+};
+
+const formatLedgerDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return dateStr;
+  return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const monthKeyOf = (dateStr) => (dateStr ? dateStr.slice(0, 7) : 'unknown');
+
+const monthLabelOf = (dateStr) => {
+  const parsed = new Date(dateStr);
+  if (Number.isNaN(parsed.getTime())) return 'UNDATED';
+  return parsed.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+};
+
+// Some entries (e.g. system-generated deductions) carry a raw UUID as their
+// reference instead of a short human-assigned code — shorten those in the
+// table while keeping the full value available on hover.
+const shortenRef = (ref) => {
+  if (!ref) return '—';
+  return ref.length > 20 ? `${ref.slice(0, 8)}…${ref.slice(-6)}` : ref;
+};
+
+// Groups already-sorted entries by month for statement-style section headers.
+// "Closing balance" is always the balance as of the chronologically last
+// entry in that month, regardless of which way the table is currently sorted.
+const groupEntriesByMonth = (entries, sortOrder) => {
+  const buckets = new Map();
+  entries.forEach((entry) => {
+    const key = monthKeyOf(entry.date);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(entry);
+  });
+
+  const orderedKeys = Array.from(buckets.keys()).sort((a, b) =>
+    sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a)
   );
+
+  return orderedKeys.map((key) => {
+    const groupEntries = buckets.get(key);
+    const chronologicallyLast = [...groupEntries].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    )[0];
+    return {
+      key,
+      label: monthLabelOf(groupEntries[0].date),
+      entries: groupEntries,
+      closingBalance: chronologicallyLast?.balance ?? 0,
+    };
+  });
 };
 
 const MemberLedger = ({
@@ -189,6 +231,10 @@ const MemberLedger = ({
 
     const totalReceived = mEntries.reduce((sum, e) => sum + (e.received || 0), 0);
     const totalWithdrawn = mEntries.reduce((sum, e) => sum + (e.withdrawn || 0), 0);
+    const netMovement = totalReceived - totalWithdrawn;
+    const hasActiveLedgerFilters =
+      transactionFilter !== 'all' || dateRange.start !== '' || dateRange.end !== '';
+    const monthGroups = groupEntriesByMonth(mEntries, sortOrder);
 
     return (
       <div className="space-y-5 print:space-y-0">
@@ -246,7 +292,7 @@ const MemberLedger = ({
               </div>
               <div className="text-right">
                 <p className="text-xs text-slate-400">Current Balance</p>
-                <p className="text-xl font-bold text-slate-900">₱{currentMember.balance?.toLocaleString()}</p>
+                <p className="text-xl font-mono font-bold text-slate-900">{formatPeso(currentMember.balance)}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100">
@@ -262,59 +308,95 @@ const MemberLedger = ({
           </div>
 
           {/* Filters */}
-          <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-3 items-center print:hidden">
-            <select
-              value={transactionFilter}
-              onChange={(e) => setTransactionFilter(e.target.value)}
-              aria-label="Filter transactions"
-              className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-            >
-              <option value="all">All</option>
-              <option value="deposits">Deposits</option>
-              <option value="withdrawals">Withdrawals</option>
-            </select>
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              aria-label="Start date"
-              className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-            />
-            <span className="text-xs text-slate-400">to</span>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              aria-label="End date"
-              className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-            />
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="h-9 px-3 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-            >
-              {sortOrder === 'asc' ? 'Oldest' : 'Newest'}
-            </button>
-            <button
-              onClick={() => { setTransactionFilter('all'); setDateRange({ start: '', end: '' }); setSortOrder('desc'); }}
-              className="h-9 px-3 text-sm text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded"
-            >
-              Reset
-            </button>
+          <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-x-5 gap-y-3 items-center print:hidden">
+            <div className="inline-flex border border-slate-200 overflow-hidden shrink-0" role="group" aria-label="Filter by transaction direction">
+              {[
+                { value: 'all', label: 'All entries' },
+                { value: 'deposits', label: 'Received' },
+                { value: 'withdrawals', label: 'Withdrawn' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTransactionFilter(value)}
+                  aria-pressed={transactionFilter === value}
+                  className={`h-9 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:relative ${
+                    transactionFilter === value
+                      ? 'bg-green-700 text-white'
+                      : 'bg-white text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <label htmlFor="ledger-from-date" className="text-sm text-slate-500">From</label>
+              <input
+                id="ledger-from-date"
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+              />
+              <label htmlFor="ledger-to-date" className="text-sm text-slate-500">to</label>
+              <input
+                id="ledger-to-date"
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <label htmlFor="ledger-order" className="text-sm text-slate-500">Order</label>
+              <select
+                id="ledger-order"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+              >
+                <option value="desc">Newest first</option>
+                <option value="asc">Oldest first</option>
+              </select>
+            </div>
+
+            {hasActiveLedgerFilters && (
+              <button
+                onClick={() => { setTransactionFilter('all'); setDateRange({ start: '', end: '' }); setSortOrder('desc'); }}
+                className="h-9 px-3 text-sm text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded"
+              >
+                Reset
+              </button>
+            )}
           </div>
 
-          {/* Financial summary — promoted from a thin text strip to scannable stat
-              tiles, kept inside #printable-ledger so the totals appear on the
-              printed statement too. Reflects whatever filter/date range is applied above. */}
-          <div className="px-5 py-4 border-b border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <LedgerMiniStat label="Transactions" value={mEntries.length} icon={Receipt} color="slate" />
-            <LedgerMiniStat label="Total In" value={`₱${totalReceived.toLocaleString()}`} icon={ArrowDownCircle} color="emerald" />
-            <LedgerMiniStat label="Total Out" value={`₱${totalWithdrawn.toLocaleString()}`} icon={ArrowUpCircle} color="rose" />
-            <LedgerMiniStat
-              label="Net"
-              value={`₱${(totalReceived - totalWithdrawn).toLocaleString()}`}
-              icon={Scale}
-              color={(totalReceived - totalWithdrawn) >= 0 ? 'emerald' : 'rose'}
-            />
+          {/* Financial summary — statement-style: entry count on the left,
+              monospaced totals on the right. Kept inside #printable-ledger so
+              it appears on the printed statement too. Reflects whatever
+              filter/date range is applied above. */}
+          <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm text-slate-500">
+              <span className="font-semibold text-slate-700">{mEntries.length}</span>{' '}
+              {mEntries.length === 1 ? 'entry' : 'entries'} shown &middot;{' '}
+              {hasActiveLedgerFilters ? 'filtered view' : 'full history'}
+            </p>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Received</p>
+                <p className="font-mono text-sm font-semibold text-green-600">{formatPeso(totalReceived)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Withdrawn</p>
+                <p className="font-mono text-sm font-semibold text-red-500">{formatPeso(totalWithdrawn)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Net Movement</p>
+                <p className="font-mono text-sm font-bold text-slate-900">{formatPeso(netMovement, { signed: true })}</p>
+              </div>
+            </div>
           </div>
 
           {/* Table */}
@@ -329,29 +411,45 @@ const MemberLedger = ({
                   <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {mEntries.length > 0 ? mEntries.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-3.5 text-sm text-slate-700">{entry.date}</td>
-                    <td className="px-5 py-3.5 text-sm text-slate-600">{entry.ref_no}</td>
-                    <td className="px-5 py-3.5 text-sm text-right font-medium text-slate-900">
-                      {entry.received > 0 ? `₱${entry.received.toLocaleString()}` : '—'}
+              {monthGroups.length > 0 ? monthGroups.map((group) => (
+                <tbody key={group.key} className="divide-y divide-slate-100">
+                  <tr className="bg-slate-50/70">
+                    <td colSpan={4} className="px-5 py-2 text-xs font-bold text-slate-500 tracking-wider">
+                      {group.label}
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-right font-medium text-slate-900">
-                      {entry.withdrawn > 0 ? `₱${entry.withdrawn.toLocaleString()}` : '—'}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-right font-bold text-slate-900">
-                      ₱{entry.balance.toLocaleString()}
+                    <td className="px-5 py-2 text-xs text-right text-slate-400">
+                      closing balance <span className="font-mono text-slate-500">{formatPeso(group.closingBalance)}</span>
                     </td>
                   </tr>
-                )) : (
+                  {group.entries.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-5 py-3.5 text-sm text-slate-500 font-mono whitespace-nowrap align-top">
+                        {formatLedgerDate(entry.date)}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-slate-600 font-mono align-top" title={entry.ref_no}>
+                        {shortenRef(entry.ref_no)}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-right font-mono font-medium align-top text-green-600">
+                        {entry.received > 0 ? formatPeso(entry.received) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-right font-mono font-medium align-top text-red-500">
+                        {entry.withdrawn > 0 ? formatPeso(entry.withdrawn) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-right font-mono font-bold text-slate-900 align-top">
+                        {formatPeso(entry.balance)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              )) : (
+                <tbody>
                   <tr>
                     <td colSpan="5" className="px-5 py-12 text-center text-sm text-slate-400">
                       No transactions found.
                     </td>
                   </tr>
-                )}
-              </tbody>
+                </tbody>
+              )}
             </table>
           </div>
 
