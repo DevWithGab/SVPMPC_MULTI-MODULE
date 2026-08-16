@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import {
   Mail,
   Lock,
-  User,
   UserCheck,
   Shield,
   ClipboardList,
@@ -12,7 +11,7 @@ import CooperativeLogo from "./CooperativeLogo";
 import { Input, Button, BackButton, Alert } from "./ui";
 
 export default function LoginForm({
-  type = "member", // 'member', 'admin', 'secretary', or 'treasurer'
+  type = "admin", // 'admin', 'secretary', 'treasurer', or 'scanner_operator'
   selectedSystem,
   systems,
   loginData,
@@ -27,18 +26,6 @@ export default function LoginForm({
   const selectedSystemData = systems.find((s) => s.id === selectedSystem);
 
   const config = {
-    member: {
-      icon: User,
-      title: "Member Access",
-      subtitle: `Sign in to access ${selectedSystemData?.title}`,
-      emailLabel: "Username or Email",
-      passwordLabel: "Password",
-      emailPlaceholder: "Enter your username or email",
-      passwordPlaceholder: "Enter your password",
-      buttonText: "Sign In",
-      buttonIcon: User,
-      helpText: "Need help? Contact your cooperative administrator",
-    },
     admin: {
       icon: Shield,
       title: "Administrator Access",

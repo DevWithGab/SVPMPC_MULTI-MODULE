@@ -6,16 +6,14 @@ const secretaryControllers = require('./secretary');
 const memberController = require('./memberController');
 const eventController = require('./eventController');
 const attendanceController = require('./attendanceController');
-const memberAuthController = require('./memberAuthController');
 
 module.exports = {
   // Role-based exports
   member: memberControllers,
   secretary: secretaryControllers,
-  
+
   // Legacy exports (for backward compatibility)
   memberController,
   eventController,
   attendanceController,
-  memberAuthController,
 };

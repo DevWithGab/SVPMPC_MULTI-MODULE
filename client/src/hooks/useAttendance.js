@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { memberPortalAPI, attendanceAPI, eventAPI } from '../services/api';
+import { attendanceAPI, eventAPI } from '../services/api';
 
 export const useAttendance = () => {
   const { user, token } = useAuth();
@@ -22,11 +22,7 @@ export const useAttendance = () => {
     if (user && token) {
       setLoading(true);
       try {
-        // Fetch attendance history for members, or all recent attendance for scanner operators.
-        const attendanceData = user?.role === 'scanner_operator'
-          ? await attendanceAPI.getAllAttendance()
-          : await memberPortalAPI.getAttendanceHistory(user.memberId);
-
+        const attendanceData = await attendanceAPI.getAllAttendance();
         setAttendanceLogs(normalizeAttendance(attendanceData));
 
         // Fetch events

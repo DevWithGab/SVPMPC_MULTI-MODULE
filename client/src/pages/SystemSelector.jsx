@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   Database,
   QrCode,
-  User,
   UserCheck,
   Shield,
   ClipboardList,
@@ -22,8 +21,7 @@ const API_BASE_URL =
 
 export default function SystemSelector({ onModuleSelect }) {
   const [selectedSystem, setSelectedSystem] = useState(null);
-  const [step, setStep] = useState("MODULE_SELECTION"); // MODULE_SELECTION, ROLE_SELECTION, MEMBER_LOGIN, ADMIN_LOGIN, SECRETARY_LOGIN, TREASURER_LOGIN
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [step, setStep] = useState("MODULE_SELECTION"); // MODULE_SELECTION, ROLE_SELECTION, ADMIN_LOGIN, SECRETARY_LOGIN, TREASURER_LOGIN
   const [adminLoginData, setAdminLoginData] = useState({
     email: "",
     password: "",
@@ -95,23 +93,15 @@ export default function SystemSelector({ onModuleSelect }) {
 
     // Add specific roles based on system
     if (systemId === "attendance") {
-      // Add member role for attendance
-      baseRoles.unshift({
-        id: "member",
-        title: "Member",
-        description: "Access member services",
-        icon: User,
-        code: "MBR",
-      });
       // Add secretary role
-      baseRoles.splice(1, 0, {
+      baseRoles.unshift({
         id: "secretary",
         title: "Secretary",
         description: "Manage events & attendance",
         icon: ClipboardList,
         code: "SEC",
       });
-      baseRoles.splice(2, 0, {
+      baseRoles.splice(1, 0, {
         id: "scanner_operator",
         title: "Scanner Operator",
         description: "Scan attendance QR codes",
@@ -139,9 +129,7 @@ export default function SystemSelector({ onModuleSelect }) {
 
   const handleRoleSelect = (roleId) => {
     setSelectedRole(roleId);
-    if (roleId === "member") {
-      setStep("MEMBER_LOGIN");
-    } else if (roleId === "admin") {
+    if (roleId === "admin") {
       setStep("ADMIN_LOGIN");
     } else if (roleId === "secretary") {
       setStep("SECRETARY_LOGIN");
@@ -149,51 +137,6 @@ export default function SystemSelector({ onModuleSelect }) {
       setStep("OPERATOR_LOGIN");
     } else if (roleId === "treasurer") {
       setStep("TREASURER_LOGIN");
-    }
-  };
-
-  const handleMemberLogin = async (e) => {
-    e.preventDefault();
-    setLoginLoading(true);
-    setLoginError("");
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: loginData.email,
-          password: loginData.password,
-          expectedRole: "member",
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store authentication data
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        // Call the parent callback to navigate to the appropriate portal
-        if (onModuleSelect) {
-          onModuleSelect(selectedSystem, "member", data.user, data.token);
-        }
-
-        // Reset form
-        setLoginData({ email: "", password: "" });
-        setShowPassword(false);
-      } else {
-        setLoginError(data.message || "Invalid credentials");
-      }
-    } catch (error) {
-      setLoginError(
-        "Network error. Please check your connection and try again.",
-      );
-    } finally {
-      setLoginLoading(false);
     }
   };
 
@@ -386,7 +329,6 @@ export default function SystemSelector({ onModuleSelect }) {
 
   const handleBack = () => {
     if (
-      step === "MEMBER_LOGIN" ||
       step === "ADMIN_LOGIN" ||
       step === "SECRETARY_LOGIN" ||
       step === "TREASURER_LOGIN" ||
@@ -394,7 +336,6 @@ export default function SystemSelector({ onModuleSelect }) {
     ) {
       setStep("ROLE_SELECTION");
       setLoginError("");
-      setLoginData({ email: "", password: "" });
       setAdminLoginData({ email: "", password: "" });
       setSecretaryLoginData({ email: "", password: "" });
       setTreasurerLoginData({ email: "", password: "" });
@@ -434,23 +375,6 @@ export default function SystemSelector({ onModuleSelect }) {
               systems={systems}
               roles={getRolesForSystem(selectedSystem)}
               onRoleSelect={handleRoleSelect}
-              onBack={handleBack}
-            />
-          )}
-
-          {/* Member Login Form */}
-          {step === "MEMBER_LOGIN" && (
-            <LoginForm
-              type="member"
-              selectedSystem={selectedSystem}
-              systems={systems}
-              loginData={loginData}
-              setLoginData={setLoginData}
-              showPassword={showPassword}
-              setShowPassword={setShowPassword}
-              loginLoading={loginLoading}
-              loginError={loginError}
-              onSubmit={handleMemberLogin}
               onBack={handleBack}
             />
           )}

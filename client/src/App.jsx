@@ -4,7 +4,6 @@ import SystemSelector from "./pages/SystemSelector";
 import SuperAdmin from "./pages/SuperAdmin";
 import MortuaryAdminPortal from "./pages/mortuary/AdminPortal";
 import MortuaryTreasurerPortal from "./pages/mortuary/TreasurerPortal";
-import AttendanceMemberPortal from "./pages/attendance/MemberPortal";
 import AttendanceSecretaryPortal from "./pages/attendance/SecretaryPortal";
 import AttendanceOperatorPortal from "./pages/attendance/OperatorPortal";
 import AttendanceAdminPortal from "./pages/attendance/AdminPortal";
@@ -49,7 +48,6 @@ function App() {
     const viewMap = {
       "mortuary-admin": "mortuary-admin-portal",
       "mortuary-treasurer": "mortuary-treasurer-portal",
-      "attendance-member": "attendance-member-portal",
       "attendance-secretary": "attendance-secretary-portal",
       "attendance-scanner_operator": "attendance-operator-portal",
       "attendance-admin": "attendance-admin-portal",
@@ -92,13 +90,6 @@ function App() {
         )}
         {currentView === "mortuary-treasurer-portal" && (
           <MortuaryTreasurerPortal
-            onBack={handleBackToSelector}
-            user={authenticatedUser?.user}
-            token={authenticatedUser?.token}
-          />
-        )}
-        {currentView === "attendance-member-portal" && (
-          <AttendanceMemberPortal
             onBack={handleBackToSelector}
             user={authenticatedUser?.user}
             token={authenticatedUser?.token}

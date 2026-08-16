@@ -12,7 +12,6 @@ export { attendanceAPI } from './attendance/index.js';
 export { default as mortuaryTreasurerAPI } from './mortuary/treasurer.js';
 export { default as mortuaryAdminAPI } from './mortuary/admin.js';
 
-export { default as attendanceMemberAPI } from './attendance/member.js';
 export { default as attendanceSecretaryAPI } from './attendance/secretary.js';
 export { default as attendanceAdminAPI } from './attendance/admin.js';
 

@@ -31,10 +31,17 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Member self-service login has been retired — members are handled via
+    // physically-issued QR codes instead of portal access.
+    if (user.role === 'member') {
+      return res.status(403).json({
+        message: 'Member self-service login is no longer available. Please contact the cooperative office.',
+      });
+    }
+
     // Optional role gate to prevent cross-role logins from specific login forms
     if (expectedRole) {
       const allowedRolesByExpectedRole = {
-        member: ['member'],
         secretary: ['secretary'],
         scanner_operator: ['scanner_operator'],
         treasurer: ['treasurer'],

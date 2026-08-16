@@ -189,25 +189,6 @@ export const eventAPI = {
 
 
 // ============================================
-// ATTENDANCE - MEMBER PORTAL API
-// ============================================
-export const memberPortalAPI = {
-  getMemberProfile: async (memberId) => {
-    const response = await api.get(
-      `/attendance/member-portal/${memberId}/profile`
-    );
-    return response.data;
-  },
-
-  getAttendanceHistory: async (memberId) => {
-    const response = await api.get(
-      `/attendance/member-portal/${memberId}/attendance-history`
-    );
-    return response.data;
-  },
-};
-
-// ============================================
 // ATTENDANCE - ATTENDANCE RECORDS API
 // ============================================
 export const attendanceAPI = {

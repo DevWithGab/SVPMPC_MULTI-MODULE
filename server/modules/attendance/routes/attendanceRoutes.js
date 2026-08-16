@@ -18,7 +18,6 @@ router.use('/admin', adminRoutes);
 const memberController = require('../controllers/memberController');
 const eventController = require('../controllers/eventController');
 const attendanceController = require('../controllers/attendanceController');
-const memberAuthController = require('../controllers/memberAuthController');
 
 // Configure multer for CSV uploads
 const storage = multer.diskStorage({
@@ -47,10 +46,6 @@ router.post('/members/generate-qr', memberController.generateQRCodes);
 router.post('/members/generate-all-qr', memberController.generateAllQRCodes);
 router.get('/members', memberController.getAllMembers);
 router.get('/members/:memberId', memberController.getMemberById);
-
-// Legacy member portal routes
-router.get('/member-portal/:memberId/profile', memberAuthController.getMemberProfile);
-router.get('/member-portal/:memberId/attendance-history', memberAuthController.getMemberAttendanceHistory);
 
 // Legacy event routes
 router.post('/events', eventController.createEvent);

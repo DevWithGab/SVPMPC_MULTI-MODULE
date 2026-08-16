@@ -8,7 +8,6 @@ const {
 const memberController = require('../controllers/memberController');
 const eventController = require('../controllers/eventController');
 const attendanceController = require('../controllers/attendanceController');
-const memberAuthController = require('../controllers/memberAuthController');
 
 const router = express.Router();
 

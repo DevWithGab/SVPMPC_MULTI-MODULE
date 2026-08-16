@@ -69,7 +69,9 @@ const authorizeModule = (module) => {
     // Check if user has access to the specific module
     const moduleAccess = {
       'mortuary': ['member', 'admin', 'treasurer'],
-      'attendance': ['member', 'admin', 'secretary', 'scanner_operator']
+      // Members no longer have self-service access to the attendance system —
+      // their QR codes are issued and used physically instead.
+      'attendance': ['admin', 'secretary', 'scanner_operator']
     };
 
     if (!moduleAccess[module] || !moduleAccess[module].includes(req.user.role)) {
@@ -85,7 +87,9 @@ const authorizeModule = (module) => {
 
 // Middleware for specific role combinations
 const authorizeMortuaryRoles = authorizeRoles('member', 'admin', 'treasurer');
-const authorizeAttendanceRoles = authorizeRoles('member', 'admin', 'secretary', 'scanner_operator');
+// Members no longer have self-service access to the attendance system —
+// their QR codes are issued and used physically instead.
+const authorizeAttendanceRoles = authorizeRoles('admin', 'secretary', 'scanner_operator');
 const authorizeTreasurerOnly = authorizeRoles('treasurer', 'admin');
 const authorizeSecretaryOnly = authorizeRoles('secretary', 'admin');
 const authorizeAdminOnly = authorizeRoles('admin');

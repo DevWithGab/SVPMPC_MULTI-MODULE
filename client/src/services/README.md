@@ -16,10 +16,12 @@ services/
 │   └── admin.js               # Admin APIs
 └── attendance/
     ├── index.js               # Attendance exports
-    ├── member.js              # Member APIs
     ├── secretary.js           # Secretary APIs
     └── admin.js               # Admin APIs
 ```
+
+> Note: attendance no longer has a member-facing API — members are handled
+> via physically-issued QR codes rather than self-service portal access.
 
 ## 🚀 Usage
 
@@ -83,11 +85,6 @@ const eventData = await attendanceSecretaryAPI.events.createEvent(eventData);
 - Reports: `generateFinancialReport()`, `exportSystemData()`
 
 ### Attendance APIs
-
-**Member** (`attendanceAPI.member`)
-- Dashboard: `getDashboardData()`, `generateMemberQRCode()`
-- Attendance: `getAttendanceHistory()`, `recordAttendance(data)`
-- Events: `getUpcomingEvents()`, `getPastEvents()`
 
 **Secretary** (`attendanceAPI.secretary`)
 - Dashboard: `getDashboardData()`, `getEventStats()`
