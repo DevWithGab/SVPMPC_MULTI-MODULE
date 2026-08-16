@@ -4,7 +4,6 @@ import {
   Home,
   Calendar,
   Users,
-  FileText,
   Menu,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +27,25 @@ import {
 } from "../../components/attendance/secretary";
 import { LiveAttendanceList } from "../../components/attendance/shared";
 
+const SidebarItem = ({ id, icon: Icon, label, activeTab, collapsed, onClick }) => (
+  <button
+    onClick={onClick}
+    title={collapsed ? label : undefined}
+    aria-label={label}
+    aria-current={activeTab === id ? "page" : undefined}
+    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/50 focus-visible:ring-inset ${
+      collapsed ? "justify-center px-0 py-3" : "px-4 py-3"
+    } ${
+      activeTab === id
+        ? "bg-coop-green text-white"
+        : "text-slate-500 hover:bg-slate-50 hover:text-coop-green"
+    }`}
+  >
+    <Icon className="w-5 h-5 shrink-0" />
+    {!collapsed && <span className="text-sm font-semibold tracking-tight">{label}</span>}
+  </button>
+);
+
 export default function AttendanceSecretaryPortal({
   onBack,
   user: propUser,
@@ -49,38 +67,39 @@ export default function AttendanceSecretaryPortal({
 
   const [allAttendance, setAllAttendance] = useState([]);
 
+  const refreshAllAttendance = useCallback(async () => {
+    try {
+      const response = await attendanceAPI.getAllAttendance();
+      const fetched = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : response?.attendance || response?.data?.attendance || [];
+      setAllAttendance(fetched);
+    } catch (error) {
+      console.error("Error fetching all attendance:", error);
+      setAllAttendance([]);
+    }
+  }, []);
+
   useEffect(() => {
-    const loadAttendance = async () => {
-      try {
-        const response = await attendanceAPI.getAllAttendance();
-        setAllAttendance(response.attendance || []);
-      } catch (error) {
-        console.error("Error fetching all attendance:", error);
-        setAllAttendance([]);
-      }
-    };
-
-    loadAttendance();
-  }, []);
-
-  const refreshAllAttendance = useCallback(() => {
-    const loadAttendance = async () => {
-      try {
-        const response = await attendanceAPI.getAllAttendance();
-        setAllAttendance(response.attendance || []);
-      } catch (error) {
-        console.error("Error fetching all attendance:", error);
-        setAllAttendance([]);
-      }
-    };
-
-    loadAttendance();
-  }, []);
+    refreshAllAttendance();
+  }, [refreshAllAttendance]);
 
   const [activeTab, setActiveTab] = useState("home");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("secretarySidebarCollapsed") === "true";
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "secretarySidebarCollapsed",
+      String(isSidebarCollapsed),
+    );
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -172,7 +191,7 @@ export default function AttendanceSecretaryPortal({
       {/* Sidebar Overlay for Mobile */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-coop-darkGreen/60 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -183,37 +202,39 @@ export default function AttendanceSecretaryPortal({
         animate={{
           width: isDesktop
             ? isSidebarCollapsed
-              ? 80
-              : 280
+              ? 68
+              : 256
             : isMobileMenuOpen
-              ? 280
+              ? 256
               : 0,
         }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="bg-coop-darkGreen border-r border-green-900 flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 shadow-2xl"
+        transition={{ type: "tween", duration: 0.2 }}
+        className="bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
       >
-        <div className="p-6 flex items-center justify-between relative z-10">
+        <div
+          className={`border-b border-slate-100 flex items-center shrink-0 ${
+            isSidebarCollapsed ? "justify-center py-4" : "justify-between px-4 py-4"
+          }`}
+        >
           <AnimatePresence mode="wait">
             {!isSidebarCollapsed && (
               <Motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-                className="flex items-center gap-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center gap-2.5 min-w-0"
               >
-                <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-slate-100">
-                  <img
-                    src="/SVPMPC-LOGO(MAIN).png"
-                    alt="SVMPC Logo"
-                    className="w-8 h-8 object-contain"
-                  />
-                </div>
-                <div>
-                  <h1 className="text-white font-black text-sm tracking-tight">
-                    Secretary Portal
+                <img
+                  src="/SVPMPC-LOGO(MAIN).png"
+                  alt="SVMPC Logo"
+                  className="w-7 h-7 object-contain shrink-0"
+                />
+                <div className="min-w-0">
+                  <h1 className="text-sm font-bold text-slate-900 leading-none truncate">
+                    Secretary
                   </h1>
-                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
+                  <p className="text-[11px] text-slate-400 mt-0.5">
                     Attendance System
                   </p>
                 </div>
@@ -221,97 +242,85 @@ export default function AttendanceSecretaryPortal({
             )}
           </AnimatePresence>
 
-          {isDesktop && (
-            <button
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="w-8 h-8 bg-green-800/50 hover:bg-green-700/50 rounded-xl flex items-center justify-center transition-colors"
-            >
-              {isSidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4 text-green-200" />
-              ) : (
-                <ChevronLeft className="w-4 h-4 text-green-200" />
-              )}
-            </button>
+          {isSidebarCollapsed && (
+            <img
+              src="/SVPMPC-LOGO(MAIN).png"
+              alt="SVMPC Logo"
+              className="w-6 h-6 object-contain"
+            />
           )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 pb-6">
-          <div className="space-y-2">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  if (!isDesktop) setIsMobileMenuOpen(false);
-                }}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 group relative overflow-hidden ${
-                  activeTab === item.id
-                    ? "bg-coop-green text-white shadow-lg"
-                    : "text-green-200 hover:bg-green-800/30 hover:text-white"
-                }`}
-              >
-                <item.icon className="w-5 h-5 shrink-0" />
-                <AnimatePresence mode="wait">
-                  {!isSidebarCollapsed && (
-                    <Motion.span
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -10 }}
-                      transition={{ duration: 0.15 }}
-                      className="font-bold text-sm tracking-tight"
-                    >
-                      {item.label}
-                    </Motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
-            ))}
-          </div>
+        <nav
+          className={`flex-1 space-y-1 ${isSidebarCollapsed ? "px-2 py-3" : "px-3 py-4"}`}
+        >
+          {sidebarItems.map((item) => (
+            <SidebarItem
+              key={item.id}
+              id={item.id}
+              icon={item.icon}
+              label={item.label}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              collapsed={isSidebarCollapsed}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (!isDesktop) setIsMobileMenuOpen(false);
+              }}
+            />
+          ))}
         </nav>
 
         {/* User Profile Section */}
-        <div className="p-4 border-t border-green-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-coop-green rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-              <ClipboardList className="w-5 h-5 text-white" />
+        <div
+          className={`border-t border-slate-100 shrink-0 ${
+            isSidebarCollapsed ? "px-2 py-3" : "px-3 py-3"
+          }`}
+        >
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-3 px-1 pb-2">
+              <div className="w-8 h-8 bg-coop-green rounded-lg flex items-center justify-center shrink-0">
+                <ClipboardList className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900 truncate">
+                  {currentUser?.name || "Secretary"}
+                </p>
+                <p className="text-[11px] text-slate-400">Secretary Role</p>
+              </div>
             </div>
-            <AnimatePresence mode="wait">
-              {!isSidebarCollapsed && (
-                <Motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex-1 min-w-0"
-                >
-                  <p className="text-white font-bold text-sm truncate">
-                    {currentUser?.name || "Secretary"}
-                  </p>
-                  <p className="text-green-300 text-xs font-bold uppercase tracking-widest">
-                    Secretary Role
-                  </p>
-                </Motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          )}
 
-          <AnimatePresence mode="wait">
+          <button
+            onClick={onBack}
+            title={isSidebarCollapsed ? "Logout" : undefined}
+            aria-label="Logout"
+            className={`w-full flex items-center gap-3 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50 focus-visible:ring-inset ${
+              isSidebarCollapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5"
+            }`}
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
             {!isSidebarCollapsed && (
-              <Motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.15, delay: 0.1 }}
-                onClick={onBack}
-                className="w-full mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl text-green-200 hover:bg-green-800/30 hover:text-white transition-all duration-200"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="font-bold text-sm">Sign Out</span>
-              </Motion.button>
+              <span className="text-sm font-medium">Sign Out</span>
             )}
-          </AnimatePresence>
+          </button>
         </div>
+
+        {/* Collapse Toggle (desktop only) */}
+        {isDesktop && (
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="border-t border-slate-100 py-3 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/50 focus-visible:ring-inset shrink-0"
+          >
+            {isSidebarCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
+        )}
       </Motion.aside>
 
       {/* Main Content */}
@@ -320,15 +329,16 @@ export default function AttendanceSecretaryPortal({
         <div className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="w-10 h-10 bg-slate-100 rounded-2xl flex items-center justify-center"
+            aria-label="Open menu"
+            className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/50"
           >
             <Menu className="w-5 h-5 text-slate-600" />
           </button>
           <div className="text-center">
-            <h1 className="font-black text-slate-950 text-lg tracking-tight">
+            <h1 className="font-bold text-slate-900 text-base tracking-tight">
               Secretary Portal
             </h1>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
+            <p className="text-slate-400 text-xs font-medium">
               Attendance System
             </p>
           </div>
@@ -341,10 +351,10 @@ export default function AttendanceSecretaryPortal({
             <AnimatePresence mode="wait">
               <Motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
               >
                 {renderContent()}
               </Motion.div>

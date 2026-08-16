@@ -80,7 +80,8 @@ export const eventAPI = {
       const response = await api.get('/events', { params });
       return {
         success: true,
-        data: response.data,
+        data: response.data.data,
+        pagination: response.data.pagination,
       };
     } catch (error) {
       return {

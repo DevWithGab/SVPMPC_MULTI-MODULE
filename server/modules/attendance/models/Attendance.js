@@ -44,6 +44,14 @@ const attendanceSchema = new mongoose.Schema(
     scannedBy: {
       type: String,
     },
+    entrySource: {
+      type: String,
+      enum: ['qr', 'manual'],
+      default: 'qr',
+    },
+    justification: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

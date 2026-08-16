@@ -211,12 +211,14 @@ export const memberPortalAPI = {
 // ATTENDANCE - ATTENDANCE RECORDS API
 // ============================================
 export const attendanceAPI = {
-  recordAttendance: async (memberId, eventId, scanTime, scannedBy) => {
+  recordAttendance: async (memberId, eventId, scanTime, scannedBy, options = {}) => {
     const payload = {
       memberId,
       eventId,
       scanTime,
       scannedBy,
+      entrySource: options.entrySource,
+      justification: options.justification,
     };
 
     const endpoints = ['/attendance/record', '/attendance/attendance/record'];

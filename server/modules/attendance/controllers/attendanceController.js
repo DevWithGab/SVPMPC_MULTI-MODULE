@@ -8,7 +8,7 @@ const { createAuditLog } = require('../../../shared/services/auditLoggingService
 // Record attendance via QR scan
 const recordAttendance = async (req, res) => {
   try {
-    const { memberId, eventId, scannedBy, scanTime } = req.body;
+    const { memberId, eventId, scannedBy, scanTime, entrySource, justification } = req.body;
 
     if (!memberId || !eventId) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -68,6 +68,8 @@ const recordAttendance = async (req, res) => {
       scanTime: scanTime ? new Date(scanTime) : new Date(),
       status: 'present',
       scannedBy: scannedBy || 'system',
+      entrySource: entrySource === 'manual' ? 'manual' : 'qr',
+      justification: justification || undefined,
     });
 
     const saved = await newAttendance.save();
@@ -95,6 +97,8 @@ const recordAttendance = async (req, res) => {
         eventId,
         eventLocation: event.location,
         barangay: member.barangay,
+        entrySource: saved.entrySource,
+        justification: saved.justification,
       },
     });
 

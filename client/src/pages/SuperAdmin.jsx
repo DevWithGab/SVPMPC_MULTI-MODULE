@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Shield, Users, UserPlus, Upload, Download, Search, 
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Shield, Users, UserPlus, Upload, Download, Search,
   Mail, Phone, MapPin, Calendar, Key, ArrowLeft, X, Plus,
-  CheckCircle, AlertCircle, Loader
+  CheckCircle, AlertCircle, Loader, Copy, Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
@@ -11,6 +11,78 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Toast } from '../components/ui/toast';
+import { Modal } from '../components/ui/modal';
+
+const REQUIRED_MEMBER_FIELDS = ['memberName', 'email', 'phoneNumber', 'barangay', 'address'];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PH_PHONE_REGEX = /^(?:\+63|0)9\d{9}$/;
+
+const validateMemberField = (name, rawValue) => {
+  const value = (rawValue || '').trim();
+  switch (name) {
+    case 'memberName':
+      if (!value) return 'Full name is required.';
+      if (value.length < 2) return "Enter the member's full name.";
+      return '';
+    case 'email':
+      if (!value) return 'Email is required.';
+      if (!EMAIL_REGEX.test(value)) return 'Enter a valid email address.';
+      return '';
+    case 'phoneNumber':
+      if (!value) return 'Phone number is required.';
+      if (!PH_PHONE_REGEX.test(value.replace(/[\s-]/g, ''))) {
+        return 'Use a PH mobile number, e.g. 09171234567.';
+      }
+      return '';
+    case 'barangay':
+      if (!value) return 'Barangay is required.';
+      return '';
+    case 'address':
+      if (!value) return 'Address is required.';
+      return '';
+    default:
+      return '';
+  }
+};
+
+// A labeled field with required marker, inline validation error, and helper
+// text — keeps every field in the form consistent (error prevention +
+// recognition-over-recall, applied once instead of per-field).
+const FormField = React.forwardRef(
+  ({ label, name, value, onChange, onBlur, error, hint, required, type = 'text', placeholder, maxLength, listId }, ref) => {
+    const errorId = error ? `${name}-error` : undefined;
+    return (
+      <div>
+        <label htmlFor={name} className="block text-sm font-bold text-slate-700 mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+        <Input
+          id={name}
+          ref={ref}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          list={listId}
+          aria-invalid={Boolean(error)}
+          aria-describedby={errorId}
+          className={error ? 'border-red-300 focus-visible:ring-red-400' : ''}
+        />
+        {error ? (
+          <p id={errorId} className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            {error}
+          </p>
+        ) : hint ? (
+          <p className="text-xs text-slate-400 mt-1.5">{hint}</p>
+        ) : null}
+      </div>
+    );
+  },
+);
+FormField.displayName = 'FormField';
 
 const SuperAdmin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,6 +114,83 @@ const SuperAdmin = () => {
   // CSV upload state
   const [csvFile, setCsvFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
+
+  // Create Member form: validation + post-success credential handoff
+  const [memberErrors, setMemberErrors] = useState({});
+  const [memberTouched, setMemberTouched] = useState({});
+  const [createdAccount, setCreatedAccount] = useState(null);
+  const [copiedField, setCopiedField] = useState('');
+  const memberFieldRefs = useRef({});
+
+  const emptyMemberForm = {
+    memberName: '',
+    email: '',
+    phoneNumber: '',
+    barangay: '',
+    address: '',
+    beneficiaries: '',
+    dateOfBirth: '',
+    gender: 'male',
+    modules: ['attendance', 'mortuary']
+  };
+
+  const barangayOptions = useMemo(
+    () => Array.from(new Set(members.map((m) => m.barangay).filter(Boolean))).sort(),
+    [members]
+  );
+
+  const isCreateFormDirty = () =>
+    REQUIRED_MEMBER_FIELDS.concat('beneficiaries').some(
+      (field) => (newMember[field] || '').trim() !== ''
+    );
+
+  const handleMemberFieldChange = (name, value) => {
+    setNewMember((prev) => ({ ...prev, [name]: value }));
+    if (memberTouched[name]) {
+      setMemberErrors((prev) => ({ ...prev, [name]: validateMemberField(name, value) }));
+    }
+  };
+
+  const handleMemberFieldBlur = (name) => {
+    setMemberTouched((prev) => ({ ...prev, [name]: true }));
+    setMemberErrors((prev) => ({ ...prev, [name]: validateMemberField(name, newMember[name]) }));
+  };
+
+  const handleCopyCredential = async (field, value) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(''), 2000);
+    } catch (error) {
+      showToast('Could not copy automatically — please copy it manually.', 'error');
+    }
+  };
+
+  // Closing the form (X, backdrop, Escape, Cancel) while it has unsaved
+  // input asks for confirmation first, so a stray click can't silently
+  // discard work (error prevention / user control & freedom).
+  const requestCloseCreateModal = () => {
+    if (createdAccount) {
+      finishCreateMember();
+      return;
+    }
+    if (isCreateFormDirty() && !window.confirm("Discard the new member details you've entered?")) {
+      return;
+    }
+    setShowCreateModal(false);
+    setNewMember(emptyMemberForm);
+    setMemberErrors({});
+    setMemberTouched({});
+  };
+
+  const finishCreateMember = () => {
+    setShowCreateModal(false);
+    setCreatedAccount(null);
+    setCopiedField('');
+    setNewMember(emptyMemberForm);
+    setMemberErrors({});
+    setMemberTouched({});
+  };
 
   // Check for existing authentication on mount
   useEffect(() => {
@@ -116,25 +265,45 @@ const SuperAdmin = () => {
 
   const handleCreateMember = async (e) => {
     e.preventDefault();
+
+    // Validate everything client-side before ever hitting the network —
+    // catches the mistake immediately instead of round-tripping to the
+    // server first (error prevention).
+    const nextErrors = {};
+    REQUIRED_MEMBER_FIELDS.forEach((field) => {
+      nextErrors[field] = validateMemberField(field, newMember[field]);
+    });
+    setMemberErrors(nextErrors);
+    setMemberTouched(
+      REQUIRED_MEMBER_FIELDS.reduce((acc, field) => ({ ...acc, [field]: true }), {})
+    );
+
+    const firstInvalidField = REQUIRED_MEMBER_FIELDS.find((field) => nextErrors[field]);
+    if (firstInvalidField) {
+      memberFieldRefs.current[firstInvalidField]?.focus();
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await adminAPI.createMember(newMember);
-      showToast(`Member created! Username: ${response.account.username}, Password: ${response.account.temporaryPassword}`, 'success');
-      setShowCreateModal(false);
-      setNewMember({
-        memberName: '',
-        email: '',
-        phoneNumber: '',
-        barangay: '',
-        address: '',
-        beneficiaries: '',
-        dateOfBirth: '',
-        gender: 'male',
-        modules: ['attendance', 'mortuary']
+      setCreatedAccount({
+        memberName: newMember.memberName,
+        username: response.account.username,
+        temporaryPassword: response.account.temporaryPassword,
       });
       fetchMembers();
     } catch (error) {
-      showToast(error.response?.data?.message || 'Error creating member', 'error');
+      const message = error.response?.data?.message || 'Error creating member';
+      if (/email/i.test(message)) {
+        // Surface it right under the field that caused it, not just as a
+        // toast the admin has to mentally map back to a field themselves.
+        setMemberErrors((prev) => ({ ...prev, email: message }));
+        setMemberTouched((prev) => ({ ...prev, email: true }));
+        memberFieldRefs.current.email?.focus();
+      } else {
+        showToast(message, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -567,110 +736,191 @@ const SuperAdmin = () => {
       </div>
 
       {/* Create Member Modal */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            >
-              <div className="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
-                <h3 className="text-xl font-black text-slate-900">Create New Member</h3>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+      <Modal
+        isOpen={showCreateModal}
+        onClose={requestCloseCreateModal}
+        title={createdAccount ? 'Member Created' : 'Create New Member'}
+        className="max-w-2xl"
+      >
+        {createdAccount ? (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-emerald-900">
+                  {createdAccount.memberName} was added successfully.
+                </p>
+                <p className="text-xs text-emerald-700 mt-1">
+                  Credentials were also sent to the member automatically — but copy them
+                  now too, since this password won't be shown again.
+                </p>
               </div>
-              <form onSubmit={handleCreateMember} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Full Name *</label>
-                    <input
-                      type="text"
-                      value={newMember.memberName}
-                      onChange={(e) => setNewMember({...newMember, memberName: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Email *</label>
-                    <input
-                      type="email"
-                      value={newMember.email}
-                      onChange={(e) => setNewMember({...newMember, email: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Phone Number *</label>
-                    <input
-                      type="tel"
-                      value={newMember.phoneNumber}
-                      onChange={(e) => setNewMember({...newMember, phoneNumber: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Barangay *</label>
-                    <input
-                      type="text"
-                      value={newMember.barangay}
-                      onChange={(e) => setNewMember({...newMember, barangay: e.target.value})}
-                      className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Address *</label>
-                  <input
-                    type="text"
-                    value={newMember.address}
-                    onChange={(e) => setNewMember({...newMember, address: e.target.value})}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Beneficiaries</label>
-                  <input
-                    type="text"
-                    value={newMember.beneficiaries}
-                    onChange={(e) => setNewMember({...newMember, beneficiaries: e.target.value})}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
-                    placeholder="e.g., Maria Dela Cruz (Wife)"
-                  />
-                </div>
-                <div className="flex gap-4 pt-4">
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
+                  Username
+                </label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono text-slate-900 overflow-x-auto">
+                    {createdAccount.username}
+                  </code>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setShowCreateModal(false)}
-                    className="flex-1"
+                    onClick={() => handleCopyCredential('username', createdAccount.username)}
+                    className="shrink-0"
+                    aria-label="Copy username"
                   >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
-                    Create Member
+                    {copiedField === 'username' ? (
+                      <Check className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
-              </form>
-            </motion.div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
+                  Temporary Password
+                </label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono text-slate-900 overflow-x-auto">
+                    {createdAccount.temporaryPassword}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleCopyCredential('password', createdAccount.temporaryPassword)}
+                    className="shrink-0"
+                    aria-label="Copy temporary password"
+                  >
+                    {copiedField === 'password' ? (
+                      <Check className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={finishCreateMember}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Done
+            </Button>
           </div>
+        ) : (
+          <form onSubmit={handleCreateMember} noValidate className="space-y-4">
+            <p className="text-xs text-slate-500 -mt-1">
+              Fields marked <span className="text-red-500 font-bold">*</span> are required.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                label="Full Name"
+                name="memberName"
+                required
+                value={newMember.memberName}
+                onChange={(value) => handleMemberFieldChange('memberName', value)}
+                onBlur={() => handleMemberFieldBlur('memberName')}
+                error={memberTouched.memberName ? memberErrors.memberName : ''}
+                placeholder="Juan Dela Cruz"
+                maxLength={100}
+                ref={(el) => (memberFieldRefs.current.memberName = el)}
+              />
+              <FormField
+                label="Email"
+                name="email"
+                type="email"
+                required
+                value={newMember.email}
+                onChange={(value) => handleMemberFieldChange('email', value)}
+                onBlur={() => handleMemberFieldBlur('email')}
+                error={memberTouched.email ? memberErrors.email : ''}
+                placeholder="name@example.com"
+                ref={(el) => (memberFieldRefs.current.email = el)}
+              />
+              <FormField
+                label="Phone Number"
+                name="phoneNumber"
+                type="tel"
+                required
+                value={newMember.phoneNumber}
+                onChange={(value) => handleMemberFieldChange('phoneNumber', value)}
+                onBlur={() => handleMemberFieldBlur('phoneNumber')}
+                error={memberTouched.phoneNumber ? memberErrors.phoneNumber : ''}
+                hint={!memberErrors.phoneNumber ? 'Used to send login credentials via SMS.' : undefined}
+                placeholder="09171234567"
+                ref={(el) => (memberFieldRefs.current.phoneNumber = el)}
+              />
+              <FormField
+                label="Barangay"
+                name="barangay"
+                required
+                value={newMember.barangay}
+                onChange={(value) => handleMemberFieldChange('barangay', value)}
+                onBlur={() => handleMemberFieldBlur('barangay')}
+                error={memberTouched.barangay ? memberErrors.barangay : ''}
+                placeholder="e.g., Domang"
+                listId="barangay-options"
+                ref={(el) => (memberFieldRefs.current.barangay = el)}
+              />
+            </div>
+            <datalist id="barangay-options">
+              {barangayOptions.map((barangay) => (
+                <option key={barangay} value={barangay} />
+              ))}
+            </datalist>
+
+            <FormField
+              label="Address"
+              name="address"
+              required
+              value={newMember.address}
+              onChange={(value) => handleMemberFieldChange('address', value)}
+              onBlur={() => handleMemberFieldBlur('address')}
+              error={memberTouched.address ? memberErrors.address : ''}
+              placeholder="House No., Street, Barangay"
+              maxLength={200}
+              ref={(el) => (memberFieldRefs.current.address = el)}
+            />
+
+            <FormField
+              label="Beneficiaries"
+              name="beneficiaries"
+              value={newMember.beneficiaries}
+              onChange={(value) => handleMemberFieldChange('beneficiaries', value)}
+              hint="Optional — comma-separate multiple beneficiaries."
+              placeholder="e.g., Maria Dela Cruz (Wife)"
+              maxLength={200}
+            />
+
+            <div className="flex gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={requestCloseCreateModal}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
+                Create Member
+              </Button>
+            </div>
+          </form>
         )}
-      </AnimatePresence>
+      </Modal>
 
       {/* Bulk Upload Modal */}
       <AnimatePresence>

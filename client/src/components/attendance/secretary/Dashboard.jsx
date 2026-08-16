@@ -1,27 +1,66 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   Users,
   BarChart3,
   UserCheck,
   Plus,
-  TrendingUp,
   Clock,
   CheckCircle2,
   AlertCircle,
+  MapPin,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../ui/table";
-import { formatDate, formatTime } from "../../../utils/date";
+import { StatCard } from "../shared";
+import { formatTime } from "../../../utils/date";
 import { attendanceAPI, eventAPI } from "../../../services/api";
+
+const EVENT_STATUS_META = {
+  active: { label: "Active", dot: "bg-coop-green", text: "text-coop-green", bg: "bg-green-50", border: "border-green-200" },
+  upcoming: { label: "Upcoming", dot: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
+  completed: { label: "Completed", dot: "bg-slate-400", text: "text-slate-500", bg: "bg-slate-100", border: "border-slate-200" },
+  closed: { label: "Closed", dot: "bg-red-500", text: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
+};
+
+const getStatusMeta = (status) =>
+  EVENT_STATUS_META[status] || EVENT_STATUS_META.completed;
+
+const getEventDateValue = (event) => {
+  const raw = event.eventDate || event.date;
+  const parsed = raw ? new Date(raw) : null;
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
+};
+
+const QuickActionTile = ({ icon: Icon, label, subtitle, onClick, accent = false }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`group flex flex-col items-start gap-3 rounded-xl p-4 text-left transition-all duration-150 active:scale-[0.97] ${
+      accent
+        ? "bg-coop-green hover:bg-coop-darkGreen shadow-sm hover:shadow-md"
+        : "border border-slate-200 hover:border-coop-green hover:bg-green-50"
+    }`}
+  >
+    <div
+      className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+        accent ? "bg-white/20" : "bg-green-50"
+      }`}
+    >
+      <Icon className={`w-5 h-5 ${accent ? "text-white" : "text-coop-green"}`} />
+    </div>
+    <div className="min-w-0">
+      <p className={`text-sm font-semibold leading-tight ${accent ? "text-white" : "text-slate-900"}`}>
+        {label}
+      </p>
+      <p className={`text-xs mt-0.5 leading-tight ${accent ? "text-green-100/80" : "text-slate-400"}`}>
+        {subtitle}
+      </p>
+    </div>
+  </button>
+);
 
 export default function SecretaryDashboard({
   user,
@@ -66,7 +105,9 @@ export default function SecretaryDashboard({
         const response = await attendanceAPI.getAllAttendance();
         const fetched = Array.isArray(response)
           ? response
-          : response?.attendance || response?.data?.attendance || [];
+          : Array.isArray(response?.data)
+            ? response.data
+            : response?.attendance || response?.data?.attendance || [];
 
         if (!mounted) return;
         setAttendanceRecords(fetched);
@@ -93,6 +134,12 @@ export default function SecretaryDashboard({
   const activeEvents = events.filter(
     (event) => event.status === "active",
   ).length;
+  const upcomingEventsCount = events.filter(
+    (event) => event.status === "upcoming",
+  ).length;
+  const completedEventsCount = events.filter(
+    (event) => event.status === "completed",
+  ).length;
   const totalAttendance = attendanceRecords.length;
   const todayAttendance = attendanceRecords.filter((log) => {
     const scanTime = log.scanTime || log.timestamp || log.createdAt;
@@ -103,47 +150,81 @@ export default function SecretaryDashboard({
   // Get recent events
   const recentEvents = events.slice(0, 5);
 
+  // Nearest upcoming/active event, for the hero spotlight
+  const spotlightEvent = useMemo(() => {
+    const now = new Date();
+    const candidates = events
+      .filter((event) => event.status === "active" || event.status === "upcoming")
+      .map((event) => ({ event, date: getEventDateValue(event) }))
+      .filter(({ date }) => date)
+      .sort((a, b) => a.date - b.date);
+
+    const upcoming = candidates.find(({ date }) => date >= now);
+    return (upcoming || candidates[0])?.event || null;
+  }, [events]);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  }, []);
+
+  const today = useMemo(
+    () =>
+      new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+    [],
+  );
+
   return (
     <div className="space-y-6 pb-12">
-      {/* Hero Section */}
-      <div className="relative group">
-        <div className="absolute -inset-1 bg-coop-green rounded-[2.5rem] opacity-20 group-hover:opacity-30 transition-opacity duration-700" />
-        <div className="relative bg-white border border-slate-100 p-10 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 flex flex-col lg:flex-row justify-between items-center gap-8 overflow-hidden">
-          {/* Decorative background pattern */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-coop-green/5 rounded-full -mr-48 -mt-48 blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-coop-yellow/10 rounded-full -ml-32 -mb-32 blur-2xl" />
-
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-[2rem] bg-coop-green flex items-center justify-center shadow-2xl shadow-green-200 shrink-0 transform group-hover:rotate-3 transition-transform duration-500 overflow-hidden">
-                <BarChart3 className="w-12 h-12 text-white" />
-              </div>
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-coop-green to-coop-darkGreen p-6 sm:p-8 shadow-sm">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
+        <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-green-100/80 text-xs font-semibold uppercase tracking-wide">
+              <Sparkles className="w-3.5 h-3.5" />
+              {today}
             </div>
-            <div className="text-center md:text-left">
-              <h1 className="text-4xl font-black text-slate-950 tracking-tight mb-2">
-                Secretary Dashboard
-              </h1>
-              <p className="text-slate-500 text-sm font-bold mb-4">
-                Welcome back,{" "}
-                <span className="text-coop-green font-black">
-                  {user?.name || "Secretary"}
-                </span>
-              </p>
-              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                <div className="bg-green-50 text-coop-green border border-green-200 px-4 py-2 rounded-full font-black text-xs">
-                  Secretary Access
-                </div>
-                <div className="bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-full font-black text-xs">
-                  Attendance System
-                </div>
-              </div>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-2">
+              {greeting}, {user?.name || "Secretary"}
+            </h1>
+            <p className="text-green-100/80 text-sm mt-1.5 max-w-md">
+              Here's what's happening across your General Assembly events today.
+            </p>
           </div>
 
-          <div className="relative z-10 flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {spotlightEvent && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("events")}
+                className="group flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl px-4 py-3 text-left transition-colors"
+              >
+                <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                  <Calendar className="w-4 h-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-green-100/70">
+                    {spotlightEvent.status === "active" ? "Happening now" : "Next up"}
+                  </p>
+                  <p className="text-sm font-semibold text-white truncate max-w-[180px]">
+                    {spotlightEvent.eventName || spotlightEvent.name}
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-white/60 group-hover:translate-x-0.5 transition-transform shrink-0" />
+              </button>
+            )}
             <Button
               onClick={() => setActiveTab("events")}
-              className="bg-coop-green hover:bg-coop-darkGreen text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-green-200 hover:shadow-green-300 transition-all duration-300 hover:scale-105 text-sm"
+              className="bg-white hover:bg-green-50 text-coop-darkGreen font-semibold px-5 py-2.5 rounded-lg shrink-0"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Event
@@ -153,186 +234,117 @@ export default function SecretaryDashboard({
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          {
-            label: "Total Events",
-            value: totalEvents,
-            icon: Calendar,
-            color: "text-coop-green",
-            bg: "bg-green-50",
-            description: "All events created",
-          },
-          {
-            label: "Active Events",
-            value: activeEvents,
-            icon: Clock,
-            color: "text-coop-green",
-            bg: "bg-green-50",
-            description: "Currently running",
-          },
-          {
-            label: "Total Attendance",
-            value: totalAttendance,
-            icon: Users,
-            color: "text-coop-green",
-            bg: "bg-green-50",
-            description: "All time records",
-          },
-          {
-            label: "Today's Attendance",
-            value: todayAttendance,
-            icon: CheckCircle2,
-            color: "text-coop-green",
-            bg: "bg-green-50",
-            description: "Today's records",
-          },
-        ].map((stat) => (
-          <Card
-            key={stat.label}
-            className="p-6 border-slate-200/60 shadow-lg shadow-slate-200/40 rounded-[2rem] bg-white group hover:border-green-200 transition-all relative overflow-hidden"
-          >
-            <div
-              className={`absolute top-0 right-0 w-20 h-20 ${stat.bg} rounded-full -mr-10 -mt-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-            />
-            <div className="flex items-start justify-between relative z-10">
-              <div className="flex-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                  {stat.label}
-                </p>
-                <h3 className="text-2xl font-black text-slate-950 tracking-tighter mb-1">
-                  {stat.value}
-                </h3>
-                <p className="text-[10px] text-slate-500 font-bold">
-                  {stat.description}
-                </p>
-              </div>
-              <div
-                className={`p-3 ${stat.bg} rounded-xl group-hover:scale-110 transition-transform duration-500`}
-              >
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
-              </div>
-            </div>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-in">
+        <StatCard
+          title="Total Events"
+          value={totalEvents}
+          subtitle="All events created"
+          icon={Calendar}
+        />
+        <StatCard
+          title="Active Events"
+          value={activeEvents}
+          subtitle="Currently running"
+          icon={Clock}
+        />
+        <StatCard
+          title="Total Attendance"
+          value={totalAttendance}
+          subtitle="All time records"
+          icon={Users}
+        />
+        <StatCard
+          title="Today's Attendance"
+          value={todayAttendance}
+          subtitle="Today's records"
+          icon={CheckCircle2}
+          accent
+        />
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Events */}
-        <Card className="border-slate-200/60 shadow-sm rounded-[2rem] overflow-hidden bg-white">
-          <CardHeader className="border-b border-slate-50 p-6">
-            <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-coop-green" />
+        <Card className="lg:col-span-2 border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+          <CardHeader className="border-b border-slate-100 p-5">
+            <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-coop-green" />
               Recent Events
             </CardTitle>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
+            <p className="text-slate-400 text-xs mt-1">
               Latest event activities
             </p>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-slate-50">
-                  <TableRow>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-600">
-                      Event Name
-                    </TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-600">
-                      Date
-                    </TableHead>
-                    <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-600">
-                      Status
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentEvents.map((event) => (
-                    <TableRow
-                      key={
-                        event.eventId ||
-                        event.id ||
-                        event._id ||
-                        event.eventName ||
-                        event.name ||
-                        JSON.stringify(event)
-                      }
-                      className="hover:bg-slate-50/50 transition-colors"
+            <div className="divide-y divide-slate-100 stagger-in">
+              {recentEvents.map((event) => {
+                const meta = getStatusMeta(event.status);
+                const eventDate = getEventDateValue(event);
+
+                return (
+                  <button
+                    key={
+                      event.eventId ||
+                      event.id ||
+                      event._id ||
+                      event.eventName ||
+                      event.name ||
+                      JSON.stringify(event)
+                    }
+                    type="button"
+                    onClick={() => setActiveTab("events")}
+                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-slate-50/70 transition-colors"
+                  >
+                    <div className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200 flex flex-col items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-slate-900 leading-none">
+                        {eventDate ? eventDate.getDate() : "--"}
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase text-slate-400 mt-0.5">
+                        {eventDate
+                          ? eventDate.toLocaleDateString("en-US", { month: "short" })
+                          : ""}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {event.eventName || event.name}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-400">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{event.location || "No location set"}</span>
+                        <span className="text-slate-300">&bull;</span>
+                        <span className="shrink-0">
+                          {event.eventTime || (eventDate ? formatTime(eventDate) : "")}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}
                     >
-                      <TableCell className="text-slate-900 font-bold py-4">
-                        <div>
-                          <p className="text-sm font-black">
-                            {event.eventName || event.name}
-                          </p>
-                          <p className="text-xs text-slate-500 font-bold">
-                            {event.location}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div>
-                          <p className="text-sm font-bold text-slate-900">
-                            {formatDate(event.eventDate || event.date)}
-                          </p>
-                          <p className="text-xs text-slate-500 font-bold">
-                            {event.eventTime
-                              ? event.eventTime
-                              : formatTime(event.eventDate || event.date)}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-2">
-                          {event.status === "active" ? (
-                            <>
-                              <CheckCircle2 className="w-4 h-4 text-coop-green" />
-                              <span className="text-xs font-bold text-coop-green">
-                                Active
-                              </span>
-                            </>
-                          ) : event.status === "upcoming" ? (
-                            <>
-                              <Clock className="w-4 h-4 text-coop-green" />
-                              <span className="text-xs font-bold text-coop-green">
-                                Upcoming
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <AlertCircle className="w-4 h-4 text-slate-400" />
-                              <span className="text-xs font-bold text-slate-400">
-                                Completed
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {recentEvents.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={3}
-                        className="text-center py-8 text-slate-400"
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <Calendar className="w-8 h-8 text-slate-300" />
-                          <p className="font-bold">No events found.</p>
-                          <p className="text-xs">
-                            Create your first event to get started.
-                          </p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                      <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                      {meta.label}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {recentEvents.length === 0 && (
+                <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
+                  <Calendar className="w-8 h-8 text-slate-300" />
+                  <p className="font-medium">No events found.</p>
+                  <p className="text-xs">
+                    Create your first event to get started.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="p-4 border-t border-slate-100 text-center">
               <Button
                 variant="outline"
                 onClick={() => setActiveTab("events")}
-                className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green font-bold"
+                className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green font-semibold rounded-lg"
               >
                 Manage All Events
               </Button>
@@ -340,88 +352,84 @@ export default function SecretaryDashboard({
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
-        <div className="space-y-6">
-          <Card className="border-slate-200/60 shadow-sm rounded-[2rem] overflow-hidden bg-white">
-            <CardHeader className="border-b border-slate-50 p-6">
-              <CardTitle className="text-lg font-black text-slate-900">
+        <div className="flex flex-col gap-6">
+          {/* Quick Actions */}
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+            <CardHeader className="border-b border-slate-100 p-5">
+              <CardTitle className="text-sm font-bold text-slate-900">
                 Quick Actions
               </CardTitle>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-                Common tasks
-              </p>
+              <p className="text-slate-400 text-xs mt-1">Common tasks</p>
             </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <Button
+            <CardContent className="p-4 grid grid-cols-2 gap-3 stagger-in">
+              <QuickActionTile
+                icon={Plus}
+                label="Create Event"
+                subtitle="New assembly"
                 onClick={() => setActiveTab("events")}
-                className="w-full h-16 flex items-center justify-start gap-4 bg-coop-green hover:bg-coop-darkGreen text-white rounded-2xl p-4"
-              >
-                <div className="p-3 bg-white/20 rounded-xl">
-                  <Plus className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <span className="block text-sm font-black">
-                    Create New Event
-                  </span>
-                  <span className="block text-xs opacity-80">
-                    Set up General Assembly
-                  </span>
-                </div>
-              </Button>
-
-              <Button
+                accent
+              />
+              <QuickActionTile
+                icon={UserCheck}
+                label="Manual Attendance"
+                subtitle="Mark present"
                 onClick={() => setActiveTab("manual")}
-                variant="outline"
-                className="w-full h-16 flex items-center justify-start gap-4 border-slate-200 hover:border-coop-green hover:bg-green-50 rounded-2xl p-4"
-              >
-                <div className="p-3 bg-green-50 rounded-xl">
-                  <UserCheck className="w-5 h-5 text-coop-green" />
-                </div>
-                <div className="text-left">
-                  <span className="block text-sm font-black text-slate-900">
-                    Manual Attendance
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    Mark attendance manually
-                  </span>
-                </div>
-              </Button>
-
-              <Button
+              />
+              <QuickActionTile
+                icon={BarChart3}
+                label="View Reports"
+                subtitle="Export data"
                 onClick={() => setActiveTab("reports")}
-                variant="outline"
-                className="w-full h-16 flex items-center justify-start gap-4 border-slate-200 hover:border-coop-green hover:bg-green-50 rounded-2xl p-4"
-              >
-                <div className="p-3 bg-green-50 rounded-xl">
-                  <BarChart3 className="w-5 h-5 text-coop-green" />
-                </div>
-                <div className="text-left">
-                  <span className="block text-sm font-black text-slate-900">
-                    View Reports
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    Export attendance data
-                  </span>
-                </div>
-              </Button>
-
-              <Button
+              />
+              <QuickActionTile
+                icon={Users}
+                label="Directory"
+                subtitle="Member QR codes"
                 onClick={() => setActiveTab("directory")}
-                variant="outline"
-                className="w-full h-16 flex items-center justify-start gap-4 border-slate-200 hover:border-coop-green hover:bg-green-50 rounded-2xl p-4"
-              >
-                <div className="p-3 bg-green-50 rounded-xl">
-                  <Users className="w-5 h-5 text-coop-green" />
+              />
+            </CardContent>
+          </Card>
+
+          {/* Event Breakdown */}
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+            <CardHeader className="border-b border-slate-100 p-5">
+              <CardTitle className="text-sm font-bold text-slate-900">
+                Event Breakdown
+              </CardTitle>
+              <p className="text-slate-400 text-xs mt-1">Status across all events</p>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4 stagger-in">
+              {[
+                { label: "Active", count: activeEvents, meta: EVENT_STATUS_META.active },
+                { label: "Upcoming", count: upcomingEventsCount, meta: EVENT_STATUS_META.upcoming },
+                { label: "Completed", count: completedEventsCount, meta: EVENT_STATUS_META.completed },
+              ].map(({ label, count, meta }) => {
+                const percent = totalEvents > 0 ? Math.round((count / totalEvents) * 100) : 0;
+                return (
+                  <div key={label}>
+                    <div className="flex items-center justify-between text-sm mb-1.5">
+                      <span className="flex items-center gap-2 font-medium text-slate-700">
+                        <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+                        {label}
+                      </span>
+                      <span className="text-slate-400 font-medium">{count}</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${meta.dot} transition-all duration-700 ease-out`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {totalEvents === 0 && (
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <AlertCircle className="w-4 h-4" />
+                  No events yet to break down.
                 </div>
-                <div className="text-left">
-                  <span className="block text-sm font-black text-slate-900">
-                    Member Directory
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    View member QR codes
-                  </span>
-                </div>
-              </Button>
+              )}
             </CardContent>
           </Card>
         </div>

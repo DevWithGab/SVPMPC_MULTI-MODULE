@@ -2,15 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
 const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Mount hidden, then flip to visible on the next frame so the
+    // opacity/translate transition actually animates in.
+    const enterFrame = requestAnimationFrame(() => setIsVisible(true));
+
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(onClose, 300); // Wait for fade out animation
     }, duration);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelAnimationFrame(enterFrame);
+      clearTimeout(timer);
+    };
   }, [duration, onClose]);
 
   const icons = {
