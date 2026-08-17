@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, Banknote, CalendarDays, Archive } from 'lucide-react';
-import StatCard from './shared/StatCard';
+import StatCard from '../shared/StatCard';
 
 const Contributions = ({
   contributions,

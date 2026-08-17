@@ -5,6 +5,10 @@ const ledgerController = require('./ledgerController');
 const deductionController = require('./deductionController');
 const adminController = require('./adminController');
 const payoutController = require('./payoutController');
+const claimController = require('./claimController');
+const beneficiaryController = require('./beneficiaryController');
+const deductionSettingController = require('./deductionSettingController');
+const treasurerClaimController = require('./treasurerClaimController');
 
 module.exports = {
   // Controllers
@@ -14,4 +18,8 @@ module.exports = {
   deductionController,
   adminController,
   payoutController,
+  claimController,
+  beneficiaryController,
+  deductionSettingController,
+  treasurerClaimController,
 };

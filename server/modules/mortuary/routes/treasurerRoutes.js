@@ -37,6 +37,14 @@ const {
   getNotificationStats
 } = require('../controllers/smsNotificationController');
 
+const {
+  listPendingDeduction,
+  listAwaitingRelease,
+  getClaimById,
+  processClaimDeduction,
+  releaseClaim
+} = require('../controllers/treasurerClaimController');
+
 const router = express.Router();
 
 // Apply authentication and authorization middleware to all routes
@@ -69,5 +77,13 @@ router.get('/notifications/all', getAllNotifications);
 router.get('/notifications/pending', getPending);
 router.post('/notifications/retry-failed', retryFailed);
 router.get('/notifications/stats', getNotificationStats);
+
+// Claims processing routes — a claim sitting in "pending_deduction" is the
+// Treasurer's notification (live query, no separate notification model).
+router.get('/claims/pending-deduction', listPendingDeduction);
+router.get('/claims/awaiting-release', listAwaitingRelease);
+router.get('/claims/:claimId', getClaimById);
+router.post('/claims/:claimId/process-deduction', processClaimDeduction);
+router.post('/claims/:claimId/release', releaseClaim);
 
 module.exports = router;

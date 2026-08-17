@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
 
 // Create Auth Context
 const AuthContext = createContext();
@@ -22,16 +22,20 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Update auth state when new data is provided
-  const updateAuth = (newUser, newToken) => {
-    setUser(newUser);
-    setToken(newToken);
+  const updateAuth = useCallback((newUser, newToken) => {
+    setUser((prevUser) =>
+      prevUser === newUser ? prevUser : newUser,
+    );
+    setToken((prevToken) =>
+      prevToken === newToken ? prevToken : newToken,
+    );
     if (newToken && newUser) {
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
     }
-  };
+  }, []);
 
-  const login = async (username, password) => {
+  const login = useCallback(async (username, password) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -55,25 +59,28 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return { success: false, error: 'Network error' };
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-  };
+  }, []);
 
-  const value = {
-    user,
-    token,
-    loading,
-    login,
-    logout,
-    setUser,
-    setToken,
-    updateAuth,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      loading,
+      login,
+      logout,
+      setUser,
+      setToken,
+      updateAuth,
+    }),
+    [user, token, loading, login, logout, updateAuth],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

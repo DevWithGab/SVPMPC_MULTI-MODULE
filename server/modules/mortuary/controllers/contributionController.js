@@ -31,8 +31,10 @@ const recordContribution = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // Get current balance - sort by createdAt to ensure we get the absolute latest entry
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ createdAt: -1 });
+    // Get current balance - sort by transactionDate (with createdAt as tiebreaker)
+    // to match how every other balance lookup in this module determines "latest"
+    // (getMemberBalance, getMemberBalanceSnapshots, releaseClaim, etc).
+    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
     const currentBalance = latestLedger ? latestLedger.balance : 0;
     const newBalance = currentBalance + amount;
 
@@ -62,7 +64,16 @@ const recordContribution = async (req, res) => {
       referenceId: contribution.contributionId,
       recordedBy: 'admin',
       paymentMethod: finalPaymentMethod,
-      transactionDate: finalPaymentDate || new Date()
+      // Always stamp the actual posting time (matches recordPayout,
+      // processAutomaticDeduction, releaseClaim, etc). Using the
+      // treasurer-editable payment date here (often just a date with no
+      // time, e.g. "2026-08-16") made new contributions sort *before*
+      // same-day entries that carry a real time-of-day, so every "current
+      // balance" lookup (sorted by transactionDate desc) kept surfacing
+      // the older entry and the member's balance looked stuck. The
+      // user-chosen payment date is still preserved on the Contribution
+      // record itself (paymentDate, below) for reporting.
+      transactionDate: new Date()
     });
 
     await ledgerEntry.save();
@@ -107,8 +118,11 @@ const getContributionHistory = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
+    // paymentDate is often just a date with no time (defaults to "today"),
+    // so same-day payments tie on it; createdAt breaks the tie so the most
+    // recently recorded payment always sorts first.
     const contributions = await Contribution.find({ memberId })
-      .sort({ paymentDate: -1 })
+      .sort({ paymentDate: -1, createdAt: -1 })
       .limit(parseInt(limit));
 
     const totalAmount = contributions.reduce((sum, c) => sum + c.amount, 0);
@@ -139,9 +153,11 @@ const getAllContributions = async (req, res) => {
     // Get total count for pagination
     const total = await Contribution.countDocuments(query);
 
-    // Get paginated contributions
+    // Get paginated contributions — paymentDate is often just a date with no
+    // time (defaults to "today"), so same-day payments tie on it; createdAt
+    // breaks the tie so the most recently recorded payment sorts first.
     const contributions = await Contribution.find(query)
-      .sort({ paymentDate: -1 })
+      .sort({ paymentDate: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit);
 

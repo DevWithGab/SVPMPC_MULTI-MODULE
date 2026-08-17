@@ -1,22 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Users, CreditCard, FileText, LayoutDashboard, LayoutGrid,
-  LogOut, BarChart3, ChevronLeft, ChevronRight, AlertTriangle, Loader2
+  Users, CreditCard, FileText, LayoutGrid,
+  LogOut, BarChart3, ChevronLeft, ChevronRight, Loader2, ClipboardCheck
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
 // Import modular components
-import { 
-  Dashboard, 
-  MemberBalances, 
-  Contributions, 
-  Reports, 
-  MemberLedger 
+import {
+  Dashboard,
+  MemberBalances,
+  Contributions,
+  Reports,
+  MemberLedger,
+  ClaimsPendingDeduction,
+  ClaimsAwaitingRelease
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
-import Modal from '../../components/mortuary/treasurer/shared/Modal';
-import SearchableMemberSelect from '../../components/mortuary/treasurer/shared/SearchableMemberSelect';
+import Modal from '../../components/mortuary/shared/Modal';
+import SearchableMemberSelect from '../../components/mortuary/shared/SearchableMemberSelect';
 import { Toast } from '../../components/ui/toast';
 import Button from '../../components/shared/ui/Button';
 import Input from '../../components/shared/ui/Input';
@@ -39,6 +41,31 @@ const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed
     <Icon className="w-5 h-5 shrink-0" />
     {!collapsed && <span className="text-sm font-bold tracking-tight">{label}</span>}
   </button>
+);
+
+const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
+  <div className="flex bg-slate-100 rounded-lg p-0.5 w-fit">
+    {[
+      { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
+      { id: 'awaiting-release', label: 'Awaiting Release', count: counts?.awaitingRelease ?? 0 },
+    ].map((opt) => (
+      <button
+        key={opt.id}
+        onClick={() => setClaimsView(opt.id)}
+        aria-pressed={claimsView === opt.id}
+        className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+          claimsView === opt.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        {opt.label}
+        {opt.count > 0 && (
+          <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 text-[11px] font-bold rounded-full bg-rose-100 text-rose-700">
+            {opt.count}
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
 );
 
 const extractBarangay = (address) => {
@@ -65,9 +92,9 @@ const PortalSkeleton = () => (
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [claimsView, setClaimsView] = useState('pending-deduction'); // 'pending-deduction' | 'awaiting-release'
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
-  const [claims, setClaims] = useState([]);
   const [stats, setStats] = useState({
     fundBalance: 0,
     activeMembers: 0,
@@ -86,7 +113,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       deceased: 0
     }
   });
-  const [ledger, setLedger] = useState([]);
+  const [selectedMemberLedger, setSelectedMemberLedger] = useState([]);
+  const [loadingMemberLedger, setLoadingMemberLedger] = useState(false);
+  const [claimsCounts, setClaimsCounts] = useState({ pendingDeduction: 0, awaitingRelease: 0 });
   const [toast, setToast] = useState(null);
   
   // Search and filter states
@@ -103,9 +132,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   
   // Modal states
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
-  const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
-  const [confirmDeduction, setConfirmDeduction] = useState(false);
-  const [isProcessingDeduction, setIsProcessingDeduction] = useState(false);
   const [isSubmittingContribution, setIsSubmittingContribution] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -121,7 +147,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     payment_date: new Date().toISOString().split('T')[0], 
     status: 'paid' 
   });
-  const [deductionAmount, setDeductionAmount] = useState('25');
   const [selectedLedgerMember, setSelectedLedgerMember] = useState(null);
   const prevMembersRef = useRef([]);
 
@@ -172,18 +197,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  const fetchClaims = async () => {
-    try {
-      const response = await api.get('/mortuary/claims');
-      if (response.data.success) {
-        setClaims(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching claims:', error);
-      setClaims([]); // Set empty array on error
-    }
-  };
-
   const fetchDashboardStats = async () => {
     try {
       const response = await api.get('/mortuary/treasurer/dashboard');
@@ -213,15 +226,57 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  const fetchLedger = async () => {
+  // A member's full ledger history, fetched from the dedicated per-member
+  // endpoint (not the old global /mortuary/ledger, which only ever returned
+  // the 10 most recent entries system-wide — nowhere near "since the start"
+  // for any individual member once other members had also transacted).
+  // The endpoint caps each page at 100 rows, so long histories are paged
+  // through in a loop rather than truncated to the first page.
+  const fetchMemberLedgerEntries = async (memberId) => {
+    if (!memberId) return [];
+    const perPage = 100;
+    let page = 1;
+    let totalPages = 1;
+    let allEntries = [];
     try {
-      const response = await api.get('/mortuary/ledger');
-      if (response.data.success) {
-        setLedger(response.data.data || []);
-      }
+      do {
+        const response = await api.get(`/mortuary/treasurer/ledger/${memberId}`, {
+          params: { page, limit: perPage },
+        });
+        if (!response.data.success) break;
+        allEntries = allEntries.concat(response.data.data || []);
+        totalPages = response.data.pagination?.totalPages || 1;
+        page += 1;
+      } while (page <= totalPages);
     } catch (error) {
-      console.error('Error fetching ledger:', error);
-      setLedger([]); // Set empty array on error
+      console.error('Error fetching member ledger:', error);
+    }
+    return allEntries;
+  };
+
+  const refreshSelectedMemberLedger = async (memberId) => {
+    const id = memberId || selectedLedgerMember?.id || selectedLedgerMember?.memberId;
+    if (!id) return;
+    setLoadingMemberLedger(true);
+    const entries = await fetchMemberLedgerEntries(id);
+    setSelectedMemberLedger(entries);
+    setLoadingMemberLedger(false);
+  };
+
+  // Counts for the Claims tab toggle badges. limit: 1 keeps these cheap —
+  // only the pagination total is needed, not the actual rows.
+  const fetchClaimsCounts = async () => {
+    try {
+      const [pendingRes, releaseRes] = await Promise.all([
+        api.get('/mortuary/treasurer/claims/pending-deduction', { params: { limit: 1 } }),
+        api.get('/mortuary/treasurer/claims/awaiting-release', { params: { limit: 1 } }),
+      ]);
+      setClaimsCounts({
+        pendingDeduction: pendingRes.data?.pagination?.total ?? 0,
+        awaitingRelease: releaseRes.data?.pagination?.total ?? 0,
+      });
+    } catch (error) {
+      console.error('Error fetching claims counts:', error);
     }
   };
 
@@ -246,7 +301,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
       fetchContributions(),
       fetchDashboardStats(),
-      fetchLedger()
+      fetchClaimsCounts(),
+      ...(selectedLedgerMember ? [refreshSelectedMemberLedger()] : [])
     ]);
   };
 
@@ -274,16 +330,15 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         await Promise.all([
           fetchContributions(),
           fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
-          fetchLedger(),
           fetchDashboardStats()
         ]);
-        
+
         // Fetch members last so we can update the selected member
         const membersResponse = await api.get('/mortuary/treasurer/balances/all');
         if (membersResponse.data.success) {
           const updatedMembers = membersResponse.data.data.members || [];
           setMembers(updatedMembers);
-          
+
           // If we're viewing the member we just added a contribution for, update the selection
           if (selectedLedgerMember) {
             if (selectedLedgerMember.id === contributedMemberId || selectedLedgerMember.memberId === contributedMemberId) {
@@ -291,6 +346,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
               if (updatedMember) {
                 setSelectedLedgerMember(updatedMember);
               }
+              await refreshSelectedMemberLedger(contributedMemberId);
             }
           }
         }
@@ -302,21 +358,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       showToast(error.response?.data?.message || 'Error recording contribution.', 'error');
     } finally {
       setIsSubmittingContribution(false);
-    }
-  };
-
-  const updateClaimStatus = async (claimId, status, amount) => {
-    const res = await fetch(`/api/claims/${claimId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, amount }),
-    });
-    if (res.ok) {
-      fetchClaims();
-      fetchMembers();
-      fetchDashboardStats();
-      fetchLedger();
-      showToast('Claim verified and deductions triggered.', 'success');
     }
   };
 
@@ -356,56 +397,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  // Step 1: validate the amount and move to the in-modal confirmation step
-  const handleDeductionFormSubmit = (e) => {
-    e.preventDefault();
-    const amount = parseFloat(deductionAmount);
-    if (isNaN(amount) || amount <= 0) {
-      showToast('Please enter a valid deduction amount.', 'error');
-      return;
-    }
-    setConfirmDeduction(true);
-  };
-
-  // Step 2: the actual, irreversible deduction — only reachable from the confirmation step
-  const executeDeathDeduction = async () => {
-    if (isProcessingDeduction) return;
-
-    const amount = parseFloat(deductionAmount);
-    setIsProcessingDeduction(true);
-
-    try {
-      const response = await api.post('/mortuary/treasurer/balances/automatic-deduction', {
-        deceasedMemberName: "Death Fund Deduction (All Members)",
-        recordedBy: user?.name || 'treasurer',
-        customAmount: amount
-      });
-
-      if (response.data.success) {
-        setIsAddClaimOpen(false);
-        setConfirmDeduction(false);
-        setDeductionAmount('25');
-        await Promise.all([
-          fetchMembers(),
-          fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
-          fetchDashboardStats(),
-          fetchLedger()
-        ]);
-        showToast(`₱${amount} deduction processed for all active members.`, 'success');
-      }
-    } catch (error) {
-      console.error('Error processing deduction:', error);
-      showToast(error.response?.data?.message || 'Failed to process deduction.', 'error');
-    } finally {
-      setIsProcessingDeduction(false);
-    }
-  };
-
-  const closeDeductionModal = () => {
-    setIsAddClaimOpen(false);
-    setConfirmDeduction(false);
-  };
-
   // Effects
   useEffect(() => {
     (async () => {
@@ -413,7 +404,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         fetchMembers(),
         fetchContributions(),
         fetchDashboardStats(),
-        fetchLedger()
+        fetchClaimsCounts()
       ]);
       setInitialLoading(false);
     })();
@@ -454,6 +445,19 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     fetchLedgerMembers(currentPage, searchQuery, barangayFilter);
   }, [activeTab, currentPage]);
 
+  // Load the selected member's full ledger history whenever the selection
+  // changes — covers both entry points (MemberBalances' "Open Ledger" and
+  // clicking a row directly inside the Members Ledger tab).
+  useEffect(() => {
+    const id = selectedLedgerMember?.id || selectedLedgerMember?.memberId;
+    if (!id) {
+      setSelectedMemberLedger([]);
+      return;
+    }
+    refreshSelectedMemberLedger(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLedgerMember?.id, selectedLedgerMember?.memberId]);
+
   // Update selected ledger member when members array changes
   useEffect(() => {
     if (selectedLedgerMember && members.length > 0) {
@@ -480,9 +484,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <Dashboard 
-            stats={stats} 
-            claims={claims} 
+          <Dashboard
+            stats={stats}
             contributions={contributions}
           />
         );
@@ -499,9 +502,20 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
-            setIsAddClaimOpen={setIsAddClaimOpen}
             onOpenLedger={openMemberLedger}
           />
+        );
+      case 'claims':
+        return claimsView === 'pending-deduction' ? (
+          <div className="space-y-4">
+            <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
+            <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
+            <ClaimsAwaitingRelease user={user} showToast={showToast} onReleased={refreshAllData} />
+          </div>
         );
       case 'contributions':
         return (
@@ -522,10 +536,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         );
       case 'ledger':
         return (
-          <MemberLedger 
+          <MemberLedger
             members={members}
             ledgerMembers={ledgerMembers}
-            ledger={ledger}
+            memberLedgerEntries={selectedMemberLedger}
+            loadingMemberLedger={loadingMemberLedger}
             selectedLedgerMember={selectedLedgerMember}
             setSelectedLedgerMember={setSelectedLedgerMember}
             searchQuery={searchQuery}
@@ -571,6 +586,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         <nav className={`flex-1 space-y-1 ${sidebarCollapsed ? 'px-2 py-3' : 'px-3 py-4'}`}>
           <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
           <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
+          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
           <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
           <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
@@ -686,100 +702,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             </Button>
           </div>
         </form>
-      </Modal>
-
-      {/* Trigger Death Deduction Modal */}
-      <Modal isOpen={isAddClaimOpen} onClose={closeDeductionModal} title={confirmDeduction ? 'Confirm Deduction' : 'Death Fund Deduction'}>
-        {!confirmDeduction ? (
-          <form onSubmit={handleDeductionFormSubmit} className="space-y-5">
-            {/* Purpose */}
-            <p className="text-sm text-slate-600">
-              Deduct <span className="font-bold text-slate-800">₱{parseFloat(deductionAmount || 0).toLocaleString()}</span> from each of the <span className="font-bold text-slate-800">{members.length}</span> active members.
-            </p>
-
-            {/* Amount Input */}
-            <div>
-              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount per member</label>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-slate-400">₱</span>
-                <Input
-                  type="number"
-                  placeholder="25"
-                  value={deductionAmount}
-                  onChange={e => setDeductionAmount(e.target.value)}
-                  required
-                  className="h-12 text-lg font-bold flex-1"
-                  min="1"
-                  step="0.01"
-                />
-              </div>
-              <p className="text-xs text-slate-400 mt-1">Standard is ₱25 per member</p>
-            </div>
-
-            {/* Impact Summary */}
-            <div className="border border-slate-200 divide-y divide-slate-200">
-              <div className="flex justify-between items-center px-4 py-3">
-                <span className="text-sm text-slate-500">Active members</span>
-                <span className="text-sm font-bold text-slate-800">{members.length}</span>
-              </div>
-              <div className="flex justify-between items-center px-4 py-3 bg-slate-50">
-                <span className="text-sm text-slate-500">Total deduction</span>
-                <span className="text-lg font-bold text-rose-600">₱{(parseFloat(deductionAmount || 0) * members.length).toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 pt-1">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={closeDeductionModal}
-                className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm"
-              >
-                Review Deduction
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3 p-4 border border-rose-200 bg-rose-50 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-rose-800">
-                This will immediately deduct <span className="font-bold">₱{parseFloat(deductionAmount || 0).toLocaleString()}</span> from all <span className="font-bold">{members.length}</span> active members (total <span className="font-bold">₱{(parseFloat(deductionAmount || 0) * members.length).toLocaleString()}</span>). This action cannot be undone.
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-1">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={isProcessingDeduction}
-                onClick={() => setConfirmDeduction(false)}
-                className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
-              >
-                Go back
-              </Button>
-              <Button
-                type="button"
-                onClick={executeDeathDeduction}
-                disabled={isProcessingDeduction}
-                className="flex-1 h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessingDeduction ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Processing...
-                  </>
-                ) : 'Yes, deduct now'}
-              </Button>
-            </div>
-          </div>
-        )}
       </Modal>
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

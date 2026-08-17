@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, ArrowUpDown, ChevronRight, Wallet, Clock, AlertTriangle } from 'lucide-react';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
-import StatCard from './shared/StatCard';
+import StatCard from '../shared/StatCard';
 
 const extractBarangay = (address) => {
   if (!address) return 'Not Specified';
@@ -28,7 +28,6 @@ const MemberBalances = ({
   currentPage,
   setCurrentPage,
   itemsPerPage,
-  setIsAddClaimOpen,
   onOpenLedger
 }) => {
   const [sortOrder, setSortOrder] = useState('asc');
@@ -59,23 +58,14 @@ const MemberBalances = ({
 
   return (
     <div className="space-y-6">
-      {/* Header — routine page context on the left, the one hazardous / all-member
-          action kept visually separate on the right so it's never mistaken for a filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
-            Member Balances
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Track contributions and spot balances that need attention.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsAddClaimOpen(true)}
-          className="inline-flex items-center gap-2 h-11 px-5 text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 shrink-0 self-start sm:self-auto"
-        >
-          <AlertTriangle className="w-4 h-4" /> Death Fund Deduction
-        </button>
+      <div>
+        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
+          Member Balances
+        </h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Track contributions and spot balances that need attention. Death-fund deductions are now
+          triggered per claim from the Claims tab.
+        </p>
       </div>
 
       {/* Stats — the two risk-related cards double as quick filters (click to

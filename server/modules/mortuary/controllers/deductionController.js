@@ -451,5 +451,9 @@ module.exports = {
   getAllMemberBalances,
   processAutomaticDeduction,
   checkLowBalanceMembers,
-  sendLowBalanceNotifications
+  sendLowBalanceNotifications,
+  // Exported so the per-claim deduction flow (treasurerClaimController.js)
+  // can reuse the same "active member balance snapshot" logic instead of
+  // duplicating it.
+  getMemberBalanceSnapshots,
 };

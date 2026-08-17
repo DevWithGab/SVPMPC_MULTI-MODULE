@@ -2,7 +2,12 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
-const Modal = ({ isOpen, onClose, title, children }) => (
+// `maxWidth` takes a single Tailwind max-w-* class (default max-w-md) — kept
+// as its own prop rather than folded into `className` so a caller widening
+// the modal (e.g. maxWidth="max-w-2xl") can't end up with two conflicting
+// max-w-* utility classes on the same element, which Tailwind does not
+// reliably resolve by DOM order. `className` is for anything else.
+const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-md', className = '' }) => (
   <AnimatePresence>
     {isOpen && (
       <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6">
@@ -17,7 +22,7 @@ const Modal = ({ isOpen, onClose, title, children }) => (
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
-          className="bg-white w-full max-w-md relative z-10 border border-slate-200 max-h-[90dvh] flex flex-col overflow-hidden"
+          className={`bg-white w-full ${maxWidth} relative z-10 border border-slate-200 max-h-[90dvh] flex flex-col overflow-hidden ${className}`}
         >
           {/* Header */}
           <div className="px-6 py-4 flex items-center justify-between border-b border-slate-200 shrink-0">

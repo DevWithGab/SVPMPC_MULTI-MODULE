@@ -1,11 +1,17 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Activity, RefreshCw, CalendarOff } from "lucide-react";
-import { eventAPI, memberAPI } from "../../../services/api";
+import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDateTime } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 
 const PAGE_SIZE = 10;
 const AUTO_REFRESH_MS = 45000;
+// Server caps each attendance page at 100 rows, so an event with more
+// attendees than that needs multiple requests to see everyone.
+const ATTENDANCE_FETCH_PAGE_SIZE = 100;
+
+const getEventKey = (event) =>
+  event?.eventId || event?.id || event?._id || event?.name || event?.eventName;
 
 export default function LiveAttendanceList({
   attendanceLogs: propAttendanceLogs = [],
@@ -31,6 +37,9 @@ export default function LiveAttendanceList({
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const isRefreshingRef = useRef(false);
 
+  // Returns the fetched events so handleRefresh can resolve "which event is
+  // active" synchronously, instead of reading back from `events` state
+  // (which wouldn't reflect this fetch until the next render).
   const fetchEventsFromDB = useCallback(async () => {
     setLoadingEvents(true);
     try {
@@ -43,9 +52,11 @@ export default function LiveAttendanceList({
             ? response.data.events
             : [];
       setEvents(allEvents);
+      return allEvents;
     } catch (eventError) {
       console.error("Error fetching events:", eventError);
       setError(eventError?.message || "Unable to load events.");
+      return [];
     } finally {
       setLoadingEvents(false);
     }
@@ -70,18 +81,67 @@ export default function LiveAttendanceList({
     }
   }, []);
 
+  // Pulls every attendance record for one event via the dedicated per-event
+  // endpoint, paging through it in full — the generic "all attendance"
+  // endpoint (and the attendanceLogs prop, sourced from it) only ever
+  // returns the 10 most recent records *across every event combined*, so
+  // any event with more than a handful of check-ins would have its older
+  // attendees quietly fall out of view and look "Absent" again.
+  const fetchEventAttendance = useCallback(async (eventId) => {
+    if (!eventId) return [];
+    let page = 1;
+    let totalPages = 1;
+    let allRecords = [];
+    try {
+      do {
+        const response = await attendanceAPI.getAttendanceByEvent(eventId, {
+          page,
+          limit: ATTENDANCE_FETCH_PAGE_SIZE,
+        });
+        allRecords = allRecords.concat(
+          Array.isArray(response?.attendance) ? response.attendance : [],
+        );
+        totalPages = response?.pagination?.totalPages || 1;
+        page += 1;
+      } while (page <= totalPages);
+    } catch (fetchError) {
+      console.error("Error fetching event attendance:", fetchError);
+      setError(fetchError?.message || "Unable to load attendance for this event.");
+    }
+    return allRecords;
+  }, []);
+
+  // Seed events from props (attendance is refetched per-event below, so it
+  // doesn't need the same treatment — the prop is still capped at 10).
   useEffect(() => {
-    setAttendanceLogs(attendanceLogsSource);
     if (eventsSource.length > 0) {
       setEvents(eventsSource);
     }
-  }, [attendanceLogsSource, eventsSource]);
+  }, [eventsSource]);
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     try {
-      await Promise.all([fetchLiveAttendance(), fetchEventsFromDB()]);
+      const [, fetchedEvents] = await Promise.all([
+        fetchLiveAttendance(),
+        fetchEventsFromDB(),
+      ]);
+
+      // Mirrors the activeEvent memo below, but resolved from the events we
+      // just fetched rather than state (which hasn't re-rendered yet).
+      const currentEventKey = String(getEventKey(currentEvent) || "").trim();
+      const resolvedEvent = currentEventKey
+        ? currentEvent
+        : fetchedEvents.find(
+            (event) => String(event?.status || "").toLowerCase() === "active",
+          ) || null;
+      const resolvedEventKey = String(getEventKey(resolvedEvent) || "").trim();
+
+      setAttendanceLogs(
+        resolvedEventKey ? await fetchEventAttendance(resolvedEventKey) : [],
+      );
+
       if (typeof onRefresh === "function") {
         onRefresh();
       }
@@ -89,7 +149,13 @@ export default function LiveAttendanceList({
     } finally {
       isRefreshingRef.current = false;
     }
-  }, [fetchLiveAttendance, fetchEventsFromDB, onRefresh]);
+  }, [
+    fetchLiveAttendance,
+    fetchEventsFromDB,
+    fetchEventAttendance,
+    currentEvent,
+    onRefresh,
+  ]);
 
   useEffect(() => {
     handleRefresh();
@@ -107,13 +173,6 @@ export default function LiveAttendanceList({
 
     return () => clearInterval(interval);
   }, [handleRefresh]);
-
-  const getEventKey = (event) =>
-    event?.eventId ||
-    event?.id ||
-    event?._id ||
-    event?.name ||
-    event?.eventName;
 
   const getMemberKey = (member) =>
     member?.memberId || member?.id || member?._id || member?.qrCode;

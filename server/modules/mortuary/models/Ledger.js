@@ -14,7 +14,7 @@ const ledgerSchema = new mongoose.Schema(
     },
     transactionType: {
       type: String,
-      enum: ['contribution', 'payout', 'adjustment', 'penalty', 'automatic_deduction'],
+      enum: ['contribution', 'payout', 'adjustment', 'penalty', 'automatic_deduction', 'claim_payout'],
       required: true,
     },
     description: {

@@ -10,31 +10,82 @@ import {
   Camera,
   CheckCircle2,
   AlertCircle,
-  Scan,
   Clock,
-  RefreshCw,
   Search,
+  ChevronDown,
+  Calendar,
+  Users,
+  Zap,
+  HelpCircle,
+  X,
+  XCircle,
+  Info,
+  PieChart as PieChartIcon,
 } from "lucide-react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import { Pie, PieChart, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import { Badge } from "../../ui/badge";
+import { ChartContainer } from "../../ui/chart";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import jsQR from "jsqr";
 import { formatDate, formatTime, formatDateTime } from "../../../utils/date";
 
+const AVATAR_COLORS = [
+  { bg: "bg-green-100", text: "text-green-700" },
+  { bg: "bg-blue-100", text: "text-blue-700" },
+  { bg: "bg-purple-100", text: "text-purple-700" },
+  { bg: "bg-amber-100", text: "text-amber-700" },
+  { bg: "bg-rose-100", text: "text-rose-700" },
+];
+
+const getAvatarColor = (name = "") => {
+  const code = name.trim().charCodeAt(0) || 0;
+  return AVATAR_COLORS[code % AVATAR_COLORS.length];
+};
+
+const getInitials = (name = "") =>
+  name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "?";
+
+const METRIC_TONE = {
+  green: "bg-green-50 border-green-100 text-coop-green",
+  amber: "bg-amber-50 border-amber-100 text-amber-600",
+  slate: "bg-slate-50 border-slate-100 text-slate-500",
+};
+
+const MetricTile = ({ icon: Icon, value, label, tone = "slate" }) => (
+  <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3">
+    <div
+      className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${METRIC_TONE[tone]}`}
+    >
+      <Icon className="w-5 h-5" />
+    </div>
+    <div className="min-w-0">
+      <p className="text-xl font-bold text-slate-900 leading-none">{value}</p>
+      <p className="text-xs text-slate-400 mt-1">{label}</p>
+    </div>
+  </div>
+);
+
 export default function QRScanner({
   user,
   onScanSuccess,
   events: initialEvents = [],
   onStatusChange,
+  onViewAll,
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("Ready to scan");
-  const [lastScan, setLastScan] = useState(null);
   const [selectedEventId, setSelectedEventId] = useState(
     initialEvents[0]?.eventId || "",
   );
@@ -43,24 +94,40 @@ export default function QRScanner({
   const [memberSearch, setMemberSearch] = useState("");
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [memberLoadError, setMemberLoadError] = useState("");
+  const [showManualLookup, setShowManualLookup] = useState(false);
+  const [showEventMenu, setShowEventMenu] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [flashOn, setFlashOn] = useState(false);
+  const [flashSupported, setFlashSupported] = useState(false);
+  const [eventStats, setEventStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [lastStatsUpdate, setLastStatsUpdate] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  // Brief on-camera flash shown right after a code is processed —
+  // null | 'success' | 'duplicate' | 'invalid'. Mirrors the playScanSound
+  // outcomes so the visual and audio feedback always agree.
+  const [scanFeedback, setScanFeedback] = useState(null);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const animationRef = useRef(null);
+  const scanFeedbackTimeoutRef = useRef(null);
   const detectorRef = useRef(null);
   const lastValueRef = useRef("");
   const isProcessingRef = useRef(false);
   const scanCooldownRef = useRef(null);
+  // Timestamp (Date.now()-based) until which the scan loop skips decoding
+  // entirely. The camera frame the code was just read from is usually still
+  // in view for the next several frames (or longer, if it's held there) —
+  // without this, that same still-visible code gets re-detected and
+  // re-processed on every single animation frame.
+  const pauseDetectionUntilRef = useRef(0);
 
   const activeEventCount = Array.isArray(events)
     ? events.filter((event) => event?.status === "active").length
     : 0;
   const hasActiveEvent = activeEventCount > 0;
-  const scannerStatusLabel = hasActiveEvent ? "Ready" : "Standby";
-  const scannerStatusMessage = hasActiveEvent
-    ? "Active event detected. Scanner is ready to record attendance."
-    : "No active event available. Scanner is on standby.";
 
   useEffect(() => {
     setEvents(initialEvents);
@@ -139,6 +206,52 @@ export default function QRScanner({
     };
   }, []);
 
+  // Live attendance stats (Total Members / Present / Pending) for the selected event
+  const refreshStats = useCallback(async (eventId) => {
+    if (!eventId) return;
+    setStatsLoading(true);
+    try {
+      const response = await attendanceAPI.getAttendanceStats(eventId);
+      setEventStats({
+        totalMembers: Number(response?.totalMembers) || 0,
+        presentCount: Number(response?.presentCount) || 0,
+      });
+      setLastStatsUpdate(new Date());
+    } catch (err) {
+      console.error("Error fetching attendance stats:", err);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedEventId) {
+      refreshStats(selectedEventId);
+    } else {
+      setEventStats(null);
+    }
+  }, [selectedEventId, refreshStats]);
+
+  useEffect(() => {
+    if (!autoRefresh || !selectedEventId) return undefined;
+    const interval = setInterval(() => {
+      refreshStats(selectedEventId);
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, selectedEventId, refreshStats]);
+
+  // Flashes a colored ring + icon over the camera viewport for ~900ms.
+  const triggerScanFeedback = useCallback((type) => {
+    setScanFeedback(type);
+    if (scanFeedbackTimeoutRef.current) {
+      clearTimeout(scanFeedbackTimeoutRef.current);
+    }
+    scanFeedbackTimeoutRef.current = setTimeout(() => {
+      setScanFeedback(null);
+      scanFeedbackTimeoutRef.current = null;
+    }, 900);
+  }, []);
+
   const stopScanning = useCallback(() => {
     // Stop the animation frame loop first
     if (animationRef.current) {
@@ -148,11 +261,18 @@ export default function QRScanner({
 
     // Update stateRef immediately
     stateRef.current.isScanning = false;
+    pauseDetectionUntilRef.current = 0;
 
     if (scanCooldownRef.current) {
       clearTimeout(scanCooldownRef.current);
       scanCooldownRef.current = null;
     }
+
+    if (scanFeedbackTimeoutRef.current) {
+      clearTimeout(scanFeedbackTimeoutRef.current);
+      scanFeedbackTimeoutRef.current = null;
+    }
+    setScanFeedback(null);
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -164,6 +284,8 @@ export default function QRScanner({
     }
 
     setIsScanning(false);
+    setFlashOn(false);
+    setFlashSupported(false);
     setStatusMessage("Ready to scan");
     if (typeof onStatusChange === "function") onStatusChange(false);
   }, [onStatusChange]);
@@ -173,6 +295,20 @@ export default function QRScanner({
       stopScanning();
     };
   }, [stopScanning]);
+
+  const toggleFlash = useCallback(async () => {
+    const track = streamRef.current?.getVideoTracks?.()[0];
+    if (!track) return;
+
+    try {
+      const next = !flashOn;
+      await track.applyConstraints({ advanced: [{ torch: next }] });
+      setFlashOn(next);
+    } catch (err) {
+      console.warn("Unable to toggle flash:", err);
+      setError("Flash isn't supported on this device.");
+    }
+  }, [flashOn]);
 
   const supportsBarcodeDetector = () =>
     typeof window !== "undefined" && "BarcodeDetector" in window;
@@ -310,11 +446,17 @@ export default function QRScanner({
       }
 
       if (memberId === lastValueRef.current && scanCooldownRef.current) {
-        setError(
-          "Repeated scan blocked. Move the camera away and try another code.",
-        );
-        setStatusMessage("Duplicate scan prevented.");
+        // lastValueRef is only ever set after a genuine successful scan (see
+        // the success branch below), so reaching here always means: this
+        // exact code was already recorded a moment ago and is still sitting
+        // in front of the camera. That's not an error, so no red alert box —
+        // just a calm status update, and a longer breather before the loop
+        // looks again so this doesn't repeat every single frame.
+        setError("");
+        setStatusMessage("Already recorded — move to the next member.");
         playScanSound("duplicate");
+        triggerScanFeedback("duplicate");
+        pauseDetectionUntilRef.current = Date.now() + 1500;
         return;
       }
 
@@ -335,7 +477,9 @@ export default function QRScanner({
         setError("Select an active event before scanning member QR codes.");
         setStatusMessage("Ready to scan");
         isProcessingRef.current = false;
+        pauseDetectionUntilRef.current = Date.now() + 1500;
         playScanSound("invalid");
+        triggerScanFeedback("invalid");
         return;
       }
 
@@ -370,11 +514,12 @@ export default function QRScanner({
         }, 4000);
 
         setScanResult(attendance);
-        setLastScan(attendance);
         setScanHistory((prev) => [attendance, ...prev].slice(0, 5));
         setError("");
         setStatusMessage("Attendance recorded successfully.");
         playScanSound("success");
+        triggerScanFeedback("success");
+        refreshStats(activeEvent.eventId);
 
         if (onScanSuccess) {
           onScanSuccess(attendance);
@@ -391,21 +536,28 @@ export default function QRScanner({
           message = "This QR code is not registered to a member.";
           status = "Invalid member QR code.";
           playScanSound("invalid");
+          triggerScanFeedback("invalid");
         } else if (apiMessage.includes("already marked present")) {
           message = "Member already marked present for this event.";
           status = "Duplicate scan prevented.";
           playScanSound("duplicate");
+          triggerScanFeedback("duplicate");
         } else {
           playScanSound("invalid");
+          triggerScanFeedback("invalid");
         }
 
         setError(message);
         setStatusMessage(status);
       } finally {
         isProcessingRef.current = false;
+        // Give the operator a beat to move the code away before the loop
+        // starts decoding frames again — covers success and every error
+        // path here, so nothing gets re-processed while still in view.
+        pauseDetectionUntilRef.current = Date.now() + 1500;
       }
     },
-    [onScanSuccess, playScanSound],
+    [onScanSuccess, playScanSound, refreshStats, triggerScanFeedback],
   );
 
   const handleManualMemberAdd = useCallback(
@@ -431,6 +583,10 @@ export default function QRScanner({
     }
 
     if (isProcessingRef.current) {
+      return;
+    }
+
+    if (Date.now() < pauseDetectionUntilRef.current) {
       return;
     }
 
@@ -553,6 +709,11 @@ export default function QRScanner({
       videoRef.current.style.visibility = "visible";
       streamRef.current = stream;
 
+      const track = stream.getVideoTracks?.()[0];
+      const capabilities = track?.getCapabilities?.();
+      setFlashSupported(Boolean(capabilities?.torch));
+      setFlashOn(false);
+
       const setupVideo = () => {
         return new Promise((resolve) => {
           const checkReady = () => {
@@ -601,89 +762,226 @@ export default function QRScanner({
     }
   };
 
-  const recentScansDisplay = scanHistory.length
-    ? scanHistory.map((record, index) => ({
-        id: index + 1,
-        memberName: record.memberName || record.name || "Unknown member",
-        qrCode: record.qrCode || record.memberId || "N/A",
-        date: record.scanTime ? formatDate(record.scanTime) : "Now",
-        time: record.scanTime ? formatTime(record.scanTime) : "Now",
-        barangay: record.barangay || "N/A",
-      }))
-    : [
-        {
-          id: 1,
-          memberName: "No scans yet",
-          qrCode: "Waiting for a scan",
-          date: "",
-          time: "",
-          barangay: "",
-        },
-      ];
+  const recentScansDisplay = scanHistory.map((record, index) => ({
+    id: index + 1,
+    memberName: record.memberName || record.name || "Unknown member",
+    memberId: record.memberId || "",
+    time: record.scanTime ? formatTime(record.scanTime) : "Now",
+    barangay: record.barangay || "N/A",
+  }));
+
+  const selectedEvent =
+    events.find((event) => event.eventId === selectedEventId) ||
+    events[0] ||
+    null;
+
+  const totalMembers = eventStats?.totalMembers ?? 0;
+  const presentCount = eventStats?.presentCount ?? 0;
+  const pendingCount = Math.max(totalMembers - presentCount, 0);
+  const presentPct =
+    totalMembers > 0 ? Math.round((presentCount / totalMembers) * 100) : 0;
+  const hasStatsData = totalMembers > 0;
+
+  const summaryData = [
+    { key: "present", label: "Present", value: presentCount, color: "#2D7A3E" },
+    { key: "pending", label: "Pending", value: pendingCount, color: "#f59e0b" },
+  ];
+  const chartConfig = {
+    present: { label: "Present", color: "#2D7A3E" },
+    pending: { label: "Pending", color: "#f59e0b" },
+  };
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="space-y-6 pb-12">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-4xl font-black text-slate-950 tracking-tight leading-tight">QR Scanner</h2>
-          <p className="text-slate-500 text-xs font-extrabold uppercase tracking-widest mt-2">Scan member QR codes to record attendance</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Scan Member QR Code
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Point your phone's camera at a member's QR code to record
+            attendance.
+          </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="rounded-2xl bg-gradient-to-r from-slate-50 to-slate-100 px-5 py-3 border border-slate-200 shadow-sm">
-            <p className="text-xs uppercase tracking-widest font-extrabold text-slate-600 mb-1">Status</p>
-            <p className={`text-sm font-black ${hasActiveEvent ? 'text-emerald-700' : 'text-amber-700'}`}>{statusMessage}</p>
-          </div>
-        </div>
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${
+            hasActiveEvent
+              ? "bg-green-50 text-coop-green border-green-200"
+              : "bg-amber-50 text-amber-600 border-amber-200"
+          }`}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${hasActiveEvent ? "bg-coop-green" : "bg-amber-500"}`}
+          />
+          {statusMessage}
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Scanner Section */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Scanner Card */}
-          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
-            <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                    <QrCode className="w-6 h-6 text-emerald-600" />
-                    Scanner Interface
-                  </h3>
-                  <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mt-1">Point your camera at the member QR code</p>
-                </div>
-              </div>
+      {/* Active Event */}
+      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+        <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+              <Calendar className="w-5 h-5 text-coop-green" />
             </div>
-            <div className="p-8 space-y-6">
-              {/* Event Selection */}
-              <div>
-                <label className="block text-sm font-extrabold text-slate-700 mb-3 uppercase tracking-widest">Select Active Event</label>
-                <select
-                  value={selectedEventId}
-                  onChange={(e) => {
-                    setSelectedEventId(e.target.value);
-                    setError("");
-                    setStatusMessage("Ready to scan");
-                  }}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-3.5 text-slate-900 font-semibold shadow-sm focus:bg-white focus:border-emerald-300 focus:ring-emerald-100/20 focus:ring-2 transition-all"
-                >
-                  {events?.length > 0 ? (
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                {selectedEvent ? "Active Event" : "No Active Event"}
+              </p>
+              {selectedEvent ? (
+                <>
+                  <p className="text-sm font-bold text-slate-900 truncate">
+                    {selectedEvent.eventName}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                    {[
+                      selectedEvent.eventDate
+                        ? formatDate(selectedEvent.eventDate)
+                        : "",
+                      selectedEvent.eventTime || "",
+                      selectedEvent.location || "",
+                    ]
+                      .filter(Boolean)
+                      .join(" • ")}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm font-semibold text-slate-500">
+                  Select an event to start scanning
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowEventMenu((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:border-coop-green hover:text-coop-green transition-colors"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Change Event
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${showEventMenu ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {showEventMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowEventMenu(false)}
+                />
+                <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-64 overflow-y-auto">
+                  {events.length > 0 ? (
                     events.map((event) => (
-                      <option key={event.eventId} value={event.eventId}>
-                        {event.eventName}{" "}
+                      <button
+                        key={event.eventId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedEventId(event.eventId);
+                          setShowEventMenu(false);
+                          setError("");
+                          setStatusMessage("Ready to scan");
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                          event.eventId === selectedEventId
+                            ? "bg-green-50 text-coop-green font-semibold"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {event.eventName}
                         {event.eventDate
-                          ? `(${formatDate(event.eventDate)})`
+                          ? ` • ${formatDate(event.eventDate)}`
                           : ""}
-                      </option>
+                      </button>
                     ))
                   ) : (
-                    <option value="">No active events</option>
+                    <p className="px-3 py-2 text-xs text-slate-400">
+                      No active events
+                    </p>
                   )}
-                </select>
-              </div>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-              {/* Scanner Display */}
-              <div className="relative">
-                <div className="aspect-square max-w-md mx-auto bg-slate-900 rounded-3xl overflow-hidden relative shadow-2xl border-2 border-slate-800">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Scanner + stats - primary focus */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+            <CardHeader className="border-b border-slate-100 p-4 sm:p-5 flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Camera className="w-4 h-4 text-coop-green" />
+                Scanner
+              </CardTitle>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={toggleFlash}
+                  disabled={!isScanning || !flashSupported}
+                  title={
+                    !isScanning
+                      ? "Start scanning to use flash"
+                      : !flashSupported
+                        ? "Flash isn't supported on this device"
+                        : undefined
+                  }
+                  className={`flex items-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    flashOn
+                      ? "text-coop-green"
+                      : "text-slate-500 hover:text-coop-green"
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  Flash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowHelp((prev) => !prev)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${
+                    showHelp
+                      ? "text-coop-green"
+                      : "text-slate-500 hover:text-coop-green"
+                  }`}
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  Help
+                </button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-4 sm:p-6 space-y-5">
+              {showHelp && (
+                <div className="relative rounded-lg border border-green-200 bg-green-50 p-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowHelp(false)}
+                    aria-label="Close help"
+                    className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <p className="text-xs font-bold text-coop-darkGreen mb-2">
+                    How to scan
+                  </p>
+                  <ol className="space-y-1.5 text-xs text-slate-600 list-decimal list-inside">
+                    <li>Tap "Start Scanning" to turn on the camera.</li>
+                    <li>Point the camera at the member's QR code.</li>
+                    <li>
+                      Wait for the automatic confirmation — no need to tap
+                      anything else.
+                    </li>
+                  </ol>
+                </div>
+              )}
+
+              {/* Camera viewport */}
+              <div className="mx-auto w-full max-w-sm">
+                <div className="aspect-square bg-slate-900 rounded-xl overflow-hidden relative border border-slate-800">
                   <video
                     ref={videoRef}
                     autoPlay
@@ -693,243 +991,445 @@ export default function QRScanner({
                   />
 
                   {!isScanning && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950">
-                      <div className="text-center text-white">
-                        <QrCode className="w-20 h-20 mx-auto mb-4 opacity-30" />
-                        <p className="text-xl font-black mb-2">Camera Ready</p>
-                        <p className="text-sm opacity-60">Tap start to begin scanning</p>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center text-white/80">
+                        <QrCode className="w-14 h-14 mx-auto mb-3 opacity-40" />
+                        <p className="text-sm font-semibold">Camera ready</p>
+                        <p className="text-xs opacity-60 mt-1">
+                          Point at a member's QR code within the frame
+                        </p>
                       </div>
                     </div>
                   )}
 
                   {isScanning && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-56 h-56 border-4 border-emerald-400 rounded-3xl relative shadow-2xl">
-                        <div className="absolute -top-1 -left-1 w-10 h-10 border-t-4 border-l-4 border-emerald-300 rounded-tl-2xl"></div>
-                        <div className="absolute -top-1 -right-1 w-10 h-10 border-t-4 border-r-4 border-emerald-300 rounded-tr-2xl"></div>
-                        <div className="absolute -bottom-1 -left-1 w-10 h-10 border-b-4 border-l-4 border-emerald-300 rounded-bl-2xl"></div>
-                        <div className="absolute -bottom-1 -right-1 w-10 h-10 border-b-4 border-r-4 border-emerald-300 rounded-br-2xl"></div>
-                        <div className="absolute inset-x-6 top-1/2 h-1 bg-gradient-to-r from-transparent via-emerald-300 to-transparent animate-pulse"></div>
+                      <div className="w-48 h-48 border-2 border-white/70 rounded-xl relative overflow-hidden">
+                        <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-2 border-l-2 border-coop-green rounded-tl-lg"></div>
+                        <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-2 border-r-2 border-coop-green rounded-tr-lg"></div>
+                        <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-2 border-l-2 border-coop-green rounded-bl-lg"></div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-2 border-r-2 border-coop-green rounded-br-lg"></div>
+
+                        {/* Sweeping scan line — plays while actively
+                            searching, pauses during the result flash below */}
+                        {!scanFeedback && (
+                          <Motion.div
+                            className="absolute left-1 right-1 h-1 rounded-full bg-linear-to-r from-transparent via-coop-green to-transparent"
+                            style={{ boxShadow: "0 0 8px 2px rgba(45,122,62,0.7)" }}
+                            animate={{ y: [8, 176, 8] }}
+                            transition={{
+                              duration: 2.2,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            }}
+                          />
+                        )}
                       </div>
                     </div>
                   )}
+
+                  {/* Result flash — brief colored pulse + icon the instant a
+                      code finishes processing (success / duplicate / invalid) */}
+                  <AnimatePresence>
+                    {scanFeedback && (
+                      <Motion.div
+                        key={scanFeedback}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className={`absolute inset-0 flex items-center justify-center pointer-events-none ${
+                          scanFeedback === "success"
+                            ? "bg-coop-green/25"
+                            : scanFeedback === "duplicate"
+                              ? "bg-amber-500/25"
+                              : "bg-red-600/25"
+                        }`}
+                      >
+                        <Motion.div
+                          initial={{ scale: 0.4, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.6, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 320, damping: 18 }}
+                          className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg ${
+                            scanFeedback === "success"
+                              ? "bg-coop-green"
+                              : scanFeedback === "duplicate"
+                                ? "bg-amber-500"
+                                : "bg-red-600"
+                          }`}
+                        >
+                          {scanFeedback === "success" ? (
+                            <CheckCircle2 className="w-11 h-11 text-white" />
+                          ) : scanFeedback === "duplicate" ? (
+                            <Clock className="w-11 h-11 text-white" />
+                          ) : (
+                            <XCircle className="w-11 h-11 text-white" />
+                          )}
+                        </Motion.div>
+                      </Motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
-                {!isScanning ? (
-                  <Button
-                    onClick={startScanning}
-                    disabled={!selectedEventId}
-                    className={`flex-1 sm:flex-none rounded-2xl font-black px-8 py-4 transition-all duration-300 flex items-center justify-center gap-2 text-white shadow-lg ${
-                      selectedEventId
-                        ? "bg-gradient-to-r from-emerald-600 to-emerald-700 hover:shadow-emerald-300/50 hover:scale-105 cursor-pointer"
-                        : "bg-slate-300 text-slate-500 cursor-not-allowed"
-                    }`}
-                  >
-                    <Camera className="w-5 h-5" />
-                    Start Scanning
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={stopScanning}
-                    className="flex-1 sm:flex-none rounded-2xl font-black px-8 py-4 border-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-all duration-300"
-                  >
-                    Stop Scanning
-                  </Button>
-                )}
+              {/* Start / Stop */}
+              {!isScanning ? (
+                <Button
+                  onClick={startScanning}
+                  disabled={!selectedEventId}
+                  className={`w-full rounded-lg font-semibold py-3.5 text-base flex items-center justify-center gap-2 shadow-sm transition-colors ${
+                    selectedEventId
+                      ? "bg-coop-green hover:bg-coop-darkGreen text-white"
+                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  }`}
+                >
+                  <Camera className="w-5 h-5" />
+                  Start Scanning
+                </Button>
+              ) : (
+                <Button
+                  onClick={stopScanning}
+                  className="w-full rounded-lg font-semibold py-3.5 text-base border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                >
+                  Stop Scanning
+                </Button>
+              )}
+
+              <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2.5">
+                <Info className="w-4 h-4 text-coop-green shrink-0" />
+                <p className="text-xs text-coop-darkGreen font-medium">
+                  Hold the phone steady — attendance is recorded
+                  automatically once the code is detected.
+                </p>
               </div>
 
-              {/* Error Message */}
+              {/* Error */}
               {error && (
-                <div className="p-5 bg-red-50/80 border border-red-200 rounded-2xl flex items-center gap-3 animate-in slide-in-from-top">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                  <p className="text-red-700 font-bold text-sm">{error}</p>
+                <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <p className="text-red-700 font-medium text-sm">{error}</p>
                 </div>
               )}
 
-              {/* Success Message */}
+              {/* Success */}
               {scanResult && (
-                <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-2xl animate-in slide-in-from-top">
-                  <div className="flex items-center gap-3 mb-4">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                    <h3 className="text-lg font-black text-emerald-900">Attendance Recorded!</h3>
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle2 className="w-5 h-5 text-coop-green" />
+                    <p className="text-sm font-bold text-coop-darkGreen">
+                      Attendance recorded
+                    </p>
                   </div>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between items-start">
-                      <span className="font-bold text-slate-700">Member ID:</span>
-                      <span className="text-slate-900 font-black">{scanResult.memberId}</span>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500">Member</span>
+                      <span className="font-semibold text-slate-900 text-right">
+                        {scanResult.memberName || scanResult.memberId}
+                      </span>
                     </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-bold text-slate-700">Event:</span>
-                      <span className="text-slate-900 font-black">{scanResult.eventName}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500">Event</span>
+                      <span className="font-semibold text-slate-900 text-right">
+                        {scanResult.eventName}
+                      </span>
                     </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-bold text-slate-700">Time:</span>
-                      <span className="text-slate-900 font-semibold">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500">Time</span>
+                      <span className="font-medium text-slate-700 text-right">
                         {scanResult.scanTime || scanResult.timestamp
-                          ? formatDateTime(scanResult.scanTime || scanResult.timestamp)
+                          ? formatDateTime(
+                              scanResult.scanTime || scanResult.timestamp,
+                            )
                           : "Recorded"}
                       </span>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Manual Member Lookup */}
-          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
-            <div className="p-8 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                <Search className="w-6 h-6 text-blue-600" />
-                Manual Member Lookup
-              </h3>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mt-1">Search by name or ID and add manually</p>
-            </div>
-            <div className="p-8 space-y-4">
-              <Input
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                placeholder="Search by member name, ID, or QR code..."
-                className="h-12 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-300 font-semibold"
-              />
-
-              {memberLoadError && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700">
-                  {memberLoadError}
-                </div>
-              )}
-
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {loadingMembers ? (
-                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">
-                    Loading members...
-                  </div>
-                ) : filteredMembers.length > 0 ? (
-                  filteredMembers.map((member) => (
-                    <div
-                      key={member.memberId || member.qrCode || member.name}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 hover:border-emerald-300 hover:bg-emerald-50/40 transition-all duration-200 group"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-black text-slate-900 truncate group-hover:text-emerald-900">{member.name}</p>
-                          <p className="text-xs font-semibold text-slate-500 mt-2">ID: {member.memberId || "N/A"}</p>
-                          <p className="text-xs font-semibold text-slate-500 mt-1">Brgy: {member.barangay || "N/A"}</p>
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={() => handleManualMemberAdd(member)}
-                          className="shrink-0 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2 shadow-sm hover:shadow-md transition-all"
-                          disabled={!selectedEventId}
-                        >
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-2xl bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">
-                    {memberSearch.trim()
-                      ? "No matching members found."
-                      : "Start typing to search members."}
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            <MetricTile
+              icon={Users}
+              value={totalMembers}
+              label="Total Members"
+              tone="slate"
+            />
+            <MetricTile
+              icon={CheckCircle2}
+              value={presentCount}
+              label="Present"
+              tone="green"
+            />
+            <MetricTile
+              icon={Clock}
+              value={pendingCount}
+              label="Pending"
+              tone="amber"
+            />
           </div>
         </div>
 
-        {/* Sidebar - Status & Recent Scans */}
+        {/* Recent Scans + Session Summary */}
         <div className="space-y-6">
-          {/* Scanner Status */}
-          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <Scan className="w-5 h-5 text-emerald-600" />
-                Status
-              </h3>
-            </div>
-            <div className="p-6 text-center space-y-4">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto ${hasActiveEvent ? "bg-emerald-100" : "bg-amber-100"}`}>
-                <Scan className={`w-8 h-8 ${hasActiveEvent ? "text-emerald-600" : "text-amber-600"}`} />
-              </div>
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white h-fit">
+            <CardHeader className="border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
               <div>
-                <h4 className="text-lg font-black text-slate-900 mb-2">{scannerStatusLabel}</h4>
-                <Badge className={`px-4 py-2 rounded-full font-black text-xs ${hasActiveEvent ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}>
-                  {hasActiveEvent ? "Ready" : "Standby"}
-                </Badge>
+                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-coop-green" />
+                  Recent Scans
+                </CardTitle>
+                <p className="text-slate-400 text-xs mt-1">This session</p>
               </div>
-              {lastScan && (
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Last Scan</p>
-                  <p className="text-sm font-bold text-slate-900">{lastScan.eventName}</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {lastScan.scanTime || lastScan.timestamp
-                      ? formatDateTime(lastScan.scanTime || lastScan.timestamp)
-                      : "Now"}
-                  </p>
+              {onViewAll && (
+                <button
+                  type="button"
+                  onClick={onViewAll}
+                  className="border border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0"
+                >
+                  View All
+                </button>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {recentScansDisplay.length > 0 ? (
+                <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                  {recentScansDisplay.map((scan) => {
+                    const avatar = getAvatarColor(scan.memberName);
+                    return (
+                      <div key={scan.id} className="flex items-center gap-3 p-4">
+                        <div
+                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${avatar.bg} ${avatar.text}`}
+                        >
+                          {getInitials(scan.memberName)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-900 truncate">
+                            {scan.memberName}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5 truncate">
+                            {scan.memberId
+                              ? `Member ID: ${scan.memberId}`
+                              : scan.barangay}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-xs text-slate-400">
+                            {scan.time}
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-50 text-coop-green border border-green-200">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Scanned
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-10 text-slate-400">
+                  <Clock className="w-7 h-7 text-slate-300" />
+                  <p className="text-sm font-medium">No scans yet</p>
+                  <p className="text-xs">Scanned members will appear here</p>
                 </div>
               )}
-              {!lastScan && (
-                <p className="mt-4 text-xs text-slate-500 font-semibold">{scannerStatusMessage}</p>
-              )}
-            </div>
-          </div>
+            </CardContent>
+            {onViewAll && recentScansDisplay.length > 0 && (
+              <div className="p-3 border-t border-slate-100 text-center">
+                <button
+                  type="button"
+                  onClick={onViewAll}
+                  className="text-xs font-semibold text-coop-green hover:text-coop-darkGreen"
+                >
+                  View all recent scans
+                </button>
+              </div>
+            )}
+          </Card>
 
-          {/* Recent Scans */}
-          <div className="border border-slate-200/60 bg-white rounded-3xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-transparent">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <Clock className="w-5 h-5 text-blue-600" />
-                Recent Scans
-              </h3>
-            </div>
-            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
-              {recentScansDisplay.map((scan, idx) => (
-                <div key={idx} className="p-4 hover:bg-slate-50/60 transition-colors duration-200">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-emerald-100 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <p className="text-sm font-black text-slate-900 truncate">{scan.memberName}</p>
-                      <p className="text-xs font-semibold text-slate-500">ID: {scan.qrCode}</p>
-                      <p className="text-xs font-semibold text-slate-500">Brgy: {scan.barangay}</p>
-                      {scan.date || scan.time ? (
-                        <p className="text-xs text-slate-500 font-semibold pt-1">{scan.date} {scan.time ? `• ${scan.time}` : ""}</p>
-                      ) : null}
-                    </div>
+          {/* Session Summary */}
+          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+            <CardHeader className="border-b border-slate-100 p-5">
+              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <PieChartIcon className="w-4 h-4 text-coop-green" />
+                Session Summary
+              </CardTitle>
+              <p className="text-slate-400 text-xs mt-1">
+                Live attendance for this event
+              </p>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center gap-5">
+                <div className="relative w-28 h-28 shrink-0">
+                  <ChartContainer
+                    config={chartConfig}
+                    className="w-full h-full aspect-square"
+                  >
+                    <PieChart>
+                      <Pie
+                        data={
+                          hasStatsData
+                            ? summaryData
+                            : [{ key: "empty", label: "No data", value: 1 }]
+                        }
+                        dataKey="value"
+                        nameKey="label"
+                        innerRadius={38}
+                        outerRadius={54}
+                        stroke="none"
+                      >
+                        {(hasStatsData
+                          ? summaryData
+                          : [{ key: "empty", color: "#e2e8f0" }]
+                        ).map((entry) => (
+                          <Cell key={entry.key} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-lg font-bold text-slate-900">
+                      {hasStatsData ? `${presentPct}%` : "—"}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* How to Scan Guide */}
-          <div className="border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/50 rounded-3xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-slate-100">
-              <h3 className="text-lg font-black text-slate-900 tracking-tight">Quick Guide</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              {[
-                { step: 1, text: "Tap 'Start Scanning' to activate camera" },
-                { step: 2, text: "Point camera at the member QR code" },
-                { step: 3, text: "Wait for automatic detection and confirmation" }
-              ].map((item) => (
-                <div key={item.step} className="flex items-start gap-3">
-                  <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-xs font-black text-emerald-700">{item.step}</span>
-                  </div>
-                  <p className="text-sm font-semibold text-slate-700 leading-snug">{item.text}</p>
+                <div className="flex-1 min-w-0 space-y-2.5">
+                  {summaryData.map((entry) => (
+                    <div
+                      key={entry.key}
+                      className="flex items-center justify-between text-sm gap-2"
+                    >
+                      <span className="flex items-center gap-2 font-medium text-slate-700 min-w-0">
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: entry.color }}
+                        />
+                        <span className="truncate">{entry.label}</span>
+                      </span>
+                      <span className="text-slate-400 font-medium shrink-0">
+                        {entry.value}
+                        {hasStatsData
+                          ? ` (${Math.round((entry.value / totalMembers) * 100)}%)`
+                          : ""}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <p className="text-xs text-slate-400">
+                  {statsLoading
+                    ? "Updating…"
+                    : lastStatsUpdate
+                      ? `Last updated: ${formatTime(lastStatsUpdate)}`
+                      : "Not yet updated"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAutoRefresh((prev) => !prev)}
+                  aria-pressed={autoRefresh}
+                  aria-label="Toggle auto-refresh"
+                  title="Auto-refresh"
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
+                    autoRefresh ? "bg-coop-green" : "bg-slate-200"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      autoRefresh ? "translate-x-4" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* Manual lookup - secondary, collapsed by default so scanning stays the focus */}
+      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+        <button
+          type="button"
+          onClick={() => setShowManualLookup((prev) => !prev)}
+          className="w-full flex items-center justify-between gap-3 p-5 text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-coop-green" />
+            <div>
+              <p className="text-sm font-bold text-slate-900">
+                Can't scan? Search manually
+              </p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                Find a member by name or ID instead
+              </p>
+            </div>
+          </div>
+          <ChevronDown
+            className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${showManualLookup ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {showManualLookup && (
+          <CardContent className="p-5 pt-0 space-y-4 border-t border-slate-100">
+            <Input
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+              placeholder="Search by member name or ID..."
+              className="rounded-lg border-slate-200"
+            />
+
+            {memberLoadError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+                {memberLoadError}
+              </div>
+            )}
+
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {loadingMembers ? (
+                <div className="rounded-lg bg-slate-50 p-5 text-center text-sm font-medium text-slate-500">
+                  Loading members...
+                </div>
+              ) : filteredMembers.length > 0 ? (
+                filteredMembers.map((member) => (
+                  <div
+                    key={member.memberId || member.qrCode || member.name}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 hover:border-coop-green hover:bg-green-50/50 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {member.name}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        ID: {member.memberId || "N/A"}
+                        {member.barangay ? ` • ${member.barangay}` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => handleManualMemberAdd(member)}
+                      disabled={!selectedEventId}
+                      className="shrink-0 rounded-lg bg-coop-green hover:bg-coop-darkGreen text-white text-xs font-semibold px-3 py-2"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-lg bg-slate-50 p-5 text-center text-sm font-medium text-slate-500">
+                  {memberSearch.trim()
+                    ? "No matching members found."
+                    : "Start typing to search members."}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );

@@ -35,6 +35,32 @@ const formatLedgerDate = (dateStr) => {
 
 const monthKeyOf = (dateStr) => (dateStr ? dateStr.slice(0, 7) : 'unknown');
 
+// Quick date-range presets for the ledger filter, replacing manual From/To
+// pickers — the table is already grouped by month, so "pick two exact
+// dates" was more friction than the common cases actually need. Returned as
+// YYYY-MM-DD strings so they compare the same way entry.date already does
+// (both parsed via `new Date(...)`, so no timezone drift between the two).
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoDate = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
+const getPresetDateRange = (preset) => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  switch (preset) {
+    case 'thisMonth':
+      return { start: isoDate(y, m, 1), end: isoDate(y, m, new Date(y, m + 1, 0).getDate()) };
+    case 'lastMonth': {
+      const ly = m === 0 ? y - 1 : y;
+      const lm = m === 0 ? 11 : m - 1;
+      return { start: isoDate(ly, lm, 1), end: isoDate(ly, lm, new Date(ly, lm + 1, 0).getDate()) };
+    }
+    case 'thisYear':
+      return { start: `${y}-01-01`, end: `${y}-12-31` };
+    default:
+      return { start: null, end: null };
+  }
+};
+
 const monthLabelOf = (dateStr) => {
   const parsed = new Date(dateStr);
   if (Number.isNaN(parsed.getTime())) return 'UNDATED';
@@ -67,7 +93,7 @@ const groupEntriesByMonth = (entries, sortOrder) => {
   return orderedKeys.map((key) => {
     const groupEntries = buckets.get(key);
     const chronologicallyLast = [...groupEntries].sort(
-      (a, b) => new Date(b.date) - new Date(a.date)
+      (a, b) => new Date(b.date) - new Date(a.date) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     )[0];
     return {
       key,
@@ -81,7 +107,8 @@ const groupEntriesByMonth = (entries, sortOrder) => {
 const MemberLedger = ({
   members,
   ledgerMembers = [],
-  ledger,
+  memberLedgerEntries = [],
+  loadingMemberLedger = false,
   selectedLedgerMember,
   setSelectedLedgerMember,
   searchQuery,
@@ -102,7 +129,7 @@ const MemberLedger = ({
   const [csvPreview, setCsvPreview] = useState([]);
   const [loading, setLoading] = useState(false);
   const [transactionFilter, setTransactionFilter] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [datePreset, setDatePreset] = useState('all'); // 'all' | 'thisMonth' | 'lastMonth' | 'thisYear'
   const [sortOrder, setSortOrder] = useState('desc');
 
   const handleCSVUpload = (event) => {
@@ -216,24 +243,34 @@ const MemberLedger = ({
   if (selectedLedgerMember) {
     const currentMember = members.find(m => m.id === selectedLedgerMember.id) || selectedLedgerMember;
 
-    let mEntries = [...ledger].filter(l => l.member_id === currentMember.id);
+    // memberLedgerEntries is already scoped to this member (fetched via the
+    // dedicated per-member endpoint, paged through in full) — no client-side
+    // filtering by member_id needed.
+    let mEntries = [...memberLedgerEntries];
     if (transactionFilter === 'deposits') mEntries = mEntries.filter(e => e.received > 0);
     if (transactionFilter === 'withdrawals') mEntries = mEntries.filter(e => e.withdrawn > 0);
-    if (dateRange.start) mEntries = mEntries.filter(e => new Date(e.date) >= new Date(dateRange.start));
-    if (dateRange.end) mEntries = mEntries.filter(e => new Date(e.date) <= new Date(dateRange.end));
+    const { start: presetStart, end: presetEnd } = getPresetDateRange(datePreset);
+    if (presetStart) mEntries = mEntries.filter(e => new Date(e.date) >= new Date(presetStart));
+    if (presetEnd) mEntries = mEntries.filter(e => new Date(e.date) <= new Date(presetEnd));
     mEntries.sort((a, b) => {
       const dateA = a.date ? new Date(a.date).getTime() : 0;
       const dateB = b.date ? new Date(b.date).getTime() : 0;
       const dateDiff = sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
       if (dateDiff !== 0) return dateDiff;
-      return (b.received || 0) - (a.received || 0);
+      // `date` is day-only, so same-day entries tie above — break the tie by
+      // when each entry was actually posted (createdAt) so the one just
+      // recorded lands first under "Newest first" instead of being ordered
+      // by transaction amount.
+      const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return sortOrder === 'asc' ? createdA - createdB : createdB - createdA;
     });
 
     const totalReceived = mEntries.reduce((sum, e) => sum + (e.received || 0), 0);
     const totalWithdrawn = mEntries.reduce((sum, e) => sum + (e.withdrawn || 0), 0);
     const netMovement = totalReceived - totalWithdrawn;
     const hasActiveLedgerFilters =
-      transactionFilter !== 'all' || dateRange.start !== '' || dateRange.end !== '';
+      transactionFilter !== 'all' || datePreset !== 'all';
     const monthGroups = groupEntriesByMonth(mEntries, sortOrder);
 
     return (
@@ -250,7 +287,7 @@ const MemberLedger = ({
             onClick={() => {
               setSelectedLedgerMember(null);
               setTransactionFilter('all');
-              setDateRange({ start: '', end: '' });
+              setDatePreset('all');
               setSortOrder('desc');
             }}
             className="inline-flex items-center gap-2 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors self-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
@@ -331,23 +368,27 @@ const MemberLedger = ({
               ))}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <label htmlFor="ledger-from-date" className="text-sm text-slate-500">From</label>
-              <input
-                id="ledger-from-date"
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-              />
-              <label htmlFor="ledger-to-date" className="text-sm text-slate-500">to</label>
-              <input
-                id="ledger-to-date"
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-              />
+            <div className="inline-flex border border-slate-200 overflow-hidden shrink-0" role="group" aria-label="Filter by date range">
+              {[
+                { value: 'all', label: 'All time' },
+                { value: 'thisMonth', label: 'This month' },
+                { value: 'lastMonth', label: 'Last month' },
+                { value: 'thisYear', label: 'This year' },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setDatePreset(value)}
+                  aria-pressed={datePreset === value}
+                  className={`h-9 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:relative ${
+                    datePreset === value
+                      ? 'bg-green-700 text-white'
+                      : 'bg-white text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
@@ -365,7 +406,7 @@ const MemberLedger = ({
 
             {hasActiveLedgerFilters && (
               <button
-                onClick={() => { setTransactionFilter('all'); setDateRange({ start: '', end: '' }); setSortOrder('desc'); }}
+                onClick={() => { setTransactionFilter('all'); setDatePreset('all'); setSortOrder('desc'); }}
                 className="h-9 px-3 text-sm text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded"
               >
                 Reset
@@ -411,7 +452,15 @@ const MemberLedger = ({
                   <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>
                 </tr>
               </thead>
-              {monthGroups.length > 0 ? monthGroups.map((group) => (
+              {loadingMemberLedger ? (
+                <tbody>
+                  <tr>
+                    <td colSpan="5" className="px-5 py-12 text-center text-sm text-slate-400">
+                      Loading transaction history...
+                    </td>
+                  </tr>
+                </tbody>
+              ) : monthGroups.length > 0 ? monthGroups.map((group) => (
                 <tbody key={group.key} className="divide-y divide-slate-100">
                   <tr className="bg-slate-50/70">
                     <td colSpan={4} className="px-5 py-2 text-xs font-bold text-slate-500 tracking-wider">

@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
-import StatCard from './shared/StatCard';
+import StatCard from '../shared/StatCard';
 
 const Dashboard = ({ stats, contributions = [] }) => {
   const atRiskMembersCount = stats?.lowBalanceMembers || 0;

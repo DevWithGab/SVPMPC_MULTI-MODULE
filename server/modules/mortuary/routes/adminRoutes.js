@@ -1,6 +1,6 @@
 const express = require('express');
-const { 
-  authenticateToken, 
+const {
+  authenticateToken,
   authorizeAdminOnly
 } = require('../../../middleware');
 
@@ -10,6 +10,9 @@ const contributionController = require('../controllers/contributionController');
 const ledgerController = require('../controllers/ledgerController');
 const adminController = require('../controllers/adminController');
 const payoutController = require('../controllers/payoutController');
+const claimController = require('../controllers/claimController');
+const beneficiaryController = require('../controllers/beneficiaryController');
+const deductionSettingController = require('../controllers/deductionSettingController');
 
 const router = express.Router();
 
@@ -18,7 +21,7 @@ const router = express.Router();
 // router.use(authorizeAdminOnly);
 
 // Dashboard routes
-router.get('/dashboard', dashboardController.getDashboard);
+router.get('/dashboard', dashboardController.getAdminDashboard);
 
 // Member management routes (admin only)
 router.get('/members', adminController.getAllMembers);
@@ -39,5 +42,26 @@ router.get('/payouts/:payoutId', payoutController.getPayoutById);
 // Ledger management routes
 router.get('/ledger', ledgerController.getAllLedger);
 router.get('/ledger/:memberId', ledgerController.getMemberLedger);
+
+// Claims management routes — auth enforced per-route (the router-level
+// auth above is left commented out to avoid touching the existing,
+// untested-open routes above; these new routes are guarded explicitly).
+router.post('/claims', authenticateToken, authorizeAdminOnly, claimController.createClaim);
+router.get('/claims', authenticateToken, authorizeAdminOnly, claimController.getAllClaims);
+router.get('/claims/:claimId', authenticateToken, authorizeAdminOnly, claimController.getClaimById);
+router.put('/claims/:claimId/requirements', authenticateToken, authorizeAdminOnly, claimController.updateRequirements);
+router.put('/claims/:claimId/verification', authenticateToken, authorizeAdminOnly, claimController.updateVerification);
+router.put('/claims/:claimId/approve', authenticateToken, authorizeAdminOnly, claimController.approveClaim);
+router.put('/claims/:claimId/reject', authenticateToken, authorizeAdminOnly, claimController.rejectClaim);
+
+// Beneficiaries routes
+router.get('/beneficiaries', authenticateToken, authorizeAdminOnly, beneficiaryController.getAllBeneficiaries);
+router.get('/beneficiaries/:memberId/history', authenticateToken, authorizeAdminOnly, beneficiaryController.getBeneficiaryHistory);
+router.put('/beneficiaries/:memberId', authenticateToken, authorizeAdminOnly, beneficiaryController.updateBeneficiary);
+
+// Deduction settings routes
+router.get('/deduction-settings/current', authenticateToken, authorizeAdminOnly, deductionSettingController.getCurrentRate);
+router.get('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.getRateHistory);
+router.post('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.updateRate);
 
 module.exports = router;

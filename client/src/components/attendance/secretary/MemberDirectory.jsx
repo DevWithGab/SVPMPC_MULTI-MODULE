@@ -138,78 +138,211 @@ export default function MemberDirectory({ user }) {
       const qrMarkup = renderToStaticMarkup(
         <QRCodeSVG
           value={member.memberId}
-          size={200}
+          size={168}
           level="H"
           fgColor="#2D7A3E"
         />,
       );
 
+      const isActive = member.status === "active";
+      const statusLabel = member.status.charAt(0).toUpperCase() + member.status.slice(1);
+      const joinDate = member.joinDate
+        ? new Date(member.joinDate).toLocaleDateString()
+        : "N/A";
+      // Absolute URL — a print window's about:blank document can't reliably
+      // resolve a root-relative asset path against the app's origin.
+      const logoUrl = `${window.location.origin}/SVPMPC-LOGO(MAIN).png`;
+
+      // Member fields are admin-entered but still get embedded into a raw
+      // HTML string below — escape them so a stray "<" or "&" can't break
+      // the markup (or worse) in the print window.
+      const esc = (value) =>
+        String(value ?? "").replace(/[&<>"']/g, (c) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c]);
+
       printWindow.document.write(`
         <html>
           <head>
-            <title>${member.name} - QR Code</title>
+            <title>${esc(member.name)} - QR Code</title>
             <style>
-              @page {
-                margin: 12mm;
-              }
-              * {
-                box-sizing: border-box;
-              }
+              @page { margin: 12mm; }
+              * { box-sizing: border-box; }
               body {
-                font-family: sans-serif;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                 display: flex;
-                flex-direction: column;
                 align-items: center;
                 justify-content: center;
                 min-height: 100vh;
-                padding: 24px;
                 margin: 0;
+                padding: 24px;
+                background: #f8fafc;
               }
               .card {
-                border: 2px solid #2D7A3E;
-                padding: 40px;
-                border-radius: 20px;
-                text-align: center;
-                max-width: 400px;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                max-width: 340px;
                 width: 100%;
+                background: #ffffff;
+                overflow: hidden;
+              }
+              .header {
+                background: #2D7A3E;
+                padding: 12px 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              }
+              .header img {
+                width: 24px;
+                height: 24px;
+                object-fit: contain;
+                background: #fff;
+                border-radius: 9999px;
+                padding: 2px;
+                flex-shrink: 0;
+              }
+              .header .org {
+                margin: 0;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.03em;
+                color: #fff;
+              }
+              .header .tagline {
+                margin: 0;
+                font-size: 10px;
+                color: #dcfce7;
+              }
+              .status-pill {
+                margin-left: auto;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 2px 10px;
+                border-radius: 9999px;
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                white-space: nowrap;
+                background: ${isActive ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)"};
+                color: ${isActive ? "#ffffff" : "#dcfce7"};
+              }
+              .status-dot {
+                width: 6px;
+                height: 6px;
+                border-radius: 9999px;
+                background: ${isActive ? "#ffffff" : "#dcfce7"};
+              }
+              .body {
+                padding: 20px 20px 16px;
+                text-align: center;
               }
               h1 {
-                margin: 0 0 10px 0;
-                color: #2D7A3E;
-                font-size: 24px;
+                margin: 0;
+                color: #0f172a;
+                font-size: 18px;
+                font-weight: 700;
               }
               .member-id {
-                margin: 0 0 20px 0;
-                color: #64748b;
-                font-size: 16px;
+                margin: 2px 0 16px;
+                color: #94a3b8;
+                font-size: 11px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
               }
-              .contact-info {
-                margin: 20px 0;
-                color: #64748b;
-                font-size: 14px;
+              .member-id span {
+                font-family: ui-monospace, "SFMono-Regular", monospace;
+                text-transform: none;
               }
-              .qr-container {
-                margin: 20px 0;
+              .qr-box {
+                display: inline-block;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 12px;
+                line-height: 0;
               }
-              .qr-container svg {
-                display: block;
-                width: 200px;
-                height: 200px;
-                margin: 0 auto;
+              .qr-caption {
+                margin: 10px 0 0;
+                font-size: 10px;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                color: #94a3b8;
+              }
+              .details {
+                border-top: 1px solid #f1f5f9;
+                text-align: left;
+              }
+              .details .cell {
+                padding: 10px 20px;
+              }
+              .details .cell-row {
+                display: flex;
+              }
+              .details .cell-row .cell {
+                flex: 1;
+              }
+              .details .cell-row .cell:first-child {
+                border-right: 1px solid #f1f5f9;
+              }
+              .details .cell-full {
+                border-bottom: 1px solid #f1f5f9;
+              }
+              .details .label {
+                margin: 0;
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #94a3b8;
+              }
+              .details .value {
+                margin: 1px 0 0;
+                font-size: 13px;
+                font-weight: 500;
+                color: #1e293b;
               }
             </style>
           </head>
           <body>
             <div class="card">
-              <h1>${member.name}</h1>
-              <p class="member-id">Member ID: ${member.memberId}</p>
-              <div class="qr-container">
-                ${qrMarkup}
+              <div class="header">
+                <img src="${logoUrl}" alt="" />
+                <div>
+                  <p class="org">SVPMPC</p>
+                  <p class="tagline">Member Identification</p>
+                </div>
+                <span class="status-pill"><span class="status-dot"></span>${esc(statusLabel)}</span>
               </div>
-              <div class="contact-info">
-                <p>Email: ${member.email}</p>
-                <p>Phone: ${member.phone}</p>
-                <p>Status: ${member.status.charAt(0).toUpperCase() + member.status.slice(1)}</p>
+              <div class="body">
+                <h1>${esc(member.name)}</h1>
+                <p class="member-id">Member ID &middot; <span>${esc(member.memberId)}</span></p>
+                <div class="qr-box">${qrMarkup}</div>
+                <p class="qr-caption">Scan to verify membership</p>
+              </div>
+              <div class="details">
+                <div class="cell cell-full">
+                  <p class="label">Email</p>
+                  <p class="value">${esc(member.email)}</p>
+                </div>
+                <div class="cell-row">
+                  <div class="cell">
+                    <p class="label">Phone</p>
+                    <p class="value">${esc(member.phone)}</p>
+                  </div>
+                  <div class="cell">
+                    <p class="label">Member Since</p>
+                    <p class="value">${esc(joinDate)}</p>
+                  </div>
+                </div>
               </div>
             </div>
             <script>
@@ -573,55 +706,94 @@ export default function MemberDirectory({ user }) {
         isOpen={showQRModal}
         onClose={() => setShowQRModal(false)}
         title="Member QR Code"
+        className="max-w-sm"
       >
         {selectedMember && (
-          <div className="text-center">
-            <div className="mb-5">
-              <div className="flex items-center gap-3 justify-center mb-4">
-                <div className="w-14 h-14 bg-coop-green rounded-full flex items-center justify-center shrink-0">
-                  <span className="text-xl font-bold text-white">
-                    {selectedMember.name.charAt(0)}
-                  </span>
+          <div className="space-y-5">
+            {/* ID card */}
+            <div className="rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              {/* Header band */}
+              <div className="bg-coop-green px-5 py-3 flex items-center gap-2.5">
+                <img
+                  src="/SVPMPC-LOGO(MAIN).png"
+                  alt=""
+                  className="w-6 h-6 object-contain bg-white rounded-full p-0.5 shrink-0"
+                />
+                <div className="leading-tight min-w-0">
+                  <p className="text-[11px] font-bold text-white tracking-wide truncate">
+                    SVPMPC
+                  </p>
+                  <p className="text-[10px] text-green-100">Member Identification</p>
                 </div>
-                <div className="text-left">
-                  <p className="text-lg font-bold text-slate-900">
-                    {selectedMember.name}
+                <span
+                  className={`ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide shrink-0 ${
+                    selectedMember.status === "active"
+                      ? "bg-white/20 text-white"
+                      : "bg-black/15 text-green-50"
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      selectedMember.status === "active" ? "bg-white" : "bg-green-100/70"
+                    }`}
+                  />
+                  {selectedMember.status}
+                </span>
+              </div>
+
+              {/* Body */}
+              <div className="bg-white px-5 pt-5 pb-4 text-center">
+                <p className="text-lg font-bold text-slate-900">{selectedMember.name}</p>
+                <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5 mb-4">
+                  Member ID &middot;{" "}
+                  <span className="font-mono normal-case">{selectedMember.memberId}</span>
+                </p>
+
+                <div className="inline-flex bg-white p-3 rounded-lg border border-slate-200">
+                  <QRCodeSVG
+                    value={selectedMember.memberId}
+                    size={168}
+                    level="H"
+                    fgColor="#2D7A3E"
+                  />
+                </div>
+                <p className="mt-2.5 text-[10px] font-semibold text-slate-400 tracking-wider uppercase">
+                  Scan to verify membership
+                </p>
+              </div>
+
+              {/* Details */}
+              <div className="border-t border-slate-100">
+                <div className="px-5 py-3 border-b border-slate-100">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Email
                   </p>
-                  <p className="text-sm text-slate-500 font-mono">
-                    {selectedMember.memberId}
+                  <p className="text-sm font-medium text-slate-800 truncate">
+                    {selectedMember.email}
                   </p>
+                </div>
+                <div className="grid grid-cols-2">
+                  <div className="px-5 py-3 border-r border-slate-100">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                      Phone
+                    </p>
+                    <p className="text-sm font-medium text-slate-800">{selectedMember.phone}</p>
+                  </div>
+                  <div className="px-5 py-3">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                      Member Since
+                    </p>
+                    <p className="text-sm font-medium text-slate-800">
+                      {selectedMember.joinDate
+                        ? new Date(selectedMember.joinDate).toLocaleDateString()
+                        : "N/A"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200 mb-5 inline-block">
-              <QRCodeSVG
-                value={selectedMember.memberId}
-                size={200}
-                level="H"
-                fgColor="#2D7A3E"
-              />
-            </div>
-
-            <div className="space-y-1.5 mb-5 text-sm text-slate-600 text-left inline-block">
-              <p>
-                <span className="font-semibold">Email:</span> {selectedMember.email}
-              </p>
-              <p>
-                <span className="font-semibold">Phone:</span> {selectedMember.phone}
-              </p>
-              <p>
-                <span className="font-semibold">Status:</span>{" "}
-                <span className="capitalize">{selectedMember.status}</span>
-              </p>
-              <p>
-                <span className="font-semibold">Join Date:</span>{" "}
-                {selectedMember.joinDate
-                  ? new Date(selectedMember.joinDate).toLocaleDateString()
-                  : "N/A"}
-              </p>
-            </div>
-
+            {/* Actions */}
             <div className="flex gap-3">
               <Button
                 variant="outline"

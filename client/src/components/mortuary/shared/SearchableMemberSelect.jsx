@@ -7,10 +7,6 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
   const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
 
-  // Debug logging
-  console.log('SearchableMemberSelect received members:', members);
-  console.log('Members length:', members?.length);
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -31,7 +27,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      <div 
+      <div
         className="w-full min-h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 flex items-center cursor-text focus-within:ring-2 focus-within:ring-coop-green/20 focus-within:bg-white transition-all overflow-hidden"
         onClick={() => setIsOpen(true)}
       >
@@ -53,7 +49,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
               </span>
             ) : selectedMember ? (
               <span className="font-bold text-slate-900 text-sm">
-                {selectedMember.name || 'Unknown Member'} 
+                {selectedMember.name || 'Unknown Member'}
                 <span className="text-slate-400 text-xs font-normal ml-2">
                   UID: {selectedMember.id?.toString().padStart(6, '0') || '000000'}
                 </span>
@@ -68,7 +64,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -93,7 +89,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
                 ))}
               </div>
             )}
-            
+
             {filteredMembers.length > 0 ? (
                filteredMembers.map((m) => (
                  <button

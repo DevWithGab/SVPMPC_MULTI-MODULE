@@ -1,5 +1,6 @@
 const Ledger = require('../models/Ledger');
 const Contribution = require('../models/Contribution');
+const Claim = require('../models/Claim');
 const { Member } = require('../../../shared/models');
 
 // Get member dashboard data
@@ -14,7 +15,7 @@ const getDashboard = async (req, res) => {
     }
 
     // Get current balance
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1 });
+    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
     const currentBalance = latestLedger ? latestLedger.balance : 0;
 
     // Get contribution history (last 12 months)
@@ -151,7 +152,88 @@ const getTreasurerDashboard = async (req, res) => {
   }
 };
 
+// Admin dashboard — member counts, claim counts by status, recent claim
+// activity. Note: adminRoutes.js previously wired GET /dashboard to
+// getDashboard above, which requires a memberId route param that route
+// never supplied (a pre-existing 404 on that endpoint) — this function is
+// the one actually meant for the admin-facing dashboard.
+const getAdminDashboard = async (req, res) => {
+  try {
+    const [totalMembers, activeMembers, inactiveMembers, deceasedMembers] = await Promise.all([
+      Member.countDocuments(),
+      Member.countDocuments({ status: 'active' }),
+      Member.countDocuments({ status: 'inactive' }),
+      Member.countDocuments({ status: 'deceased' }),
+    ]);
+
+    const claimStatuses = [
+      'pending_requirements',
+      'approved',
+      'pending_deduction',
+      'deduction_processed',
+      'released',
+      'rejected',
+    ];
+
+    const claimCountsByStatus = {};
+    await Promise.all(
+      claimStatuses.map(async (status) => {
+        claimCountsByStatus[status] = await Claim.countDocuments({ status });
+      }),
+    );
+
+    const totalClaims = Object.values(claimCountsByStatus).reduce((sum, n) => sum + n, 0);
+
+    // Recent claim activity — flatten the last few statusHistory entries
+    // across the most recently updated claims.
+    const recentClaims = await Claim.find()
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .select('claimId memberName beneficiaryName statusHistory');
+
+    const recentClaimActivities = recentClaims
+      .flatMap((claim) =>
+        claim.statusHistory.map((entry) => ({
+          claimId: claim.claimId,
+          memberName: claim.memberName,
+          beneficiaryName: claim.beneficiaryName,
+          status: entry.status,
+          changedBy: entry.changedBy,
+          changedAt: entry.changedAt,
+          notes: entry.notes,
+        })),
+      )
+      .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))
+      .slice(0, 10);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        members: {
+          total: totalMembers,
+          active: activeMembers,
+          inactive: inactiveMembers,
+          deceased: deceasedMembers,
+        },
+        claims: {
+          total: totalClaims,
+          ...claimCountsByStatus,
+        },
+        recentClaimActivities,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching admin dashboard:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching admin dashboard',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getTreasurerDashboard,
+  getAdminDashboard,
 };

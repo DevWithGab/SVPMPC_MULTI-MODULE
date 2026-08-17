@@ -17,14 +17,16 @@ const getMemberLedger = async (req, res) => {
     // Get total count for pagination
     const total = await Ledger.countDocuments({ memberId });
 
-    // Get paginated ledger entries
+    // Get paginated ledger entries — createdAt breaks ties between entries
+    // that share a transactionDate (e.g. two same-day contributions), so the
+    // one actually posted last still sorts first.
     const ledgerEntries = await Ledger.find({ memberId })
-      .sort({ transactionDate: -1 })
+      .sort({ transactionDate: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     // Get current balance (from most recent entry)
-    const latestEntry = await Ledger.findOne({ memberId }).sort({ transactionDate: -1 });
+    const latestEntry = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
     const currentBalance = latestEntry ? latestEntry.balance : 0;
 
     // Calculate totals (from all entries, not just paginated)
@@ -32,11 +34,14 @@ const getMemberLedger = async (req, res) => {
     const totalCredits = allEntries.reduce((sum, entry) => sum + entry.credit, 0);
     const totalDebits = allEntries.reduce((sum, entry) => sum + entry.debit, 0);
 
-    // Format ledger entries for consistency with frontend expectations
+    // Format ledger entries for consistency with frontend expectations.
+    // createdAt (full timestamp) is included alongside date (day-only) so
+    // the client can break same-day ties by true recency too.
     const formattedEntries = ledgerEntries.map(entry => ({
       id: entry.ledgerId,
       member_id: entry.memberId,
       date: entry.transactionDate.toISOString().split('T')[0],
+      createdAt: entry.createdAt,
       ref_no: entry.referenceId || entry.ledgerId,
       description: entry.description,
       transactionType: entry.transactionType,
@@ -79,17 +84,20 @@ const getAllLedger = async (req, res) => {
     // Get total count for pagination
     const total = await Ledger.countDocuments(query);
 
-    // Get paginated ledger entries
+    // Get paginated ledger entries — createdAt breaks ties between entries
+    // that share a transactionDate, so the one actually posted last sorts first.
     const ledgerEntries = await Ledger.find(query)
-      .sort({ transactionDate: -1 })
+      .sort({ transactionDate: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    // Format for frontend
+    // Format for frontend. createdAt (full timestamp) is included alongside
+    // date (day-only) so the client can break same-day ties by true recency.
     const formattedEntries = ledgerEntries.map(entry => ({
       id: entry.ledgerId,
       member_id: entry.memberId,
       date: entry.transactionDate.toISOString().split('T')[0],
+      createdAt: entry.createdAt,
       ref_no: entry.referenceId || entry.ledgerId,
       description: entry.description,
       transactionType: entry.transactionType,
@@ -119,7 +127,7 @@ const getMemberBalance = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1 });
+    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
     const balance = latestLedger ? latestLedger.balance : 0;
 
     res.status(200).json({
