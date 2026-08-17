@@ -28,15 +28,15 @@ const SidebarItem = ({ id, icon: Icon, label, activeTab, collapsed, onClick }) =
     title={collapsed ? label : undefined}
     aria-label={label}
     aria-current={activeTab === id ? 'page' : undefined}
-    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/50 focus-visible:ring-inset ${
-      collapsed ? 'justify-center px-0 py-3' : 'px-4 py-3'
+    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
+      collapsed ? 'justify-center px-0 py-3' : 'px-4 py-2.5'
     } ${
       activeTab === id
-        ? 'bg-coop-green text-white'
-        : 'text-slate-500 hover:bg-slate-50 hover:text-coop-green'
+        ? 'bg-white text-coop-darkGreen shadow-sm'
+        : 'text-green-100/80 hover:bg-white/10 hover:text-white'
     }`}
   >
-    <Icon className="w-5 h-5 shrink-0" />
+    <Icon className="w-4.5 h-4.5 shrink-0" />
     {!collapsed && <span className="text-sm font-semibold tracking-tight">{label}</span>}
   </button>
 );
@@ -72,7 +72,6 @@ const AdminPortal = ({ onBack, user }) => {
 
   useEffect(() => {
     fetchInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchInitialData = async () => {
@@ -354,6 +353,7 @@ const AdminPortal = ({ onBack, user }) => {
             payouts={payouts}
             members={members}
             setActiveTab={setActiveSection}
+            user={user}
           />
         );
     }
@@ -383,13 +383,18 @@ const AdminPortal = ({ onBack, user }) => {
         initial={false}
         animate={{
           width: isDesktop
-            ? isSidebarCollapsed ? 68 : 256
-            : isMobileMenuOpen ? 256 : 0,
+            ? isSidebarCollapsed ? 76 : 268
+            : isMobileMenuOpen ? 268 : 0,
         }}
         transition={{ type: 'tween', duration: 0.2 }}
-        className="bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
+        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
       >
-        <div className={`border-b border-slate-100 flex items-center shrink-0 ${isSidebarCollapsed ? 'justify-center py-4' : 'justify-between px-4 py-4'}`}>
+        <div className={`border-b border-white/10 flex items-center shrink-0 ${isSidebarCollapsed ? 'justify-center py-5' : 'gap-3 px-5 py-5'}`}>
+          <img
+            src="/SVPMPC-LOGO(MAIN).png"
+            alt="SVPMPC Logo"
+            className={`object-contain shrink-0 ${isSidebarCollapsed ? 'w-8 h-8' : 'w-10 h-10'}`}
+          />
           <AnimatePresence mode="wait">
             {!isSidebarCollapsed && (
               <Motion.div
@@ -397,22 +402,17 @@ const AdminPortal = ({ onBack, user }) => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex items-center gap-2.5 min-w-0"
+                className="min-w-0"
               >
-                <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-7 h-7 object-contain shrink-0" />
-                <div className="min-w-0">
-                  <h1 className="text-sm font-bold text-slate-900 leading-none truncate">Mortuary Admin</h1>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Fund Management</p>
-                </div>
+                <h1 className="text-sm font-bold text-white leading-tight truncate">St. Vincent Parish</h1>
+                <p className="text-[11px] text-green-100/70 leading-tight truncate">Multi-Purpose Cooperative</p>
+                <p className="text-[10px] font-bold text-coop-yellow tracking-wider mt-1">MORTUARY FUND SYSTEM</p>
               </Motion.div>
             )}
           </AnimatePresence>
-          {isSidebarCollapsed && (
-            <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-6 h-6 object-contain" />
-          )}
         </div>
 
-        <nav className={`flex-1 space-y-1 overflow-y-auto ${isSidebarCollapsed ? 'px-2 py-3' : 'px-3 py-4'}`}>
+        <nav className={`flex-1 space-y-1 overflow-y-auto ${isSidebarCollapsed ? 'px-2.5 py-4' : 'px-3 py-4'}`}>
           {sidebarItems.map((item) => (
             <SidebarItem
               key={item.id}
@@ -429,15 +429,15 @@ const AdminPortal = ({ onBack, user }) => {
           ))}
         </nav>
 
-        <div className={`border-t border-slate-100 shrink-0 ${isSidebarCollapsed ? 'px-2 py-3' : 'px-3 py-3'}`}>
+        <div className={`border-t border-white/10 shrink-0 ${isSidebarCollapsed ? 'px-2.5 py-3' : 'px-3 py-3'}`}>
           {!isSidebarCollapsed && (
             <div className="flex items-center gap-3 px-1 pb-2">
-              <div className="w-8 h-8 bg-coop-green rounded-lg flex items-center justify-center shrink-0">
-                <LayoutGrid className="w-4 h-4 text-white" />
+              <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-full flex items-center justify-center shrink-0">
+                <span className="text-white text-xs font-bold">{(user?.name || 'Admin').charAt(0).toUpperCase()}</span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate">{user?.name || 'Admin'}</p>
-                <p className="text-[11px] text-slate-400">Mortuary Admin</p>
+                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Admin User'}</p>
+                <p className="text-[11px] text-green-100/60">System Administrator</p>
               </div>
             </div>
           )}
@@ -446,7 +446,7 @@ const AdminPortal = ({ onBack, user }) => {
               onClick={onBack}
               title={isSidebarCollapsed ? 'Sign Out' : undefined}
               aria-label="Sign Out"
-              className={`w-full flex items-center gap-3 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ${isSidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
+              className={`w-full flex items-center gap-3 text-green-100/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${isSidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
             >
               <LogOut className="w-4 h-4 shrink-0" />
               {!isSidebarCollapsed && <span className="text-sm font-medium">Sign Out</span>}
@@ -458,7 +458,7 @@ const AdminPortal = ({ onBack, user }) => {
           <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="border-t border-slate-100 py-3 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
+            className="border-t border-white/10 py-3 flex items-center justify-center text-green-100/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
           >
             {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
@@ -466,17 +466,17 @@ const AdminPortal = ({ onBack, user }) => {
       </Motion.aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between">
+        <div className="lg:hidden bg-coop-darkGreen p-4 flex items-center justify-between">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             aria-label="Open menu"
-            className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"
+            className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center"
           >
-            <Menu className="w-5 h-5 text-slate-600" />
+            <Menu className="w-5 h-5 text-white" />
           </button>
           <div className="text-center">
-            <h1 className="font-bold text-slate-900 text-base tracking-tight">Mortuary Admin</h1>
-            <p className="text-slate-400 text-xs font-medium">Fund Management</p>
+            <h1 className="font-bold text-white text-base tracking-tight">Mortuary Admin</h1>
+            <p className="text-green-100/60 text-xs font-medium">Fund Management</p>
           </div>
           <div className="w-10 h-10" />
         </div>
