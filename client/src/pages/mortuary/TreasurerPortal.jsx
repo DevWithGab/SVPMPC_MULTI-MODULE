@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, CreditCard, FileText, LayoutGrid,
-  LogOut, BarChart3, ChevronLeft, ChevronRight, Loader2, ClipboardCheck
+  LogOut, BarChart3, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
 } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 // Import modular components
 import {
@@ -24,22 +24,25 @@ import Button from '../../components/shared/ui/Button';
 import Input from '../../components/shared/ui/Input';
 import api from '../../services/api';
 
-const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed }) => (
+const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate }) => (
   <button
-    onClick={() => setActiveTab(id)}
+    onClick={() => {
+      setActiveTab(id);
+      onNavigate?.();
+    }}
     title={collapsed ? label : undefined}
     aria-label={label}
     aria-current={activeTab === id ? 'page' : undefined}
-    className={`w-full flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-inset ${
-      collapsed ? 'justify-center px-0 py-3' : 'px-4 py-3'
+    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
+      collapsed ? 'justify-center px-0 py-3' : 'px-4 py-2.5'
     } ${
       activeTab === id
-        ? 'bg-coop-green text-white'
-        : 'text-slate-500 hover:bg-slate-50 hover:text-coop-green'
+        ? 'bg-white text-coop-darkGreen shadow-sm'
+        : 'text-green-100/80 hover:bg-white/10 hover:text-white'
     }`}
   >
-    <Icon className="w-5 h-5 shrink-0" />
-    {!collapsed && <span className="text-sm font-bold tracking-tight">{label}</span>}
+    <Icon className="w-4.5 h-4.5 shrink-0" />
+    {!collapsed && <span className="text-sm font-semibold tracking-tight">{label}</span>}
   </button>
 );
 
@@ -138,6 +141,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('treasurerSidebarCollapsed') === 'true';
   });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
   const [contributionBarangayFilter, setContributionBarangayFilter] = useState('All');
   
   // Form data states
@@ -415,6 +420,12 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   }, [sidebarCollapsed]);
 
   useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'ledger' && currentPage !== 1) {
       skipNextLedgerPageFetchRef.current = true;
     }
@@ -563,64 +574,116 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
+    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={`${sidebarCollapsed ? 'w-[68px]' : 'w-64'} bg-white border-r border-slate-200 flex flex-col transition-all duration-200`}>
+      <Motion.aside
+        initial={false}
+        animate={{
+          width: isDesktop
+            ? sidebarCollapsed ? 76 : 268
+            : isMobileMenuOpen ? 268 : 0,
+        }}
+        transition={{ type: 'tween', duration: 0.2 }}
+        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
+      >
         {/* Header */}
-        <div className={`border-b border-slate-100 flex items-center ${sidebarCollapsed ? 'justify-center py-4' : 'justify-between px-4 py-4'}`}>
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2.5">
-              <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-7 h-7 object-contain" />
-              <div>
-                <h1 className="text-sm font-bold text-slate-900 leading-none">Treasurer</h1>
-                <p className="text-[11px] text-slate-400 mt-0.5">Mortuary Fund</p>
-              </div>
-            </div>
-          )}
-          {sidebarCollapsed && (
-            <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-6 h-6 object-contain" />
-          )}
+        <div className={`border-b border-white/10 flex items-center shrink-0 ${sidebarCollapsed ? 'justify-center py-5' : 'gap-3 px-5 py-5'}`}>
+          <img
+            src="/SVPMPC-LOGO(MAIN).png"
+            alt="SVPMPC Logo"
+            className={`object-contain shrink-0 ${sidebarCollapsed ? 'w-8 h-8' : 'w-10 h-10'}`}
+          />
+          <AnimatePresence mode="wait">
+            {!sidebarCollapsed && (
+              <Motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="min-w-0"
+              >
+                <h1 className="text-sm font-bold text-white leading-tight truncate">St. Vincent Parish</h1>
+                <p className="text-[11px] text-green-100/70 leading-tight truncate">Multi-Purpose Cooperative</p>
+                <p className="text-[10px] font-bold text-coop-yellow tracking-wider mt-1">MORTUARY FUND SYSTEM</p>
+              </Motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Nav */}
-        <nav className={`flex-1 space-y-1 ${sidebarCollapsed ? 'px-2 py-3' : 'px-3 py-4'}`}>
-          <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
-          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
-          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
-          <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
-          <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
-          <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
+        <nav className={`flex-1 space-y-1 overflow-y-auto ${sidebarCollapsed ? 'px-2.5 py-4' : 'px-3 py-4'}`}>
+          <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
         </nav>
 
         {/* Footer */}
-        <div className={`border-t border-slate-100 ${sidebarCollapsed ? 'px-2 py-3' : 'px-3 py-3'}`}>
+        <div className={`border-t border-white/10 shrink-0 ${sidebarCollapsed ? 'px-2.5 py-3' : 'px-3 py-3'}`}>
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-3 px-1 pb-2">
+              <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-full flex items-center justify-center shrink-0">
+                <span className="text-white text-xs font-bold">{(user?.name || 'Treasurer').charAt(0).toUpperCase()}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Treasurer'}</p>
+                <p className="text-[11px] text-green-100/60">Fund Treasurer</p>
+              </div>
+            </div>
+          )}
           <button
             onClick={onBack}
-            title={sidebarCollapsed ? 'Logout' : undefined}
-            aria-label="Logout"
-            className={`w-full flex items-center gap-3 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50 focus-visible:ring-inset ${
-              sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'
-            }`}
+            title={sidebarCollapsed ? 'Sign Out' : undefined}
+            aria-label="Sign Out"
+            className={`w-full flex items-center gap-3 text-green-100/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
           >
-            <LogOut className="w-4.5 h-4.5 shrink-0" />
-            {!sidebarCollapsed && <span className="text-sm font-medium">Logout</span>}
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Sign Out</span>}
           </button>
         </div>
 
         {/* Collapse Toggle */}
-        <button
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="border-t border-slate-100 py-3 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-inset"
-        >
-          {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
-      </aside>
+        {isDesktop && (
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="border-t border-white/10 py-3 flex items-center justify-center text-green-100/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        )}
+      </Motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-        {initialLoading ? <PortalSkeleton /> : renderActiveView()}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="lg:hidden bg-coop-darkGreen p-4 flex items-center justify-between shrink-0">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open menu"
+            className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center"
+          >
+            <Menu className="w-5 h-5 text-white" />
+          </button>
+          <div className="text-center">
+            <h1 className="font-bold text-white text-base tracking-tight">Treasurer</h1>
+            <p className="text-green-100/60 text-xs font-medium">Mortuary Fund</p>
+          </div>
+          <div className="w-10 h-10" />
+        </div>
+
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+          {initialLoading ? <PortalSkeleton /> : renderActiveView()}
+        </main>
+      </div>
 
       {/* Record Contribution Modal */}
       <Modal isOpen={isAddContributionOpen} onClose={() => setIsAddContributionOpen(false)} title="Record Contribution">

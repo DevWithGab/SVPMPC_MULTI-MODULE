@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { LineChart, Line, AreaChart, Area, Pie, PieChart, XAxis, YAxis } from 'recharts';
+import { AreaChart, Area, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
 import StatCard from '../shared/StatCard';
 
@@ -40,26 +40,42 @@ const Dashboard = ({ stats, contributions = [] }) => {
 
   const calculateChartData = () => {
     const monthlyTotals = {};
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     contributions.forEach(c => {
       if (c.payment_date) {
         const date = new Date(c.payment_date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const monthLabel = monthNames[date.getMonth()];
         if (!monthlyTotals[monthKey]) {
-          monthlyTotals[monthKey] = { month: monthLabel, contributions: 0, fullKey: monthKey, count: 0 };
+          monthlyTotals[monthKey] = { contributions: 0, count: 0 };
         }
         monthlyTotals[monthKey].contributions += c.amount || 0;
         monthlyTotals[monthKey].count += 1;
       }
     });
-    const sortedData = Object.values(monthlyTotals).sort((a, b) => a.fullKey.localeCompare(b.fullKey)).slice(-6);
+
+    // Walk every one of the trailing 6 calendar months, not just the ones
+    // that had a contribution — otherwise a month with zero activity is
+    // skipped entirely and the line jumps straight from the last active
+    // month to the next, masking the gap (and skewing the growth-rate
+    // comparison, which assumes it's comparing consecutive months).
+    const now = new Date();
+    const last6Months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const totals = monthlyTotals[monthKey] || { contributions: 0, count: 0 };
+      last6Months.push({ month: monthNames[d.getMonth()], fullKey: monthKey, ...totals });
+    }
+
+    if (!last6Months.some(item => item.contributions > 0)) {
+      return [{ month: 'No Data', contributions: 0, balance: 0, count: 0 }];
+    }
+
     let cumulativeBalance = 0;
-    const dataWithBalance = sortedData.map(item => {
+    return last6Months.map(item => {
       cumulativeBalance += item.contributions;
       return { ...item, balance: cumulativeBalance };
     });
-    return dataWithBalance.length > 0 ? dataWithBalance : [{ month: 'No Data', contributions: 0, balance: 0, count: 0 }];
   };
 
   const chartData = calculateChartData();
@@ -74,6 +90,24 @@ const Dashboard = ({ stats, contributions = [] }) => {
 
   const growthRate = calculateGrowthRate();
   const isPositiveGrowth = growthRate >= 0;
+  const hasEnoughDataToCompare = chartData.length >= 2 && chartData[0].month !== 'No Data';
+
+  // "January - June 2024" style range, matching shadcn's chart caption convention.
+  const dateRangeLabel = (() => {
+    if (!chartData.length || chartData[0].month === 'No Data') return 'No contributions recorded yet';
+    const first = chartData[0];
+    const last = chartData[chartData.length - 1];
+    const firstYear = first.fullKey?.slice(0, 4);
+    const lastYear = last.fullKey?.slice(0, 4);
+    if (first === last) return `${first.month} ${firstYear}`;
+    return firstYear === lastYear
+      ? `${first.month} - ${last.month} ${lastYear}`
+      : `${first.month} ${firstYear} - ${last.month} ${lastYear}`;
+  })();
+
+  const trendCaption = hasEnoughDataToCompare
+    ? `${isPositiveGrowth ? 'Trending up' : 'Trending down'} vs last month · ${dateRangeLabel}`
+    : dateRangeLabel;
 
   const chartConfig = {
     contributions: { label: "Contributions", color: "#2D7A3E" },
@@ -130,22 +164,31 @@ const Dashboard = ({ stats, contributions = [] }) => {
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-slate-900">Fund Growth</p>
-                <span className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded ${isPositiveGrowth ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  {isPositiveGrowth ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                  {Math.abs(growthRate)}%
-                </span>
+                {hasEnoughDataToCompare && (
+                  <span className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded ${isPositiveGrowth ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                    {isPositiveGrowth ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    {Math.abs(growthRate)}%
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">Last 6 months</p>
+              <p className="text-xs text-slate-400 mt-0.5">{trendCaption}</p>
             </div>
           </div>
 
           <ChartContainer config={chartConfig} className="h-[240px] w-full">
-            <LineChart data={chartData}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="fillContributions" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-contributions)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="var(--color-contributions)" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${(v / 1000).toFixed(0)}k`} />
               <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
-              <Line type="monotone" dataKey="contributions" stroke="var(--color-contributions)" strokeWidth={2} dot={{ fill: "var(--color-contributions)", r: 3 }} activeDot={{ r: 5 }} />
-            </LineChart>
+              <Area type="natural" dataKey="contributions" stroke="var(--color-contributions)" strokeWidth={2} fill="url(#fillContributions)" dot={false} activeDot={{ r: 5 }} />
+            </AreaChart>
           </ChartContainer>
 
           <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
@@ -168,21 +211,22 @@ const Dashboard = ({ stats, contributions = [] }) => {
         <div className="bg-white border border-slate-200 rounded-xl p-6">
           <div className="mb-4">
             <p className="text-sm font-semibold text-slate-900">Fund Balance</p>
-            <p className="text-xs text-slate-400 mt-0.5">Cumulative over time</p>
+            <p className="text-xs text-slate-400 mt-0.5">{trendCaption}</p>
           </div>
 
           <ChartContainer config={chartConfig} className="h-[180px] w-full">
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="fillBalance" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-balance)" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="var(--color-balance)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--color-balance)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="var(--color-balance)" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
+              <CartesianGrid vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
               <YAxis hide />
               <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
-              <Area type="monotone" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} fill="url(#fillBalance)" />
+              <Area type="natural" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} fill="url(#fillBalance)" dot={false} activeDot={{ r: 5 }} />
             </AreaChart>
           </ChartContainer>
 
