@@ -3,6 +3,12 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { sendCredentials, sendBulkCredentials, sendPasswordResetNotification } = require('../services/notificationService');
 
+// PH mobile numbers: 11 digits, starting with 09 (e.g. 09171234567). Mirrors
+// the client's utils/validation.js and beneficiaryController.js — the
+// client-side check alone isn't real enforcement since this endpoint can be
+// called directly.
+const PH_PHONE_REGEX = /^09\d{9}$/;
+
 // Generate a random password
 const generatePassword = () => {
   const length = 12;
@@ -24,6 +30,7 @@ const createMemberWithAccount = async (req, res) => {
       barangay,
       address,
       beneficiaries,
+      beneficiaryRelationship,
       dateOfBirth,
       gender,
       emergencyContact,
@@ -33,6 +40,12 @@ const createMemberWithAccount = async (req, res) => {
     // Validate required fields
     if (!memberName || !email || !phoneNumber || !barangay || !address) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    if (!PH_PHONE_REGEX.test(String(phoneNumber).trim())) {
+      return res.status(400).json({
+        message: 'Phone number must be an 11-digit PH mobile number starting with 09 (e.g. 09171234567)',
+      });
     }
 
     // Check if email already exists
@@ -53,6 +66,7 @@ const createMemberWithAccount = async (req, res) => {
       barangay,
       address,
       beneficiaries,
+      beneficiaryRelationship,
       dateOfBirth,
       gender,
       emergencyContact,
@@ -369,6 +383,42 @@ const deleteMember = async (req, res) => {
   }
 };
 
+// Toggle a member between active and inactive — flips both Member and User
+// status together (mirrors deleteMember's active->inactive dual-write,
+// made bidirectional so a deactivated member can be reactivated). Refuses
+// to touch deceased/staff members since there's no sensible active/inactive
+// toggle for those statuses.
+const toggleMemberStatus = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    const member = await Member.findOne({ memberId });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+
+    if (!['active', 'inactive'].includes(member.status)) {
+      return res.status(400).json({
+        message: `Cannot toggle active/inactive for a member with status "${member.status}"`,
+      });
+    }
+
+    const nextStatus = member.status === 'active' ? 'inactive' : 'active';
+    member.status = nextStatus;
+    await member.save();
+
+    await User.findOneAndUpdate({ memberId }, { status: nextStatus });
+
+    res.status(200).json({
+      message: `Member ${nextStatus === 'active' ? 'activated' : 'deactivated'} successfully`,
+      member,
+    });
+  } catch (error) {
+    console.error('Error toggling member status:', error);
+    res.status(500).json({ message: 'Error toggling member status', error: error.message });
+  }
+};
+
 // Reset member password
 const resetMemberPassword = async (req, res) => {
   try {
@@ -419,5 +469,6 @@ module.exports = {
   getAllMembers,
   updateMember,
   deleteMember,
+  toggleMemberStatus,
   resetMemberPassword,
 };

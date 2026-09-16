@@ -1,62 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ChevronLeft, ChevronRight, Users, FileText, 
-  BarChart3, Settings, UserCheck, LayoutGrid
-} from 'lucide-react';
-import { 
-  Dashboard, 
-  MemberManagement, 
-  Reports
-} from '../../components/mortuary/admin';
-import SettingsView from '../../components/mortuary/admin/Settings';
-import { Card } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import AddMemberModal from '../../components/mortuary/admin/modals/AddMemberModal';
-import AddContributionModal from '../../components/mortuary/admin/modals/AddContributionModal';
-import AddPayoutModal from '../../components/mortuary/admin/modals/AddPayoutModal';
-import SendSMSModal from '../../components/mortuary/admin/modals/SendSMSModal';
-import { ToastContainer, useToast } from '../../components/ui/toast';
-import { 
-  memberAPI, 
-  contributionAPI, 
-  mortuaryDashboardAPI,
-  adminAPI,
+import React, { useState, useEffect } from "react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  FileText,
+  BarChart3,
+  LayoutGrid,
+  Menu,
+  LogOut,
+  HeartHandshake,
+  Banknote,
+  ClipboardCheck,
+  Shield,
+} from "lucide-react";
+import {
+  Dashboard,
+  MemberManagement,
+  Reports,
+  Claims,
+  Beneficiaries,
+  DeductionSettings,
+  AuditLogs,
+  DatabaseBackup,
+} from "../../components/mortuary/admin";
+import { Card } from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { ToastContainer, useToast } from "../../components/ui/toast";
+import {
+  contributionAPI,
   treasurerAPI,
   payoutAPI,
-  mortuaryMemberAPI
-} from '../../services/api';
+  mortuaryMemberAPI,
+} from "../../services/api";
 
-const AdminPortal = ({ onBack }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [activeSection, setActiveSection] = useState('dashboard');
+const SidebarItem = ({
+  id,
+  icon: Icon,
+  label,
+  activeTab,
+  collapsed,
+  onClick,
+}) => (
+  <button
+    onClick={onClick}
+    title={collapsed ? label : undefined}
+    aria-label={label}
+    aria-current={activeTab === id ? "page" : undefined}
+    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
+      collapsed ? "justify-center px-0 py-3" : "px-4 py-2.5"
+    } ${
+      activeTab === id
+        ? "bg-white text-coop-darkGreen shadow-sm"
+        : "text-green-100/80 hover:bg-white/10 hover:text-white"
+    }`}
+  >
+    <Icon className="w-4.5 h-4.5 shrink-0" />
+    {!collapsed && (
+      <span className="text-sm font-semibold tracking-tight">{label}</span>
+    )}
+  </button>
+);
+
+const AdminPortal = ({ onBack, user }) => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.localStorage.getItem("mortuaryAdminSidebarCollapsed") === "true"
+    );
+  });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
+  );
+  const [activeSection, setActiveSection] = useState("dashboard");
   const [loading, setLoading] = useState(true);
   const { toasts, addToast, removeToast } = useToast();
-  
-  // State for data
+
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [payouts, setPayouts] = useState([]);
   const [stats, setStats] = useState(null);
-  
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [contributionSearch, setContributionSearch] = useState('');
-  const [contributionStatusFilter, setContributionStatusFilter] = useState('all');
-  
-  // Modal states
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
-  const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
-  const [isAddPayoutOpen, setIsAddPayoutOpen] = useState(false);
-  const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
-  const [smsData, setSmsData] = useState({ memberId: null, message: '', memberName: '' });
-  const [selectedMember, setSelectedMember] = useState(null);
-  
-  // System settings
-  const [systemSettings, setSystemSettings] = useState({
-    annualGoal: 5000000,
-    monthlyContribution: 500,
-  });
+
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "mortuaryAdminSidebarCollapsed",
+      String(isSidebarCollapsed),
+    );
+  }, [isSidebarCollapsed]);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     fetchInitialData();
@@ -65,507 +105,321 @@ const AdminPortal = ({ onBack }) => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      // Fetch all data in parallel - use mortuary-specific endpoints
-      const [membersRes, contributionsRes, payoutsRes, dashboardRes] = await Promise.all([
-        mortuaryMemberAPI.getAllMembers(), // Use mortuaryMemberAPI
+      const [
+        membersRes,
+        contributionsRes,
+        payoutsRes,
+        dashboardRes,
+        balancesRes,
+      ] = await Promise.all([
+        mortuaryMemberAPI.getAllMembers({ limit: 100 }),
         contributionAPI.getAllContributions(),
         payoutAPI.getAllPayouts(),
-        treasurerAPI.getDashboard().catch(() => null) // Don't fail if dashboard fails
+        treasurerAPI.getDashboard().catch(() => null),
+        treasurerAPI.getAllMemberBalances().catch(() => null),
       ]);
 
       if (membersRes.members) {
-        setMembers(membersRes.members);
+        const membersWithBalances = membersRes.members.map((member) => {
+          const balanceData = balancesRes?.data?.members?.find(
+            (b) => b.memberId === member.id,
+          );
+          return {
+            ...member,
+            memberId: member.id,
+            currentBalance: balanceData?.balance || 0,
+          };
+        });
+        setMembers(membersWithBalances);
       }
 
-      if (contributionsRes.contributions) {
-        setContributions(contributionsRes.contributions);
+      if (contributionsRes.data) {
+        setContributions(contributionsRes.data);
       }
 
       if (payoutsRes.payouts) {
         setPayouts(payoutsRes.payouts);
       }
-      
-      if (dashboardRes) {
+
+      if (dashboardRes && dashboardRes.data) {
         setStats({
-          fundBalance: dashboardRes.fundBalance || 0,
-          activeMembers: membersRes.members?.length || 0,
-          totalPayouts: payoutsRes.payouts?.reduce((sum, p) => sum + p.amount, 0) || 0,
+          fundBalance: dashboardRes.data.fundBalance || 0,
+          activeMembers: dashboardRes.data.activeMembers || 0,
+          totalMembers: dashboardRes.data.totalMembers || 0,
+          lowBalanceMembers: dashboardRes.data.lowBalanceMembers || 0,
+          totalCollected: dashboardRes.data.totalCollected || 0,
         });
       } else {
         setStats({
           fundBalance: 0,
           activeMembers: membersRes.members?.length || 0,
-          totalPayouts: payoutsRes.payouts?.reduce((sum, p) => sum + p.amount, 0) || 0,
+          totalMembers: membersRes.members?.length || 0,
+          lowBalanceMembers: 0,
+          totalCollected: 0,
         });
       }
     } catch (error) {
-      console.error('Error fetching initial data:', error);
-      // Set fallback data
+      console.error("Error fetching initial data:", error);
       setStats({
         fundBalance: 0,
         activeMembers: members.length,
-        totalPayouts: 0,
+        totalMembers: members.length,
+        lowBalanceMembers: 0,
+        totalCollected: 0,
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const updateClaimStatus = async (claimId, newStatus) => {
-    // Claims functionality removed from admin portal
-    console.log('Claims functionality moved to treasurer portal');
-  };
-
-  const updateProfileStatus = async (id, status) => {
-    // Profile updates functionality removed from admin portal
-    console.log('Profile updates functionality removed');
-  };
-
-  const showToast = (message, type) => {
-    addToast(message, type);
-  };
-
-  // Add member function
-  const handleAddMember = async (memberData) => {
-    try {
-      const response = await adminAPI.createMember(memberData);
-      if (response.success) {
-        setMembers(prev => [...prev, response.member]);
-        setIsAddMemberOpen(false);
-        showToast('Member added successfully', 'success');
-      }
-    } catch (error) {
-      console.error('Error adding member:', error);
-      showToast('Failed to add member', 'error');
-    }
-  };
-
-  // Record contribution function
-  const handleRecordContribution = async (contributionData) => {
-    try {
-      const response = await contributionAPI.recordContribution(contributionData);
-      if (response.success) {
-        setContributions(prev => [...prev, response.contribution]);
-        setIsAddContributionOpen(false);
-        showToast('Contribution recorded successfully', 'success');
-      }
-    } catch (error) {
-      console.error('Error recording contribution:', error);
-      showToast('Failed to record contribution', 'error');
-    }
-  };
-
-  // Record payout function
-  const handleRecordPayout = async (payoutData) => {
-    try {
-      const response = await payoutAPI.recordPayout(payoutData);
-      if (response.success) {
-        setPayouts(prev => [...prev, response.payout]);
-        setIsAddPayoutOpen(false);
-        showToast('Payout recorded successfully', 'success');
-      }
-    } catch (error) {
-      console.error('Error recording payout:', error);
-      showToast('Failed to record payout', 'error');
-    }
-  };
-
-  // Send SMS function
-  const handleSendSMS = async (smsData) => {
-    try {
-      const response = await treasurerAPI.sendReminderToMember({
-        memberId: smsData.memberId,
-        message: smsData.message,
-        type: 'manual'
-      });
-      if (response.success) {
-        setIsSmsModalOpen(false);
-        setSmsData({ memberId: null, message: '', memberName: '' });
-        showToast('SMS sent successfully', 'success');
-      }
-    } catch (error) {
-      console.error('Error sending SMS:', error);
-      showToast('Failed to send SMS', 'error');
-    }
-  };
-
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-    { id: 'members', label: 'Members', icon: Users },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'backup', label: 'Database Backup', icon: FileText },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const sidebarItems = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
+    { id: "members", label: "Members", icon: Users },
+    { id: "claims", label: "Claims", icon: ClipboardCheck },
+    { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
+    { id: "deductionSettings", label: "Deduction Settings", icon: Banknote },
+    { id: "reports", label: "Reports", icon: BarChart3 },
+    { id: "auditlogs", label: "Audit Logs", icon: Shield },
+    { id: "backup", label: "Backup & Restore", icon: FileText },
   ];
 
-  const filteredMembers = members.filter(member => {
-    const matchesStatus = statusFilter === 'all' || member.status === statusFilter;
-    const matchesSearch = member.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         member.id?.toString().includes(searchQuery);
+  const filteredMembers = members.filter((member) => {
+    const matchesStatus =
+      statusFilter === "all" || member.status === statusFilter;
+    const matchesSearch =
+      member.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.id?.toString().includes(searchQuery);
     return matchesStatus && matchesSearch;
   });
 
+  const renderContent = () => {
+    switch (activeSection) {
+      case "members":
+        return (
+          <MemberManagement
+            filteredMembers={filteredMembers}
+            members={members}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            setActiveTab={setActiveSection}
+          />
+        );
+      case "claims":
+        return <Claims user={user} />;
+      case "beneficiaries":
+        return <Beneficiaries user={user} />;
+      case "deductionSettings":
+        return <DeductionSettings user={user} />;
+      case "reports":
+        return (
+          <Reports
+            contributions={contributions}
+            stats={stats}
+            members={members}
+          />
+        );
+      case "auditlogs":
+        return <AuditLogs />;
+      case "backup":
+        return (
+          <DatabaseBackup
+            members={members}
+            contributions={contributions}
+            user={user}
+            onRestored={fetchInitialData}
+          />
+        );
+      default:
+        return (
+          <Dashboard
+            stats={stats}
+            contributions={contributions}
+            payouts={payouts}
+            members={members}
+            setActiveTab={setActiveSection}
+            user={user}
+          />
+        );
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-dvh bg-slate-50">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gray-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading mortuary system...</p>
+          <div className="w-12 h-12 border-4 border-slate-200 border-t-coop-green rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 font-medium">
+            Loading mortuary system...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className={`bg-white shadow-lg transition-all duration-300 relative flex flex-col ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg border border-slate-100">
-                  <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-8 h-8 object-contain" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold" style={{ color: '#2D7A3E' }}>Mortuary Admin</h2>
-                  <p className="text-sm text-gray-600">Fund Management</p>
-                </div>
-              </div>
+    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      <Motion.aside
+        initial={false}
+        animate={{
+          width: isDesktop
+            ? isSidebarCollapsed
+              ? 76
+              : 268
+            : isMobileMenuOpen
+              ? 268
+              : 0,
+        }}
+        transition={{ type: "tween", duration: 0.2 }}
+        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
+      >
+        <div
+          className={`border-b border-white/10 flex items-center shrink-0 ${isSidebarCollapsed ? "justify-center py-5" : "gap-3 px-5 py-5"}`}
+        >
+          <img
+            src="/SVPMPC-LOGO(MAIN).png"
+            alt="SVPMPC Logo"
+            className={`object-contain shrink-0 ${isSidebarCollapsed ? "w-8 h-8" : "w-10 h-10"}`}
+          />
+          <AnimatePresence mode="wait">
+            {!isSidebarCollapsed && (
+              <Motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="min-w-0"
+              >
+                <h1 className="text-sm font-bold text-white leading-tight truncate">
+                  St. Vincent Parish
+                </h1>
+                <p className="text-[11px] text-green-100/70 leading-tight truncate">
+                  Multi-Purpose Cooperative
+                </p>
+                <p className="text-[10px] font-bold text-coop-yellow tracking-wider mt-1">
+                  MORTUARY FUND SYSTEM
+                </p>
+              </Motion.div>
             )}
-            {sidebarCollapsed && (
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg border border-slate-100">
-                <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-8 h-8 object-contain" />
-              </div>
-            )}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            </button>
-          </div>
+          </AnimatePresence>
         </div>
 
-        <nav className="mt-4 flex-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveSection(item.id)}
-                className={`w-full flex items-center px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                  activeSection === item.id 
-                    ? 'border-r-2 text-white' 
-                    : 'text-gray-700'
-                }`}
-                style={activeSection === item.id ? {
-                  backgroundColor: '#2D7A3E',
-                  borderRightColor: '#F2E416'
-                } : {}}
-              >
-                <Icon size={20} className="flex-shrink-0" />
-                {!sidebarCollapsed && <span className="ml-3">{item.label}</span>}
-              </button>
-            );
-          })}
+        <nav
+          className={`flex-1 space-y-1 overflow-y-auto ${isSidebarCollapsed ? "px-2.5 py-4" : "px-3 py-4"}`}
+        >
+          {sidebarItems.map((item) => (
+            <SidebarItem
+              key={item.id}
+              id={item.id}
+              icon={item.icon}
+              label={item.label}
+              activeTab={activeSection}
+              collapsed={isSidebarCollapsed}
+              onClick={() => {
+                setActiveSection(item.id);
+                if (!isDesktop) setIsMobileMenuOpen(false);
+              }}
+            />
+          ))}
         </nav>
 
-        {/* Back Button */}
-        {onBack && (
-          <div className="p-4 border-t border-gray-200 mt-auto">
-            {!sidebarCollapsed ? (
-              <button
-                onClick={onBack}
-                className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
-              >
-                <ChevronLeft size={20} className="inline mr-2" />
-                Back to Login
-              </button>
-            ) : (
-              <button
-                onClick={onBack}
-                className="w-full h-10 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 flex items-center justify-center transition-colors"
-                title="Back to Login"
-              >
-                <ChevronLeft size={16} />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          {activeSection === 'dashboard' && (
-            <Dashboard
-              stats={stats}
-              contributions={contributions}
-              payouts={payouts}
-              members={members}
-              setActiveTab={setActiveSection}
-            />
-          )}
-
-          {activeSection === 'members' && (
-            <MemberManagement
-              filteredMembers={filteredMembers}
-              members={members}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              contributions={contributions}
-              setIsAddMemberOpen={setIsAddMemberOpen}
-              setIsSmsModalOpen={setIsSmsModalOpen}
-              setSmsData={setSmsData}
-              setSelectedMember={setSelectedMember}
-              onAddMember={handleAddMember}
-              onSendSMS={handleSendSMS}
-            />
-          )}
-
-          {activeSection === 'backup' && (
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Database Backup</h2>
-                  <p className="text-slate-500 mt-1">Export and secure your mortuary fund data for emergency recovery</p>
-                </div>
+        <div
+          className={`border-t border-white/10 shrink-0 ${isSidebarCollapsed ? "px-2.5 py-3" : "px-3 py-3"}`}
+        >
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-3 px-1 pb-2">
+              <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-full flex items-center justify-center shrink-0">
+                <span className="text-white text-xs font-bold">
+                  {(user?.name || "Admin").charAt(0).toUpperCase()}
+                </span>
               </div>
-
-              {/* Backup Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-lg shadow-slate-200/40 flex items-center space-x-4">
-                  <div className="p-3 bg-emerald-50 rounded-xl">
-                    <Users className="w-5 h-5 text-emerald-700" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Members</p>
-                    <p className="text-xl font-black text-slate-900">{members.length}</p>
-                  </div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-lg shadow-slate-200/40 flex items-center space-x-4">
-                  <div className="p-3 bg-blue-50 rounded-xl">
-                    <FileText className="w-5 h-5 text-blue-700" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Last Backup</p>
-                    <p className="text-xl font-black text-slate-900">Never</p>
-                  </div>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-lg shadow-slate-200/40 flex items-center space-x-4">
-                  <div className="p-3 bg-purple-50 rounded-xl">
-                    <BarChart3 className="w-5 h-5 text-purple-700" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data Size</p>
-                    <p className="text-xl font-black text-slate-900">{(JSON.stringify(members).length / 1024).toFixed(2)} KB</p>
-                  </div>
-                </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user?.name || "Admin User"}
+                </p>
+                <p className="text-[11px] text-green-100/60">
+                  System Administrator
+                </p>
               </div>
-
-              {/* Backup Options */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Members CSV Backup */}
-                <Card className="border-slate-200/60 shadow-lg shadow-slate-200/40">
-                  <div className="p-6">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="p-3 bg-emerald-50 rounded-xl flex-shrink-0">
-                        <Users className="w-6 h-6 text-emerald-700" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-black text-slate-900">Members Database</h3>
-                        <p className="text-sm text-slate-500 mt-1">Export all member records in CSV format</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-medium">Total Records</span>
-                        <span className="font-black text-slate-900">{members.length}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-medium">Format</span>
-                        <span className="font-black text-slate-900">CSV</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-medium">Includes</span>
-                        <span className="font-black text-slate-900">All Fields</span>
-                      </div>
-                    </div>
-
-                    <Button 
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-200/40"
-                      onClick={() => {
-                        const csv = [
-                          ['ID', 'Name', 'Email', 'Phone', 'Barangay', 'Address', 'Beneficiaries', 'Status', 'Join Date'].join(','),
-                          ...members.map(m => [
-                            m.id, m.name, m.email || '', m.contact || '', m.barangay || '', m.address || '', 
-                            m.beneficiaries || '', m.status, m.join_date || ''
-                          ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-                        ].join('\\n');
-                        const blob = new Blob([csv], { type: 'text/csv' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `members_backup_${new Date().toISOString().split('T')[0]}.csv`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                        addToast('Members backup downloaded successfully', 'success');
-                      }}
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Download Members CSV
-                    </Button>
-                  </div>
-                </Card>
-
-                {/* Full JSON Backup */}
-                <Card className="border-slate-200/60 shadow-lg shadow-slate-200/40">
-                  <div className="p-6">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="p-3 bg-blue-50 rounded-xl flex-shrink-0">
-                        <BarChart3 className="w-6 h-6 text-blue-700" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-black text-slate-900">Complete System Backup</h3>
-                        <p className="text-sm text-slate-500 mt-1">Full database export in JSON format</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-medium">Members</span>
-                        <span className="font-black text-slate-900">{members.length}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-medium">Format</span>
-                        <span className="font-black text-slate-900">JSON</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 font-medium">Includes</span>
-                        <span className="font-black text-slate-900">All Data + Stats</span>
-                      </div>
-                    </div>
-
-                    <Button 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-200/40"
-                      onClick={() => {
-                        const data = {
-                          exportDate: new Date().toISOString(),
-                          exportVersion: '1.0',
-                          system: 'Mortuary Fund Management',
-                          members: members,
-                          stats: stats,
-                          metadata: {
-                            totalMembers: members.length,
-                            activeMembers: members.filter(m => m.status === 'active').length,
-                            exportedBy: 'Admin'
-                          }
-                        };
-                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `full_backup_${new Date().toISOString().split('T')[0]}.json`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                        addToast('Full backup downloaded successfully', 'success');
-                      }}
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Download JSON Backup
-                    </Button>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Backup Instructions */}
-              <Card className="border-slate-200/60 shadow-lg shadow-slate-200/40 bg-amber-50/30">
-                <div className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-amber-100 rounded-xl">
-                      <svg className="w-6 h-6 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-black text-slate-900 mb-2">Backup Best Practices</h3>
-                      <ul className="space-y-2 text-sm text-slate-600">
-                        <li className="flex items-start gap-2">
-                          <span className="text-emerald-600 font-black mt-0.5">•</span>
-                          <span><strong className="font-bold text-slate-900">Regular Backups:</strong> Download backups weekly or after major data changes</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-emerald-600 font-black mt-0.5">•</span>
-                          <span><strong className="font-bold text-slate-900">Secure Storage:</strong> Store backup files in a secure location (external drive, cloud storage)</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-emerald-600 font-black mt-0.5">•</span>
-                          <span><strong className="font-bold text-slate-900">Multiple Copies:</strong> Keep at least 2-3 backup copies in different locations</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-emerald-600 font-black mt-0.5">•</span>
-                          <span><strong className="font-bold text-slate-900">Test Recovery:</strong> Periodically verify that backup files can be opened and read</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </Card>
             </div>
           )}
-
-          {activeSection === 'reports' && (
-            <Reports
-              activeTab={activeSection}
-              contributions={contributions}
-              payouts={payouts}
-              stats={stats}
-            />
-          )}
-
-          {activeSection === 'settings' && (
-            <SettingsView
-              systemSettings={systemSettings}
-              setSystemSettings={setSystemSettings}
-              showToast={showToast}
-            />
+          {onBack && (
+            <button
+              onClick={onBack}
+              title={isSidebarCollapsed ? "Sign Out" : undefined}
+              aria-label="Sign Out"
+              className={`w-full flex items-center gap-3 text-green-100/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${isSidebarCollapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5"}`}
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              {!isSidebarCollapsed && (
+                <span className="text-sm font-medium">Sign Out</span>
+              )}
+            </button>
           )}
         </div>
+
+        {isDesktop && (
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            aria-label={
+              isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+            }
+            className="border-t border-white/10 py-3 flex items-center justify-center text-green-100/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+          >
+            {isSidebarCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
+        )}
+      </Motion.aside>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="lg:hidden bg-coop-darkGreen p-4 flex items-center justify-between">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open menu"
+            className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center"
+          >
+            <Menu className="w-5 h-5 text-white" />
+          </button>
+          <div className="text-center">
+            <h1 className="font-bold text-white text-base tracking-tight">
+              Mortuary Admin
+            </h1>
+            <p className="text-green-100/60 text-xs font-medium">
+              Fund Management
+            </p>
+          </div>
+          <div className="w-10 h-10" />
+        </div>
+
+        <main className="flex-1 overflow-y-auto">
+          <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <AnimatePresence mode="wait">
+              <Motion.div
+                key={activeSection}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderContent()}
+              </Motion.div>
+            </AnimatePresence>
+          </div>
+        </main>
       </div>
 
-      {/* Modals */}
-      <AddMemberModal
-        isOpen={isAddMemberOpen}
-        onClose={() => setIsAddMemberOpen(false)}
-        onAddMember={handleAddMember}
-      />
-
-      <AddContributionModal
-        isOpen={isAddContributionOpen}
-        onClose={() => setIsAddContributionOpen(false)}
-        onRecordContribution={handleRecordContribution}
-        members={members}
-      />
-
-      <AddPayoutModal
-        isOpen={isAddPayoutOpen}
-        onClose={() => setIsAddPayoutOpen(false)}
-        onRecordPayout={handleRecordPayout}
-        members={members}
-      />
-
-      <SendSMSModal
-        isOpen={isSmsModalOpen}
-        onClose={() => setIsSmsModalOpen(false)}
-        onSendSMS={handleSendSMS}
-        smsData={smsData}
-        setSmsData={setSmsData}
-      />
-
-      {/* Toast Container */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );

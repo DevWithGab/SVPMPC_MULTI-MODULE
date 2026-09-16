@@ -161,6 +161,21 @@ export const eventAPI = {
     }
   },
 
+  submitEvent: async (eventId) => {
+    const response = await api.post(`/events/${eventId}/submit`);
+    return { success: true, data: response.data, message: response.data.message };
+  },
+
+  cancelEvent: async (eventId) => {
+    const response = await api.post(`/events/${eventId}/cancel`);
+    return { success: true, data: response.data, message: response.data.message };
+  },
+
+  resubmitEvent: async (eventId) => {
+    const response = await api.post(`/events/${eventId}/resubmit`);
+    return { success: true, data: response.data, message: response.data.message };
+  },
+
   // Regenerate QR code for event
   regenerateQRCode: async (eventId) => {
     try {

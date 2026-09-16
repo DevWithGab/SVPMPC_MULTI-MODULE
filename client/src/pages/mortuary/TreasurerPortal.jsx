@@ -1,53 +1,126 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Users, CreditCard, FileText, LayoutDashboard, LayoutGrid, 
-  Heart, LogOut, BarChart3
+import {
+  Users, CreditCard, FileText, LayoutGrid,
+  LogOut, BarChart3, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
 } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 // Import modular components
-import { 
-  Dashboard, 
-  MemberBalances, 
-  Contributions, 
-  Reports, 
-  MemberLedger 
+import {
+  Dashboard,
+  MemberBalances,
+  Contributions,
+  Reports,
+  MemberLedger,
+  ClaimsPendingDeduction,
+  ClaimsAwaitingRelease,
+  ClaimDisbursementReport
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
-import Modal from '../../components/mortuary/treasurer/shared/Modal';
-import SearchableMemberSelect from '../../components/mortuary/treasurer/shared/SearchableMemberSelect';
+import Modal from '../../components/mortuary/shared/Modal';
+import SearchableMemberSelect from '../../components/mortuary/shared/SearchableMemberSelect';
 import { Toast } from '../../components/ui/toast';
 import Button from '../../components/shared/ui/Button';
 import Input from '../../components/shared/ui/Input';
 import api from '../../services/api';
 
-const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab }) => (
+const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate }) => (
   <button
-    onClick={() => setActiveTab(id)}
-    className={`w-full flex items-center px-4 py-3 rounded-xl transition-all ${
-      activeTab === id ? 'bg-coop-green text-white shadow-lg shadow-green-200' : 'text-slate-500 hover:bg-slate-50 hover:text-coop-green'
+    onClick={() => {
+      setActiveTab(id);
+      onNavigate?.();
+    }}
+    title={collapsed ? label : undefined}
+    aria-label={label}
+    aria-current={activeTab === id ? 'page' : undefined}
+    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
+      collapsed ? 'justify-center px-0 py-3' : 'px-4 py-2.5'
+    } ${
+      activeTab === id
+        ? 'bg-white text-coop-darkGreen shadow-sm'
+        : 'text-green-100/80 hover:bg-white/10 hover:text-white'
     }`}
   >
-    <Icon className="w-5 h-5 mr-3" />
-    <span className="text-sm font-bold tracking-tight">{label}</span>
+    <Icon className="w-4.5 h-4.5 shrink-0" />
+    {!collapsed && <span className="text-sm font-semibold tracking-tight">{label}</span>}
   </button>
+);
+
+const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
+  <div className="flex bg-slate-100 rounded-lg p-0.5 w-fit">
+    {[
+      { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
+      { id: 'awaiting-release', label: 'Awaiting Release', count: counts?.awaitingRelease ?? 0 },
+      { id: 'disbursement-report', label: 'Disbursement Report', count: 0 },
+    ].map((opt) => (
+      <button
+        key={opt.id}
+        onClick={() => setClaimsView(opt.id)}
+        aria-pressed={claimsView === opt.id}
+        className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-all ${
+          claimsView === opt.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        {opt.label}
+        {opt.count > 0 && (
+          <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 text-[11px] font-bold rounded-full bg-rose-100 text-rose-700">
+            {opt.count}
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
+);
+
+const extractBarangay = (address) => {
+  if (!address) return 'Not Specified';
+  const parts = address.split(',');
+  return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
+};
+
+const PortalSkeleton = () => (
+  <div className="space-y-6 animate-pulse" role="status" aria-label="Loading treasurer data">
+    <div className="space-y-2">
+      <div className="h-8 w-56 bg-slate-200 rounded" />
+      <div className="h-4 w-72 bg-slate-100 rounded" />
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="bg-white border border-slate-200 rounded-xl p-5 h-24" />
+      ))}
+    </div>
+    <div className="bg-white border border-slate-200 rounded-xl h-72" />
+  </div>
 );
 
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [claimsView, setClaimsView] = useState('pending-deduction'); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report'
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
-  const [claims, setClaims] = useState([]);
   const [stats, setStats] = useState({
     fundBalance: 0,
     activeMembers: 0,
     totalMembers: 0,
     lowBalanceMembers: 0,
-    totalCollected: 0
+    totalCollected: 0,
+    memberStanding: {
+      excellent: 0,
+      good: 0,
+      fair: 0,
+      atRisk: 0
+    },
+    statusComposition: {
+      active: 0,
+      inactive: 0,
+      deceased: 0
+    }
   });
-  const [ledger, setLedger] = useState([]);
+  const [selectedMemberLedger, setSelectedMemberLedger] = useState([]);
+  const [loadingMemberLedger, setLoadingMemberLedger] = useState(false);
+  const [claimsCounts, setClaimsCounts] = useState({ pendingDeduction: 0, awaitingRelease: 0 });
   const [toast, setToast] = useState(null);
   
   // Search and filter states
@@ -57,21 +130,35 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [barangayFilter, setBarangayFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+  const [ledgerMembers, setLedgerMembers] = useState([]);
+  const [ledgerPagination, setLedgerPagination] = useState(null);
+  const skipNextLedgerPageFetchRef = useRef(false);
+  const ledgerFetchTimeoutRef = useRef(null);
   
   // Modal states
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
-  const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
-  const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
-  
-  // Form data states
-  const [newContribution, setNewContribution] = useState({ 
-    member_id: '', 
-    amount: '', 
-    payment_date: new Date().toISOString().split('T')[0], 
-    status: 'paid' 
+  const [isSubmittingContribution, setIsSubmittingContribution] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('treasurerSidebarCollapsed') === 'true';
   });
-  const [deductionAmount, setDeductionAmount] = useState('25');
-  const [smsData, setSmsData] = useState({ memberId: null, message: '', memberName: '' });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+
+  // Form data states
+  const [newContribution, setNewContribution] = useState({
+    member_id: '',
+    amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    status: 'paid'
+  });
+  // Set when "Add Deposit" is opened from a specific member's ledger page —
+  // the Member field then shows this member locked/read-only instead of a
+  // search box, since the treasurer already picked them by being on their
+  // ledger. Null means the general "Record Payment" flow, which still
+  // searches across all members.
+  const [lockedContributionMember, setLockedContributionMember] = useState(null);
   const [selectedLedgerMember, setSelectedLedgerMember] = useState(null);
   const prevMembersRef = useRef([]);
 
@@ -88,6 +175,28 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
+  const fetchLedgerMembers = async (page = currentPage, search = searchQuery, barangay = barangayFilter) => {
+    try {
+      const response = await api.get('/mortuary/treasurer/balances/all', {
+        params: {
+          page,
+          limit: itemsPerPage,
+          search,
+          barangay,
+        },
+      });
+
+      if (response.data.success) {
+        setLedgerMembers(response.data.data.members || []);
+        setLedgerPagination(response.data.data.pagination || null);
+      }
+    } catch (error) {
+      console.error('Error fetching paginated ledger members:', error);
+      setLedgerMembers([]);
+      setLedgerPagination(null);
+    }
+  };
+
   const fetchContributions = async () => {
     try {
       const response = await api.get('/mortuary/treasurer/contributions');
@@ -100,18 +209,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  const fetchClaims = async () => {
-    try {
-      const response = await api.get('/mortuary/claims');
-      if (response.data.success) {
-        setClaims(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching claims:', error);
-      setClaims([]); // Set empty array on error
-    }
-  };
-
   const fetchDashboardStats = async () => {
     try {
       const response = await api.get('/mortuary/treasurer/dashboard');
@@ -121,7 +218,18 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           activeMembers: 0,
           totalMembers: 0,
           lowBalanceMembers: 0,
-          totalCollected: 0
+          totalCollected: 0,
+          memberStanding: {
+            excellent: 0,
+            good: 0,
+            fair: 0,
+            atRisk: 0
+          },
+          statusComposition: {
+            active: 0,
+            inactive: 0,
+            deceased: 0
+          }
         });
       }
     } catch (error) {
@@ -130,47 +238,118 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  const fetchLedger = async () => {
+  // A member's full ledger history, fetched from the dedicated per-member
+  // endpoint (not the old global /mortuary/ledger, which only ever returned
+  // the 10 most recent entries system-wide — nowhere near "since the start"
+  // for any individual member once other members had also transacted).
+  // The endpoint caps each page at 100 rows, so long histories are paged
+  // through in a loop rather than truncated to the first page.
+  const fetchMemberLedgerEntries = async (memberId) => {
+    if (!memberId) return [];
+    const perPage = 100;
+    let page = 1;
+    let totalPages = 1;
+    let allEntries = [];
     try {
-      const response = await api.get('/mortuary/ledger');
-      if (response.data.success) {
-        setLedger(response.data.data || []);
-      }
+      do {
+        const response = await api.get(`/mortuary/treasurer/ledger/${memberId}`, {
+          params: { page, limit: perPage },
+        });
+        if (!response.data.success) break;
+        allEntries = allEntries.concat(response.data.data || []);
+        totalPages = response.data.pagination?.totalPages || 1;
+        page += 1;
+      } while (page <= totalPages);
     } catch (error) {
-      console.error('Error fetching ledger:', error);
-      setLedger([]); // Set empty array on error
+      console.error('Error fetching member ledger:', error);
+    }
+    return allEntries;
+  };
+
+  const refreshSelectedMemberLedger = async (memberId) => {
+    const id = memberId || selectedLedgerMember?.id || selectedLedgerMember?.memberId;
+    if (!id) return;
+    setLoadingMemberLedger(true);
+    const entries = await fetchMemberLedgerEntries(id);
+    setSelectedMemberLedger(entries);
+    setLoadingMemberLedger(false);
+  };
+
+  // Counts for the Claims tab toggle badges. limit: 1 keeps these cheap —
+  // only the pagination total is needed, not the actual rows.
+  const fetchClaimsCounts = async () => {
+    try {
+      const [pendingRes, releaseRes] = await Promise.all([
+        api.get('/mortuary/treasurer/claims/pending-deduction', { params: { limit: 1 } }),
+        api.get('/mortuary/treasurer/claims/awaiting-release', { params: { limit: 1 } }),
+      ]);
+      setClaimsCounts({
+        pendingDeduction: pendingRes.data?.pagination?.total ?? 0,
+        awaitingRelease: releaseRes.data?.pagination?.total ?? 0,
+      });
+    } catch (error) {
+      console.error('Error fetching claims counts:', error);
     }
   };
 
   // Utility functions
   const showToast = (message, type) => setToast({ message, type });
 
+  const openMemberLedger = (member) => {
+    setSelectedLedgerMember(member);
+    setActiveTab('ledger');
+  };
+
+  // "Record Payment" (Contributions tab) — the general flow, searching
+  // across every member.
+  const openAddContribution = () => {
+    setLockedContributionMember(null);
+    setNewContribution((prev) => ({ ...prev, member_id: '' }));
+    setIsAddContributionOpen(true);
+  };
+
+  // "Add Deposit" from a specific member's ledger page — that member is
+  // already chosen by virtue of being on their ledger, so lock the Member
+  // field to them instead of making the treasurer search again.
+  const openAddDepositForMember = (member) => {
+    setLockedContributionMember(member);
+    setNewContribution((prev) => ({ ...prev, member_id: (member.id || member.memberId)?.toString() || '' }));
+    setIsAddContributionOpen(true);
+  };
+
+  const closeAddContributionModal = () => {
+    setIsAddContributionOpen(false);
+    setLockedContributionMember(null);
+  };
+
+  // The Record Contribution modal no longer lets the Treasurer pick a
+  // barangay up front — they just search for the member, and the member's
+  // real (required) Member.barangay field is displayed automatically once
+  // selected, read-only.
+  const selectedContributionMember = members.find(
+    (member) => (member.id || member.memberId)?.toString() === newContribution.member_id?.toString()
+  );
+
   // Refresh all data
   const refreshAllData = async () => {
     await Promise.all([
       fetchMembers(),
+      fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
       fetchContributions(),
       fetchDashboardStats(),
-      fetchLedger()
+      fetchClaimsCounts(),
+      ...(selectedLedgerMember ? [refreshSelectedMemberLedger()] : [])
     ]);
   };
 
   // Event handlers
-  const handleQuickDeposit = (memberId) => {
-    setNewContribution({ 
-      member_id: memberId, 
-      amount: '', 
-      payment_date: new Date().toISOString().split('T')[0], 
-      status: 'paid' 
-    });
-    setIsAddContributionOpen(true);
-  };
-
   const handleAddContribution = async (e) => {
     e.preventDefault();
     if (!newContribution.member_id) return showToast('Please select a member.', 'error');
     if (!newContribution.amount || parseFloat(newContribution.amount) <= 0) return showToast('Please enter a valid amount.', 'error');
+    if (isSubmittingContribution) return;
 
+    setIsSubmittingContribution(true);
     try {
       const response = await api.post('/mortuary/treasurer/contributions/record', {
         ...newContribution,
@@ -180,22 +359,22 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       if (response.data.success) {
         const contributedMemberId = newContribution.member_id;
         
-        setIsAddContributionOpen(false);
+        closeAddContributionModal();
         setNewContribution({ member_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'paid' });
         
         // Refresh all data after contribution is recorded
         await Promise.all([
           fetchContributions(),
-          fetchLedger(),
+          fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
           fetchDashboardStats()
         ]);
-        
+
         // Fetch members last so we can update the selected member
         const membersResponse = await api.get('/mortuary/treasurer/balances/all');
         if (membersResponse.data.success) {
           const updatedMembers = membersResponse.data.data.members || [];
           setMembers(updatedMembers);
-          
+
           // If we're viewing the member we just added a contribution for, update the selection
           if (selectedLedgerMember) {
             if (selectedLedgerMember.id === contributedMemberId || selectedLedgerMember.memberId === contributedMemberId) {
@@ -203,6 +382,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
               if (updatedMember) {
                 setSelectedLedgerMember(updatedMember);
               }
+              await refreshSelectedMemberLedger(contributedMemberId);
             }
           }
         }
@@ -211,41 +391,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       }
     } catch (error) {
       console.error('Error adding contribution:', error);
-      showToast('Error recording contribution.', 'error');
-    }
-  };
-
-  const updateClaimStatus = async (claimId, status, amount) => {
-    const res = await fetch(`/api/claims/${claimId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, amount }),
-    });
-    if (res.ok) {
-      fetchClaims();
-      fetchMembers();
-      fetchDashboardStats();
-      fetchLedger();
-      showToast('Claim verified and deductions triggered.', 'success');
-    }
-  };
-
-  const handleSendSms = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await api.post('/mortuary/treasurer/notifications/send-reminder', {
-        memberId: smsData.memberId,
-        message: smsData.message
-      });
-
-      if (response.data.success) {
-        setIsSmsModalOpen(false);
-        setSmsData({ memberId: null, message: '', memberName: '' });
-        showToast('SMS notification sent.', 'success');
-      }
-    } catch (error) {
-      console.error('Error sending SMS:', error);
-      showToast('Error sending SMS.', 'error');
+      showToast(error.response?.data?.message || 'Error recording contribution.', 'error');
+    } finally {
+      setIsSubmittingContribution(false);
     }
   };
 
@@ -267,56 +415,101 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         return brgy === barangayFilter;
     }).length;
 
-    const res = await fetch('/api/admin/trigger-sector-notice', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetSector: barangayFilter, count: targetedMembersCount }),
-    });
-    
-    if (res.ok) {
-        showToast(`Event triggered: Automated Notice queued for ${targetedMembersCount} members in Brgy ${barangayFilter}.`, 'success');
-    }
-  };
-
-  const handleDeathDeduction = async (e) => {
-    e.preventDefault();
-    
-    const amount = parseFloat(deductionAmount);
-    if (isNaN(amount) || amount <= 0) {
-      showToast('Please enter a valid deduction amount.', 'error');
-      return;
-    }
-
-    if (!confirm(`This will immediately deduct ₱${amount} from ALL active members for death fund contribution. Proceed?`)) return;
-    
     try {
-      const response = await api.post('/mortuary/treasurer/balances/automatic-deduction', {
-        deceasedMemberName: "Death Fund Deduction (All Members)",
-        recordedBy: user?.name || 'treasurer',
-        customAmount: amount
+      const res = await fetch('/api/admin/trigger-sector-notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetSector: barangayFilter, count: targetedMembersCount }),
       });
 
-      if (response.data.success) {
-        setIsAddClaimOpen(false);
-        setDeductionAmount('25');
-        fetchMembers();
-        fetchDashboardStats();
-        fetchLedger();
-        showToast(`₱${amount} deduction processed for all active members.`, 'success');
+      if (res.ok) {
+        showToast(`Event triggered: Automated Notice queued for ${targetedMembersCount} members in Brgy ${barangayFilter}.`, 'success');
+      } else {
+        showToast('Failed to queue automated notice.', 'error');
       }
     } catch (error) {
-      console.error('Error processing deduction:', error);
-      showToast('Failed to process deduction.', 'error');
+      console.error('Error triggering automated notice:', error);
+      showToast('Failed to queue automated notice.', 'error');
     }
   };
 
   // Effects
   useEffect(() => {
-    fetchMembers();
-    fetchContributions();
-    fetchDashboardStats();
-    fetchLedger();
+    (async () => {
+      await Promise.all([
+        fetchMembers(),
+        fetchContributions(),
+        fetchDashboardStats(),
+        fetchClaimsCounts()
+      ]);
+      setInitialLoading(false);
+    })();
   }, []);
+
+  // `members` is otherwise only fetched once on mount, so a member added by
+  // the Super Admin (or elsewhere) after this portal loaded would silently
+  // be missing from the Record Contribution modal until a full page
+  // refresh. Re-fetch every time the modal opens so it's never stale.
+  useEffect(() => {
+    if (isAddContributionOpen) {
+      fetchMembers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAddContributionOpen]);
+
+  useEffect(() => {
+    window.localStorage.setItem('treasurerSidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'ledger' && currentPage !== 1) {
+      skipNextLedgerPageFetchRef.current = true;
+    }
+
+    setCurrentPage(1);
+
+    if (activeTab !== 'ledger') return;
+
+    // Debounce so typing in the search box doesn't fire a request per keystroke
+    if (ledgerFetchTimeoutRef.current) clearTimeout(ledgerFetchTimeoutRef.current);
+    ledgerFetchTimeoutRef.current = setTimeout(() => {
+      fetchLedgerMembers(1, searchQuery, barangayFilter);
+    }, 350);
+
+    return () => {
+      if (ledgerFetchTimeoutRef.current) clearTimeout(ledgerFetchTimeoutRef.current);
+    };
+  }, [searchQuery, barangayFilter, memberFilter, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'ledger') return;
+
+    if (skipNextLedgerPageFetchRef.current) {
+      skipNextLedgerPageFetchRef.current = false;
+      return;
+    }
+
+    fetchLedgerMembers(currentPage, searchQuery, barangayFilter);
+  }, [activeTab, currentPage]);
+
+  // Load the selected member's full ledger history whenever the selection
+  // changes — covers both entry points (MemberBalances' "Open Ledger" and
+  // clicking a row directly inside the Members Ledger tab).
+  useEffect(() => {
+    const id = selectedLedgerMember?.id || selectedLedgerMember?.memberId;
+    if (!id) {
+      setSelectedMemberLedger([]);
+      return;
+    }
+    refreshSelectedMemberLedger(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLedgerMember?.id, selectedLedgerMember?.memberId]);
 
   // Update selected ledger member when members array changes
   useEffect(() => {
@@ -344,9 +537,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <Dashboard 
-            stats={stats} 
-            claims={claims} 
+          <Dashboard
+            stats={stats}
             contributions={contributions}
           />
         );
@@ -363,19 +555,29 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
-            handleQuickDeposit={handleQuickDeposit}
-            setSmsData={setSmsData}
-            setIsSmsModalOpen={setIsSmsModalOpen}
-            setIsAddClaimOpen={setIsAddClaimOpen}
+            onOpenLedger={openMemberLedger}
           />
+        );
+      case 'claims':
+        return (
+          <div className="space-y-4">
+            <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
+            {claimsView === 'pending-deduction' ? (
+              <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
+            ) : claimsView === 'awaiting-release' ? (
+              <ClaimsAwaitingRelease user={user} showToast={showToast} onReleased={refreshAllData} />
+            ) : (
+              <ClaimDisbursementReport />
+            )}
+          </div>
         );
       case 'contributions':
         return (
-          <Contributions 
+          <Contributions
             contributions={contributions}
             paymentSearchQuery={paymentSearchQuery}
             setPaymentSearchQuery={setPaymentSearchQuery}
-            setIsAddContributionOpen={setIsAddContributionOpen}
+            setIsAddContributionOpen={openAddContribution}
           />
         );
       case 'reports':
@@ -383,13 +585,16 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <Reports 
             members={members}
             contributions={contributions}
+            stats={stats}
           />
         );
       case 'ledger':
         return (
-          <MemberLedger 
+          <MemberLedger
             members={members}
-            ledger={ledger}
+            ledgerMembers={ledgerMembers}
+            memberLedgerEntries={selectedMemberLedger}
+            loadingMemberLedger={loadingMemberLedger}
             selectedLedgerMember={selectedLedgerMember}
             setSelectedLedgerMember={setSelectedLedgerMember}
             searchQuery={searchQuery}
@@ -399,8 +604,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
-            handleQuickDeposit={handleQuickDeposit}
-            setIsAddContributionOpen={setIsAddContributionOpen}
+            pagination={ledgerPagination}
+            onAddDeposit={openAddDepositForMember}
             handleTriggerAutomatedNotice={handleTriggerAutomatedNotice}
             showToast={showToast}
             refreshData={refreshAllData}
@@ -412,127 +617,209 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
+    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col p-6 space-y-8">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg border border-slate-100">
-            <img src="/SVPMPC-LOGO(MAIN).png" alt="SVMPC Logo" className="w-8 h-8 object-contain" />
-          </div>
-          <div>
-            <h1 className="font-black text-sm tracking-tight text-slate-950 uppercase">Treasurer Portal</h1>
-            <p className="text-[10px] font-bold text-coop-green uppercase tracking-widest">Mortuary Fund Control</p>
-          </div>
+      <Motion.aside
+        initial={false}
+        animate={{
+          width: isDesktop
+            ? sidebarCollapsed ? 76 : 268
+            : isMobileMenuOpen ? 268 : 0,
+        }}
+        transition={{ type: 'tween', duration: 0.2 }}
+        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
+      >
+        {/* Header */}
+        <div className={`border-b border-white/10 flex items-center shrink-0 ${sidebarCollapsed ? 'justify-center py-5' : 'gap-3 px-5 py-5'}`}>
+          <img
+            src="/SVPMPC-LOGO(MAIN).png"
+            alt="SVPMPC Logo"
+            className={`object-contain shrink-0 ${sidebarCollapsed ? 'w-8 h-8' : 'w-10 h-10'}`}
+          />
+          <AnimatePresence mode="wait">
+            {!sidebarCollapsed && (
+              <Motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="min-w-0"
+              >
+                <h1 className="text-sm font-bold text-white leading-tight truncate">St. Vincent Parish</h1>
+                <p className="text-[11px] text-green-100/70 leading-tight truncate">Multi-Purpose Cooperative</p>
+                <p className="text-[10px] font-bold text-coop-yellow tracking-wider mt-1">MORTUARY FUND SYSTEM</p>
+              </Motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <nav className="flex-1 space-y-2">
-          <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} />
-          <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} />
+        {/* Nav */}
+        <nav className={`flex-1 space-y-1 overflow-y-auto ${sidebarCollapsed ? 'px-2.5 py-4' : 'px-3 py-4'}`}>
+          <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
         </nav>
 
-        <div className="pt-6 border-t border-slate-100">
-           <button onClick={onBack} className="w-full flex items-center px-4 py-3 rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-all">
-             <LogOut className="w-5 h-5 mr-3" />
-             <span className="text-sm font-bold">Logout Portal</span>
-           </button>
+        {/* Footer */}
+        <div className={`border-t border-white/10 shrink-0 ${sidebarCollapsed ? 'px-2.5 py-3' : 'px-3 py-3'}`}>
+          {!sidebarCollapsed && (
+            <div className="flex items-center gap-3 px-1 pb-2">
+              <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-full flex items-center justify-center shrink-0">
+                <span className="text-white text-xs font-bold">{(user?.name || 'Treasurer').charAt(0).toUpperCase()}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Treasurer'}</p>
+                <p className="text-[11px] text-green-100/60">Fund Treasurer</p>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={onBack}
+            title={sidebarCollapsed ? 'Sign Out' : undefined}
+            aria-label="Sign Out"
+            className={`w-full flex items-center gap-3 text-green-100/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Sign Out</span>}
+          </button>
         </div>
-      </aside>
+
+        {/* Collapse Toggle */}
+        {isDesktop && (
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="border-t border-white/10 py-3 flex items-center justify-center text-green-100/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        )}
+      </Motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-        {renderActiveView()}
-      </main>
-
-      {/* Modals */}
-      {/* SMS Modal */}
-      <Modal isOpen={isSmsModalOpen} onClose={() => setIsSmsModalOpen(false)} title={`Notify: ${smsData.memberName}`}>
-        <form onSubmit={handleSendSms} className="space-y-6">
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Message Content</label>
-            <textarea 
-              className="w-full min-h-[150px] p-4 rounded-2xl bg-slate-50 border-slate-100 font-medium text-sm focus:bg-white focus:ring-coop-green/20"
-              placeholder="Enter message for member..."
-              value={smsData.message}
-              onChange={e => setSmsData({...smsData, message: e.target.value})}
-              required
-            />
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="lg:hidden bg-coop-darkGreen p-4 flex items-center justify-between shrink-0">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open menu"
+            className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center"
+          >
+            <Menu className="w-5 h-5 text-white" />
+          </button>
+          <div className="text-center">
+            <h1 className="font-bold text-white text-base tracking-tight">Treasurer</h1>
+            <p className="text-green-100/60 text-xs font-medium">Mortuary Fund</p>
           </div>
-          <Button type="submit" className="w-full h-14 bg-coop-green text-white rounded-2xl font-black uppercase tracking-widest">
-            Send SMS Notification
-          </Button>
-        </form>
-      </Modal>
+          <div className="w-10 h-10" />
+        </div>
 
-      {/* Add Contribution Modal */}
-      <Modal isOpen={isAddContributionOpen} onClose={() => setIsAddContributionOpen(false)} title="Record Contribution">
-        <form onSubmit={handleAddContribution} className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Member</label>
-              <SearchableMemberSelect 
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+          {initialLoading ? <PortalSkeleton /> : renderActiveView()}
+        </main>
+      </div>
+
+      {/* Record Contribution Modal */}
+      <Modal isOpen={isAddContributionOpen} onClose={closeAddContributionModal} title="Record Contribution">
+        <form onSubmit={handleAddContribution} className="space-y-5">
+          {/* Member — locked to the ledger owner when opened via "Add
+              Deposit" from their own ledger page (no need to search for
+              someone the treasurer already picked by being on this page).
+              Otherwise, the normal search-across-all-members flow. */}
+          <div>
+            <label className="text-sm font-semibold text-slate-700 mb-1 block">Member</label>
+            {lockedContributionMember ? (
+              <div className="w-full min-h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 flex items-center">
+                <span className="font-bold text-slate-900 text-sm">
+                  {lockedContributionMember.name || lockedContributionMember.memberName}
+                  <span className="text-slate-400 text-xs font-normal ml-2">
+                    UID: {(lockedContributionMember.id || lockedContributionMember.memberId)?.toString().padStart(6, '0')}
+                  </span>
+                </span>
+              </div>
+            ) : (
+              <SearchableMemberSelect
                 members={members}
                 value={newContribution.member_id}
                 onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
-                placeholder="Search member by name..."
+                placeholder="Search by name..."
               />
-            </div>
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Amount (₱)</label>
-              <Input type="number" value={newContribution.amount} onChange={e => setNewContribution({...newContribution, amount: e.target.value})} required className="rounded-xl h-12" />
-            </div>
-          </div>
-          <Button type="submit" className="w-full h-14 bg-coop-green text-white rounded-2xl font-black tracking-widest uppercase">
-            Submit Payment
-          </Button>
-        </form>
-      </Modal>
-
-      {/* Trigger Death Deduction Modal */}
-      <Modal isOpen={isAddClaimOpen} onClose={() => setIsAddClaimOpen(false)} title="Trigger Death Deduction">
-        <form onSubmit={handleDeathDeduction} className="space-y-6">
-          <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl mb-6">
-            <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest flex items-center gap-2">
-              <Heart className="w-3 h-3" /> Death Fund Contribution
-            </p>
-            <p className="text-xs text-rose-600 mt-1 font-medium leading-relaxed">
-              This will immediately deduct the specified amount from ALL active members for the death fund.
-            </p>
+            )}
           </div>
 
-          <div className="space-y-4">
+          {/* Barangay — auto-filled from the selected member's own record,
+              never typed by the Treasurer. */}
+          <div>
+            <label className="text-sm font-semibold text-slate-700 mb-1 block">Barangay</label>
+            <Input
+              type="text"
+              value={selectedContributionMember?.barangay || ''}
+              placeholder="Select a member to see their barangay"
+              disabled
+              readOnly
+              className="h-11 text-sm bg-slate-50 text-slate-600 cursor-not-allowed"
+            />
+          </div>
+
+          {/* Amount & Date */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 block">Deduction Amount (₱ per member)</label>
-              <Input 
-                type="number" 
-                placeholder="25" 
-                value={deductionAmount}
-                onChange={e => setDeductionAmount(e.target.value)}
-                required
-                className="h-14 text-lg font-bold"
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount (₱)</label>
+              <Input
+                type="number"
                 min="1"
                 step="0.01"
+                placeholder="500"
+                value={newContribution.amount}
+                onChange={e => setNewContribution({ ...newContribution, amount: e.target.value })}
+                required
+                className="h-11 text-sm"
               />
-              <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 italic">Standard contribution is ₱25 per member</p>
             </div>
-
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Members</p>
-                <p className="text-lg font-black text-slate-900">{members.length}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Deduction</p>
-                <p className="text-2xl font-black text-rose-600">₱{(parseFloat(deductionAmount || 0) * members.length).toLocaleString()}</p>
-              </div>
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Payment Date</label>
+              <Input
+                type="date"
+                value={newContribution.payment_date}
+                onChange={e => setNewContribution({ ...newContribution, payment_date: e.target.value })}
+                required
+                className="h-11 text-sm"
+              />
             </div>
           </div>
 
-          <Button type="submit" className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-rose-100">
-            Apply ₱{deductionAmount} Deduction to All Members
-          </Button>
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isSubmittingContribution}
+              onClick={closeAddContributionModal}
+              className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmittingContribution}
+              className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmittingContribution ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Recording...
+                </>
+              ) : 'Record Payment'}
+            </Button>
+          </div>
         </form>
       </Modal>
 

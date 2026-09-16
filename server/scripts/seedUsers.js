@@ -105,7 +105,6 @@ const seedData = {
   ],
 };
 
-<<<<<<< HEAD
 // Create Member records for staff (they need to be members too)
 const createStaffMembers = async () => {
   const staffMembers = [
@@ -183,8 +182,6 @@ const createStaffMembers = async () => {
   }
 };
 
-=======
->>>>>>> df31a89314cfe8e2df6e649d5ddcb4dd2c001bd3
 // Create sample members
 const createSampleMembers = async () => {
   // Skipped - use CSV upload instead
@@ -218,11 +215,22 @@ const createAdminUsers = async () => {
       console.log(`✅ Created admin user: ${userData.username}`);
     } else {
       const passwordMatches = await existingUser.comparePassword(userData.passwordHash);
+      let userUpdated = false;
+
+      if (existingUser.staffId !== userData.staffId) {
+        existingUser.staffId = userData.staffId;
+        userUpdated = true;
+      }
+
       if (!passwordMatches) {
         existingUser.passwordHash = userData.passwordHash;
         existingUser.isTemporaryPassword = false;
+        userUpdated = true;
+      }
+
+      if (userUpdated) {
         await existingUser.save();
-        console.log(`🔄 Updated password for admin user: ${userData.username}`);
+        console.log(`🔄 Repaired admin user: ${userData.username}`);
       } else {
         console.log(`⏭️  Admin user already exists: ${userData.username}`);
       }

@@ -17,6 +17,7 @@ import {
   formatDateTime,
   formatForFilename,
 } from "../../../utils/date";
+import StatCard from "../shared/StatCard";
 
 const Reports = ({ events }) => {
   const [attendanceLogs, setAttendanceLogs] = useState([]);
@@ -47,8 +48,12 @@ const Reports = ({ events }) => {
     const matchesEvent =
       selectedEvent === "all" || log.eventId === selectedEvent;
     const matchesSearch =
-      log.memberName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.memberId.toLowerCase().includes(searchTerm.toLowerCase());
+      String(log.memberName || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      String(log.memberId || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
     const matchesBarangay =
       selectedBarangay === "all" ||
       (log.barangay || "").toLowerCase() === selectedBarangay;
@@ -254,147 +259,100 @@ const Reports = ({ events }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Header with Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2
-            className="text-3xl font-bold tracking-tight"
-            style={{ color: "#2D7A3E" }}
-          >
-            Attendance Reports
-          </h2>
-          <p className="text-gray-600 font-medium">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            ATTENDANCE REPORTS
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
             Export and analyze attendance data
           </p>
         </div>
         <div className="flex gap-3">
           <button
             onClick={generatePrintReport}
-            className="h-12 px-6 bg-white border border-gray-200 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center h-11 px-5 bg-white border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
           >
-            <FileText className="w-4 h-4 mr-2 inline" />
+            <FileText className="w-4 h-4 mr-2" />
             Print Report
           </button>
           <button
             onClick={exportToPDF}
-            className="h-12 px-6 bg-white border border-gray-200 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center h-11 px-5 bg-white border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
           >
-            <FileDown className="w-4 h-4 mr-2 inline" />
+            <FileDown className="w-4 h-4 mr-2" />
             Export PDF
           </button>
 
           <button
             onClick={exportToCSV}
-            className="h-12 px-6 text-white rounded-xl font-bold text-sm shadow-lg"
-            style={{ backgroundColor: "#2D7A3E" }}
+            className="inline-flex items-center h-11 px-5 bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg font-semibold text-sm transition-colors"
           >
-            <Download className="w-4 h-4 mr-2 inline" />
+            <Download className="w-4 h-4 mr-2" />
             Export CSV
           </button>
         </div>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Total Records
-              </p>
-              <p
-                className="text-3xl font-bold mt-2"
-                style={{ color: "#2D7A3E" }}
-              >
-                {stats.totalRecords}
-              </p>
-            </div>
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Unique Members
-              </p>
-              <p
-                className="text-3xl font-bold mt-2"
-                style={{ color: "#2D7A3E" }}
-              >
-                {stats.uniqueMembers}
-              </p>
-            </div>
-            <Users className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Events Tracked
-              </p>
-              <p
-                className="text-3xl font-bold mt-2"
-                style={{ color: "#2D7A3E" }}
-              >
-                {stats.uniqueEvents}
-              </p>
-            </div>
-            <Calendar className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Present Count
-              </p>
-              <p
-                className="text-3xl font-bold mt-2"
-                style={{ color: "#2D7A3E" }}
-              >
-                {stats.presentCount}
-              </p>
-            </div>
-            <Users className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Records"
+          value={stats.totalRecords}
+          icon={FileText}
+          color="slate"
+        />
+        <StatCard
+          title="Total Members"
+          value={stats.uniqueMembers}
+          icon={Users}
+          color="blue"
+        />
+        <StatCard
+          title="Events Tracked"
+          value={stats.uniqueEvents}
+          icon={Calendar}
+          color="amber"
+        />
+        <StatCard
+          title="Present Count"
+          value={stats.presentCount}
+          icon={Users}
+          color="emerald"
+        />
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
               Search Member
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by name or ID..."
-                className="h-12 w-full pl-11 pr-4 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500"
+                className="h-10 w-full pl-11 pr-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
               />
             </div>
           </div>
 
           <div className="flex-1">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
               Filter by Event
             </label>
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <select
                 value={selectedEvent}
                 onChange={(e) => setSelectedEvent(e.target.value)}
-                className="h-12 w-full pl-11 pr-4 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500 appearance-none"
+                className="h-10 w-full pl-11 pr-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all appearance-none"
               >
                 <option value="all">All Events</option>
                 {events.map((event) => {
@@ -422,14 +380,14 @@ const Reports = ({ events }) => {
           </div>
 
           <div className="flex-1">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
               Barangay
             </label>
             <div className="relative">
               <select
                 value={selectedBarangay}
                 onChange={(e) => setSelectedBarangay(e.target.value)}
-                className="h-12 w-full pl-3 pr-4 rounded-xl border-gray-200 focus:border-green-500 focus:ring-green-500 appearance-none"
+                className="h-10 w-full pl-3 pr-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all appearance-none"
               >
                 <option value="all">All Barangays</option>
                 {[
@@ -450,12 +408,10 @@ const Reports = ({ events }) => {
       </div>
 
       {/* Attendance Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-          <h3 className="text-lg font-bold" style={{ color: "#2D7A3E" }}>
-            Attendance Logs
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900">Attendance Logs</h3>
+          <p className="text-sm text-slate-500 mt-1">
             Showing {filteredLogs.length} of {attendanceLogs.length} records
           </p>
         </div>
@@ -463,31 +419,31 @@ const Reports = ({ events }) => {
         <div className="overflow-x-auto">
           {loading ? (
             <div className="p-12 text-center">
-              <div className="inline-block w-8 h-8 border-4 border-gray-200 border-t-green-500 rounded-full animate-spin"></div>
-              <p className="text-gray-500 mt-4">Loading attendance logs...</p>
+              <div className="inline-block w-8 h-8 border-4 border-slate-200 border-t-green-500 rounded-full animate-spin"></div>
+              <p className="text-slate-500 mt-4">Loading attendance logs...</p>
             </div>
           ) : filteredLogs.length > 0 ? (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Date & Time
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Member
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Event
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Barangay
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-100">
                 {filteredLogs.map((log) => {
                   const date = new Date(log.scanTime);
                   return (
@@ -495,14 +451,14 @@ const Reports = ({ events }) => {
                       key={log._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="hover:bg-slate-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {date.toLocaleDateString()}
+                        <div className="text-sm font-medium text-slate-900">
+                          {formatDate(date)}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {date.toLocaleTimeString()}
+                        <div className="text-sm text-slate-500">
+                          {formatTime(date)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -517,22 +473,22 @@ const Reports = ({ events }) => {
                               .join("")}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-slate-900">
                               {log.memberName}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-slate-500">
                               ID: {log.memberId}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-slate-900">
                           {log.eventName}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-slate-900">
                           {log.barangay}
                         </div>
                       </td>
@@ -551,8 +507,8 @@ const Reports = ({ events }) => {
             </table>
           ) : (
             <div className="p-12 text-center">
-              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No attendance records found</p>
+              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500">No attendance records found</p>
             </div>
           )}
         </div>

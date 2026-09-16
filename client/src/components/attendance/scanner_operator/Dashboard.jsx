@@ -2,9 +2,16 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
-  ShieldCheck,
+  QrCode,
+  Zap,
 } from "lucide-react";
-import { formatDateTime } from "../../../utils/date";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { StatCard } from "../shared";
+import {
+  formatDateTime,
+  formatLongDate,
+  getManilaHour,
+} from "../../../utils/date";
 
 export default function Dashboard({
   user,
@@ -18,156 +25,151 @@ export default function Dashboard({
   const scanCount = attendanceLogs?.length ?? 0;
   const hasActiveEvent = activeEventCount > 0;
   const scannerStatusLabel = hasActiveEvent ? "Ready" : "Standby";
-  const scannerStatusMessage = hasActiveEvent
-    ? "Active event detected. Scanner is ready to record attendance."
-    : "No active event available. Scanner is on standby.";
+
+  const greeting = (() => {
+    const hour = getManilaHour();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  })();
+
+  const today = formatLongDate();
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/40">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-slate-400 font-bold">
-              Scanner Operator Portal
-            </p>
-            <h1 className="text-3xl font-black text-slate-950">
-              Welcome, {user?.name || "Operator"}
-            </h1>
-            <p className="mt-2 text-slate-500 max-w-2xl">
-              Use the scanner dashboard to process attendance quickly and
-              accurately for your assigned events.
-            </p>
-          </div>
+    <div className="space-y-6 pb-12">
+      {/* Header — same title style, size, and color as every other page */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {greeting}, {user?.name || "Operator"}
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Scan member QR codes at the door to record attendance for
+            today&apos;s event · {today}
+          </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("scanner")}
+          disabled={!hasActiveEvent}
+          className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold shrink-0 transition-colors ${
+            hasActiveEvent
+              ? "bg-coop-green hover:bg-coop-darkGreen text-white"
+              : "bg-slate-100 text-slate-400 cursor-not-allowed"
+          }`}
+        >
+          <QrCode className="w-4 h-4" />
+          {hasActiveEvent ? "Start Scanning" : "No Active Event"}
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/40">
-          <p className="text-sm text-slate-500 uppercase tracking-[0.25em] font-bold mb-3">
-            Active Events
-          </p>
-          <p className="text-4xl font-black text-slate-950">
-            {activeEventCount}
-          </p>
-          <p className="mt-2 text-sm text-slate-500">
-            Active events available for scanning.
-          </p>
-        </div>
-
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/40">
-          <p className="text-sm text-slate-500 uppercase tracking-[0.25em] font-bold mb-3">
-            Recent scans
-          </p>
-          <p className="text-4xl font-black text-slate-950">{scanCount}</p>
-          <p className="mt-2 text-sm text-slate-500">
-            Total scans during this session.
-          </p>
-        </div>
-
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/40">
-          <p className="text-sm text-slate-500 uppercase tracking-[0.25em] font-bold mb-3">
-            Scanner Status
-          </p>
-          <p className="text-4xl font-black text-slate-950">
-            {scannerStatusLabel}
-          </p>
-          <p className="mt-2 text-sm text-slate-500">{scannerStatusMessage}</p>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-in">
+        <StatCard
+          title="Active Events"
+          value={activeEventCount}
+          subtitle={activeEventCount > 0 ? "Ready for scanning" : "None active"}
+          icon={CalendarDays}
+        />
+        <StatCard
+          title="Scans This Session"
+          value={scanCount}
+          subtitle={scanCount > 0 ? "Recorded so far" : "No scans yet"}
+          icon={CheckCircle2}
+        />
+        <StatCard
+          title="Scanner Status"
+          value={scannerStatusLabel}
+          subtitle={hasActiveEvent ? "Scanning available" : "Awaiting event"}
+          icon={Zap}
+          accent={hasActiveEvent}
+        />
       </div>
 
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/40">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-xl font-black text-slate-950">Quick actions</h2>
-            <p className="mt-2 text-slate-500">
-              Jump straight to scanning or review your active event queue.
-            </p>
+      {/* Recent Attendance */}
+      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+        <CardHeader className="border-b border-slate-100 p-5">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle className="text-sm font-bold text-slate-900">
+                Recent Attendance
+              </CardTitle>
+              <p className="text-slate-400 text-xs mt-1">
+                Latest records from this session
+              </p>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-coop-green border border-green-200">
+              {scanCount} record{scanCount === 1 ? "" : "s"}
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setActiveTab("scanner")}
-            className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-white shadow-lg shadow-coop-green/20 transition ${hasActiveEvent ? "bg-coop-green hover:bg-coop-darkGreen" : "bg-slate-600 bg-opacity-90 hover:bg-slate-700"}`}
-          >
-            {hasActiveEvent ? "Start Scanner" : "Open Scanner"}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-lg shadow-slate-200/40">
-        <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
-          <div>
-            <h2 className="text-xl font-black text-slate-950">
-              Recent attendance list
-            </h2>
-            <p className="mt-2 text-slate-500">
-              View the latest records captured during your session.
-            </p>
-          </div>
-          <p className="text-sm font-bold text-slate-500">
-            {scanCount} record{scanCount === 1 ? "" : "s"} total
-          </p>
-        </div>
-
-        <div className="mt-6 overflow-x-auto">
-          <table className="min-w-full text-left text-sm text-slate-600">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-[0.2em] text-xs font-bold">
-                <th className="px-4 py-3">Member</th>
-                <th className="px-4 py-3">Event</th>
-                <th className="px-4 py-3">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {attendanceLogs?.length > 0 ? (
-                attendanceLogs.slice(0, 5).map((record, index) => {
-                  const memberName =
-                    record.member_name ||
-                    record.memberName ||
-                    record.name ||
-                    "Unknown member";
-                  const eventName =
-                    record.event || record.eventName || "Unknown event";
-                  const timestamp =
-                    record.timestamp ||
-                    record.date ||
-                    record.scanTime ||
-                    record.createdAt ||
-                    "";
-                  const formattedTime = timestamp
-                    ? formatDateTime(timestamp)
-                    : "Unknown time";
-
-                  return (
-                    <tr
-                      key={record.id ?? record._id ?? index}
-                      className="hover:bg-slate-50 transition-colors"
-                    >
-                      <td className="px-4 py-4 font-bold text-slate-900">
-                        {memberName}
-                      </td>
-                      <td className="px-4 py-4">{eventName}</td>
-                      <td className="px-4 py-4 text-slate-500">
-                        {formattedTime}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td
-                    colSpan="3"
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    No attendance records available yet. Start scanning to
-                    populate this list.
-                  </td>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-[10px] font-semibold uppercase tracking-wide">
+                  <th className="px-5 py-3">Member</th>
+                  <th className="px-5 py-3">Event</th>
+                  <th className="px-5 py-3">Time</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 stagger-in">
+                {attendanceLogs?.length > 0 ? (
+                  attendanceLogs.slice(0, 5).map((record, index) => {
+                    const memberName =
+                      record.member_name ||
+                      record.memberName ||
+                      record.name ||
+                      "Unknown member";
+                    const eventName =
+                      record.event || record.eventName || "Unknown event";
+                    const timestamp =
+                      record.timestamp ||
+                      record.date ||
+                      record.scanTime ||
+                      record.createdAt ||
+                      "";
+                    const formattedTime = timestamp
+                      ? formatDateTime(timestamp)
+                      : "Unknown time";
+
+                    return (
+                      <tr
+                        key={record.id ?? record._id ?? index}
+                        className="hover:bg-slate-50/70 transition-colors"
+                      >
+                        <td className="px-5 py-3 font-semibold text-slate-900">
+                          {memberName}
+                        </td>
+                        <td className="px-5 py-3 text-slate-600">
+                          {eventName}
+                        </td>
+                        <td className="px-5 py-3 text-slate-400">
+                          {formattedTime}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="3" className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2 text-slate-400">
+                        <QrCode className="w-8 h-8 text-slate-300" />
+                        <p className="font-medium">No attendance records yet</p>
+                        <p className="text-xs">
+                          Start scanning to populate this list
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

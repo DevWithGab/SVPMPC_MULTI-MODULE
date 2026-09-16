@@ -108,6 +108,10 @@ const processScan = async (req, res) => {
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
+    await require('./eventController').refreshEventStatus(event);
+    if (event.status !== 'active') {
+      return res.status(400).json({ message: 'Attendance can only be recorded while the event is active' });
+    }
 
     // Parse QR code data
     let memberData;

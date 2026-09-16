@@ -30,8 +30,22 @@ const {
 } = require('../controllers/ledgerController');
 
 const {
-  sendReminderToMember
-} = require('../controllers/simpleNotificationController');
+  getMemberNotificationHistory,
+  getAllNotifications,
+  getPending,
+  retryFailed,
+  getNotificationStats
+} = require('../controllers/smsNotificationController');
+
+const {
+  listPendingDeduction,
+  listAwaitingRelease,
+  listReleasedClaims,
+  getClaimById,
+  processClaimDeduction,
+  previewClaimDeduction,
+  releaseClaim
+} = require('../controllers/treasurerClaimController');
 
 const router = express.Router();
 
@@ -59,7 +73,23 @@ router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLedger);
 
-// Simple notification routes (send custom messages to members)
-router.post('/notifications/send-reminder', sendReminderToMember);
+// SMS notification history and stats (automatic threshold notifications)
+router.get('/notifications/history/:memberId', getMemberNotificationHistory);
+router.get('/notifications/all', getAllNotifications);
+router.get('/notifications/pending', getPending);
+router.post('/notifications/retry-failed', retryFailed);
+router.get('/notifications/stats', getNotificationStats);
+
+// Claims processing routes — a claim sitting in "pending_deduction" is the
+// Treasurer's notification (live query, no separate notification model).
+router.get('/claims/pending-deduction', listPendingDeduction);
+router.get('/claims/awaiting-release', listAwaitingRelease);
+// Literal paths above must stay ahead of the '/claims/:claimId' param route
+// below, or Express would match them as a claimId of "disbursement-report" etc.
+router.get('/claims/disbursement-report', listReleasedClaims);
+router.get('/claims/:claimId', getClaimById);
+router.get('/claims/:claimId/deduction-preview', previewClaimDeduction);
+router.post('/claims/:claimId/process-deduction', processClaimDeduction);
+router.post('/claims/:claimId/release', releaseClaim);
 
 module.exports = router;

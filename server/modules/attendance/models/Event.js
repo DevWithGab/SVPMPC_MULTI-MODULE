@@ -34,10 +34,20 @@ const eventSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    type: {
+      type: String,
+      default: 'General Assembly',
+    },
     status: {
       type: String,
-      enum: ['upcoming', 'active', 'completed'],
-      default: 'upcoming',
+      enum: ['draft', 'pending_approval', 'rejected', 'cancelled', 'upcoming', 'active', 'closed'],
+      default: 'draft',
+    },
+    rejectionReason: {
+      type: String,
+    },
+    reopenReason: {
+      type: String,
     },
     createdBy: {
       type: String,

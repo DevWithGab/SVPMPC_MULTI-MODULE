@@ -8,13 +8,146 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  User,
   Zap,
   Calendar,
   RefreshCw,
+  Users,
+  XCircle,
 } from "lucide-react";
 import { auditAPI } from "../../../services/api";
-import { formatDateTime } from "../../../utils/date";
+import {
+  formatDateTime,
+  formatDate,
+  formatTime,
+  formatTimeString,
+} from "../../../utils/date";
+import StatCard from "../shared/StatCard";
+
+// Plain-language labels so the log reads as a story of what happened rather
+// than a dump of internal action codes and field names.
+const ACTION_LABELS = {
+  event_created: "Event Created",
+  event_updated: "Event Updated",
+  event_deleted: "Event Deleted",
+  attendance_recorded: "Attendance Recorded",
+  member_created: "Member Created",
+  member_imported: "Members Imported",
+  qr_code_generated: "QR Code Generated",
+  qr_code_regenerated: "QR Code Regenerated",
+  qr_code_deactivated: "QR Code Deactivated",
+  qr_code_reactivated: "QR Code Reactivated",
+  data_restored: "Backup Restored",
+};
+const actionLabel = (action) =>
+  ACTION_LABELS[action] ||
+  (action || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+const STATUS_VALUE_LABELS = {
+  draft: "Draft",
+  pending_approval: "Pending Approval",
+  upcoming: "Upcoming",
+  active: "Active",
+  closed: "Close",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+};
+
+// Fields that are internal bookkeeping (Mongo/document plumbing or values
+// already restated elsewhere) — never worth showing to an admin reviewing
+// what actually happened.
+const INTERNAL_FIELDS = new Set([
+  "_id",
+  "__v",
+  "id",
+  "createdAt",
+  "updatedAt",
+  "eventTime", // duplicates startTime
+]);
+
+const FIELD_LABELS = {
+  eventName: "Event Name",
+  eventDate: "Date",
+  startTime: "Start Time",
+  endTime: "End Time",
+  location: "Location",
+  description: "Description",
+  type: "Type",
+  status: "Status",
+  rejectionReason: "Rejection Reason",
+  createdBy: "Created By",
+  memberName: "Member Name",
+  memberId: "Member ID",
+  phoneNumber: "Phone Number",
+  barangay: "Barangay",
+  scanTime: "Scan Time",
+  entrySource: "Entry Source",
+  justification: "Justification",
+  eventLocation: "Event Location",
+};
+
+const friendlyLabel = (key) =>
+  FIELD_LABELS[key] ||
+  key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
+
+const friendlyValue = (key, value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  if (key === "status" && STATUS_VALUE_LABELS[value]) {
+    return STATUS_VALUE_LABELS[value];
+  }
+  if (key === "eventDate") return formatDate(value);
+  if (key === "scanTime") return formatDateTime(value);
+  if (key === "startTime" || key === "endTime") return formatTimeString(value);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
+};
+
+// Turns a log's raw before/after snapshot into either a readable diff
+// (field changed from X to Y) or, for a create/delete with only one side,
+// a plain list of that record's key details — never the raw document.
+const describeChanges = (changes) => {
+  if (!changes) return { kind: null, rows: [] };
+  const { before, after } = changes;
+
+  if (before && after) {
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
+    const rows = keys
+      .filter((key) => !INTERNAL_FIELDS.has(key))
+      .filter(
+        (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
+      )
+      .map((key) => ({
+        label: friendlyLabel(key),
+        before: friendlyValue(key, before[key]),
+        after: friendlyValue(key, after[key]),
+      }));
+    return { kind: "diff", rows };
+  }
+
+  const snapshot = after || before;
+  if (!snapshot) return { kind: null, rows: [] };
+  const rows = Object.keys(snapshot)
+    .filter((key) => !INTERNAL_FIELDS.has(key))
+    .map((key) => ({
+      label: friendlyLabel(key),
+      value: friendlyValue(key, snapshot[key]),
+    }));
+  return { kind: "snapshot", rows };
+};
+
+const describeMetadata = (metadata) => {
+  if (!metadata) return [];
+  return Object.entries(metadata)
+    .filter(
+      ([, value]) => value !== null && value !== undefined && value !== "",
+    )
+    .map(([key, value]) => ({
+      label: friendlyLabel(key),
+      value: friendlyValue(key, value),
+    }));
+};
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -118,11 +251,8 @@ const AuditLogs = () => {
 
     const headers = [
       "Timestamp",
-      "User",
       "Role",
       "Action",
-      "Module",
-      "Entity Type",
       "Entity Name",
       "Status",
       "Description",
@@ -130,11 +260,8 @@ const AuditLogs = () => {
 
     const rows = logs.map((log) => [
       formatDateTime(log.timestamp),
-      log.userName,
       log.userRole,
-      log.action,
-      log.module,
-      log.entityType,
+      actionLabel(log.action),
       log.entityName || "-",
       log.status,
       log.description,
@@ -165,7 +292,7 @@ const AuditLogs = () => {
       case "partial":
         return <Clock className="w-4 h-4 text-yellow-600" />;
       default:
-        return <Activity className="w-4 h-4 text-gray-600" />;
+        return <Activity className="w-4 h-4 text-slate-600" />;
     }
   };
 
@@ -180,7 +307,7 @@ const AuditLogs = () => {
       qr_code_generated: "bg-pink-100 text-pink-800",
       scanner_registered: "bg-cyan-100 text-cyan-800",
     };
-    return actionColors[action] || "bg-gray-100 text-gray-800";
+    return actionColors[action] || "bg-slate-100 text-slate-800";
   };
 
   const getRoleColor = (role) => {
@@ -188,167 +315,135 @@ const AuditLogs = () => {
       admin: "bg-red-100 text-red-800",
       secretary: "bg-blue-100 text-blue-800",
       scanner: "bg-green-100 text-green-800",
-      member: "bg-gray-100 text-gray-800",
+      member: "bg-slate-100 text-slate-800",
       super_admin: "bg-purple-100 text-purple-800",
     };
-    return roleColors[role] || "bg-gray-100 text-gray-800";
+    return roleColors[role] || "bg-slate-100 text-slate-800";
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1
-              className="text-3xl font-bold tracking-tight"
-              style={{ color: "#2D7A3E" }}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            AUDIT LOGS
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Monitor and track all activities in the attendance module
+          </p>
+        </div>
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-coop-green/40 hover:bg-green-50 hover:text-coop-green"
             >
-              Audit Logs
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Monitor and track all activities in the attendance module
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${refreshing ? "bg-yellow-500" : "bg-green-500"}`}
+            />
+            {refreshing ? "Refreshing live data..." : "Live audit feed"}
+          </div>
+          {lastUpdated && (
+            <p className="text-xs text-slate-400">
+              Last updated {formatTime(lastUpdated)}
             </p>
-          </div>
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${refreshing ? "bg-yellow-500" : "bg-green-500"}`}
-              />
-              {refreshing ? "Refreshing live data..." : "Live audit feed"}
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:border-green-300 hover:bg-green-50 hover:text-green-700"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Refresh
-              </button>
-            </div>
-            {lastUpdated && (
-              <p className="text-xs text-gray-400">
-                Last updated {lastUpdated.toLocaleTimeString()}
-              </p>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200"
-          >
-            <p className="text-blue-600 text-sm font-medium">Total Actions</p>
-            <p className="text-3xl font-bold text-blue-900 mt-2">
-              {stats.totalActions}
-            </p>
-          </Motion.div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Actions"
+            value={stats.totalActions}
+            icon={Activity}
+            color="slate"
+          />
           {stats.actionsByRole && stats.actionsByRole.length > 0 && (
-            <Motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200"
-            >
-              <p className="text-purple-600 text-sm font-medium">
-                Most Active Role
-              </p>
-              <p className="text-2xl font-bold text-purple-900 mt-2 capitalize">
-                {stats.actionsByRole[0]._id}
-              </p>
-              <p className="text-purple-700 text-xs mt-1">
-                {stats.actionsByRole[0].count} actions
-              </p>
-            </Motion.div>
+            <StatCard
+              title="Most Active Role"
+              value={stats.actionsByRole[0]._id}
+              subtitle={`${stats.actionsByRole[0].count} actions`}
+              icon={Users}
+              color="amber"
+            />
           )}
-
           {stats.actionsByStatus && (
             <>
-              {stats.actionsByStatus.find((s) => s._id === "success") && (
-                <Motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200"
-                >
-                  <p className="text-green-600 text-sm font-medium">
-                    Successful
-                  </p>
-                  <p className="text-2xl font-bold text-green-900 mt-2">
-                    {stats.actionsByStatus.find((s) => s._id === "success")
-                      ?.count || 0}
-                  </p>
-                </Motion.div>
-              )}
-
-              {stats.actionsByStatus.find((s) => s._id === "failed") && (
-                <Motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-xl border border-red-200"
-                >
-                  <p className="text-red-600 text-sm font-medium">Failed</p>
-                  <p className="text-2xl font-bold text-red-900 mt-2">
-                    {stats.actionsByStatus.find((s) => s._id === "failed")
-                      ?.count || 0}
-                  </p>
-                </Motion.div>
-              )}
+              <StatCard
+                title="Successful"
+                value={
+                  stats.actionsByStatus.find((s) => s._id === "success")
+                    ?.count || 0
+                }
+                icon={CheckCircle}
+                color="emerald"
+              />
+              <StatCard
+                title="Failed"
+                value={
+                  stats.actionsByStatus.find((s) => s._id === "failed")
+                    ?.count || 0
+                }
+                icon={XCircle}
+                color="amber"
+              />
             </>
           )}
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-8 mb-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Filter className="w-5 h-5 text-green-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="w-4 h-4 text-coop-green" />
+          <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
           {/* Date Range */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-slate-700">
               Start Date
             </label>
             <input
               type="date"
               value={filters.startDate}
               onChange={(e) => handleFilterChange("startDate", e.target.value)}
-              className="w-full h-12 px-4 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-slate-700">
               End Date
             </label>
             <input
               type="date"
               value={filters.endDate}
               onChange={(e) => handleFilterChange("endDate", e.target.value)}
-              className="w-full h-12 px-4 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
             />
           </div>
 
           {/* Role Filter */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-slate-700">
               Role
             </label>
             <select
               value={filters.userRole}
               onChange={(e) => handleFilterChange("userRole", e.target.value)}
-              className="w-full h-12 px-4 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
             >
               <option value="">All Roles</option>
               <option value="admin">Admin</option>
@@ -361,14 +456,14 @@ const AuditLogs = () => {
 
           {/* Action Filter */}
           <div className="space-y-2 xl:col-span-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-slate-700">
               Action
             </label>
             <div className="flex flex-col sm:flex-row gap-3">
               <select
                 value={filters.action}
                 onChange={(e) => handleFilterChange("action", e.target.value)}
-                className="w-full sm:flex-1 h-12 px-4 rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                className="w-full sm:flex-1 h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
               >
                 <option value="">All Actions</option>
                 <option value="event_created">Event Created</option>
@@ -381,7 +476,7 @@ const AuditLogs = () => {
 
               <button
                 onClick={handleExportCSV}
-                className="inline-flex h-12 items-center justify-center gap-2 px-5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors whitespace-nowrap sm:w-auto w-full"
+                className="inline-flex h-10 items-center justify-center gap-2 px-5 bg-coop-green text-white text-sm font-semibold rounded-lg hover:bg-coop-darkGreen transition-colors whitespace-nowrap sm:w-auto w-full"
               >
                 <Download className="w-4 h-4" />
                 Export CSV
@@ -392,7 +487,7 @@ const AuditLogs = () => {
       </div>
 
       {/* Audit Logs Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin">
@@ -400,7 +495,7 @@ const AuditLogs = () => {
             </div>
           </div>
         ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+          <div className="flex flex-col items-center justify-center h-64 text-slate-500">
             <Activity className="w-12 h-12 mb-2 opacity-50" />
             <p>No audit logs found</p>
           </div>
@@ -408,32 +503,26 @@ const AuditLogs = () => {
           <>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                      Timestamp
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                      Role
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                      Activity
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                      Action
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                      Entity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-100">
                   <AnimatePresence>
                     {logs.map((log) => (
                       <Motion.tr
@@ -441,39 +530,36 @@ const AuditLogs = () => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="hover:bg-gray-50 transition-colors"
+                        className="hover:bg-slate-50/50 transition-colors"
                       >
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
                           {formatDateTime(log.timestamp)}
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-gray-900">
-                              {log.userName}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm">
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleColor(log.userRole)}`}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${getRoleColor(log.userRole)}`}
                           >
                             {log.userRole}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${getActionColor(log.action)}`}
-                          >
-                            {log.action.replace(/_/g, " ")}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {log.entityName || log.entityType}
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`self-start px-3 py-1 rounded-full text-xs font-semibold ${getActionColor(log.action)}`}
+                            >
+                              {actionLabel(log.action)}
+                            </span>
+                            {log.description && (
+                              <span className="text-slate-600">
+                                {log.description}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 capitalize text-slate-700">
                             {getStatusIcon(log.status)}
+                            {log.status}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
@@ -496,8 +582,8 @@ const AuditLogs = () => {
             </div>
 
             {/* Pagination */}
-            <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-              <div className="text-sm text-gray-600">
+            <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-slate-200">
+              <div className="text-sm text-slate-600">
                 Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
                 {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
                 of {pagination.total} logs
@@ -506,7 +592,7 @@ const AuditLogs = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page - 1)}
                   disabled={pagination.page === 1}
-                  className="px-3 py-1 rounded border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                  className="px-3 py-1 rounded border border-slate-300 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
                 >
                   Previous
                 </button>
@@ -516,7 +602,7 @@ const AuditLogs = () => {
                 <button
                   onClick={() => handlePageChange(pagination.page + 1)}
                   disabled={pagination.page === pagination.pages}
-                  className="px-3 py-1 rounded border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                  className="px-3 py-1 rounded border border-slate-300 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
                 >
                   Next
                 </button>
@@ -540,64 +626,56 @@ const AuditLogs = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl max-w-2xl w-full max-h-96 overflow-y-auto"
+              className="bg-white rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="sticky top-0 bg-gradient-to-r from-green-50 to-green-100 border-b border-green-200 px-6 py-4 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-gray-900">
-                  Audit Log Details
-                </h3>
+                <div>
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${getActionColor(selectedLog.action)}`}
+                  >
+                    {actionLabel(selectedLog.action)}
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900 mt-1">
+                    {selectedLog.description || actionLabel(selectedLog.action)}
+                  </h3>
+                </div>
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-slate-500 hover:text-slate-700 shrink-0"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase">
-                      Timestamp
+                    <p className="text-xs font-semibold text-slate-500 uppercase">
+                      When
                     </p>
-                    <p className="text-sm text-gray-900 mt-1">
+                    <p className="text-sm text-slate-900 mt-1">
                       {formatDateTime(selectedLog.timestamp)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase">
-                      User
+                    <p className="text-xs font-semibold text-slate-500 uppercase">
+                      By
                     </p>
-                    <p className="text-sm text-gray-900 mt-1">
-                      {selectedLog.userName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase">
-                      Role
-                    </p>
-                    <p className="text-sm text-gray-900 mt-1 capitalize">
+                    <span
+                      className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${getRoleColor(selectedLog.userRole)}`}
+                    >
                       {selectedLog.userRole}
-                    </p>
+                    </span>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase">
+                    <p className="text-xs font-semibold text-slate-500 uppercase">
                       Status
                     </p>
-                    <p className="text-sm text-gray-900 mt-1 capitalize flex items-center gap-2">
+                    <p className="text-sm text-slate-900 mt-1 capitalize flex items-center gap-2">
                       {getStatusIcon(selectedLog.status)} {selectedLog.status}
                     </p>
                   </div>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase">
-                    Description
-                  </p>
-                  <p className="text-sm text-gray-900 mt-1">
-                    {selectedLog.description}
-                  </p>
                 </div>
 
                 {selectedLog.errorMessage && (
@@ -611,34 +689,98 @@ const AuditLogs = () => {
                   </div>
                 )}
 
-                {selectedLog.changes &&
-                  (selectedLog.changes.before || selectedLog.changes.after) && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase">
-                        Changes
-                      </p>
-                      <pre className="text-xs bg-gray-50 p-3 rounded mt-1 overflow-x-auto max-h-48">
-                        {JSON.stringify(selectedLog.changes, null, 2)}
-                      </pre>
-                    </div>
-                  )}
+                {(() => {
+                  const { kind, rows } = describeChanges(selectedLog.changes);
+                  if (!rows.length) return null;
 
-                {selectedLog.metadata &&
-                  Object.keys(selectedLog.metadata).length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase">
-                        Metadata
-                      </p>
-                      <pre className="text-xs bg-gray-50 p-3 rounded mt-1 overflow-x-auto max-h-48">
-                        {JSON.stringify(selectedLog.metadata, null, 2)}
-                      </pre>
-                    </div>
-                  )}
+                  if (kind === "diff") {
+                    return (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
+                          What Changed
+                        </p>
+                        <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                          {rows.map((row) => (
+                            <div
+                              key={row.label}
+                              className="grid grid-cols-3 gap-2 px-3 py-2 text-sm"
+                            >
+                              <span className="font-medium text-slate-700">
+                                {row.label}
+                              </span>
+                              <span className="text-slate-500 truncate">
+                                {row.before}
+                              </span>
+                              <span className="text-slate-900 font-medium truncate">
+                                → {row.after}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
 
-                <div className="text-xs text-gray-500">
-                  <p>IP Address: {selectedLog.ipAddress || "N/A"}</p>
-                  <p>Log ID: {selectedLog.logId}</p>
-                </div>
+                  return (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
+                        Details
+                      </p>
+                      <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                        {rows.map((row) => (
+                          <div
+                            key={row.label}
+                            className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                          >
+                            <span className="font-medium text-slate-700">
+                              {row.label}
+                            </span>
+                            <span className="text-slate-900 text-right">
+                              {row.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const rows = describeMetadata(selectedLog.metadata);
+                  if (!rows.length) return null;
+                  return (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
+                        Additional Info
+                      </p>
+                      <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                        {rows.map((row) => (
+                          <div
+                            key={row.label}
+                            className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                          >
+                            <span className="font-medium text-slate-700">
+                              {row.label}
+                            </span>
+                            <span className="text-slate-900 text-right">
+                              {row.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <details className="text-xs text-slate-400 pt-2 border-t border-slate-100">
+                  <summary className="cursor-pointer select-none font-medium text-slate-500 hover:text-slate-700">
+                    Technical details
+                  </summary>
+                  <div className="mt-2 space-y-1 pl-1">
+                    <p>IP Address: {selectedLog.ipAddress || "N/A"}</p>
+                    <p>Log ID: {selectedLog.logId}</p>
+                  </div>
+                </details>
               </div>
             </Motion.div>
           </Motion.div>

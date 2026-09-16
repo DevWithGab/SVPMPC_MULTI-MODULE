@@ -8,7 +8,8 @@ import {
   TrendingUp,
   FileText,
   Search,
-  Eye,
+  X,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -21,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../ui/table";
+import { StatCard } from "../shared";
 import { pdfReportGenerator } from "../../../utils/pdfReportGenerator";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDate, formatTime } from "../../../utils/date";
@@ -35,7 +37,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     attendanceLogs || [],
   );
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [_loadingAttendance, setLoadingAttendance] = useState(false);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [totalMembersInDb, setTotalMembersInDb] = useState(0);
   const [_totalAttendanceInDb, setTotalAttendanceInDb] = useState(0);
 
@@ -67,7 +69,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     };
 
     loadEvents();
-  }, [events, loadingEvents]);
+  }, [events]);
 
   useEffect(() => {
     let isMounted = true;
@@ -349,54 +351,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     }
   };
 
-  const handleExportEventSummary = (eventName) => {
-    try {
-      const selectedEventData = localEvents.find(
-        (e) => (e.eventName || e.name) === eventName,
-      );
-      const eventAttendance = filteredLogs
-        .filter((log) => log.eventName === eventName)
-        .map((log) => ({
-          scanTime: log.scanTime,
-          memberId: log.memberId || "N/A",
-          memberName: log.memberName,
-          eventName: log.eventName,
-          barangay: log.barangay || "N/A",
-          status: "Present",
-        }));
-
-      if (!selectedEventData) {
-        alert("Event data not found");
-        return;
-      }
-
-      const reportOptions = {
-        eventData: {
-          eventName: selectedEventData.eventName || selectedEventData.name,
-          eventDate: selectedEventData.eventDate || selectedEventData.date,
-          eventTime:
-            selectedEventData.eventTime || selectedEventData.time || "N/A",
-          location: selectedEventData.location,
-          status: selectedEventData.status || "completed",
-          description: selectedEventData.description || "",
-        },
-        attendanceData: eventAttendance,
-        title: "Event Summary Report",
-        subtitle: `${selectedEventData.eventName || selectedEventData.name} - Detailed Attendance Analysis`,
-      };
-
-      const result =
-        pdfReportGenerator.generateEventSummaryReport(reportOptions);
-
-      if (result.success) {
-        console.log(`Event summary PDF generated: ${result.filename}`);
-      }
-    } catch (error) {
-      console.error("Error generating event summary PDF:", error);
-      alert("Error generating event summary. Please try again.");
-    }
-  };
-
   // Export attendees for a specific event, optionally filtered by barangay (CSV)
   const handleExportAttendeesByBarangay = (eventObj) => {
     try {
@@ -549,10 +503,10 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-950 tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Attendance Reports
           </h1>
-          <p className="text-slate-500 text-sm font-bold mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             View and export attendance data
           </p>
         </div>
@@ -560,14 +514,14 @@ export default function AttendanceReports({ attendanceLogs, events }) {
           <Button
             onClick={handleExportCSV}
             variant="outline"
-            className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green font-bold rounded-xl"
+            className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green font-semibold rounded-lg"
           >
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
           <Button
             onClick={handleExportPDF}
-            className="bg-coop-green hover:bg-coop-darkGreen text-white font-black px-6 py-3 rounded-2xl shadow-lg shadow-green-200"
+            className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-5 py-2.5 rounded-lg"
           >
             <FileText className="w-4 h-4 mr-2" />
             Export PDF
@@ -576,31 +530,42 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       </div>
 
       {/* Filters */}
-      <Card className="border-slate-200/60 shadow-sm rounded-[2rem] overflow-hidden bg-white">
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Search Member
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  placeholder="Search members..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-slate-200 rounded-xl"
-                />
-              </div>
+      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+        <CardContent className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Search Member
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder="Search members..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-9 border-slate-200 rounded-lg"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/40 rounded"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Event
               </label>
               <select
                 value={selectedEvent}
                 onChange={(e) => setSelectedEvent(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coop-green focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               >
                 <option value="all">All Events</option>
                 {localEvents.map((event) => {
@@ -617,13 +582,13 @@ export default function AttendanceReports({ attendanceLogs, events }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Date Range
               </label>
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coop-green focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               >
                 <option value="all">All Time</option>
                 <option value="today">Today</option>
@@ -633,13 +598,13 @@ export default function AttendanceReports({ attendanceLogs, events }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Barangay
               </label>
               <select
                 value={selectedBarangay}
                 onChange={(e) => setSelectedBarangay(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coop-green focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               >
                 <option value="all">All Barangays</option>
                 {barangayOptions.map((barangay) => (
@@ -658,112 +623,97 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                   setSearchTerm("");
                 }}
                 variant="outline"
-                className="w-full border-slate-200 hover:border-slate-300 text-slate-600 rounded-xl font-bold"
+                className="w-full border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
               >
                 <Filter className="w-4 h-4 mr-2" />
                 Reset
               </Button>
             </div>
           </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+            <span>
+              Showing{" "}
+              <span className="font-semibold text-slate-700">
+                {filteredLogs.length}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-slate-700">
+                {normalizedLogs.length}
+              </span>{" "}
+              attendance records
+            </span>
+            {(loadingEvents || loadingAttendance) && (
+              <span className="inline-flex items-center gap-1.5 font-medium text-slate-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Syncing latest data...
+              </span>
+            )}
+          </div>
         </CardContent>
       </Card>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          {
-            label: "Total Attendance",
-            value: totalAttendance,
-            icon: Users,
-            color: "text-coop-green",
-            bg: "bg-green-50",
-            description: "Total records",
-          },
-          {
-            label: "Total Members",
-            value: totalMembersInDb,
-            icon: Users,
-            color: "text-coop-green",
-            bg: "bg-green-50",
-            description: "Members in database",
-          },
-          {
-            label: "Events Covered",
-            value: uniqueEvents,
-            icon: Calendar,
-            color: "text-coop-yellow",
-            bg: "bg-yellow-50",
-            description: "Events with attendance",
-          },
-          {
-            label: "Avg per Event",
-            value: averagePerEvent,
-            icon: TrendingUp,
-            color: "text-coop-green",
-            bg: "bg-green-50",
-            description: "Average attendance",
-          },
-        ].map((stat) => (
-          <Card
-            key={stat.label}
-            className="p-6 border-slate-200/60 shadow-lg shadow-slate-200/40 rounded-[2rem] bg-white group hover:border-green-200 transition-all relative overflow-hidden"
-          >
-            <div
-              className={`absolute top-0 right-0 w-20 h-20 ${stat.bg} rounded-full -mr-10 -mt-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-            />
-            <div className="flex items-start justify-between relative z-10">
-              <div className="flex-1">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                  {stat.label}
-                </p>
-                <h3 className="text-2xl font-black text-slate-950 tracking-tighter mb-1">
-                  {stat.value}
-                </h3>
-                <p className="text-[10px] text-slate-500 font-bold">
-                  {stat.description}
-                </p>
-              </div>
-              <div
-                className={`p-3 ${stat.bg} rounded-xl group-hover:scale-110 transition-transform duration-500`}
-              >
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
-              </div>
-            </div>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-in">
+        <StatCard
+          title="Total Attendance"
+          value={totalAttendance}
+          subtitle="Total records"
+          icon={Users}
+        />
+        <StatCard
+          title="Total Members"
+          value={totalMembersInDb}
+          subtitle="Members in database"
+          icon={Users}
+        />
+        <StatCard
+          title="Events Covered"
+          value={uniqueEvents}
+          subtitle="Events with attendance"
+          icon={Calendar}
+          color="amber"
+        />
+        <StatCard
+          title="Avg per Event"
+          value={averagePerEvent}
+          subtitle="Average attendance"
+          icon={TrendingUp}
+        />
       </div>
 
       {/* Event Summary */}
-      <Card className="border-slate-200/60 shadow-sm rounded-[2rem] overflow-hidden bg-white">
-        <CardHeader className="border-b border-slate-50 p-6">
-          <CardTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-coop-green" />
+      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+        <CardHeader className="border-b border-slate-100 p-5">
+          <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-coop-green" />
             Event Summary
           </CardTitle>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">
-            Attendance by event
-          </p>
+          <p className="text-slate-400 text-xs mt-1">Attendance by event</p>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow>
-                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-600">
+                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Event Name
                   </TableHead>
-                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-600">
+                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Date
                   </TableHead>
-                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-600">
+                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Total Attendance
                   </TableHead>
-                  <TableHead className="font-black uppercase text-[10px] tracking-widest text-slate-600">
-                    Unique Attendees
+                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
+                    Attendees
+                  </TableHead>
+                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
+                    Export
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="stagger-in">
                 {eventSummary.map((event) => (
                   <TableRow
                     key={
@@ -774,52 +724,94 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                     }
                     className="hover:bg-slate-50/50 transition-colors"
                   >
-                    <TableCell className="py-4">
+                    <TableCell className="py-3">
                       <div>
-                        <p className="text-sm font-black text-slate-900">
+                        <p className="text-sm font-semibold text-slate-900">
                           {event.displayName}
                         </p>
-                        <p className="text-xs text-slate-500 font-bold">
+                        <p className="text-xs text-slate-400">
                           {event.location}
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell className="py-4">
+                    <TableCell className="py-3">
                       <div>
-                        <p className="text-sm font-bold text-slate-900">
+                        <p className="text-sm font-medium text-slate-700">
                           {event.displayDate
                             ? formatDate(event.displayDate)
                             : "No date"}
                         </p>
-                        <p className="text-xs text-slate-500 font-bold">
+                        <p className="text-xs text-slate-400">
                           {event.displayDate
                             ? formatTime(event.displayDate)
                             : "No time"}
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell className="py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-black text-coop-green">
-                            {event.attendanceCount}
-                          </span>
-                        </div>
-                        <span className="text-sm font-bold text-slate-900">
-                          {event.attendanceCount} records
-                        </span>
-                      </div>
+                    <TableCell className="py-3">
+                      <span className="text-sm font-medium text-slate-700">
+                        {event.attendanceCount} records
+                      </span>
                     </TableCell>
-                    <TableCell className="py-4">
+                    <TableCell className="py-3">
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-bold text-slate-900">
+                        <span className="text-sm font-medium text-slate-700">
                           {event.uniqueAttendees} members
                         </span>
                       </div>
                     </TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleExportAttendeesByBarangay(event)}
+                          disabled={event.attendanceCount === 0}
+                          aria-label={`Export ${event.displayName} attendees as CSV`}
+                          title="Export attendees (CSV)"
+                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleExportAttendeesByBarangayPDF(event)
+                          }
+                          disabled={event.attendanceCount === 0}
+                          aria-label={`Export ${event.displayName} attendees as PDF`}
+                          title="Export attendees (PDF)"
+                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
+                {eventSummary.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-12 text-slate-400"
+                    >
+                      <div className="flex flex-col items-center gap-4">
+                        <BarChart3 className="w-10 h-10 text-slate-300" />
+                        <div>
+                          <p className="font-semibold text-slate-600">
+                            No events to summarize
+                          </p>
+                          <p className="text-sm">
+                            Create an event and record attendance to see it
+                            here.
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>

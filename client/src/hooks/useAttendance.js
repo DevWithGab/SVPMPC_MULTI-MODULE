@@ -36,6 +36,8 @@ export const useAttendance = () => {
             ? eventsData
             : Array.isArray(eventsData?.events)
             ? eventsData.events
+          : Array.isArray(eventsData?.data)
+          ? eventsData.data
             : []
         );
       } catch (error) {

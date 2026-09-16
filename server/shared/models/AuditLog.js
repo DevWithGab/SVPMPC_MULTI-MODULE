@@ -18,7 +18,7 @@ const auditLogSchema = new mongoose.Schema(
     },
     userRole: {
       type: String,
-      enum: ['admin', 'secretary', 'scanner', 'member', 'super_admin', 'system'],
+      enum: ['admin', 'secretary', 'scanner', 'member', 'super_admin', 'treasurer', 'system'],
       required: true,
     },
     action: {
@@ -35,6 +35,15 @@ const auditLogSchema = new mongoose.Schema(
         'member_updated',
         'member_deleted',
         'qr_code_generated',
+        'qr_code_regenerated',
+        'qr_code_deactivated',
+        'qr_code_reactivated',
+        'data_restored',
+        'claim_created',
+        'claim_approved',
+        'claim_rejected',
+        'claim_deduction_processed',
+        'claim_released',
         'scanner_registered',
         'scanner_status_changed',
         'scan_processed',
@@ -50,7 +59,7 @@ const auditLogSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['event', 'attendance', 'member', 'scanner', 'report', 'filter'],
+      enum: ['event', 'attendance', 'member', 'scanner', 'report', 'filter', 'backup', 'claim'],
       required: true,
     },
     entityId: {

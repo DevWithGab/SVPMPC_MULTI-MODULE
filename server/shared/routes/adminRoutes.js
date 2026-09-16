@@ -17,6 +17,9 @@ router.put('/members/:memberId', adminController.updateMember);
 // Delete member (soft delete)
 router.delete('/members/:memberId', adminController.deleteMember);
 
+// Toggle a member between active and inactive
+router.post('/members/:memberId/toggle-status', adminController.toggleMemberStatus);
+
 // Reset member password
 router.post('/members/:memberId/reset-password', adminController.resetMemberPassword);
 

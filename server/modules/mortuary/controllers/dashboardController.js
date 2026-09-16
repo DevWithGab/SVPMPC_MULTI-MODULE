@@ -1,6 +1,32 @@
 const Ledger = require('../models/Ledger');
 const Contribution = require('../models/Contribution');
+const Claim = require('../models/Claim');
 const { Member } = require('../../../shared/models');
+
+// Death-fund assessment money in vs. benefit money out, across every claim
+// ever processed — not the per-member contribution balance (fundBalance)
+// tracked separately. A claim only has `deduction`/`payout` once it reaches
+// that stage, so unset ones contribute 0 via $ifNull rather than being
+// excluded. Shared by both the Treasurer and Admin dashboards so the two
+// stay in agreement.
+const getClaimFinancialTotals = async () => {
+  const [claimTotals] = await Claim.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalDeductionsCollected: { $sum: { $ifNull: ['$deduction.totalCollected', 0] } },
+        totalReleased: { $sum: { $ifNull: ['$payout.amount', 0] } },
+      },
+    },
+  ]);
+  const totalDeductionsCollected = claimTotals?.totalDeductionsCollected || 0;
+  const totalReleased = claimTotals?.totalReleased || 0;
+  return {
+    totalDeductionsCollected,
+    totalReleased,
+    netClaimsBalance: totalDeductionsCollected - totalReleased,
+  };
+};
 
 // Get member dashboard data
 const getDashboard = async (req, res) => {
@@ -14,7 +40,7 @@ const getDashboard = async (req, res) => {
     }
 
     // Get current balance
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1 });
+    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
     const currentBalance = latestLedger ? latestLedger.balance : 0;
 
     // Get contribution history (last 12 months)
@@ -59,14 +85,22 @@ const getDashboard = async (req, res) => {
 // Get treasurer dashboard data
 const getTreasurerDashboard = async (req, res) => {
   try {
-    // Get all members count
+    // Get all members count by status
     const totalMembers = await Member.countDocuments();
     const activeMembers = await Member.countDocuments({ status: 'active' });
+    const inactiveMembers = await Member.countDocuments({ status: 'inactive' });
+    const deceasedMembers = await Member.countDocuments({ status: 'deceased' });
 
-    // Get fund balance (sum of all member balances from latest ledger entries)
+    // Get fund balance and member standing (sum of all member balances from latest ledger entries)
     const members = await Member.find({ status: 'active' });
     let fundBalance = 0;
     let lowBalanceCount = 0;
+    let goodStandingCount = 0;
+    let excellentStandingCount = 0;
+    
+    const MINIMUM_BALANCE = 1000;
+    const GOOD_STANDING_THRESHOLD = 5000;
+    const EXCELLENT_STANDING_THRESHOLD = 10000;
     
     for (const member of members) {
       const latestLedger = await Ledger.findOne({ memberId: member.memberId })
@@ -75,10 +109,20 @@ const getTreasurerDashboard = async (req, res) => {
       const balance = latestLedger ? latestLedger.balance : 0;
       fundBalance += balance;
       
-      if (balance < 1000) {
+      // Categorize member standing
+      if (balance < MINIMUM_BALANCE) {
         lowBalanceCount++;
+      } else if (balance >= EXCELLENT_STANDING_THRESHOLD) {
+        excellentStandingCount++;
+      } else if (balance >= GOOD_STANDING_THRESHOLD) {
+        goodStandingCount++;
+      } else {
+        // Fair standing (between minimum and good)
+        // This will be calculated as: activeMembers - (low + good + excellent)
       }
     }
+
+    const fairStandingCount = activeMembers - (lowBalanceCount + goodStandingCount + excellentStandingCount);
 
     // Get total contributions (all time)
     const allContributions = await Contribution.aggregate([
@@ -97,15 +141,37 @@ const getTreasurerDashboard = async (req, res) => {
 
     const totalCollected = allContributions.length > 0 ? allContributions[0].total : 0;
 
+    const { totalDeductionsCollected, totalReleased, netClaimsBalance } = await getClaimFinancialTotals();
+
     res.status(200).json({
       success: true,
       data: {
         fundBalance,
         activeMembers,
         totalMembers,
+        inactiveMembers,
+        deceasedMembers,
         lowBalanceMembers: lowBalanceCount,
         totalCollected,
-        healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceCount) / totalMembers) * 100) : 0
+        // Death-fund assessment totals across all claims — see
+        // getClaimFinancialTotals for why this is separate from fundBalance.
+        totalDeductionsCollected,
+        totalReleased,
+        netClaimsBalance,
+        healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceCount) / totalMembers) * 100) : 0,
+        // Member standing breakdown
+        memberStanding: {
+          excellent: excellentStandingCount,
+          good: goodStandingCount,
+          fair: fairStandingCount,
+          atRisk: lowBalanceCount
+        },
+        // Status composition
+        statusComposition: {
+          active: activeMembers,
+          inactive: inactiveMembers,
+          deceased: deceasedMembers
+        }
       }
     });
   } catch (error) {
@@ -118,7 +184,96 @@ const getTreasurerDashboard = async (req, res) => {
   }
 };
 
+// Admin dashboard — member counts, claim counts by status, recent claim
+// activity. Note: adminRoutes.js previously wired GET /dashboard to
+// getDashboard above, which requires a memberId route param that route
+// never supplied (a pre-existing 404 on that endpoint) — this function is
+// the one actually meant for the admin-facing dashboard.
+const getAdminDashboard = async (req, res) => {
+  try {
+    const [totalMembers, activeMembers, inactiveMembers, deceasedMembers] = await Promise.all([
+      Member.countDocuments(),
+      Member.countDocuments({ status: 'active' }),
+      Member.countDocuments({ status: 'inactive' }),
+      Member.countDocuments({ status: 'deceased' }),
+    ]);
+
+    const claimStatuses = [
+      'pending_requirements',
+      'approved',
+      'pending_deduction',
+      'deduction_processed',
+      'released',
+      'rejected',
+    ];
+
+    const claimCountsByStatus = {};
+    await Promise.all(
+      claimStatuses.map(async (status) => {
+        claimCountsByStatus[status] = await Claim.countDocuments({ status });
+      }),
+    );
+
+    const totalClaims = Object.values(claimCountsByStatus).reduce((sum, n) => sum + n, 0);
+
+    const { totalDeductionsCollected, totalReleased, netClaimsBalance } = await getClaimFinancialTotals();
+
+    // Recent claim activity — flatten the last few statusHistory entries
+    // across the most recently updated claims.
+    const recentClaims = await Claim.find()
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .select('claimId memberName beneficiaryName statusHistory');
+
+    const recentClaimActivities = recentClaims
+      .flatMap((claim) =>
+        claim.statusHistory.map((entry) => ({
+          claimId: claim.claimId,
+          memberName: claim.memberName,
+          beneficiaryName: claim.beneficiaryName,
+          status: entry.status,
+          changedBy: entry.changedBy,
+          changedAt: entry.changedAt,
+          notes: entry.notes,
+        })),
+      )
+      .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))
+      .slice(0, 10);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        members: {
+          total: totalMembers,
+          active: activeMembers,
+          inactive: inactiveMembers,
+          deceased: deceasedMembers,
+        },
+        claims: {
+          total: totalClaims,
+          ...claimCountsByStatus,
+          totalDeductionsCollected,
+          totalReleased,
+          // What's been collected for death-fund assessments but not yet
+          // paid out — "total income" from the claims side, separate from
+          // members' own contribution balances (fundBalance).
+          netClaimsBalance,
+        },
+        recentClaimActivities,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching admin dashboard:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching admin dashboard',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getTreasurerDashboard,
+  getAdminDashboard,
 };

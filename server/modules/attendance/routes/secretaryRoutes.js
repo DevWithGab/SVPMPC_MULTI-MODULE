@@ -1,4 +1,5 @@
 const express = require('express');
+const { authenticateToken, authorizeSecretaryOnly } = require('../../../middleware');
 const { 
   getAllMembers,
   getMemberById,
@@ -12,8 +13,8 @@ const {
   getAllEvents,
   getEventById,
   updateEvent,
-  deleteEvent
 } = require('../controllers/eventController');
+const { submitEvent, cancelEvent, resubmitEvent } = require('../controllers/eventController');
 
 const { 
   recordAttendance,
@@ -25,12 +26,16 @@ const {
 
 const router = express.Router();
 
+router.use(authenticateToken, authorizeSecretaryOnly);
+
 // Event management routes (Secretary can manage events)
 router.post('/events', createEvent);
 router.get('/events', getAllEvents);
 router.get('/events/:eventId', getEventById);
 router.put('/events/:eventId', updateEvent);
-router.delete('/events/:eventId', deleteEvent);
+router.post('/events/:eventId/submit', submitEvent);
+router.post('/events/:eventId/cancel', cancelEvent);
+router.post('/events/:eventId/resubmit', resubmitEvent);
 
 // Member management routes (Secretary can view members)
 router.get('/members', getAllMembers);

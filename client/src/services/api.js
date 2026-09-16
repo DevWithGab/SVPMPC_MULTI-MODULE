@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,14 +23,22 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 errors by clearing invalid tokens
+// Handle 401 errors by clearing the invalid session and sending the user
+// back to login — matching services/attendance/admin.js and secretary.js.
+// Without the redirect, a missing/expired token left the portal silently
+// half-working: read-only screens kept rendering (several still go through
+// legacy unauthenticated endpoints) while every authenticated action, like
+// Approve/Reject, failed with a bare "Access token required" and no
+// indication that the fix was simply to log back in.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && error.config?.url !== '/auth/login') {
-      // Clear invalid token
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('currentView');
+      localStorage.removeItem('selectedModule');
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -149,44 +157,54 @@ export const memberAPI = {
     const response = await api.post('/attendance/members/generate-all-qr');
     return response.data;
   },
+
+  // Admin-only, authenticated (/attendance/admin/members/...) — the single-
+  // member QR lifecycle actions. Kept as separate functions rather than
+  // repointing the calls above, since getAllMembers/generateQRCodes above
+  // are shared by Secretary and Scanner screens that don't have admin auth.
+  generateMemberQR: async (memberId) => {
+    const response = await api.post('/attendance/admin/members/generate-qr', {
+      memberIds: [memberId],
+    });
+    return response.data;
+  },
+
+  generateAllMissingQR: async () => {
+    const response = await api.post('/attendance/admin/members/generate-all-qr');
+    return response.data;
+  },
+
+  regenerateMemberQR: async (memberId) => {
+    const response = await api.post(`/attendance/admin/members/${memberId}/regenerate-qr`);
+    return response.data;
+  },
+
+  deactivateMemberQR: async (memberId) => {
+    const response = await api.post(`/attendance/admin/members/${memberId}/deactivate-qr`);
+    return response.data;
+  },
+
+  reactivateMemberQR: async (memberId) => {
+    const response = await api.post(`/attendance/admin/members/${memberId}/reactivate-qr`);
+    return response.data;
+  },
+
+  getMemberQRStatus: async (memberId) => {
+    const response = await api.get(`/attendance/admin/members/${memberId}/qr-status`);
+    return response.data;
+  },
 };
 
-// ============================================
-// ATTENDANCE - EVENT API
-// ============================================
-export const eventAPI = {
-  createEvent: async (eventData) => {
-    const response = await api.post('/attendance/events', eventData);
-    return response.data;
-  },
-
-  getAllEvents: async () => {
-    const response = await api.get('/attendance/events');
-    return response.data;
-  },
-
-  // Get events with query params (search, location, status, etc.)
-  getEvents: async (params = {}) => {
-    const response = await api.get('/attendance/events', { params });
-    return response.data;
-  },
-
-  getEventById: async (eventId) => {
-    const response = await api.get(`/attendance/events/${eventId}`);
-    return response.data;
-  },
-
-  updateEvent: async (eventId, eventData) => {
-    const response = await api.put(`/attendance/events/${eventId}`, eventData);
-    return response.data;
-  },
-
-  deleteEvent: async (eventId) => {
-    const response = await api.delete(`/attendance/events/${eventId}`);
-    return response.data;
-  },
+// qrCodeUrl comes back as a server-relative path (e.g. "/uploads/qrcodes/x.png")
+// since it's a static file, not an API route — resolve it against the API's
+// origin (not the Vite dev origin the app itself is served from) for <img>,
+// download, and print.
+export const resolveQrAssetUrl = (qrCodeUrl) => {
+  if (!qrCodeUrl) return null;
+  if (/^https?:\/\//i.test(qrCodeUrl)) return qrCodeUrl;
+  const origin = API_BASE_URL.replace(/\/api\/?$/, '');
+  return `${origin}${qrCodeUrl.startsWith('/') ? '' : '/'}${qrCodeUrl}`;
 };
-
 
 // ============================================
 // ATTENDANCE - MEMBER PORTAL API
@@ -208,15 +226,119 @@ export const memberPortalAPI = {
 };
 
 // ============================================
+// ATTENDANCE - EVENT API
+// ============================================
+
+// GET /attendance/events returns the shared paginated-list shape
+// { success, data: [...events], pagination } (server/shared/utils/pagination.js),
+// but nearly every caller of getAllEvents()/getEvents() below was written
+// against an older { events: [...] } shape and reads response.events. That
+// mismatch meant response.events was always undefined, so every one of
+// those screens silently fell back to an empty list — most visibly, a
+// freshly-created event vanishing the instant any other part of the app
+// (e.g. useAttendance's refreshData) re-fetched with the same broken check.
+// Normalizing once here, alongside the raw fields, keeps every existing
+// `response.events` read working without having to touch each call site.
+const normalizeEventsResponse = (payload) => {
+  const events = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.events)
+        ? payload.events
+        : [];
+  return { ...payload, events };
+};
+
+export const eventAPI = {
+  createEvent: async (eventData) => {
+    const response = await api.post('/attendance/events', eventData);
+    return response.data;
+  },
+
+  getAllEvents: async () => {
+    const response = await api.get('/attendance/events');
+    return normalizeEventsResponse(response.data);
+  },
+
+  // Get events with query params (search, location, status, etc.)
+  getEvents: async (params = {}) => {
+    const response = await api.get('/attendance/events', { params });
+    return normalizeEventsResponse(response.data);
+  },
+
+  getEventById: async (eventId) => {
+    const response = await api.get(`/attendance/events/${eventId}`);
+    return response.data;
+  },
+
+  updateEvent: async (eventId, eventData) => {
+    const response = await api.put(`/attendance/events/${eventId}`, eventData);
+    return response.data;
+  },
+
+  // Admin-only, and only once an event is Closed — the server enforces both
+  // (auth + status), this just targets the authenticated admin route rather
+  // than the unauthenticated legacy one.
+  deleteEvent: async (eventId) => {
+    const response = await api.delete(`/attendance/admin/events/${eventId}`);
+    return response.data;
+  },
+
+  approveEvent: async (eventId) => {
+    const response = await api.post(`/attendance/admin/events/${eventId}/approve`);
+    return response.data;
+  },
+
+  rejectEvent: async (eventId, reason) => {
+    const response = await api.post(`/attendance/admin/events/${eventId}/reject`, { reason });
+    return response.data;
+  },
+
+  reopenEvent: async (eventId, { eventDate, startTime, endTime, reason }) => {
+    const response = await api.post(`/attendance/admin/events/${eventId}/reopen`, {
+      eventDate,
+      startTime,
+      endTime,
+      reason,
+    });
+    return response.data;
+  },
+};
+
+
+// ============================================
 // ATTENDANCE - ATTENDANCE RECORDS API
 // ============================================
+
+// Same mismatch as normalizeEventsResponse above: GET /attendance returns
+// the shared paginated-list shape { success, data: [...records], pagination },
+// but most callers of getAllAttendance() below were written against an
+// older { attendance: [...] } shape and read response.attendance — which is
+// always undefined, so every one of those screens (including the Scanner
+// Portal's Live Attendance tab, via useAttendance.js) silently saw an empty
+// list and every member showed as permanently "Absent" no matter how many
+// scans actually succeeded. Normalizing once here fixes every consumer.
+const normalizeAttendanceResponse = (payload) => {
+  const attendance = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.attendance)
+        ? payload.attendance
+        : [];
+  return { ...payload, attendance, data: attendance };
+};
+
 export const attendanceAPI = {
-  recordAttendance: async (memberId, eventId, scanTime, scannedBy) => {
+  recordAttendance: async (memberId, eventId, scanTime, scannedBy, options = {}) => {
     const payload = {
       memberId,
       eventId,
       scanTime,
       scannedBy,
+      entrySource: options.entrySource,
+      justification: options.justification,
     };
 
     const endpoints = ['/attendance/record', '/attendance/attendance/record'];
@@ -237,17 +359,21 @@ export const attendanceAPI = {
     throw lastError;
   },
 
-  getAttendanceByEvent: async (eventId) => {
+  // params supports { page, limit } — same paginated-list shape as
+  // getAllAttendance, capped at 100 rows per page server-side, so callers
+  // that need every record for the event should page through it (see
+  // LiveAttendanceList's fetchEventAttendance for the loop).
+  getAttendanceByEvent: async (eventId, params = {}) => {
     try {
-      const response = await api.get(`/attendance/event/${eventId}`);
-      return response.data;
+      const response = await api.get(`/attendance/event/${eventId}`, { params });
+      return normalizeAttendanceResponse(response.data);
     } catch (error) {
       if (error.response?.status !== 404) {
         throw error;
       }
 
-      const response = await api.get(`/attendance/attendance/event/${eventId}`);
-      return response.data;
+      const response = await api.get(`/attendance/attendance/event/${eventId}`, { params });
+      return normalizeAttendanceResponse(response.data);
     }
   },
 
@@ -288,14 +414,14 @@ export const attendanceAPI = {
   getAllAttendance: async () => {
     try {
       const response = await api.get('/attendance');
-      return response.data;
+      return normalizeAttendanceResponse(response.data);
     } catch (error) {
       if (error.response?.status !== 404) {
         throw error;
       }
 
       const response = await api.get('/attendance/attendance');
-      return response.data;
+      return normalizeAttendanceResponse(response.data);
     }
   },
 };
@@ -304,8 +430,8 @@ export const attendanceAPI = {
 // MORTUARY - MEMBER API
 // ============================================
 export const mortuaryMemberAPI = {
-  getAllMembers: async () => {
-    const response = await api.get('/mortuary/admin/members');
+  getAllMembers: async (params = {}) => {
+    const response = await api.get('/mortuary/admin/members', { params });
     return response.data;
   },
 };
@@ -318,48 +444,89 @@ export const mortuaryDashboardAPI = {
     const response = await api.get(`/mortuary/dashboard/${memberId}`);
     return response.data;
   },
+
+  getAdminDashboard: async () => {
+    const response = await api.get('/mortuary/admin/dashboard');
+    return response.data;
+  },
 };
 
 // ============================================
-// MORTUARY - CLAIMS API
+// MORTUARY - CLAIMS API (Admin)
 // ============================================
 export const claimAPI = {
-  fileNewClaim: async (claimData) => {
-    const response = await api.post('/mortuary/claims/file', claimData);
+  createClaim: async (claimData) => {
+    const response = await api.post('/mortuary/admin/claims', claimData);
     return response.data;
   },
 
-  getClaimHistory: async (memberId) => {
-    const response = await api.get(`/mortuary/claims/${memberId}`);
+  getAllClaims: async (params = {}) => {
+    const response = await api.get('/mortuary/admin/claims', { params });
     return response.data;
   },
 
   getClaimById: async (claimId) => {
-    const response = await api.get(`/mortuary/claims/detail/${claimId}`);
+    const response = await api.get(`/mortuary/admin/claims/${claimId}`);
     return response.data;
   },
 
-  approveClaim: async (claimId, approvalData) => {
-    const response = await api.put(
-      `/mortuary/claims/${claimId}/approve`,
-      approvalData
-    );
+  updateRequirements: async (claimId, requirements) => {
+    const response = await api.put(`/mortuary/admin/claims/${claimId}/requirements`, { requirements });
+    return response.data;
+  },
+
+  updateVerification: async (claimId, verificationData) => {
+    const response = await api.put(`/mortuary/admin/claims/${claimId}/verification`, verificationData);
+    return response.data;
+  },
+
+  approveClaim: async (claimId, approvalData = {}) => {
+    const response = await api.put(`/mortuary/admin/claims/${claimId}/approve`, approvalData);
     return response.data;
   },
 
   rejectClaim: async (claimId, rejectionData) => {
-    const response = await api.put(
-      `/mortuary/claims/${claimId}/reject`,
-      rejectionData
-    );
+    const response = await api.put(`/mortuary/admin/claims/${claimId}/reject`, rejectionData);
+    return response.data;
+  },
+};
+
+// ============================================
+// MORTUARY - BENEFICIARIES API (Admin)
+// ============================================
+export const beneficiaryAPI = {
+  getAllBeneficiaries: async (params = {}) => {
+    const response = await api.get('/mortuary/admin/beneficiaries', { params });
     return response.data;
   },
 
-  payClaim: async (claimId, paymentData) => {
-    const response = await api.put(
-      `/mortuary/claims/${claimId}/pay`,
-      paymentData
-    );
+  getHistory: async (memberId) => {
+    const response = await api.get(`/mortuary/admin/beneficiaries/${memberId}/history`);
+    return response.data;
+  },
+
+  updateBeneficiary: async (memberId, beneficiaryData) => {
+    const response = await api.put(`/mortuary/admin/beneficiaries/${memberId}`, beneficiaryData);
+    return response.data;
+  },
+};
+
+// ============================================
+// MORTUARY - DEDUCTION SETTINGS API (Admin)
+// ============================================
+export const deductionSettingAPI = {
+  getCurrentRate: async () => {
+    const response = await api.get('/mortuary/admin/deduction-settings/current');
+    return response.data;
+  },
+
+  getRateHistory: async (params = {}) => {
+    const response = await api.get('/mortuary/admin/deduction-settings', { params });
+    return response.data;
+  },
+
+  updateRate: async (rateData) => {
+    const response = await api.post('/mortuary/admin/deduction-settings', rateData);
     return response.data;
   },
 };
@@ -449,40 +616,9 @@ export const paymentScheduleAPI = {
 };
 
 // ============================================
-// MORTUARY - NOTIFICATIONS API
+// MORTUARY - NOTIFICATIONS API (Removed - Now Automated)
 // ============================================
-export const notificationAPI = {
-  sendReminderToMember: async (memberId, reminderData) => {
-    const response = await api.post(
-      '/mortuary/notifications/send-reminder',
-      { memberId, ...reminderData }
-    );
-    return response.data;
-  },
-
-  sendBulkRemindersToOverdue: async (reminderData) => {
-    const response = await api.post(
-      '/mortuary/notifications/send-bulk-overdue',
-      reminderData
-    );
-    return response.data;
-  },
-
-  sendRemindersToMembers: async (memberIds, reminderData) => {
-    const response = await api.post(
-      '/mortuary/notifications/send-to-members',
-      { memberIds, ...reminderData }
-    );
-    return response.data;
-  },
-
-  getReminderHistory: async (memberId) => {
-    const response = await api.get(
-      `/mortuary/notifications/history/${memberId}`
-    );
-    return response.data;
-  },
-};
+// Manual notification methods removed - system now uses automatic threshold notifications
 
 // ============================================
 // ADMIN - MEMBER MANAGEMENT API
@@ -520,6 +656,11 @@ export const adminAPI = {
 
   resetMemberPassword: async (memberId) => {
     const response = await api.post(`/admin/members/${memberId}/reset-password`);
+    return response.data;
+  },
+
+  toggleMemberStatus: async (memberId) => {
+    const response = await api.post(`/admin/members/${memberId}/toggle-status`);
     return response.data;
   },
 };
@@ -609,24 +750,68 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  // Notifications
-  sendReminderToMember: async (reminderData) => {
-    const response = await api.post('/mortuary/treasurer/notifications/send-reminder', reminderData);
+  // Notifications (Removed - Now Automated via Threshold System)
+  // Manual notification methods removed
+
+  // Claims processing — a claim sitting in "pending_deduction" is itself
+  // the notification (no separate notification model exists).
+  getPendingDeductionClaims: async (params = {}) => {
+    const response = await api.get('/mortuary/treasurer/claims/pending-deduction', { params });
     return response.data;
   },
 
-  sendBulkReminders: async (reminderData) => {
-    const response = await api.post('/mortuary/treasurer/notifications/send-bulk-overdue', reminderData);
+  getAwaitingReleaseClaims: async (params = {}) => {
+    const response = await api.get('/mortuary/treasurer/claims/awaiting-release', { params });
     return response.data;
   },
 
-  sendRemindersToMembers: async (memberIds, reminderData) => {
-    const response = await api.post('/mortuary/treasurer/notifications/send-to-members', { memberIds, ...reminderData });
+  getClaimById: async (claimId) => {
+    const response = await api.get(`/mortuary/treasurer/claims/${claimId}`);
     return response.data;
   },
 
-  getReminderHistory: async (memberId) => {
-    const response = await api.get(`/mortuary/treasurer/notifications/history/${memberId}`);
+  processClaimDeduction: async (claimId, data = {}) => {
+    const response = await api.post(`/mortuary/treasurer/claims/${claimId}/process-deduction`, data);
+    return response.data;
+  },
+
+  // Read-only dry run — shown as the confirm-step preview before committing
+  // to a deduction (how many members, per-member amount, total collected).
+  previewClaimDeduction: async (claimId, amount) => {
+    const response = await api.get(`/mortuary/treasurer/claims/${claimId}/deduction-preview`, {
+      params: amount ? { amount } : {},
+    });
+    return response.data;
+  },
+
+  releaseClaim: async (claimId, data = {}) => {
+    const response = await api.post(`/mortuary/treasurer/claims/${claimId}/release`, data);
+    return response.data;
+  },
+
+  // Claim Disbursement Report — every claim already released, for
+  // record-keeping (DV number, released by/when, amount).
+  getDisbursementReport: async (params = {}) => {
+    const response = await api.get('/mortuary/treasurer/claims/disbursement-report', { params });
+    return response.data;
+  },
+};
+
+// ============================================
+// ATTENDANCE - DATABASE BACKUP/RESTORE API
+// ============================================
+export const backupAPI = {
+  // Admin-only (not super_admin — same stricter gate as the QR lifecycle
+  // actions). Accepts the same shape the "Complete System Backup" button
+  // downloads: { members, events, attendanceLogs }, any subset of the three.
+  restore: async (backupData) => {
+    const response = await api.post('/attendance/admin/backup/restore', backupData);
+    return response.data;
+  },
+
+  // Mortuary's equivalent — accepts { members, contributions }, any subset.
+  restoreMortuary: async (backupData) => {
+    const response = await api.post('/mortuary/admin/backup/restore', backupData);
     return response.data;
   },
 };

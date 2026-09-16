@@ -139,6 +139,12 @@ const generateQRCodes = async (req, res) => {
     const errors = [];
 
     for (const member of members) {
+      // Member.status is shared with the Mortuary module — a member flipped
+      // to 'deceased' there shouldn't get a fresh QR issued for attendance.
+      if (member.status === 'deceased') {
+        errors.push({ memberId: member.memberId, error: 'Member is recorded as deceased' });
+        continue;
+      }
       try {
         const qrResult = await generateQRCode(member);
 
@@ -146,6 +152,7 @@ const generateQRCodes = async (req, res) => {
           member.qrCode = qrResult.qrCode;
           member.qrCodeUrl = qrResult.qrCodeUrl;
           member.qrCodeGenerated = true;
+          member.qrCodeActive = true;
           await member.save();
 
           results.push({
@@ -216,7 +223,9 @@ const generateQRCodes = async (req, res) => {
 // Generate QR codes for all members without QR codes
 const generateAllQRCodes = async (req, res) => {
   try {
-    const members = await Member.find({ qrCodeGenerated: false });
+    // Member.status is shared with the Mortuary module — a member flipped
+    // to 'deceased' there shouldn't get a fresh QR issued for attendance.
+    const members = await Member.find({ qrCodeGenerated: false, status: { $ne: 'deceased' } });
 
     if (members.length === 0) {
       return res.status(200).json({ message: 'All members already have QR codes' });
@@ -233,6 +242,7 @@ const generateAllQRCodes = async (req, res) => {
           member.qrCode = qrResult.qrCode;
           member.qrCodeUrl = qrResult.qrCodeUrl;
           member.qrCodeGenerated = true;
+          member.qrCodeActive = true;
           await member.save();
 
           results.push({
@@ -295,10 +305,162 @@ const getMemberById = async (req, res) => {
   }
 };
 
+// Force-regenerate a single member's QR code — invalidates the old image
+// (new file, new embedded qrId) and leaves the new one active.
+const regenerateQRCode = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const member = await Member.findOne({ memberId });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+    if (member.status === 'deceased') {
+      return res.status(400).json({ message: 'This member is recorded as deceased — QR management is disabled' });
+    }
+
+    const qrResult = await generateQRCode(member);
+    if (!qrResult.success) {
+      return res.status(500).json({ message: 'Error regenerating QR code', error: qrResult.error });
+    }
+
+    member.qrCode = qrResult.qrCode;
+    member.qrCodeUrl = qrResult.qrCodeUrl;
+    member.qrCodeGenerated = true;
+    member.qrCodeActive = true;
+    await member.save();
+
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: req.user?.name || 'Unknown',
+      userRole: req.user?.role || 'admin',
+      action: 'qr_code_regenerated',
+      module: 'attendance',
+      entityType: 'member',
+      entityId: member.memberId,
+      entityName: member.memberName,
+      description: `QR code regenerated for member "${member.memberName}"`,
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    res.status(200).json({ message: 'QR code regenerated successfully', member });
+  } catch (error) {
+    res.status(500).json({ message: 'Error regenerating QR code', error: error.message });
+  }
+};
+
+// Deactivate a member's QR — the image and file stay put, but it stops
+// being accepted for scan-based attendance until reactivated.
+const deactivateQRCode = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const member = await Member.findOne({ memberId });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+    if (!member.qrCodeGenerated) {
+      return res.status(400).json({ message: 'This member has no QR code to deactivate' });
+    }
+    if (!member.qrCodeActive) {
+      return res.status(400).json({ message: 'This member\'s QR code is already inactive' });
+    }
+
+    member.qrCodeActive = false;
+    await member.save();
+
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: req.user?.name || 'Unknown',
+      userRole: req.user?.role || 'admin',
+      action: 'qr_code_deactivated',
+      module: 'attendance',
+      entityType: 'member',
+      entityId: member.memberId,
+      entityName: member.memberName,
+      description: `QR code deactivated for member "${member.memberName}"`,
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    res.status(200).json({ message: 'QR code deactivated successfully', member });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deactivating QR code', error: error.message });
+  }
+};
+
+const reactivateQRCode = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const member = await Member.findOne({ memberId });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+    if (member.status === 'deceased') {
+      return res.status(400).json({ message: 'This member is recorded as deceased — QR management is disabled' });
+    }
+    if (!member.qrCodeGenerated) {
+      return res.status(400).json({ message: 'This member has no QR code to reactivate' });
+    }
+    if (member.qrCodeActive) {
+      return res.status(400).json({ message: 'This member\'s QR code is already active' });
+    }
+
+    member.qrCodeActive = true;
+    await member.save();
+
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: req.user?.name || 'Unknown',
+      userRole: req.user?.role || 'admin',
+      action: 'qr_code_reactivated',
+      module: 'attendance',
+      entityType: 'member',
+      entityId: member.memberId,
+      entityName: member.memberName,
+      description: `QR code reactivated for member "${member.memberName}"`,
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
+    res.status(200).json({ message: 'QR code reactivated successfully', member });
+  } catch (error) {
+    res.status(500).json({ message: 'Error reactivating QR code', error: error.message });
+  }
+};
+
+// Check QR status — a lightweight single-member lookup so the admin can
+// confirm current generated/active state without pulling the whole roster.
+const getQRStatus = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const member = await Member.findOne({ memberId });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+
+    res.status(200).json({
+      memberId: member.memberId,
+      memberName: member.memberName,
+      qrCodeGenerated: member.qrCodeGenerated,
+      qrCodeActive: member.qrCodeActive,
+      qrCodeUrl: member.qrCodeUrl,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error checking QR status', error: error.message });
+  }
+};
+
 module.exports = {
   uploadMembers,
   generateQRCodes,
   generateAllQRCodes,
+  regenerateQRCode,
+  deactivateQRCode,
+  reactivateQRCode,
+  getQRStatus,
   getAllMembers,
   getMemberById,
 };

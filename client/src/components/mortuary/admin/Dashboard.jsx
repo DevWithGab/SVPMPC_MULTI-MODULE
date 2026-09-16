@@ -1,78 +1,262 @@
-import React from 'react';
-import { 
-  DollarSign, Users, Heart, CreditCard, TrendingUp, Calendar, Download,
-  UserPlus, Plus, FileText, BarChart3
-} from 'lucide-react';
-import { 
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, 
-  Cell, Legend 
-} from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Wallet,
+  Users,
+  CreditCard,
+  Download,
+  Bell,
+  FilePlus2,
+  BarChart3,
+  Clock,
+  Banknote,
+  ClipboardCheck,
+  XCircle,
+  CheckCircle2,
+  Calendar,
+  HeartHandshake,
+  Leaf,
+  CreditCard as PaymentIcon,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { mortuaryDashboardAPI } from "../../../services/api";
+import { getClaimStatusMeta } from "./claimMeta";
 
-const StatCard = ({ title, value, icon: Icon, color = "emerald" }) => {
+// ---- Local presentational pieces -------------------------------------
+// Kept local to this page (rather than extending the shared StatCard/Card)
+// so this redesign doesn't ripple into the treasurer or attendance
+// dashboards, which use those same primitives.
+
+const TONE = {
+  green: { bg: "bg-green-50", text: "text-coop-green" },
+  amber: { bg: "bg-amber-50", text: "text-amber-600" },
+  blue: { bg: "bg-blue-50", text: "text-blue-600" },
+  rose: { bg: "bg-rose-50", text: "text-rose-600" },
+  slate: { bg: "bg-slate-100", text: "text-slate-500" },
+};
+
+const toAmount = (value) => Number(value) || 0;
+const formatAmount = (value) => toAmount(value).toLocaleString();
+
+const StatTile = ({
+  label,
+  value,
+  subtitle,
+  icon: Icon,
+  tone = "green",
+  solid = false,
+  onClick,
+}) => {
+  const t = TONE[tone] || TONE.green;
+  const Tag = onClick ? "button" : "div";
   return (
-    <Card className="p-5 sm:p-6 border-slate-200/60 bg-white shadow-sm hover:shadow-md transition-all duration-300 group relative overflow-hidden rounded-[2rem]">
-      <div className="relative z-10 flex items-start justify-between">
-        <div>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">{title}</p>
-          <p className="text-3xl sm:text-4xl font-black mt-1 text-slate-900 tracking-tight">{value}</p>
-        </div>
-        <div className={`p-4 rounded-2xl bg-slate-50 text-slate-500 group-hover:bg-${color}-50 group-hover:text-${color}-600 transition-colors duration-300`}>
-          <Icon className="w-6 h-6" />
-        </div>
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`w-full text-left bg-white border border-slate-200 rounded-2xl p-5 flex items-start gap-4 ${
+        onClick
+          ? "transition-colors hover:border-coop-green/40 hover:bg-green-50/40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/40"
+          : ""
+      }`}
+    >
+      <div
+        className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${solid ? "bg-coop-green" : t.bg}`}
+      >
+        <Icon className={`w-5 h-5 ${solid ? "text-white" : t.text}`} />
       </div>
-    </Card>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide truncate">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-slate-900 mt-1 leading-none">
+          {value}
+        </p>
+        {subtitle && (
+          <p className="text-xs text-slate-400 mt-1.5">{subtitle}</p>
+        )}
+      </div>
+    </Tag>
   );
 };
 
-const RecentActivities = ({ contributions, payouts }) => {
+const getActivityIcon = (status) => {
+  switch (status) {
+    case "released":
+    case "approved":
+      return CheckCircle2;
+    case "rejected":
+      return XCircle;
+    case "pending_deduction":
+    case "deduction_processed":
+      return Banknote;
+    default:
+      return Clock;
+  }
+};
+
+const formatDateTime = (value) =>
+  new Date(value).toLocaleString("en-US", {
+    timeZone: "Asia/Manila",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+const NotificationBell = ({ items, count, onViewAll }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Notifications"
+        aria-expanded={open}
+        className="relative w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-coop-green hover:border-coop-green/40 transition-colors"
+      >
+        <Bell className="w-4 h-4" />
+        {count > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-4.5 h-4.5 px-1 rounded-full bg-coop-green text-white text-[10px] font-bold flex items-center justify-center">
+            {count > 9 ? "9+" : count}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
+          <div className="p-4 border-b border-slate-100">
+            <p className="text-sm font-bold text-slate-900">Needs Attention</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Claims awaiting review or processing
+            </p>
+          </div>
+          <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+            {items.length > 0 ? (
+              items.map((a, i) => {
+                const meta = getClaimStatusMeta(a.status);
+                return (
+                  <div key={i} className="p-3.5 flex items-start gap-3">
+                    <span
+                      className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${meta.dot}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-slate-900 truncate">
+                        {a.memberName}
+                      </p>
+                      <p className="text-[11px] text-slate-400">{meta.label}</p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="p-4 text-xs text-slate-400 text-center">
+                You're all caught up.
+              </p>
+            )}
+          </div>
+          {onViewAll && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onViewAll();
+              }}
+              className="w-full p-3 text-xs font-semibold text-coop-green hover:bg-green-50 border-t border-slate-100 transition-colors"
+            >
+              View all claims
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const RecentActivities = ({ contributions, payouts, onViewAll }) => {
   const activities = [
-    ...(contributions || []).slice(0, 3).map(c => ({ 
-      type: 'contribution', 
-      title: 'New Contribution', 
-      desc: `₱${c.amount?.toLocaleString() || '0'} from ${c.member_name || `Member #${c.member_id}`}`, 
-      time: new Date(c.created_at || c.date).toLocaleDateString(), 
-      status: c.status || 'Verified' 
+    ...(contributions || []).slice(0, 3).map((c) => ({
+      type: "contribution",
+      title: "New Contribution",
+      desc: `₱${formatAmount(c.amount)} from ${c.member_name || `Member #${c.member_id}`}`,
+      time: c.created_at || c.date,
+      status: c.status || "Paid",
     })),
-    ...(payouts || []).slice(0, 3).map(p => ({ 
-      type: 'payout', 
-      title: 'Benefit Disbursement', 
-      desc: `Payout of ₱${p.amount?.toLocaleString() || '0'} to ${p.beneficiary || 'Beneficiary'}`, 
-      time: new Date(p.created_at || p.date).toLocaleDateString(), 
-      status: p.status || 'Completed' 
-    }))
+    ...(payouts || []).slice(0, 3).map((p) => ({
+      type: "payout",
+      title: "Benefit Disbursement",
+      desc: `Payout of ₱${formatAmount(p.amount)} to ${p.beneficiary || "Beneficiary"}`,
+      time: p.created_at || p.date,
+      status: p.status || "Released",
+    })),
   ].sort((a, b) => new Date(b.time) - new Date(a.time));
 
   return (
-    <Card className="border-slate-200/50 bg-white/50 backdrop-blur-sm shadow-lg shadow-slate-200/40 h-full">
-      <CardHeader>
-        <CardTitle className="text-slate-900 text-sm font-bold uppercase tracking-widest">Recent Activity</CardTitle>
+    <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white h-full">
+      <CardHeader className="border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-bold text-slate-900">
+          Recent Fund Activity
+        </CardTitle>
+        <button
+          onClick={onViewAll}
+          className="text-xs font-semibold text-coop-green hover:text-coop-darkGreen transition-colors"
+        >
+          View All
+        </button>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="p-5 space-y-5">
         {activities.length > 0 ? (
-          activities.map((act, i) => (
-            <div key={i} className="flex items-start gap-4">
-              <div className={`p-2 rounded-xl ${act.type === 'contribution' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                {act.type === 'contribution' ? <CreditCard className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
+          activities.slice(0, 5).map((act, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${act.type === "contribution" ? "bg-green-50 text-coop-green" : "bg-amber-50 text-amber-600"}`}
+              >
+                {act.type === "contribution" ? (
+                  <PaymentIcon className="w-4 h-4" />
+                ) : (
+                  <Wallet className="w-4 h-4" />
+                )}
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900">{act.title}</p>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${act.type === 'contribution' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {act.title}
+                  </p>
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${act.type === "contribution" ? "bg-green-50 text-coop-green" : "bg-amber-50 text-amber-700"}`}
+                  >
                     {act.status}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">{act.desc}</p>
-                <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tight">{act.time}</p>
+                <p className="text-xs text-slate-500 truncate">{act.desc}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {formatDateTime(act.time)}
+                </p>
               </div>
             </div>
           ))
         ) : (
           <div className="text-center py-8">
-            <p className="text-sm text-slate-400 font-medium">No recent activities</p>
+            <p className="text-sm text-slate-400">No recent activities</p>
           </div>
         )}
       </CardContent>
@@ -80,297 +264,504 @@ const RecentActivities = ({ contributions, payouts }) => {
   );
 };
 
-const ContributionHeatMap = ({ contributions }) => {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  
-  // Generate heatmap data from real contributions
-  const generateHeatmapData = () => {
-    const weeks = 52;
-    const heatmapData = Array.from({ length: weeks }, (_, weekIndex) => ({
-      week: weekIndex,
-      days: Array.from({ length: 7 }, (_, dayIndex) => ({
-        day: dayIndex,
-        value: 0,
-      })),
-    }));
-
-    // Populate with real contribution data
-    contributions.forEach(contribution => {
-      const date = new Date(contribution.created_at || contribution.date);
-      const weekOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
-      const dayOfWeek = date.getDay();
-      
-      if (weekOfYear < weeks && weekOfYear >= 0) {
-        heatmapData[weekOfYear].days[dayOfWeek].value += 1;
-      }
-    });
-
-    return heatmapData;
-  };
-
-  const contributionHeatmapData = generateHeatmapData();
-  
-  const getColor = (value) => {
-    if (value === 0) return 'bg-slate-100';
-    if (value < 3) return 'bg-emerald-100';
-    if (value < 6) return 'bg-emerald-300';
-    if (value < 10) return 'bg-emerald-500';
-    return 'bg-emerald-700';
-  };
-
-  return (
-    <Card className="border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-      <CardHeader className="p-8 border-b border-slate-50">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-slate-900 text-xs font-black uppercase tracking-[0.2em]">Contribution Intensity</CardTitle>
-            <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Daily collection activity across all sectors</CardDescription>
-          </div>
-          <Badge variant="outline" className="text-[9px] font-black uppercase tracking-[0.15em] border-emerald-100 text-emerald-700 bg-emerald-50/50">Activity Heatmap</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="p-8">
-        <div className="flex gap-2">
-          <div className="flex flex-col justify-between py-1 text-[8px] font-bold text-slate-300 uppercase tracking-tighter">
-            {days.map(d => <span key={d}>{d}</span>)}
-          </div>
-          <div className="flex-1 overflow-x-auto custom-scrollbar pb-2">
-            <div className="flex gap-[3px]">
-              {contributionHeatmapData.map((week, wIndex) => (
-                <div key={wIndex} className="flex flex-col gap-[3px]">
-                  {week.days.map((day, dIndex) => (
-                    <div 
-                      key={dIndex}
-                      className={`w-[11px] h-[11px] rounded-[2px] transition-colors cursor-help hover:ring-2 hover:ring-emerald-200 ${getColor(day.value)}`}
-                      title={`${day.value} contributions on week ${wIndex + 1}, ${days[day.day]}`}
-                    />
-                  ))}
+const RecentClaimActivities = ({ activities, onViewAll }) => (
+  <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white h-full">
+    <CardHeader className="border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
+      <CardTitle className="text-sm font-bold text-slate-900">
+        Recent Claim Activity
+      </CardTitle>
+      <button
+        onClick={onViewAll}
+        className="text-xs font-semibold text-coop-green hover:text-coop-darkGreen transition-colors"
+      >
+        View All
+      </button>
+    </CardHeader>
+    <CardContent className="p-5 space-y-5">
+      {activities.length > 0 ? (
+        activities.slice(0, 5).map((a, i) => {
+          const meta = getClaimStatusMeta(a.status);
+          const Icon = getActivityIcon(a.status);
+          return (
+            <div key={i} className="flex items-start gap-3">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${meta.bg}`}
+              >
+                <Icon className={`w-4 h-4 ${meta.text}`} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900 truncate">
+                    {a.memberName}
+                  </p>
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${meta.bg} ${meta.text}`}
+                  >
+                    {meta.label}
+                  </span>
                 </div>
-              ))}
+                <p className="text-xs text-slate-500">
+                  {a.changedBy || "system"}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {formatDateTime(a.changedAt)}
+                </p>
+              </div>
             </div>
-          </div>
+          );
+        })
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-sm text-slate-400">No claim activity yet</p>
         </div>
-        <div className="mt-6 flex items-center justify-end gap-2 shrink-0">
-          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Less</span>
-          <div className="flex gap-1">
-            <div className="w-2.5 h-2.5 bg-slate-100 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-100 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-300 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-[2px]" />
-            <div className="w-2.5 h-2.5 bg-emerald-700 rounded-[2px]" />
-          </div>
-          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">More</span>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+    </CardContent>
+  </Card>
+);
+
+const Dashboard = ({
+  stats,
+  contributions,
+  payouts,
+  members,
+  setActiveTab,
+  user,
+}) => {
+  const [adminData, setAdminData] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    mortuaryDashboardAPI
+      .getAdminDashboard()
+      .then((res) => {
+        if (!cancelled) setAdminData(res?.data || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const claimCounts = adminData?.claims || {};
+  const recentClaimActivities = adminData?.recentClaimActivities || [];
+  const needsAttention = recentClaimActivities.filter(
+    (a) =>
+      a.status === "pending_requirements" || a.status === "pending_deduction",
   );
-};
+  const needsAttentionCount =
+    (claimCounts.pending_requirements || 0) +
+    (claimCounts.pending_deduction || 0);
 
-const Dashboard = ({ stats, contributions, payouts, members, setActiveTab }) => {
-  // Calculate member status distribution from real data
-  const memberStatusData = [
-    { 
-      name: 'Active', 
-      value: members.filter(m => m.status === 'active').length, 
-      color: '#10b981' 
-    },
-    { 
-      name: 'Inactive', 
-      value: members.filter(m => m.status === 'inactive').length, 
-      color: '#94a3b8' 
-    },
-    { 
-      name: 'Deceased', 
-      value: members.filter(m => m.status === 'deceased').length, 
-      color: '#f59e0b' 
-    },
-  ].filter(item => item.value > 0); // Only show categories with data
-
-  // Generate fund growth data from real contributions
-  const generateFundGrowthData = () => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const generateFundOverviewData = () => {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     const currentYear = new Date().getFullYear();
-    const monthlyData = months.map((month, index) => ({
-      month,
-      balance: 0,
-      contributions: 0,
-    }));
+    const data = months.map((month) => ({ month, collected: 0, paidOut: 0 }));
 
-    // Aggregate contributions by month
-    contributions.forEach(contribution => {
-      const date = new Date(contribution.created_at || contribution.date);
-      if (date.getFullYear() === currentYear) {
-        const monthIndex = date.getMonth();
-        monthlyData[monthIndex].contributions += contribution.amount || 0;
-      }
+    (contributions || []).forEach((c) => {
+      const date = new Date(c.created_at || c.date);
+      if (date.getFullYear() === currentYear)
+        data[date.getMonth()].collected += toAmount(c.amount);
     });
 
-    // Calculate cumulative balance
-    let cumulativeBalance = 0;
-    monthlyData.forEach((data, index) => {
-      cumulativeBalance += data.contributions;
-      // Subtract payouts for the month
-      payouts.forEach(payout => {
-        const date = new Date(payout.created_at || payout.date);
-        if (date.getFullYear() === currentYear && date.getMonth() === index) {
-          cumulativeBalance -= payout.amount || 0;
-        }
-      });
-      data.balance = cumulativeBalance;
+    (payouts || []).forEach((p) => {
+      const date = new Date(p.created_at || p.date);
+      if (date.getFullYear() === currentYear)
+        data[date.getMonth()].paidOut += toAmount(p.amount);
     });
 
-    // Return only months up to current month
-    const currentMonth = new Date().getMonth();
-    return monthlyData.slice(0, currentMonth + 1);
+    return data.slice(0, new Date().getMonth() + 1);
   };
 
-  const fundGrowthData = generateFundGrowthData();
+  const fundOverviewData = generateFundOverviewData();
+
+  const totalCollected = toAmount(stats?.totalCollected);
+  const totalPaidOut = (payouts || []).reduce(
+    (sum, p) => sum + toAmount(p.amount),
+    0,
+  );
+  const currentBalance = toAmount(stats?.fundBalance);
+  const openingBalance = currentBalance - totalCollected + totalPaidOut;
+
+  // Claim-specific totals (death-fund assessment collected vs. benefits
+  // released) — distinct from the member-contribution figures above.
+  const totalDeductionsCollected = toAmount(
+    claimCounts.totalDeductionsCollected,
+  );
+  const totalClaimsReleased = toAmount(claimCounts.totalReleased);
+  const netClaimsBalance = toAmount(
+    claimCounts.netClaimsBalance ??
+      totalDeductionsCollected - totalClaimsReleased,
+  );
 
   const exportToCSV = (data, filename) => {
     if (data.length === 0) return;
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(obj => 
-      Object.values(obj).map(val => 
-        typeof val === 'string' ? `"${String(val).replace(/"/g, '""')}"` : val
-      ).join(',')
-    ).join('\n');
+    const headers = Object.keys(data[0]).join(",");
+    const rows = data
+      .map((obj) =>
+        Object.values(obj)
+          .map((val) =>
+            typeof val === "string"
+              ? `"${String(val).replace(/"/g, '""')}"`
+              : val,
+          )
+          .join(","),
+      )
+      .join("\n");
     const csvContent = `data:text/csv;charset=utf-8,${headers}\n${rows}`;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute(
+      "download",
+      `${filename}_${new Date().toISOString().split("T")[0]}.csv`,
+    );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  const quickActions = [
+    {
+      icon: FilePlus2,
+      label: "Register New Claim",
+      desc: "File a new claim request",
+      tab: "claims",
+    },
+    {
+      icon: Clock,
+      label: "View Pending Claims",
+      desc: "Review claims for approval",
+      tab: "claims",
+    },
+    {
+      icon: Users,
+      label: "Manage Members",
+      desc: "View and manage members",
+      tab: "members",
+    },
+    {
+      icon: HeartHandshake,
+      label: "Beneficiaries",
+      desc: "Manage claim beneficiaries",
+      tab: "beneficiaries",
+    },
+    {
+      icon: BarChart3,
+      label: "Generate Reports",
+      desc: "View and export reports",
+      tab: "reports",
+    },
+  ];
+
+  const firstName = user?.name?.split(" ")[0] || "Admin";
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="space-y-6 pb-12">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-950 tracking-tight">Admin Dashboard</h2>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Overview of your mortuary fund performance</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Dashboard
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Welcome back, {firstName}! Here's what's happening with your
+            mortuary fund today.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl">
-            <Calendar className="w-4 h-4 text-emerald-700 mr-2" />
-            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Fiscal Year 2024</span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => exportToCSV(members, "mortuary_report")}
+            className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold border border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg transition-colors"
+          >
+            <Download className="w-4 h-4" /> Export Report
+          </button>
+          <div className="hidden sm:flex items-center gap-2 h-10 px-4 rounded-lg border border-slate-200 text-sm font-medium text-slate-500">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            {new Date().toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
           </div>
-          <Button variant="outline" className="rounded-2xl border-slate-200 h-10 px-5 text-xs font-bold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => exportToCSV(members, 'members_summary')}>
-            <Download className="w-4 h-4 mr-2" />
-            Backup Data
-          </Button>
+          <NotificationBell
+            items={needsAttention}
+            count={needsAttentionCount}
+            onViewAll={() => setActiveTab("claims")}
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <StatCard title="Total Fund" value={`₱${stats?.fundBalance?.toLocaleString() || '0'}`} icon={DollarSign} />
-        <StatCard title="Active Members" value={stats?.activeMembers?.toLocaleString() || '0'} icon={Users} color="blue" />
-        <StatCard title="Total Payouts" value={stats?.totalPayouts?.toLocaleString() || '0'} icon={Heart} color="rose" />
-        <StatCard title="Total Collected" value={`₱${contributions.reduce((sum, c) => sum + (c.amount || 0), 0).toLocaleString()}`} icon={CreditCard} color="amber" />
+      {/* Fund stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatTile
+          label="Total Fund Balance"
+          value={`₱${currentBalance.toLocaleString()}`}
+          subtitle="Available Balance"
+          icon={Wallet}
+          solid
+        />
+        <StatTile
+          label="Active Members"
+          value={formatAmount(stats?.activeMembers)}
+          subtitle="Total Active Members"
+          icon={Users}
+          tone="green"
+        />
+        <StatTile
+          label="Total Collected"
+          value={`₱${totalCollected.toLocaleString()}`}
+          subtitle="All Time"
+          icon={CreditCard}
+          tone="amber"
+        />
+        <StatTile
+          label="Pending Requirements"
+          value={claimCounts.pending_requirements ?? 0}
+          subtitle="For Processing"
+          icon={Clock}
+          tone="amber"
+          onClick={() => setActiveTab("claims")}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        <Card className="lg:col-span-2 border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="p-8 border-b border-slate-50">
+      {/* Claim stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatTile
+          label="Pending Deduction"
+          value={claimCounts.pending_deduction ?? 0}
+          subtitle="Awaiting Deduction"
+          icon={Banknote}
+          tone="blue"
+          onClick={() => setActiveTab("claims")}
+        />
+        <StatTile
+          label="Claims Released"
+          value={claimCounts.released ?? 0}
+          subtitle="All Time"
+          icon={ClipboardCheck}
+          tone="green"
+          onClick={() => setActiveTab("claims")}
+        />
+        <StatTile
+          label="Claims Rejected"
+          value={claimCounts.rejected ?? 0}
+          subtitle="All Time"
+          icon={XCircle}
+          tone="rose"
+          onClick={() => setActiveTab("claims")}
+        />
+      </div>
+
+      {/* Claims fund — money the death-fund assessments have brought in vs.
+          benefits already released, across every claim (not the same as
+          Total Fund Balance above, which is members' own contribution
+          balances). Net Claims Income is what's left after releasing. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatTile
+          label="Total Deductions Collected"
+          value={`₱${totalDeductionsCollected.toLocaleString()}`}
+          subtitle="From death-fund assessments"
+          icon={TrendingUp}
+          tone="blue"
+          onClick={() => setActiveTab("claims")}
+        />
+        <StatTile
+          label="Total Claims Released"
+          value={`₱${totalClaimsReleased.toLocaleString()}`}
+          subtitle="Benefits paid out (max ₱100,000/claim)"
+          icon={TrendingDown}
+          tone="rose"
+          onClick={() => setActiveTab("claims")}
+        />
+        <StatTile
+          label="Net Claims Income"
+          value={`₱${netClaimsBalance.toLocaleString()}`}
+          subtitle="Collected minus released"
+          icon={Wallet}
+          solid
+        />
+      </div>
+
+      {/* Quick Actions + Recent Activity (left) / Fund Overview (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
+            <CardHeader className="p-5 pb-4 space-y-0">
+              <div className="flex items-center gap-2">
+                <Leaf className="w-4 h-4 text-coop-green" />
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  Quick Actions
+                </CardTitle>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5 ml-6">
+                Access frequently used features
+              </p>
+            </CardHeader>
+            <CardContent className="p-5 pt-0">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {quickActions.map((action) => (
+                  <button
+                    key={action.label}
+                    onClick={() => setActiveTab(action.tab)}
+                    className="flex flex-col items-center justify-center gap-3 p-5 rounded-xl border border-slate-200 hover:border-coop-green hover:bg-green-50 transition-colors group text-center"
+                  >
+                    <div className="p-3 bg-green-50 rounded-xl group-hover:bg-white group-hover:shadow-sm transition-all">
+                      <action.icon className="w-5 h-5 text-coop-green" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-800">
+                        {action.label}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">
+                        {action.desc}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <RecentActivities
+              contributions={contributions}
+              payouts={payouts}
+              onViewAll={() => setActiveTab("reports")}
+            />
+            <RecentClaimActivities
+              activities={recentClaimActivities}
+              onViewAll={() => setActiveTab("claims")}
+            />
+          </div>
+        </div>
+
+        <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
+          <CardHeader className="p-5 pb-4 space-y-0">
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-slate-900 text-sm font-black uppercase tracking-[0.2em]">Fund Growth</CardTitle>
-                <CardDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Monthly collection vs balance performance</CardDescription>
+              <div className="flex items-center gap-2">
+                <Leaf className="w-4 h-4 text-coop-green" />
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  Fund Overview
+                </CardTitle>
               </div>
-              <div className="p-2 bg-emerald-50 rounded-xl">
-                <TrendingUp className="w-4 h-4 text-emerald-700" />
-              </div>
+              <span className="text-xs font-medium text-slate-400">
+                This Year
+              </span>
             </div>
           </CardHeader>
-          <CardContent className="p-8">
-            {fundGrowthData.length > 0 ? (
-              <div className="h-[350px] w-full min-h-[350px]">
+          <CardContent className="p-5 pt-0">
+            <p className="text-xs font-semibold text-slate-500 mb-3">
+              Collection vs Payout
+            </p>
+            <div className="flex items-center gap-4 text-xs text-slate-500 mb-3">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-coop-green inline-block" />{" "}
+                Collected
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-200 inline-block" />{" "}
+                Paid Out
+              </span>
+            </div>
+
+            {fundOverviewData.length > 0 ? (
+              <div className="h-55 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={fundGrowthData}>
-                    <defs>
-                      <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} />
-                    <RechartsTooltip 
-                      contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                  <BarChart data={fundOverviewData} barGap={3}>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f1f5f9"
                     />
-                    <Area type="monotone" dataKey="balance" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorBalance)" />
-                  </AreaChart>
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      dy={8}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      tickFormatter={(v) => (v >= 1000 ? `${v / 1000}K` : v)}
+                      width={32}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{
+                        borderRadius: "10px",
+                        border: "1px solid #e2e8f0",
+                        fontSize: 12,
+                      }}
+                      formatter={(value, name) => [
+                        `₱${value.toLocaleString()}`,
+                        name === "collected" ? "Collected" : "Paid Out",
+                      ]}
+                    />
+                    <Bar
+                      dataKey="collected"
+                      fill="#2D7A3E"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={14}
+                    />
+                    <Bar
+                      dataKey="paidOut"
+                      fill="#bbe5c3"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={14}
+                    />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[350px] flex items-center justify-center">
-                <p className="text-sm text-slate-400 font-medium">No contribution data available</p>
+              <div className="h-55 flex items-center justify-center">
+                <p className="text-sm text-slate-400">No fund data available</p>
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        <RecentActivities contributions={contributions} payouts={payouts} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-8">
-        <ContributionHeatMap contributions={contributions} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-        <Card className="border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="p-8 border-b border-slate-50">
-            <CardTitle className="text-slate-900 text-xs font-black uppercase tracking-[0.2em]">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setActiveTab('members')}
-                className="flex flex-col items-center justify-center p-6 rounded-3xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all border border-emerald-100/50 group"
-              >
-                <div className="p-3 bg-white rounded-2xl shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                  <UserPlus className="w-6 h-6" />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">New Member</span>
-              </button>
-              <button 
-                onClick={() => setActiveTab('reports')}
-                className="flex flex-col items-center justify-center p-6 rounded-3xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all border border-blue-100/50 group"
-              >
-                <div className="p-3 bg-white rounded-2xl shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                  <BarChart3 className="w-6 h-6" />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest">Reports</span>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-1 lg:col-span-2 border-slate-200/50 bg-white shadow-xl shadow-slate-200/40 rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="p-8 border-b border-slate-50">
-            <CardTitle className="text-slate-900 text-xs font-black uppercase tracking-[0.2em]">Member Demographics</CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="h-[250px] w-full min-h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={memberStatusData}
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {memberStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip />
-                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="mt-5 pt-5 border-t border-slate-100 space-y-3">
+              <p className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                Fund Summary
+              </p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Opening Balance</span>
+                <span className="font-semibold text-slate-900">
+                  ₱{openingBalance.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Total Collected</span>
+                <span className="font-semibold text-slate-900">
+                  ₱{totalCollected.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Total Paid Out</span>
+                <span className="font-semibold text-slate-900">
+                  ₱{totalPaidOut.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm bg-green-50 -mx-2 px-2 py-2.5 rounded-lg">
+                <span className="font-semibold text-coop-green">
+                  Current Balance
+                </span>
+                <span className="font-bold text-coop-green">
+                  ₱{currentBalance.toLocaleString()}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
