@@ -8,7 +8,7 @@ const { createAuditLog } = require('../../../shared/services/auditLoggingService
 // Record attendance via QR scan
 const recordAttendance = async (req, res) => {
   try {
-    const { memberId, eventId, scannedBy, scanTime, entrySource, justification } = req.body;
+    const { memberId, eventId, scannedBy, entrySource, justification } = req.body;
 
     if (!memberId || !eventId) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -20,10 +20,30 @@ const recordAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
+    // Member.status is shared with the Mortuary module — filing a death
+    // claim there flips it to 'deceased'. That must block attendance here
+    // too, for both a QR scan and a manual entry — there's no legitimate
+    // override for this one, unlike the QR-active check below.
+    if (member.status === 'deceased') {
+      return res.status(400).json({ message: `${member.memberName} is recorded as deceased and cannot be marked present for an event.` });
+    }
+
+    // A deactivated or never-generated QR can't check in via scan. Manual
+    // entries (staff recording attendance by hand) are a deliberate
+    // override and bypass this — matches how the justification field
+    // already handles irregular entries.
+    if (entrySource !== 'manual' && (!member.qrCodeGenerated || member.qrCodeActive === false)) {
+      return res.status(400).json({ message: 'This member\'s QR code is not active. Generate or reactivate it before scanning.' });
+    }
+
     // Verify event exists
     const event = await Event.findOne({ eventId });
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
+    }
+    await require('../controllers/eventController').refreshEventStatus(event);
+    if (event.status !== 'active') {
+      return res.status(400).json({ message: 'Attendance can only be recorded while the event is active' });
     }
 
     // Check if member already marked present for this event
@@ -65,7 +85,7 @@ const recordAttendance = async (req, res) => {
       eventId,
       eventName: event.eventName,
       barangay: member.barangay,
-      scanTime: scanTime ? new Date(scanTime) : new Date(),
+      scanTime: new Date(),
       status: 'present',
       scannedBy: scannedBy || 'system',
       entrySource: entrySource === 'manual' ? 'manual' : 'qr',

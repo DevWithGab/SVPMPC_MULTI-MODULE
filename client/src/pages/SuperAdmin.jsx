@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
   Mail, Phone, MapPin, Calendar, Key, ArrowLeft, X, Plus,
-  CheckCircle, AlertCircle, Loader, Copy, Check
+  CheckCircle, AlertCircle, Loader, Power
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
@@ -12,10 +12,10 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Toast } from '../components/ui/toast';
 import { Modal } from '../components/ui/modal';
+import { validatePhPhone, sanitizePhoneInput } from '../utils/validation';
 
 const REQUIRED_MEMBER_FIELDS = ['memberName', 'email', 'phoneNumber', 'barangay', 'address'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PH_PHONE_REGEX = /^(?:\+63|0)9\d{9}$/;
 
 const validateMemberField = (name, rawValue) => {
   const value = (rawValue || '').trim();
@@ -29,11 +29,9 @@ const validateMemberField = (name, rawValue) => {
       if (!EMAIL_REGEX.test(value)) return 'Enter a valid email address.';
       return '';
     case 'phoneNumber':
-      if (!value) return 'Phone number is required.';
-      if (!PH_PHONE_REGEX.test(value.replace(/[\s-]/g, ''))) {
-        return 'Use a PH mobile number, e.g. 09171234567.';
-      }
-      return '';
+      // Shared with the mortuary Beneficiary forms — same 11-digit,
+      // starts-with-09 PH mobile rule everywhere in the app.
+      return validatePhPhone(value);
     case 'barangay':
       if (!value) return 'Barangay is required.';
       return '';
@@ -49,7 +47,7 @@ const validateMemberField = (name, rawValue) => {
 // text — keeps every field in the form consistent (error prevention +
 // recognition-over-recall, applied once instead of per-field).
 const FormField = React.forwardRef(
-  ({ label, name, value, onChange, onBlur, error, hint, required, type = 'text', placeholder, maxLength, listId }, ref) => {
+  ({ label, name, value, onChange, onBlur, error, hint, required, type = 'text', placeholder, maxLength, inputMode, listId }, ref) => {
     const errorId = error ? `${name}-error` : undefined;
     return (
       <div>
@@ -65,6 +63,7 @@ const FormField = React.forwardRef(
           onBlur={onBlur}
           placeholder={placeholder}
           maxLength={maxLength}
+          inputMode={inputMode}
           list={listId}
           aria-invalid={Boolean(error)}
           aria-describedby={errorId}
@@ -106,6 +105,7 @@ const SuperAdmin = () => {
     barangay: '',
     address: '',
     beneficiaries: '',
+    beneficiaryRelationship: '',
     dateOfBirth: '',
     gender: 'male',
     modules: ['attendance', 'mortuary']
@@ -115,11 +115,10 @@ const SuperAdmin = () => {
   const [csvFile, setCsvFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
 
-  // Create Member form: validation + post-success credential handoff
+  // Create Member form: validation + post-success confirmation
   const [memberErrors, setMemberErrors] = useState({});
   const [memberTouched, setMemberTouched] = useState({});
   const [createdAccount, setCreatedAccount] = useState(null);
-  const [copiedField, setCopiedField] = useState('');
   const memberFieldRefs = useRef({});
 
   const emptyMemberForm = {
@@ -129,6 +128,7 @@ const SuperAdmin = () => {
     barangay: '',
     address: '',
     beneficiaries: '',
+    beneficiaryRelationship: '',
     dateOfBirth: '',
     gender: 'male',
     modules: ['attendance', 'mortuary']
@@ -140,11 +140,15 @@ const SuperAdmin = () => {
   );
 
   const isCreateFormDirty = () =>
-    REQUIRED_MEMBER_FIELDS.concat('beneficiaries').some(
+    REQUIRED_MEMBER_FIELDS.concat('beneficiaries', 'beneficiaryRelationship').some(
       (field) => (newMember[field] || '').trim() !== ''
     );
 
-  const handleMemberFieldChange = (name, value) => {
+  const handleMemberFieldChange = (name, rawValue) => {
+    // Prevention over correction: strip anything non-numeric and stop
+    // accepting keystrokes past 11 digits, instead of only flagging it
+    // with an error message after the fact.
+    const value = name === 'phoneNumber' ? sanitizePhoneInput(rawValue) : rawValue;
     setNewMember((prev) => ({ ...prev, [name]: value }));
     if (memberTouched[name]) {
       setMemberErrors((prev) => ({ ...prev, [name]: validateMemberField(name, value) }));
@@ -154,16 +158,6 @@ const SuperAdmin = () => {
   const handleMemberFieldBlur = (name) => {
     setMemberTouched((prev) => ({ ...prev, [name]: true }));
     setMemberErrors((prev) => ({ ...prev, [name]: validateMemberField(name, newMember[name]) }));
-  };
-
-  const handleCopyCredential = async (field, value) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(field);
-      setTimeout(() => setCopiedField(''), 2000);
-    } catch (error) {
-      showToast('Could not copy automatically — please copy it manually.', 'error');
-    }
   };
 
   // Closing the form (X, backdrop, Escape, Cancel) while it has unsaved
@@ -186,7 +180,6 @@ const SuperAdmin = () => {
   const finishCreateMember = () => {
     setShowCreateModal(false);
     setCreatedAccount(null);
-    setCopiedField('');
     setNewMember(emptyMemberForm);
     setMemberErrors({});
     setMemberTouched({});
@@ -286,12 +279,8 @@ const SuperAdmin = () => {
 
     setLoading(true);
     try {
-      const response = await adminAPI.createMember(newMember);
-      setCreatedAccount({
-        memberName: newMember.memberName,
-        username: response.account.username,
-        temporaryPassword: response.account.temporaryPassword,
-      });
+      await adminAPI.createMember(newMember);
+      setCreatedAccount({ memberName: newMember.memberName });
       fetchMembers();
     } catch (error) {
       const message = error.response?.data?.message || 'Error creating member';
@@ -436,15 +425,18 @@ const SuperAdmin = () => {
     }
   };
 
-  const handleResetPassword = async (memberId) => {
-    if (!confirm('Are you sure you want to reset this member\'s password?')) return;
-    
+  const handleToggleStatus = async (member) => {
+    const activating = member.status !== 'active';
+    const verb = activating ? 'activate' : 'deactivate';
+    if (!confirm(`Are you sure you want to ${verb} ${member.memberName}?`)) return;
+
     setLoading(true);
     try {
-      const response = await adminAPI.resetMemberPassword(memberId);
-      showToast(`Password reset! Username: ${response.username}, New Password: ${response.temporaryPassword}`, 'success');
+      await adminAPI.toggleMemberStatus(member.memberId);
+      showToast(`${member.memberName} was ${activating ? 'activated' : 'deactivated'}.`, 'success');
+      fetchMembers();
     } catch (error) {
-      showToast('Error resetting password', 'error');
+      showToast(error.response?.data?.message || `Error trying to ${verb} this member`, 'error');
     } finally {
       setLoading(false);
     }
@@ -716,15 +708,23 @@ const SuperAdmin = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleResetPassword(member.memberId)}
-                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                        >
-                          <Key className="w-4 h-4 mr-1" />
-                          Reset Password
-                        </Button>
+                        {['active', 'inactive'].includes(member.status) ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleStatus(member)}
+                            className={
+                              member.status === 'active'
+                                ? 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'
+                                : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                            }
+                          >
+                            <Power className="w-4 h-4 mr-1" />
+                            {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No status action</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -751,58 +751,8 @@ const SuperAdmin = () => {
                   {createdAccount.memberName} was added successfully.
                 </p>
                 <p className="text-xs text-emerald-700 mt-1">
-                  Credentials were also sent to the member automatically — but copy them
-                  now too, since this password won't be shown again.
+                  Login credentials were sent to the member automatically.
                 </p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
-                  Username
-                </label>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono text-slate-900 overflow-x-auto">
-                    {createdAccount.username}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleCopyCredential('username', createdAccount.username)}
-                    className="shrink-0"
-                    aria-label="Copy username"
-                  >
-                    {copiedField === 'username' ? (
-                      <Check className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
-                  Temporary Password
-                </label>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono text-slate-900 overflow-x-auto">
-                    {createdAccount.temporaryPassword}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleCopyCredential('password', createdAccount.temporaryPassword)}
-                    className="shrink-0"
-                    aria-label="Copy temporary password"
-                  >
-                    {copiedField === 'password' ? (
-                      <Check className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -849,13 +799,15 @@ const SuperAdmin = () => {
                 label="Phone Number"
                 name="phoneNumber"
                 type="tel"
+                inputMode="numeric"
                 required
                 value={newMember.phoneNumber}
                 onChange={(value) => handleMemberFieldChange('phoneNumber', value)}
                 onBlur={() => handleMemberFieldBlur('phoneNumber')}
                 error={memberTouched.phoneNumber ? memberErrors.phoneNumber : ''}
-                hint={!memberErrors.phoneNumber ? 'Used to send login credentials via SMS.' : undefined}
+                hint={!memberErrors.phoneNumber ? 'Used to send login credentials via SMS. 11 digits, e.g. 09171234567.' : undefined}
                 placeholder="09171234567"
+                maxLength={11}
                 ref={(el) => (memberFieldRefs.current.phoneNumber = el)}
               />
               <FormField
@@ -890,15 +842,26 @@ const SuperAdmin = () => {
               ref={(el) => (memberFieldRefs.current.address = el)}
             />
 
-            <FormField
-              label="Beneficiaries"
-              name="beneficiaries"
-              value={newMember.beneficiaries}
-              onChange={(value) => handleMemberFieldChange('beneficiaries', value)}
-              hint="Optional — comma-separate multiple beneficiaries."
-              placeholder="e.g., Maria Dela Cruz (Wife)"
-              maxLength={200}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                label="Beneficiaries"
+                name="beneficiaries"
+                value={newMember.beneficiaries}
+                onChange={(value) => handleMemberFieldChange('beneficiaries', value)}
+                hint="Optional — comma-separate multiple beneficiaries."
+                placeholder="e.g., Maria Dela Cruz"
+                maxLength={200}
+              />
+              <FormField
+                label="Relationship"
+                name="beneficiaryRelationship"
+                value={newMember.beneficiaryRelationship}
+                onChange={(value) => handleMemberFieldChange('beneficiaryRelationship', value)}
+                hint="Optional — how the beneficiary is related to the member."
+                placeholder="e.g., Wife, Son, Sibling"
+                maxLength={50}
+              />
+            </div>
 
             <div className="flex gap-4 pt-4">
               <Button

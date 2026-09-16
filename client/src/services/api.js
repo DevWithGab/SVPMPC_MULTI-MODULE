@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -23,14 +23,22 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 errors by clearing invalid tokens
+// Handle 401 errors by clearing the invalid session and sending the user
+// back to login — matching services/attendance/admin.js and secretary.js.
+// Without the redirect, a missing/expired token left the portal silently
+// half-working: read-only screens kept rendering (several still go through
+// legacy unauthenticated endpoints) while every authenticated action, like
+// Approve/Reject, failed with a bare "Access token required" and no
+// indication that the fix was simply to log back in.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && error.config?.url !== '/auth/login') {
-      // Clear invalid token
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('currentView');
+      localStorage.removeItem('selectedModule');
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -149,6 +157,72 @@ export const memberAPI = {
     const response = await api.post('/attendance/members/generate-all-qr');
     return response.data;
   },
+
+  // Admin-only, authenticated (/attendance/admin/members/...) — the single-
+  // member QR lifecycle actions. Kept as separate functions rather than
+  // repointing the calls above, since getAllMembers/generateQRCodes above
+  // are shared by Secretary and Scanner screens that don't have admin auth.
+  generateMemberQR: async (memberId) => {
+    const response = await api.post('/attendance/admin/members/generate-qr', {
+      memberIds: [memberId],
+    });
+    return response.data;
+  },
+
+  generateAllMissingQR: async () => {
+    const response = await api.post('/attendance/admin/members/generate-all-qr');
+    return response.data;
+  },
+
+  regenerateMemberQR: async (memberId) => {
+    const response = await api.post(`/attendance/admin/members/${memberId}/regenerate-qr`);
+    return response.data;
+  },
+
+  deactivateMemberQR: async (memberId) => {
+    const response = await api.post(`/attendance/admin/members/${memberId}/deactivate-qr`);
+    return response.data;
+  },
+
+  reactivateMemberQR: async (memberId) => {
+    const response = await api.post(`/attendance/admin/members/${memberId}/reactivate-qr`);
+    return response.data;
+  },
+
+  getMemberQRStatus: async (memberId) => {
+    const response = await api.get(`/attendance/admin/members/${memberId}/qr-status`);
+    return response.data;
+  },
+};
+
+// qrCodeUrl comes back as a server-relative path (e.g. "/uploads/qrcodes/x.png")
+// since it's a static file, not an API route — resolve it against the API's
+// origin (not the Vite dev origin the app itself is served from) for <img>,
+// download, and print.
+export const resolveQrAssetUrl = (qrCodeUrl) => {
+  if (!qrCodeUrl) return null;
+  if (/^https?:\/\//i.test(qrCodeUrl)) return qrCodeUrl;
+  const origin = API_BASE_URL.replace(/\/api\/?$/, '');
+  return `${origin}${qrCodeUrl.startsWith('/') ? '' : '/'}${qrCodeUrl}`;
+};
+
+// ============================================
+// ATTENDANCE - MEMBER PORTAL API
+// ============================================
+export const memberPortalAPI = {
+  getMemberProfile: async (memberId) => {
+    const response = await api.get(
+      `/attendance/member-portal/${memberId}/profile`
+    );
+    return response.data;
+  },
+
+  getAttendanceHistory: async (memberId) => {
+    const response = await api.get(
+      `/attendance/member-portal/${memberId}/attendance-history`
+    );
+    return response.data;
+  },
 };
 
 // ============================================
@@ -203,8 +277,31 @@ export const eventAPI = {
     return response.data;
   },
 
+  // Admin-only, and only once an event is Closed — the server enforces both
+  // (auth + status), this just targets the authenticated admin route rather
+  // than the unauthenticated legacy one.
   deleteEvent: async (eventId) => {
-    const response = await api.delete(`/attendance/events/${eventId}`);
+    const response = await api.delete(`/attendance/admin/events/${eventId}`);
+    return response.data;
+  },
+
+  approveEvent: async (eventId) => {
+    const response = await api.post(`/attendance/admin/events/${eventId}/approve`);
+    return response.data;
+  },
+
+  rejectEvent: async (eventId, reason) => {
+    const response = await api.post(`/attendance/admin/events/${eventId}/reject`, { reason });
+    return response.data;
+  },
+
+  reopenEvent: async (eventId, { eventDate, startTime, endTime, reason }) => {
+    const response = await api.post(`/attendance/admin/events/${eventId}/reopen`, {
+      eventDate,
+      startTime,
+      endTime,
+      reason,
+    });
     return response.data;
   },
 };
@@ -561,6 +658,11 @@ export const adminAPI = {
     const response = await api.post(`/admin/members/${memberId}/reset-password`);
     return response.data;
   },
+
+  toggleMemberStatus: async (memberId) => {
+    const response = await api.post(`/admin/members/${memberId}/toggle-status`);
+    return response.data;
+  },
 };
 
 // ============================================
@@ -673,8 +775,43 @@ export const treasurerAPI = {
     return response.data;
   },
 
+  // Read-only dry run — shown as the confirm-step preview before committing
+  // to a deduction (how many members, per-member amount, total collected).
+  previewClaimDeduction: async (claimId, amount) => {
+    const response = await api.get(`/mortuary/treasurer/claims/${claimId}/deduction-preview`, {
+      params: amount ? { amount } : {},
+    });
+    return response.data;
+  },
+
   releaseClaim: async (claimId, data = {}) => {
     const response = await api.post(`/mortuary/treasurer/claims/${claimId}/release`, data);
+    return response.data;
+  },
+
+  // Claim Disbursement Report — every claim already released, for
+  // record-keeping (DV number, released by/when, amount).
+  getDisbursementReport: async (params = {}) => {
+    const response = await api.get('/mortuary/treasurer/claims/disbursement-report', { params });
+    return response.data;
+  },
+};
+
+// ============================================
+// ATTENDANCE - DATABASE BACKUP/RESTORE API
+// ============================================
+export const backupAPI = {
+  // Admin-only (not super_admin — same stricter gate as the QR lifecycle
+  // actions). Accepts the same shape the "Complete System Backup" button
+  // downloads: { members, events, attendanceLogs }, any subset of the three.
+  restore: async (backupData) => {
+    const response = await api.post('/attendance/admin/backup/restore', backupData);
+    return response.data;
+  },
+
+  // Mortuary's equivalent — accepts { members, contributions }, any subset.
+  restoreMortuary: async (backupData) => {
+    const response = await api.post('/mortuary/admin/backup/restore', backupData);
     return response.data;
   },
 };

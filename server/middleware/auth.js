@@ -92,7 +92,18 @@ const authorizeMortuaryRoles = authorizeRoles('member', 'admin', 'treasurer');
 const authorizeAttendanceRoles = authorizeRoles('admin', 'secretary', 'scanner_operator');
 const authorizeTreasurerOnly = authorizeRoles('treasurer', 'admin');
 const authorizeSecretaryOnly = authorizeRoles('secretary', 'admin');
-const authorizeAdminOnly = authorizeRoles('admin');
+// super_admin is treated as admin-or-above everywhere authorizeAdminOnly is
+// used — the login gate (authController's expectedRole check) already lets
+// a super_admin account sign in through the "admin" login for any module
+// (allowedRolesByExpectedRole.admin = ['admin', 'super_admin']), and
+// 'super_admin' is a first-class staff role in the User schema. Without
+// 'super_admin' here, a super_admin landed in an Admin Portal by design
+// could load read-only screens (most reads go through more permissive or
+// legacy routes) but every admin-only write — approve/reject an event,
+// the new Member QR actions — silently 403'd with "Access denied.
+// Required roles: admin", even though they were exactly who the login
+// screen said could be there.
+const authorizeAdminOnly = authorizeRoles('admin', 'super_admin');
 
 module.exports = {
   authenticateToken,

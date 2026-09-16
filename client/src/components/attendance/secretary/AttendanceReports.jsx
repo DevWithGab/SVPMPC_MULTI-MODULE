@@ -633,8 +633,15 @@ export default function AttendanceReports({ attendanceLogs, events }) {
 
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
             <span>
-              Showing <span className="font-semibold text-slate-700">{filteredLogs.length}</span> of{" "}
-              <span className="font-semibold text-slate-700">{normalizedLogs.length}</span> attendance records
+              Showing{" "}
+              <span className="font-semibold text-slate-700">
+                {filteredLogs.length}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-slate-700">
+                {normalizedLogs.length}
+              </span>{" "}
+              attendance records
             </span>
             {(loadingEvents || loadingAttendance) && (
               <span className="inline-flex items-center gap-1.5 font-medium text-slate-400">
@@ -682,9 +689,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
             <BarChart3 className="w-4 h-4 text-coop-green" />
             Event Summary
           </CardTitle>
-          <p className="text-slate-400 text-xs mt-1">
-            Attendance by event
-          </p>
+          <p className="text-slate-400 text-xs mt-1">Attendance by event</p>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -701,7 +706,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                     Total Attendance
                   </TableHead>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Unique Attendees
+                    Attendees
                   </TableHead>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Export
@@ -772,7 +777,9 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleExportAttendeesByBarangayPDF(event)}
+                          onClick={() =>
+                            handleExportAttendeesByBarangayPDF(event)
+                          }
                           disabled={event.attendanceCount === 0}
                           aria-label={`Export ${event.displayName} attendees as PDF`}
                           title="Export attendees (PDF)"
@@ -786,13 +793,19 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                 ))}
                 {eventSummary.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-slate-400">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-12 text-slate-400"
+                    >
                       <div className="flex flex-col items-center gap-4">
                         <BarChart3 className="w-10 h-10 text-slate-300" />
                         <div>
-                          <p className="font-semibold text-slate-600">No events to summarize</p>
+                          <p className="font-semibold text-slate-600">
+                            No events to summarize
+                          </p>
                           <p className="text-sm">
-                            Create an event and record attendance to see it here.
+                            Create an event and record attendance to see it
+                            here.
                           </p>
                         </div>
                       </div>

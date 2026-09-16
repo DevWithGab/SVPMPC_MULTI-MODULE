@@ -3,6 +3,31 @@ const Contribution = require('../models/Contribution');
 const Claim = require('../models/Claim');
 const { Member } = require('../../../shared/models');
 
+// Death-fund assessment money in vs. benefit money out, across every claim
+// ever processed — not the per-member contribution balance (fundBalance)
+// tracked separately. A claim only has `deduction`/`payout` once it reaches
+// that stage, so unset ones contribute 0 via $ifNull rather than being
+// excluded. Shared by both the Treasurer and Admin dashboards so the two
+// stay in agreement.
+const getClaimFinancialTotals = async () => {
+  const [claimTotals] = await Claim.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalDeductionsCollected: { $sum: { $ifNull: ['$deduction.totalCollected', 0] } },
+        totalReleased: { $sum: { $ifNull: ['$payout.amount', 0] } },
+      },
+    },
+  ]);
+  const totalDeductionsCollected = claimTotals?.totalDeductionsCollected || 0;
+  const totalReleased = claimTotals?.totalReleased || 0;
+  return {
+    totalDeductionsCollected,
+    totalReleased,
+    netClaimsBalance: totalDeductionsCollected - totalReleased,
+  };
+};
+
 // Get member dashboard data
 const getDashboard = async (req, res) => {
   try {
@@ -116,6 +141,8 @@ const getTreasurerDashboard = async (req, res) => {
 
     const totalCollected = allContributions.length > 0 ? allContributions[0].total : 0;
 
+    const { totalDeductionsCollected, totalReleased, netClaimsBalance } = await getClaimFinancialTotals();
+
     res.status(200).json({
       success: true,
       data: {
@@ -126,6 +153,11 @@ const getTreasurerDashboard = async (req, res) => {
         deceasedMembers,
         lowBalanceMembers: lowBalanceCount,
         totalCollected,
+        // Death-fund assessment totals across all claims — see
+        // getClaimFinancialTotals for why this is separate from fundBalance.
+        totalDeductionsCollected,
+        totalReleased,
+        netClaimsBalance,
         healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceCount) / totalMembers) * 100) : 0,
         // Member standing breakdown
         memberStanding: {
@@ -184,6 +216,8 @@ const getAdminDashboard = async (req, res) => {
 
     const totalClaims = Object.values(claimCountsByStatus).reduce((sum, n) => sum + n, 0);
 
+    const { totalDeductionsCollected, totalReleased, netClaimsBalance } = await getClaimFinancialTotals();
+
     // Recent claim activity — flatten the last few statusHistory entries
     // across the most recently updated claims.
     const recentClaims = await Claim.find()
@@ -218,6 +252,12 @@ const getAdminDashboard = async (req, res) => {
         claims: {
           total: totalClaims,
           ...claimCountsByStatus,
+          totalDeductionsCollected,
+          totalReleased,
+          // What's been collected for death-fund assessments but not yet
+          // paid out — "total income" from the claims side, separate from
+          // members' own contribution balances (fundBalance).
+          netClaimsBalance,
         },
         recentClaimActivities,
       },

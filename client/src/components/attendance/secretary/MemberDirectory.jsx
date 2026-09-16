@@ -20,9 +20,18 @@ import {
   TableRow,
 } from "../../ui/table";
 import { Modal } from "../../ui/modal";
-import { QRCodeSVG } from "qrcode.react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { memberAPI, attendanceAPI } from "../../../services/api";
+import { memberAPI, attendanceAPI, resolveQrAssetUrl } from "../../../services/api";
+
+// A deceased member's QR is never shown/printable here, even if one was
+// generated back when they were active — Member.status is shared with the
+// Mortuary module, and the backend already refuses to record attendance
+// for a deceased member, so a code that can no longer actually check
+// anyone in shouldn't be presented as usable.
+const getQrUnavailableReason = (member) => {
+  if (member.status === "deceased") return "Member is deceased";
+  if (!member.qrCodeGenerated) return "QR not generated";
+  return null;
+};
 
 export default function MemberDirectory({ user }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -111,6 +120,13 @@ export default function MemberDirectory({ user }) {
           lastAttendance:
             computedLastAttendance || member?.lastAttendance || null,
           qrCode: member?.qrCode || null,
+          // The admin-issued QR — never generate one client-side from the
+          // memberId, since that would show what looks like a valid,
+          // scannable code for a member the admin hasn't actually issued
+          // one for yet.
+          qrCodeGenerated: Boolean(member?.qrCodeGenerated),
+          qrCodeUrl: member?.qrCodeUrl || null,
+          qrCodeActive: member?.qrCodeActive !== false,
         };
       }),
     [members, latestAttendanceByMemberId],
@@ -128,21 +144,21 @@ export default function MemberDirectory({ user }) {
   });
 
   const handleViewQR = (member) => {
+    if (getQrUnavailableReason(member)) return;
     setSelectedMember(member);
     setShowQRModal(true);
   };
 
   const handlePrintQR = (member) => {
+    if (getQrUnavailableReason(member)) return;
     const printWindow = window.open("", "_blank");
     if (printWindow) {
-      const qrMarkup = renderToStaticMarkup(
-        <QRCodeSVG
-          value={member.memberId}
-          size={168}
-          level="H"
-          fgColor="#2D7A3E"
-        />,
-      );
+      // The real admin-issued QR image — never a client-rendered stand-in
+      // from the memberId, which would print as if it were a valid code.
+      const qrSrc = resolveQrAssetUrl(member.qrCodeUrl);
+      const qrMarkup = qrSrc
+        ? `<img src="${qrSrc}" alt="QR code" width="168" height="168" />`
+        : "";
 
       const isActive = member.status === "active";
       const statusLabel = member.status.charAt(0).toUpperCase() + member.status.slice(1);
@@ -568,26 +584,47 @@ export default function MemberDirectory({ user }) {
                       </TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewQR(member)}
-                            aria-label={`View QR code for ${member.name}`}
-                            title="View QR code"
-                            className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                          >
-                            <QrCode className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePrintQR(member)}
-                            aria-label={`Print QR card for ${member.name}`}
-                            title="Print QR card"
-                            className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </Button>
+                          {(() => {
+                            const unavailableReason = getQrUnavailableReason(member);
+                            if (!unavailableReason) {
+                              return (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleViewQR(member)}
+                                    aria-label={`View QR code for ${member.name}`}
+                                    title="View QR code"
+                                    className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                                  >
+                                    <QrCode className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePrintQR(member)}
+                                    aria-label={`Print QR card for ${member.name}`}
+                                    title="Print QR card"
+                                    className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                                  >
+                                    <Printer className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              );
+                            }
+                            return (
+                              <span
+                                className="text-xs font-medium text-slate-400 italic"
+                                title={
+                                  member.status === "deceased"
+                                    ? "This member is recorded as deceased — their QR code is no longer valid."
+                                    : "The attendance admin hasn't generated a QR code for this member yet."
+                                }
+                              >
+                                {member.status === "deceased" ? "QR invalid" : "QR not generated"}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -659,27 +696,40 @@ export default function MemberDirectory({ user }) {
                       </p>
                     </div>
 
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewQR(member)}
-                        className="flex-1 border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                    {!getQrUnavailableReason(member) ? (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewQR(member)}
+                          className="flex-1 border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                        >
+                          <QrCode className="w-4 h-4 mr-1" />
+                          View QR
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePrintQR(member)}
+                          aria-label={`Print QR card for ${member.name}`}
+                          title="Print QR card"
+                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div
+                        className="text-center text-xs font-medium text-slate-400 italic py-2 rounded-lg bg-slate-50 border border-dashed border-slate-200"
+                        title={
+                          member.status === "deceased"
+                            ? "This member is recorded as deceased — their QR code is no longer valid."
+                            : "The attendance admin hasn't generated a QR code for this member yet."
+                        }
                       >
-                        <QrCode className="w-4 h-4 mr-1" />
-                        View QR
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePrintQR(member)}
-                        aria-label={`Print QR card for ${member.name}`}
-                        title="Print QR card"
-                        className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </Button>
-                    </div>
+                        {member.status === "deceased" ? "QR invalid" : "QR not generated"}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -750,11 +800,11 @@ export default function MemberDirectory({ user }) {
                 </p>
 
                 <div className="inline-flex bg-white p-3 rounded-lg border border-slate-200">
-                  <QRCodeSVG
-                    value={selectedMember.memberId}
-                    size={168}
-                    level="H"
-                    fgColor="#2D7A3E"
+                  <img
+                    src={resolveQrAssetUrl(selectedMember.qrCodeUrl)}
+                    alt={`QR code for ${selectedMember.name}`}
+                    width={168}
+                    height={168}
                   />
                 </div>
                 <p className="mt-2.5 text-[10px] font-semibold text-slate-400 tracking-wider uppercase">

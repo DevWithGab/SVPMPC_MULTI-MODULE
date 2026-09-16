@@ -40,8 +40,24 @@ const memberSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Whether a generated QR is currently accepted for scanning. Kept
+    // separate from the shared `status` field below (active/inactive/
+    // deceased/staff) — that field also drives the Mortuary module, so a
+    // QR being deactivated here must never affect it.
+    qrCodeActive: {
+      type: Boolean,
+      default: true,
+    },
     // Mortuary-specific fields
     beneficiaries: {
+      type: String,
+      default: '',
+    },
+    // Free-text relationship of the above beneficiary to this member (e.g.
+    // "Spouse", "Child") — captured at registration so a future death claim
+    // isn't the first time it's ever asked for. Not the structured
+    // Beneficiary record used once a claim is actually filed.
+    beneficiaryRelationship: {
       type: String,
       default: '',
     },

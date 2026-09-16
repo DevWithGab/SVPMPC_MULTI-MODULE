@@ -10,3 +10,4 @@ export { default as NotificationCenter } from './NotificationCenter.jsx';
 export { default as LedgerReports } from './LedgerReports.jsx';
 export { default as ClaimsPendingDeduction } from './ClaimsPendingDeduction.jsx';
 export { default as ClaimsAwaitingRelease } from './ClaimsAwaitingRelease.jsx';
+export { default as ClaimDisbursementReport } from './ClaimDisbursementReport.jsx';

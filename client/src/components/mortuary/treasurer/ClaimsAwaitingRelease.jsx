@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { HandCoins, Loader2, CheckCircle2, FileText } from 'lucide-react';
+import { HandCoins, Loader2, CheckCircle2, FileText, Printer } from 'lucide-react';
 import Modal from '../shared/Modal';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import { treasurerAPI } from '../../../services/api';
+import { printClaimReceipt } from './claimReceipt';
+
+const todayIso = () => new Date().toISOString().split('T')[0];
 
 export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [target, setTarget] = useState(null);
-  const [amount, setAmount] = useState('');
+  const [form, setForm] = useState({ dvNumber: '', releaseDate: todayIso(), amount: '', remarks: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [released, setReleased] = useState(null); // the just-released claim, once confirmed
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,26 +34,40 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
 
   const openModal = (claim) => {
     setTarget(claim);
-    setAmount(claim.deduction?.totalCollected ? String(claim.deduction.totalCollected) : '');
+    setReleased(null);
+    setForm({
+      dvNumber: '',
+      releaseDate: todayIso(),
+      amount: claim.deduction?.totalCollected ? String(claim.deduction.totalCollected) : '',
+      remarks: '',
+    });
   };
 
   const closeModal = () => {
     if (submitting) return;
     setTarget(null);
+    setReleased(null);
   };
 
   const handleRelease = async (e) => {
     e.preventDefault();
     if (!target || submitting) return;
+    if (!form.dvNumber.trim()) {
+      showToast?.('Enter the DV (Disbursement Voucher) number.', 'error');
+      return;
+    }
 
     setSubmitting(true);
     try {
       const res = await treasurerAPI.releaseClaim(target.claimId, {
-        amount: amount ? parseFloat(amount) : undefined,
+        amount: form.amount ? parseFloat(form.amount) : undefined,
+        dvNumber: form.dvNumber.trim(),
+        releaseDate: form.releaseDate,
+        remarks: form.remarks.trim() || undefined,
         releasedBy: user?.name || user?.username,
       });
       showToast?.(res?.message || 'Claim released.', 'success');
-      setTarget(null);
+      setReleased(res?.data || null);
       load();
       onReleased?.();
     } catch (err) {
@@ -64,7 +82,7 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
       <div>
         <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Awaiting Release</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Deduction has been collected — release the death benefit payout to the beneficiary.
+          Deduction has been collected — record the disbursement to release the death benefit to the beneficiary.
         </p>
       </div>
 
@@ -94,7 +112,7 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
                       onClick={() => openModal(claim)}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold bg-coop-green hover:bg-coop-darkGreen text-white px-3 py-1.5 rounded-lg transition-colors"
                     >
-                      <HandCoins className="w-3.5 h-3.5" /> Release Payout
+                      <HandCoins className="w-3.5 h-3.5" /> Record Disbursement
                     </button>
                   </td>
                 </tr>
@@ -113,30 +131,98 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
         </table>
       </div>
 
-      <Modal isOpen={Boolean(target)} onClose={closeModal} title="Release Payout">
-        <form onSubmit={handleRelease} className="space-y-5">
-          <div className="flex items-start gap-3 p-4 border border-green-200 bg-green-50 rounded-lg">
-            <CheckCircle2 className="w-5 h-5 text-coop-green shrink-0 mt-0.5" />
-            <p className="text-sm text-slate-700">
-              Release the death benefit for <span className="font-bold">{target?.memberName}</span> to{' '}
-              <span className="font-bold">{target?.beneficiaryName}</span>.
-            </p>
+      <Modal isOpen={Boolean(target)} onClose={closeModal} title={released ? 'Claim Released' : 'Record Disbursement'}>
+        {released ? (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3 p-4 border border-green-200 bg-green-50 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-coop-green shrink-0 mt-0.5" />
+              <p className="text-sm text-slate-700">
+                ₱{released.payout?.amount?.toLocaleString?.() ?? released.payout?.amount} released to{' '}
+                <span className="font-bold">{released.beneficiaryName}</span> (DV# {released.payout?.dvNumber}).
+              </p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button type="button" variant="ghost" onClick={closeModal} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Done
+              </Button>
+              <Button type="button" onClick={() => printClaimReceipt(released)} className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm">
+                <Printer className="w-4 h-4" /> Print Receipt
+              </Button>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1 block">
-              Amount to release (₱) — defaults to the member's current balance if left blank
-            </label>
-            <Input type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Member's current balance" className="h-12 text-lg font-bold" />
-          </div>
-          <div className="flex gap-3 pt-1">
-            <Button type="button" variant="ghost" disabled={submitting} onClick={closeModal} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting} className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm disabled:opacity-50">
-              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Releasing...</> : 'Release Payout'}
-            </Button>
-          </div>
-        </form>
+        ) : (
+          <form onSubmit={handleRelease} className="space-y-5">
+            <div className="flex items-start gap-3 p-4 border border-green-200 bg-green-50 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-coop-green shrink-0 mt-0.5" />
+              <p className="text-sm text-slate-700">
+                Release the death benefit for <span className="font-bold">{target?.memberName}</span> to{' '}
+                <span className="font-bold">{target?.beneficiaryName}</span>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-semibold text-slate-700 mb-1 block">DV Number</label>
+                <Input
+                  type="text"
+                  value={form.dvNumber}
+                  onChange={(e) => setForm((f) => ({ ...f, dvNumber: e.target.value }))}
+                  placeholder="e.g., DV-2026-0142"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-slate-700 mb-1 block">Release Date</label>
+                <Input
+                  type="date"
+                  value={form.releaseDate}
+                  onChange={(e) => setForm((f) => ({ ...f, releaseDate: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">
+                Amount Released (₱) — defaults to the member's current balance if left blank
+              </label>
+              <Input
+                type="number"
+                min="1"
+                step="0.01"
+                value={form.amount}
+                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                placeholder="Member's current balance"
+                className="h-12 text-lg font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Recipient (Beneficiary)</label>
+              <Input type="text" value={target?.beneficiaryName || ''} disabled className="bg-slate-50 text-slate-500" />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Remarks (optional)</label>
+              <textarea
+                value={form.remarks}
+                onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))}
+                rows={2}
+                placeholder="Any notes about this disbursement..."
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <Button type="button" variant="ghost" disabled={submitting} onClick={closeModal} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting} className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm disabled:opacity-50">
+                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Releasing...</> : 'Release Claim'}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

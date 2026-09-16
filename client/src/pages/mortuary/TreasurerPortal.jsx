@@ -13,7 +13,8 @@ import {
   Reports,
   MemberLedger,
   ClaimsPendingDeduction,
-  ClaimsAwaitingRelease
+  ClaimsAwaitingRelease,
+  ClaimDisbursementReport
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
@@ -51,6 +52,7 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
     {[
       { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
       { id: 'awaiting-release', label: 'Awaiting Release', count: counts?.awaitingRelease ?? 0 },
+      { id: 'disbursement-report', label: 'Disbursement Report', count: 0 },
     ].map((opt) => (
       <button
         key={opt.id}
@@ -95,7 +97,7 @@ const PortalSkeleton = () => (
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [claimsView, setClaimsView] = useState('pending-deduction'); // 'pending-deduction' | 'awaiting-release'
+  const [claimsView, setClaimsView] = useState('pending-deduction'); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report'
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState({
@@ -143,15 +145,20 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
-  const [contributionBarangayFilter, setContributionBarangayFilter] = useState('All');
-  
+
   // Form data states
-  const [newContribution, setNewContribution] = useState({ 
-    member_id: '', 
-    amount: '', 
-    payment_date: new Date().toISOString().split('T')[0], 
-    status: 'paid' 
+  const [newContribution, setNewContribution] = useState({
+    member_id: '',
+    amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    status: 'paid'
   });
+  // Set when "Add Deposit" is opened from a specific member's ledger page —
+  // the Member field then shows this member locked/read-only instead of a
+  // search box, since the treasurer already picked them by being on their
+  // ledger. Null means the general "Record Payment" flow, which still
+  // searches across all members.
+  const [lockedContributionMember, setLockedContributionMember] = useState(null);
   const [selectedLedgerMember, setSelectedLedgerMember] = useState(null);
   const prevMembersRef = useRef([]);
 
@@ -293,11 +300,35 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     setActiveTab('ledger');
   };
 
-  const contributionMemberOptions = members.filter(member => (
-    contributionBarangayFilter === 'All' || extractBarangay(member.address) === contributionBarangayFilter
-  ));
+  // "Record Payment" (Contributions tab) — the general flow, searching
+  // across every member.
+  const openAddContribution = () => {
+    setLockedContributionMember(null);
+    setNewContribution((prev) => ({ ...prev, member_id: '' }));
+    setIsAddContributionOpen(true);
+  };
 
-  const contributionBarangays = ['All', ...Array.from(new Set(members.map(member => extractBarangay(member.address))))].sort();
+  // "Add Deposit" from a specific member's ledger page — that member is
+  // already chosen by virtue of being on their ledger, so lock the Member
+  // field to them instead of making the treasurer search again.
+  const openAddDepositForMember = (member) => {
+    setLockedContributionMember(member);
+    setNewContribution((prev) => ({ ...prev, member_id: (member.id || member.memberId)?.toString() || '' }));
+    setIsAddContributionOpen(true);
+  };
+
+  const closeAddContributionModal = () => {
+    setIsAddContributionOpen(false);
+    setLockedContributionMember(null);
+  };
+
+  // The Record Contribution modal no longer lets the Treasurer pick a
+  // barangay up front — they just search for the member, and the member's
+  // real (required) Member.barangay field is displayed automatically once
+  // selected, read-only.
+  const selectedContributionMember = members.find(
+    (member) => (member.id || member.memberId)?.toString() === newContribution.member_id?.toString()
+  );
 
   // Refresh all data
   const refreshAllData = async () => {
@@ -328,7 +359,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       if (response.data.success) {
         const contributedMemberId = newContribution.member_id;
         
-        setIsAddContributionOpen(false);
+        closeAddContributionModal();
         setNewContribution({ member_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'paid' });
         
         // Refresh all data after contribution is recorded
@@ -414,6 +445,17 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       setInitialLoading(false);
     })();
   }, []);
+
+  // `members` is otherwise only fetched once on mount, so a member added by
+  // the Super Admin (or elsewhere) after this portal loaded would silently
+  // be missing from the Record Contribution modal until a full page
+  // refresh. Re-fetch every time the modal opens so it's never stale.
+  useEffect(() => {
+    if (isAddContributionOpen) {
+      fetchMembers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAddContributionOpen]);
 
   useEffect(() => {
     window.localStorage.setItem('treasurerSidebarCollapsed', String(sidebarCollapsed));
@@ -517,24 +559,25 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           />
         );
       case 'claims':
-        return claimsView === 'pending-deduction' ? (
+        return (
           <div className="space-y-4">
             <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
-            <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
-            <ClaimsAwaitingRelease user={user} showToast={showToast} onReleased={refreshAllData} />
+            {claimsView === 'pending-deduction' ? (
+              <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
+            ) : claimsView === 'awaiting-release' ? (
+              <ClaimsAwaitingRelease user={user} showToast={showToast} onReleased={refreshAllData} />
+            ) : (
+              <ClaimDisbursementReport />
+            )}
           </div>
         );
       case 'contributions':
         return (
-          <Contributions 
+          <Contributions
             contributions={contributions}
             paymentSearchQuery={paymentSearchQuery}
             setPaymentSearchQuery={setPaymentSearchQuery}
-            setIsAddContributionOpen={setIsAddContributionOpen}
+            setIsAddContributionOpen={openAddContribution}
           />
         );
       case 'reports':
@@ -562,7 +605,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
             pagination={ledgerPagination}
-            setIsAddContributionOpen={setIsAddContributionOpen}
+            onAddDeposit={openAddDepositForMember}
             handleTriggerAutomatedNotice={handleTriggerAutomatedNotice}
             showToast={showToast}
             refreshData={refreshAllData}
@@ -686,31 +729,44 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       </div>
 
       {/* Record Contribution Modal */}
-      <Modal isOpen={isAddContributionOpen} onClose={() => setIsAddContributionOpen(false)} title="Record Contribution">
+      <Modal isOpen={isAddContributionOpen} onClose={closeAddContributionModal} title="Record Contribution">
         <form onSubmit={handleAddContribution} className="space-y-5">
-          {/* Barangay Filter */}
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1 block">Barangay</label>
-            <select
-              value={contributionBarangayFilter}
-              onChange={(e) => setContributionBarangayFilter(e.target.value)}
-              className="w-full h-11 border border-slate-200 px-3 text-sm font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none"
-            >
-              {contributionBarangays.map((barangay) => (
-                <option key={barangay} value={barangay}>{barangay}</option>
-              ))}
-            </select>
-            <p className="text-xs text-slate-400 mt-1">{contributionMemberOptions.length} member{contributionMemberOptions.length !== 1 ? 's' : ''}</p>
-          </div>
-
-          {/* Member */}
+          {/* Member — locked to the ledger owner when opened via "Add
+              Deposit" from their own ledger page (no need to search for
+              someone the treasurer already picked by being on this page).
+              Otherwise, the normal search-across-all-members flow. */}
           <div>
             <label className="text-sm font-semibold text-slate-700 mb-1 block">Member</label>
-            <SearchableMemberSelect
-              members={contributionMemberOptions}
-              value={newContribution.member_id}
-              onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
-              placeholder="Search by name..."
+            {lockedContributionMember ? (
+              <div className="w-full min-h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 flex items-center">
+                <span className="font-bold text-slate-900 text-sm">
+                  {lockedContributionMember.name || lockedContributionMember.memberName}
+                  <span className="text-slate-400 text-xs font-normal ml-2">
+                    UID: {(lockedContributionMember.id || lockedContributionMember.memberId)?.toString().padStart(6, '0')}
+                  </span>
+                </span>
+              </div>
+            ) : (
+              <SearchableMemberSelect
+                members={members}
+                value={newContribution.member_id}
+                onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
+                placeholder="Search by name..."
+              />
+            )}
+          </div>
+
+          {/* Barangay — auto-filled from the selected member's own record,
+              never typed by the Treasurer. */}
+          <div>
+            <label className="text-sm font-semibold text-slate-700 mb-1 block">Barangay</label>
+            <Input
+              type="text"
+              value={selectedContributionMember?.barangay || ''}
+              placeholder="Select a member to see their barangay"
+              disabled
+              readOnly
+              className="h-11 text-sm bg-slate-50 text-slate-600 cursor-not-allowed"
             />
           </div>
 
@@ -747,7 +803,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
               type="button"
               variant="ghost"
               disabled={isSubmittingContribution}
-              onClick={() => setIsAddContributionOpen(false)}
+              onClick={closeAddContributionModal}
               className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
             >
               Cancel

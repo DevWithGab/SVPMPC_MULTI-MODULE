@@ -40,6 +40,7 @@ const adminController = {
         barangay: member.barangay,
         address: member.address,
         beneficiaries: member.beneficiaries,
+        beneficiaryRelationship: member.beneficiaryRelationship,
         dateOfBirth: member.dateOfBirth,
         gender: member.gender,
         status: member.status,

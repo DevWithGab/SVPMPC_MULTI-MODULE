@@ -22,6 +22,19 @@ import {
 import { Modal } from "../../ui/modal";
 import { Toast } from "../../ui/toast";
 import { memberAPI, attendanceAPI, eventAPI } from "../../../services/api";
+import { formatDate, formatTime } from "../../../utils/date";
+
+// Member.status is shared with the Mortuary module — filing a death claim
+// there flips a member to 'deceased', which must show up here too instead
+// of the list quietly treating everyone as an active member.
+const MEMBER_LIFE_STATUS_META = {
+  active: { label: "Active Member", dot: "bg-coop-green", text: "text-coop-green" },
+  deceased: { label: "Deceased", dot: "bg-rose-500", text: "text-rose-600" },
+  inactive: { label: "Inactive", dot: "bg-slate-400", text: "text-slate-500" },
+  staff: { label: "Staff", dot: "bg-blue-500", text: "text-blue-600" },
+};
+const getMemberStatusMeta = (status) =>
+  MEMBER_LIFE_STATUS_META[status] || MEMBER_LIFE_STATUS_META.inactive;
 
 export default function ManualAttendance({
   user,
@@ -177,7 +190,7 @@ export default function ManualAttendance({
     const parsedDate = new Date(dateValue);
     return Number.isNaN(parsedDate.getTime())
       ? "No date"
-      : parsedDate.toLocaleDateString();
+      : formatDate(parsedDate);
   };
 
   const normalizedMembers = useMemo(
@@ -385,53 +398,66 @@ export default function ManualAttendance({
                   </TableRow>
                 </TableHeader>
                 <TableBody className="stagger-in">
-                  {filteredMembers.map((member) => (
-                    <TableRow
-                      key={member.id}
-                      className="hover:bg-slate-50/50 transition-colors"
-                    >
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-coop-green rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-sm font-bold text-white">
-                              {member.name.charAt(0)}
+                  {filteredMembers.map((member) => {
+                    const statusMeta = getMemberStatusMeta(member.status);
+                    const isDeceased = member.status === "deceased";
+                    return (
+                      <TableRow
+                        key={member.id}
+                        className="hover:bg-slate-50/50 transition-colors"
+                      >
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-coop-green rounded-full flex items-center justify-center shrink-0">
+                              <span className="text-sm font-bold text-white">
+                                {member.name.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">
+                                {member.name}
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                {statusMeta.label}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <span className="font-mono text-sm font-medium text-slate-700">
+                            {member.memberId}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${statusMeta.dot}`}></div>
+                            <span className={`text-xs font-semibold capitalize ${statusMeta.text}`}>
+                              {member.status}
                             </span>
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">
-                              {member.name}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              Active Member
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <span className="font-mono text-sm font-medium text-slate-700">
-                          {member.memberId}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-coop-green rounded-full"></div>
-                          <span className="text-xs font-semibold text-coop-green capitalize">
-                            {member.status}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <Button
-                          onClick={() => handleMarkAttendance(member)}
-                          disabled={!selectedEvent || !isSelectedEventActive}
-                          className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-3.5 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          Mark Present
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <Button
+                            onClick={() => handleMarkAttendance(member)}
+                            disabled={
+                              !selectedEvent ||
+                              !isSelectedEventActive ||
+                              isDeceased
+                            }
+                            title={
+                              isDeceased
+                                ? "This member is recorded as deceased and cannot be marked present."
+                                : undefined
+                            }
+                            className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-3.5 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Mark Present
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {filteredMembers.length === 0 && (
                     <TableRow>
                       <TableCell
@@ -524,10 +550,10 @@ export default function ManualAttendance({
                         <TableCell className="py-3">
                           <div>
                             <p className="text-sm font-medium text-slate-700">
-                              {new Date(record.scanTime).toLocaleDateString()}
+                              {formatDate(record.scanTime)}
                             </p>
                             <p className="text-xs text-slate-400">
-                              {new Date(record.scanTime).toLocaleTimeString()}
+                              {formatTime(record.scanTime)}
                             </p>
                           </div>
                         </TableCell>

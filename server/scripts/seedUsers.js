@@ -224,11 +224,22 @@ const createAdminUsers = async () => {
       console.log(`✅ Created admin user: ${userData.username}`);
     } else {
       const passwordMatches = await existingUser.comparePassword(userData.passwordHash);
+      let userUpdated = false;
+
+      if (existingUser.staffId !== userData.staffId) {
+        existingUser.staffId = userData.staffId;
+        userUpdated = true;
+      }
+
       if (!passwordMatches) {
         existingUser.passwordHash = userData.passwordHash;
         existingUser.isTemporaryPassword = false;
+        userUpdated = true;
+      }
+
+      if (userUpdated) {
         await existingUser.save();
-        console.log(`🔄 Updated password for admin user: ${userData.username}`);
+        console.log(`🔄 Repaired admin user: ${userData.username}`);
       } else {
         console.log(`⏭️  Admin user already exists: ${userData.username}`);
       }

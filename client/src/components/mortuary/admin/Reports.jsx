@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, TrendingUp, Users, DollarSign, FileText, ClipboardCheck, Heart } from 'lucide-react';
+import { Download, TrendingUp, Users, PhilippinePeso, FileText, ClipboardCheck, Heart } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { claimAPI } from '../../../services/api';
@@ -12,9 +12,7 @@ const COOP_GREEN_RGB = [45, 122, 62];
 const REPORT_TYPES = [
   { id: 'summary', label: 'Financial Summary', icon: FileText },
   { id: 'contributions', label: 'Contributions', icon: TrendingUp },
-  { id: 'members', label: 'Members', icon: Users },
   { id: 'claims', label: 'Claims Report', icon: ClipboardCheck },
-  { id: 'approvedClaims', label: 'Approved Claims', icon: ClipboardCheck },
   { id: 'deceasedMembers', label: 'Deceased Members', icon: Heart },
 ];
 
@@ -36,7 +34,6 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
     };
   }, []);
 
-  const approvedClaims = useMemo(() => claims.filter((c) => c.approval?.approvedAt), [claims]);
   const deceasedMembers = useMemo(() => members.filter((m) => m.status === 'deceased'), [members]);
 
   const metrics = useMemo(() => {
@@ -53,9 +50,7 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
   const paginatedData = useMemo(() => {
     let data = [];
     if (reportType === 'contributions') data = contributions;
-    else if (reportType === 'members') data = members;
     else if (reportType === 'claims') data = claims;
-    else if (reportType === 'approvedClaims') data = approvedClaims;
     else if (reportType === 'deceasedMembers') data = deceasedMembers;
 
     const total = data.length;
@@ -69,7 +64,7 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       hasNextPage: endIndex < total,
       hasPrevPage: page > 1
     };
-  }, [reportType, contributions, members, claims, approvedClaims, deceasedMembers, page, limit]);
+  }, [reportType, contributions, claims, deceasedMembers, page, limit]);
 
   const generatePDF = () => {
     try {
@@ -127,27 +122,11 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
           styles: { fontSize: 8 },
           columnStyles: { 2: { halign: 'right' } },
         });
-      } else if (reportType === 'members') {
+      } else if (reportType === 'claims') {
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
-        doc.text('Members Report', 14, startY);
-        const memberData = members.slice(0, 200).map(m => [
-          m.id || m.memberId, m.name || m.memberName, m.barangay || 'N/A', m.status || 'active', m.join_date || 'N/A',
-        ]);
-        autoTable(doc, {
-          startY: startY + 5,
-          head: [['ID', 'Name', 'Barangay', 'Status', 'Join Date']],
-          body: memberData,
-          theme: 'striped',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
-          styles: { fontSize: 8 },
-        });
-      } else if (reportType === 'claims' || reportType === 'approvedClaims') {
-        const source = reportType === 'claims' ? claims : approvedClaims;
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(reportType === 'claims' ? 'Claims Report' : 'Approved Claims Report', 14, startY);
-        const claimData = source.slice(0, 200).map(c => [
+        doc.text('Claims Report', 14, startY);
+        const claimData = claims.slice(0, 200).map(c => [
           c.claimId.slice(0, 8),
           c.memberName,
           c.beneficiaryName,
@@ -214,17 +193,10 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       contributions.forEach(c => {
         csvContent += `"${new Date(c.payment_date || c.created_at).toLocaleDateString()}","${c.member_id}","${c.member_name || ''}","${c.amount}","${c.status}"\n`;
       });
-    } else if (reportType === 'members') {
-      filename = `members-${new Date().toISOString().split('T')[0]}.csv`;
-      csvContent = 'ID,Name,Email,Contact,Barangay,Status,Join Date\n';
-      members.forEach(m => {
-        csvContent += `"${m.id || m.memberId}","${m.name || m.memberName}","${m.email || ''}","${m.contact || m.phoneNumber || ''}","${m.barangay || ''}","${m.status}","${m.join_date || ''}"\n`;
-      });
-    } else if (reportType === 'claims' || reportType === 'approvedClaims') {
-      const source = reportType === 'claims' ? claims : approvedClaims;
-      filename = `${reportType}-${new Date().toISOString().split('T')[0]}.csv`;
+    } else if (reportType === 'claims') {
+      filename = `claims-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'Claim ID,Member,Beneficiary,Date Filed,Status\n';
-      source.forEach(c => {
+      claims.forEach(c => {
         csvContent += `"${c.claimId}","${c.memberName}","${c.beneficiaryName}","${new Date(c.dateFiled).toLocaleDateString()}","${getClaimStatusMeta(c.status).label}"\n`;
       });
     } else if (reportType === 'deceasedMembers') {
@@ -269,7 +241,7 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
             <p className="text-xl font-bold text-slate-900 mt-1 truncate">₱{(stats?.fundBalance || 0).toLocaleString()}</p>
           </div>
           <div className="p-3 bg-blue-50 rounded-lg shrink-0 ml-3">
-            <DollarSign className="w-5 h-5 text-blue-600" />
+            <PhilippinePeso className="w-5 h-5 text-blue-600" />
           </div>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between">
@@ -383,32 +355,7 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
               </table>
             )}
 
-            {reportType === 'members' && (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">ID</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Join Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedData.data.map((m, idx) => (
-                    <tr key={idx}>
-                      <td className="px-5 py-2.5 text-xs text-slate-500">#{m.id || m.memberId}</td>
-                      <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">{m.name || m.memberName}</td>
-                      <td className="px-5 py-2.5 text-xs text-slate-500">{m.barangay || 'N/A'}</td>
-                      <td className="px-5 py-2.5 text-xs font-semibold text-slate-600">{m.status}</td>
-                      <td className="px-5 py-2.5 text-xs text-slate-500">{m.join_date || 'N/A'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            {(reportType === 'claims' || reportType === 'approvedClaims') && (
+            {reportType === 'claims' && (
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">

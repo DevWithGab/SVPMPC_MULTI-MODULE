@@ -13,6 +13,7 @@ const payoutController = require('../controllers/payoutController');
 const claimController = require('../controllers/claimController');
 const beneficiaryController = require('../controllers/beneficiaryController');
 const deductionSettingController = require('../controllers/deductionSettingController');
+const backupController = require('../controllers/backupController');
 
 const router = express.Router();
 
@@ -63,5 +64,9 @@ router.put('/beneficiaries/:memberId', authenticateToken, authorizeAdminOnly, be
 router.get('/deduction-settings/current', authenticateToken, authorizeAdminOnly, deductionSettingController.getCurrentRate);
 router.get('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.getRateHistory);
 router.post('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.updateRate);
+
+// Database backup/restore — restore is a bulk write over live data, so it
+// gets the same explicit auth as the other consequential routes above.
+router.post('/backup/restore', authenticateToken, authorizeAdminOnly, backupController.restoreBackup);
 
 module.exports = router;

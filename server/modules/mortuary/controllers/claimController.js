@@ -3,6 +3,7 @@ const Beneficiary = require('../models/Beneficiary');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
+const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -71,6 +72,22 @@ const createClaim = async (req, res) => {
     // {status:'active'} members).
     member.status = 'deceased';
     await member.save();
+
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: createdBy,
+      userRole: req.user?.role || 'admin',
+      action: 'claim_created',
+      module: 'mortuary',
+      entityType: 'claim',
+      entityId: claim.claimId,
+      entityName: claim.memberName,
+      description: `Claim filed for ${claim.memberName}, beneficiary ${claim.beneficiaryName}`,
+      changes: { before: null, after: claim.toObject() },
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     res.status(201).json({
       success: true,
@@ -260,6 +277,7 @@ const approveClaim = async (req, res) => {
       });
     }
 
+    const before = claim.toObject();
     const now = new Date();
     claim.status = 'pending_deduction';
     claim.approval = { approvedBy, approvedAt: now };
@@ -269,6 +287,22 @@ const approveClaim = async (req, res) => {
     );
 
     await claim.save();
+
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: approvedBy,
+      userRole: req.user?.role || 'admin',
+      action: 'claim_approved',
+      module: 'mortuary',
+      entityType: 'claim',
+      entityId: claim.claimId,
+      entityName: claim.memberName,
+      description: `Claim for ${claim.memberName} approved — moved to Pending Deduction`,
+      changes: { before, after: claim.toObject() },
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     res.status(200).json({
       success: true,
@@ -308,12 +342,29 @@ const rejectClaim = async (req, res) => {
       });
     }
 
+    const before = claim.toObject();
     const now = new Date();
     claim.status = 'rejected';
     claim.rejection = { rejectedBy, rejectedAt: now, reason: reason.trim() };
     claim.statusHistory.push({ status: 'rejected', changedBy: rejectedBy, changedAt: now, notes: reason.trim() });
 
     await claim.save();
+
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: rejectedBy,
+      userRole: req.user?.role || 'admin',
+      action: 'claim_rejected',
+      module: 'mortuary',
+      entityType: 'claim',
+      entityId: claim.claimId,
+      entityName: claim.memberName,
+      description: `Claim for ${claim.memberName} rejected: ${reason.trim()}`,
+      changes: { before, after: claim.toObject() },
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     res.status(200).json({
       success: true,

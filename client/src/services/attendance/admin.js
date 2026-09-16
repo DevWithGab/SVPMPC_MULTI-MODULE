@@ -144,6 +144,16 @@ export const eventAPI = {
     }
   },
 
+  approveEvent: async (eventId) => {
+    const response = await api.post(`/events/${eventId}/approve`);
+    return response.data;
+  },
+
+  rejectEvent: async (eventId, reason) => {
+    const response = await api.post(`/events/${eventId}/reject`, { reason });
+    return response.data;
+  },
+
   // Bulk delete events
   bulkDeleteEvents: async (eventIds) => {
     try {

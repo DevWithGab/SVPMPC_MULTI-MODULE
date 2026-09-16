@@ -10,23 +10,39 @@ import {
   AlertCircle,
   MapPin,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { StatCard } from "../shared";
-import { formatTime } from "../../../utils/date";
+import { formatTime, formatLongDate, getManilaHour } from "../../../utils/date";
 import { attendanceAPI, eventAPI } from "../../../services/api";
 
 const EVENT_STATUS_META = {
-  active: { label: "Active", dot: "bg-coop-green", text: "text-coop-green", bg: "bg-green-50", border: "border-green-200" },
-  upcoming: { label: "Upcoming", dot: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
-  completed: { label: "Completed", dot: "bg-slate-400", text: "text-slate-500", bg: "bg-slate-100", border: "border-slate-200" },
-  closed: { label: "Closed", dot: "bg-red-500", text: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
+  active: {
+    label: "Active",
+    dot: "bg-coop-green",
+    text: "text-coop-green",
+    bg: "bg-green-50",
+    border: "border-green-200",
+  },
+  upcoming: {
+    label: "Upcoming",
+    dot: "bg-amber-500",
+    text: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+  },
+  closed: {
+    label: "Closed",
+    dot: "bg-red-500",
+    text: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+  },
 };
 
 const getStatusMeta = (status) =>
-  EVENT_STATUS_META[status] || EVENT_STATUS_META.completed;
+  EVENT_STATUS_META[status] || EVENT_STATUS_META.closed;
 
 const getEventDateValue = (event) => {
   const raw = event.eventDate || event.date;
@@ -34,7 +50,7 @@ const getEventDateValue = (event) => {
   return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
 };
 
-const QuickActionTile = ({ icon: Icon, label, subtitle, onClick, accent = false }) => (
+const QuickActionTile = ({ label, subtitle, onClick, accent = false }) => (
   <button
     type="button"
     onClick={onClick}
@@ -49,13 +65,19 @@ const QuickActionTile = ({ icon: Icon, label, subtitle, onClick, accent = false 
         accent ? "bg-white/20" : "bg-green-50"
       }`}
     >
-      <Icon className={`w-5 h-5 ${accent ? "text-white" : "text-coop-green"}`} />
+      <Icon
+        className={`w-5 h-5 ${accent ? "text-white" : "text-coop-green"}`}
+      />
     </div>
     <div className="min-w-0">
-      <p className={`text-sm font-semibold leading-tight ${accent ? "text-white" : "text-slate-900"}`}>
+      <p
+        className={`text-sm font-semibold leading-tight ${accent ? "text-white" : "text-slate-900"}`}
+      >
         {label}
       </p>
-      <p className={`text-xs mt-0.5 leading-tight ${accent ? "text-green-100/80" : "text-slate-400"}`}>
+      <p
+        className={`text-xs mt-0.5 leading-tight ${accent ? "text-green-100/80" : "text-slate-400"}`}
+      >
         {subtitle}
       </p>
     </div>
@@ -137,8 +159,8 @@ export default function SecretaryDashboard({
   const upcomingEventsCount = events.filter(
     (event) => event.status === "upcoming",
   ).length;
-  const completedEventsCount = events.filter(
-    (event) => event.status === "completed",
+  const closedEventsCount = events.filter(
+    (event) => event.status === "closed",
   ).length;
   const totalAttendance = attendanceRecords.length;
   const todayAttendance = attendanceRecords.filter((log) => {
@@ -154,7 +176,9 @@ export default function SecretaryDashboard({
   const spotlightEvent = useMemo(() => {
     const now = new Date();
     const candidates = events
-      .filter((event) => event.status === "active" || event.status === "upcoming")
+      .filter(
+        (event) => event.status === "active" || event.status === "upcoming",
+      )
       .map((event) => ({ event, date: getEventDateValue(event) }))
       .filter(({ date }) => date)
       .sort((a, b) => a.date - b.date);
@@ -164,72 +188,58 @@ export default function SecretaryDashboard({
   }, [events]);
 
   const greeting = useMemo(() => {
-    const hour = new Date().getHours();
+    const hour = getManilaHour();
     if (hour < 12) return "Good morning";
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   }, []);
 
-  const today = useMemo(
-    () =>
-      new Date().toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-    [],
-  );
+  const today = useMemo(() => formatLongDate(), []);
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-coop-green to-coop-darkGreen p-6 sm:p-8 shadow-sm">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
-        <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-green-100/80 text-xs font-semibold uppercase tracking-wide">
-              <Sparkles className="w-3.5 h-3.5" />
-              {today}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-2">
-              {greeting}, {user?.name || "Secretary"}
-            </h1>
-            <p className="text-green-100/80 text-sm mt-1.5 max-w-md">
-              Here's what's happening across your General Assembly events today.
-            </p>
-          </div>
+      {/* Header — same title style, size, and color as every other page */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {greeting}, {user?.name || "Secretary"}
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Here&apos;s what&apos;s happening across your General Assembly
+            events today · {today}
+          </p>
+        </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {spotlightEvent && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("events")}
-                className="group flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl px-4 py-3 text-left transition-colors"
-              >
-                <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-                  <Calendar className="w-4 h-4 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-green-100/70">
-                    {spotlightEvent.status === "active" ? "Happening now" : "Next up"}
-                  </p>
-                  <p className="text-sm font-semibold text-white truncate max-w-[180px]">
-                    {spotlightEvent.eventName || spotlightEvent.name}
-                  </p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-white/60 group-hover:translate-x-0.5 transition-transform shrink-0" />
-              </button>
-            )}
-            <Button
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {spotlightEvent && (
+            <button
+              type="button"
               onClick={() => setActiveTab("events")}
-              className="bg-white hover:bg-green-50 text-coop-darkGreen font-semibold px-5 py-2.5 rounded-lg shrink-0"
+              className="group flex items-center gap-3 bg-white hover:bg-green-50 border border-slate-200 hover:border-coop-green rounded-xl px-4 py-3 text-left transition-colors"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Event
-            </Button>
-          </div>
+              <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                <Calendar className="w-4 h-4 text-coop-green" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  {spotlightEvent.status === "active"
+                    ? "Happening now"
+                    : "Next up"}
+                </p>
+                <p className="text-sm font-semibold text-slate-900 truncate max-w-[180px]">
+                  {spotlightEvent.eventName || spotlightEvent.name}
+                </p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </button>
+          )}
+          <Button
+            onClick={() => setActiveTab("events")}
+            className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-5 py-2.5 rounded-lg shrink-0"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Event
+          </Button>
         </div>
       </div>
 
@@ -301,7 +311,9 @@ export default function SecretaryDashboard({
                       </span>
                       <span className="text-[10px] font-semibold uppercase text-slate-400 mt-0.5">
                         {eventDate
-                          ? eventDate.toLocaleDateString("en-US", { month: "short" })
+                          ? eventDate.toLocaleDateString("en-US", {
+                              month: "short",
+                            })
                           : ""}
                       </span>
                     </div>
@@ -312,10 +324,13 @@ export default function SecretaryDashboard({
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-400">
                         <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{event.location || "No location set"}</span>
+                        <span className="truncate">
+                          {event.location || "No location set"}
+                        </span>
                         <span className="text-slate-300">&bull;</span>
                         <span className="shrink-0">
-                          {event.eventTime || (eventDate ? formatTime(eventDate) : "")}
+                          {event.eventTime ||
+                            (eventDate ? formatTime(eventDate) : "")}
                         </span>
                       </div>
                     </div>
@@ -323,7 +338,9 @@ export default function SecretaryDashboard({
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${meta.dot}`}
+                      />
                       {meta.label}
                     </span>
                   </button>
@@ -352,88 +369,102 @@ export default function SecretaryDashboard({
           </CardContent>
         </Card>
 
-        <div className="flex flex-col gap-6">
-          {/* Quick Actions */}
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-            <CardHeader className="border-b border-slate-100 p-5">
-              <CardTitle className="text-sm font-bold text-slate-900">
-                Quick Actions
-              </CardTitle>
-              <p className="text-slate-400 text-xs mt-1">Common tasks</p>
-            </CardHeader>
-            <CardContent className="p-4 grid grid-cols-2 gap-3 stagger-in">
-              <QuickActionTile
-                icon={Plus}
-                label="Create Event"
-                subtitle="New assembly"
-                onClick={() => setActiveTab("events")}
-                accent
-              />
-              <QuickActionTile
-                icon={UserCheck}
-                label="Manual Attendance"
-                subtitle="Mark present"
-                onClick={() => setActiveTab("manual")}
-              />
-              <QuickActionTile
-                icon={BarChart3}
-                label="View Reports"
-                subtitle="Export data"
-                onClick={() => setActiveTab("reports")}
-              />
-              <QuickActionTile
-                icon={Users}
-                label="Directory"
-                subtitle="Member QR codes"
-                onClick={() => setActiveTab("directory")}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Event Breakdown */}
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-            <CardHeader className="border-b border-slate-100 p-5">
-              <CardTitle className="text-sm font-bold text-slate-900">
-                Event Breakdown
-              </CardTitle>
-              <p className="text-slate-400 text-xs mt-1">Status across all events</p>
-            </CardHeader>
-            <CardContent className="p-5 space-y-4 stagger-in">
-              {[
-                { label: "Active", count: activeEvents, meta: EVENT_STATUS_META.active },
-                { label: "Upcoming", count: upcomingEventsCount, meta: EVENT_STATUS_META.upcoming },
-                { label: "Completed", count: completedEventsCount, meta: EVENT_STATUS_META.completed },
-              ].map(({ label, count, meta }) => {
-                const percent = totalEvents > 0 ? Math.round((count / totalEvents) * 100) : 0;
-                return (
-                  <div key={label}>
-                    <div className="flex items-center justify-between text-sm mb-1.5">
-                      <span className="flex items-center gap-2 font-medium text-slate-700">
-                        <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-                        {label}
-                      </span>
-                      <span className="text-slate-400 font-medium">{count}</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${meta.dot} transition-all duration-700 ease-out`}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
+        {/* Event Breakdown */}
+        <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+          <CardHeader className="border-b border-slate-100 p-5">
+            <CardTitle className="text-sm font-bold text-slate-900">
+              Event Breakdown
+            </CardTitle>
+            <p className="text-slate-400 text-xs mt-1">
+              Status across all events
+            </p>
+          </CardHeader>
+          <CardContent className="p-5 space-y-4 stagger-in">
+            {[
+              {
+                label: "Active",
+                count: activeEvents,
+                meta: EVENT_STATUS_META.active,
+              },
+              {
+                label: "Upcoming",
+                count: upcomingEventsCount,
+                meta: EVENT_STATUS_META.upcoming,
+              },
+              {
+                label: "Closed",
+                count: closedEventsCount,
+                meta: EVENT_STATUS_META.closed,
+              },
+            ].map(({ label, count, meta }) => {
+              const percent =
+                totalEvents > 0 ? Math.round((count / totalEvents) * 100) : 0;
+              return (
+                <div key={label}>
+                  <div className="flex items-center justify-between text-sm mb-1.5">
+                    <span className="flex items-center gap-2 font-medium text-slate-700">
+                      <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+                      {label}
+                    </span>
+                    <span className="text-slate-400 font-medium">{count}</span>
                   </div>
-                );
-              })}
-
-              {totalEvents === 0 && (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <AlertCircle className="w-4 h-4" />
-                  No events yet to break down.
+                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${meta.dot} transition-all duration-700 ease-out`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              );
+            })}
+
+            {totalEvents === 0 && (
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <AlertCircle className="w-4 h-4" />
+                No events yet to break down.
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Quick Actions — full-width row so all four tiles get equal room
+          instead of being squeezed into a narrow sidebar column. */}
+      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+        <CardHeader className="border-b border-slate-100 p-5">
+          <CardTitle className="text-sm font-bold text-slate-900">
+            Quick Actions
+          </CardTitle>
+          <p className="text-slate-400 text-xs mt-1">Common tasks</p>
+        </CardHeader>
+        <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 stagger-in">
+          <QuickActionTile
+            icon={Plus}
+            label="Create Event"
+            subtitle="New assembly"
+            onClick={() => setActiveTab("events")}
+            accent
+          />
+          <QuickActionTile
+            icon={UserCheck}
+            label="Manual Attendance"
+            subtitle="Mark present"
+            onClick={() => setActiveTab("manual")}
+          />
+          <QuickActionTile
+            icon={BarChart3}
+            label="View Reports"
+            subtitle="Export data"
+            onClick={() => setActiveTab("reports")}
+          />
+          <QuickActionTile
+            icon={Users}
+            label="Directory"
+            subtitle="Member QR codes"
+            onClick={() => setActiveTab("directory")}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

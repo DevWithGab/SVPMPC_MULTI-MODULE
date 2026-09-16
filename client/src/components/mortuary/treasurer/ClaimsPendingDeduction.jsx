@@ -12,6 +12,8 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
   const [amount, setAmount] = useState('');
   const [confirmStep, setConfirmStep] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,15 +35,17 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
     setTarget(claim);
     setAmount('25');
     setConfirmStep(false);
+    setPreview(null);
   };
 
   const closeModal = () => {
     if (submitting) return;
     setTarget(null);
     setConfirmStep(false);
+    setPreview(null);
   };
 
-  const handleReview = (e) => {
+  const handleReview = async (e) => {
     e.preventDefault();
     const parsed = parseFloat(amount);
     if (isNaN(parsed) || parsed <= 0) {
@@ -49,6 +53,17 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
       return;
     }
     setConfirmStep(true);
+    setPreviewLoading(true);
+    setPreview(null);
+    try {
+      const res = await treasurerAPI.previewClaimDeduction(target.claimId, parsed);
+      setPreview(res?.data || null);
+    } catch (err) {
+      showToast?.(err.response?.data?.message || 'Unable to preview this deduction.', 'error');
+      setConfirmStep(false);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const handleProcess = async () => {
@@ -154,11 +169,41 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
                 every active member and cannot be undone.
               </p>
             </div>
+
+            {/* Deduction preview — a dry run of exactly what will happen,
+                so the Treasurer isn't confirming blind. */}
+            {previewLoading ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500 p-4 border border-slate-200 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin" /> Calculating preview...
+              </div>
+            ) : preview ? (
+              <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+                  <span className="text-slate-500">Active members to be charged</span>
+                  <span className="font-bold text-slate-900">{preview.membersCharged}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+                  <span className="text-slate-500">Amount per member</span>
+                  <span className="font-bold text-slate-900">₱{preview.amountPerMember?.toLocaleString?.() ?? preview.amountPerMember}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-2.5 text-sm bg-slate-50">
+                  <span className="font-semibold text-slate-700">Total to be collected</span>
+                  <span className="font-bold text-coop-green">₱{preview.totalCollected?.toLocaleString?.() ?? preview.totalCollected}</span>
+                </div>
+                {preview.membersGoingNegative > 0 && (
+                  <div className="flex items-center justify-between px-4 py-2.5 text-sm bg-amber-50">
+                    <span className="text-amber-700">Members whose balance will go negative</span>
+                    <span className="font-bold text-amber-700">{preview.membersGoingNegative}</span>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="ghost" disabled={submitting} onClick={() => setConfirmStep(false)} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
                 Go back
               </Button>
-              <Button type="button" onClick={handleProcess} disabled={submitting} className="flex-1 h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm disabled:opacity-50">
+              <Button type="button" onClick={handleProcess} disabled={submitting || previewLoading} className="flex-1 h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm disabled:opacity-50">
                 {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : 'Yes, process now'}
               </Button>
             </div>

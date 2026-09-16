@@ -40,8 +40,10 @@ const {
 const {
   listPendingDeduction,
   listAwaitingRelease,
+  listReleasedClaims,
   getClaimById,
   processClaimDeduction,
+  previewClaimDeduction,
   releaseClaim
 } = require('../controllers/treasurerClaimController');
 
@@ -82,7 +84,11 @@ router.get('/notifications/stats', getNotificationStats);
 // Treasurer's notification (live query, no separate notification model).
 router.get('/claims/pending-deduction', listPendingDeduction);
 router.get('/claims/awaiting-release', listAwaitingRelease);
+// Literal paths above must stay ahead of the '/claims/:claimId' param route
+// below, or Express would match them as a claimId of "disbursement-report" etc.
+router.get('/claims/disbursement-report', listReleasedClaims);
 router.get('/claims/:claimId', getClaimById);
+router.get('/claims/:claimId/deduction-preview', previewClaimDeduction);
 router.post('/claims/:claimId/process-deduction', processClaimDeduction);
 router.post('/claims/:claimId/release', releaseClaim);
 

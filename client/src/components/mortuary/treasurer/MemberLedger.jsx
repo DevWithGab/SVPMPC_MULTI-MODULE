@@ -119,7 +119,7 @@ const MemberLedger = ({
   setCurrentPage,
   itemsPerPage,
   pagination,
-  setIsAddContributionOpen,
+  onAddDeposit,
   handleTriggerAutomatedNotice,
   showToast,
   refreshData
@@ -308,7 +308,7 @@ const MemberLedger = ({
               <Printer className="w-4 h-4" /> Print
             </button>
             <button
-              onClick={() => setIsAddContributionOpen(true)}
+              onClick={() => onAddDeposit(currentMember)}
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
             >
               Add Deposit

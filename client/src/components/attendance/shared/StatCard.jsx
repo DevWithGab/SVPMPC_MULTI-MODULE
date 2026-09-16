@@ -1,8 +1,12 @@
 import React from 'react';
 
+// Mirrors mortuary/shared/StatCard's color set so both modules' stat tiles
+// draw from the same palette.
 const COLOR_STYLES = {
   emerald: { bg: 'bg-green-50', border: 'border-green-100', text: 'text-coop-green' },
+  blue: { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-600' },
   amber: { bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-600' },
+  rose: { bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-500' },
   slate: { bg: 'bg-slate-50', border: 'border-slate-100', text: 'text-slate-600' },
 };
 

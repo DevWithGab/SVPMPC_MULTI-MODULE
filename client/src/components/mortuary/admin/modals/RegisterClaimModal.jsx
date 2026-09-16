@@ -63,16 +63,23 @@ export default function RegisterClaimModal({ isOpen, onClose, members, user, onR
 
         if (!current) {
           // Members registered before the structured Beneficiary record
-          // existed only ever got a free-text name on Member.beneficiaries
-          // (no relationship/contact number was ever captured for them).
-          // There's genuinely no structured record to find, but carry the
-          // legacy name over so the admin isn't retyping a name that's
-          // already visible elsewhere on this member's profile.
-          const legacyName = (members || [])
-            .find((m) => m.id?.toString() === memberId?.toString())
-            ?.beneficiaries?.trim();
-          if (legacyName) {
-            setBeneficiaryForm((f) => ({ ...f, beneficiaryName: legacyName }));
+          // existed only ever got a free-text name (and, more recently, a
+          // relationship) on Member.beneficiaries/beneficiaryRelationship —
+          // no contact number was ever captured for them. There's genuinely
+          // no structured record to find, but carry over whatever legacy
+          // fields exist so the admin isn't retyping data that's already
+          // visible elsewhere on this member's profile.
+          const legacyMember = (members || []).find(
+            (m) => m.id?.toString() === memberId?.toString(),
+          );
+          const legacyName = legacyMember?.beneficiaries?.trim();
+          const legacyRelationship = legacyMember?.beneficiaryRelationship?.trim();
+          if (legacyName || legacyRelationship) {
+            setBeneficiaryForm((f) => ({
+              ...f,
+              ...(legacyName && { beneficiaryName: legacyName }),
+              ...(legacyRelationship && { relationship: legacyRelationship }),
+            }));
           }
         }
       })

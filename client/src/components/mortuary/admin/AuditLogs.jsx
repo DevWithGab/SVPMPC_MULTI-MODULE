@@ -9,80 +9,76 @@ import {
   CheckCircle,
   Clock,
   Zap,
-  Calendar,
-  RefreshCw,
   Users,
+  RefreshCw,
   XCircle,
 } from "lucide-react";
 import { auditAPI } from "../../../services/api";
-import {
-  formatDateTime,
-  formatDate,
-  formatTime,
-  formatTimeString,
-} from "../../../utils/date";
+import { formatDate, formatDateTime, formatTime } from "../../../utils/date";
 import StatCard from "../shared/StatCard";
 
-// Plain-language labels so the log reads as a story of what happened rather
-// than a dump of internal action codes and field names.
+// Plain-language labels so the log reads as a story of what happened to a
+// claim, not a dump of internal action codes.
 const ACTION_LABELS = {
-  event_created: "Event Created",
-  event_updated: "Event Updated",
-  event_deleted: "Event Deleted",
-  attendance_recorded: "Attendance Recorded",
-  member_created: "Member Created",
-  member_imported: "Members Imported",
-  qr_code_generated: "QR Code Generated",
-  qr_code_regenerated: "QR Code Regenerated",
-  qr_code_deactivated: "QR Code Deactivated",
-  qr_code_reactivated: "QR Code Reactivated",
-  data_restored: "Backup Restored",
+  claim_created: "Claim Filed",
+  claim_approved: "Claim Approved",
+  claim_rejected: "Claim Rejected",
+  claim_deduction_processed: "Deduction Processed",
+  claim_released: "Benefit Released",
 };
 const actionLabel = (action) =>
   ACTION_LABELS[action] ||
   (action || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-const STATUS_VALUE_LABELS = {
-  draft: "Draft",
-  pending_approval: "Pending Approval",
-  upcoming: "Upcoming",
-  active: "Active",
-  closed: "Close",
-  rejected: "Rejected",
-  cancelled: "Cancelled",
+const ACTION_COLORS = {
+  claim_created: "bg-blue-100 text-blue-800",
+  claim_approved: "bg-green-100 text-green-800",
+  claim_rejected: "bg-red-100 text-red-800",
+  claim_deduction_processed: "bg-amber-100 text-amber-800",
+  claim_released: "bg-emerald-100 text-emerald-800",
 };
+const getActionColor = (action) =>
+  ACTION_COLORS[action] || "bg-slate-100 text-slate-800";
 
-// Fields that are internal bookkeeping (Mongo/document plumbing or values
-// already restated elsewhere) — never worth showing to an admin reviewing
-// what actually happened.
+const ROLE_COLORS = {
+  admin: "bg-red-100 text-red-800",
+  super_admin: "bg-purple-100 text-purple-800",
+  treasurer: "bg-blue-100 text-blue-800",
+  secretary: "bg-indigo-100 text-indigo-800",
+  member: "bg-slate-100 text-slate-800",
+};
+const getRoleColor = (role) =>
+  ROLE_COLORS[role] || "bg-slate-100 text-slate-800";
+
+// Fields that are internal bookkeeping or already restated elsewhere (e.g.
+// statusHistory duplicates what the audit trail itself is showing).
 const INTERNAL_FIELDS = new Set([
   "_id",
   "__v",
   "id",
   "createdAt",
   "updatedAt",
-  "eventTime", // duplicates startTime
+  "statusHistory",
 ]);
 
 const FIELD_LABELS = {
-  eventName: "Event Name",
-  eventDate: "Date",
-  startTime: "Start Time",
-  endTime: "End Time",
-  location: "Location",
-  description: "Description",
-  type: "Type",
-  status: "Status",
-  rejectionReason: "Rejection Reason",
-  createdBy: "Created By",
-  memberName: "Member Name",
+  memberName: "Deceased Member",
   memberId: "Member ID",
-  phoneNumber: "Phone Number",
-  barangay: "Barangay",
-  scanTime: "Scan Time",
-  entrySource: "Entry Source",
-  justification: "Justification",
-  eventLocation: "Event Location",
+  beneficiaryName: "Beneficiary",
+  beneficiaryRelationship: "Relationship",
+  beneficiaryContact: "Beneficiary Contact",
+  dateOfDeath: "Date of Death",
+  dateFiled: "Date Filed",
+  causeOfDeath: "Cause of Death",
+  remarks: "Remarks",
+  status: "Status",
+  requirements: "Requirements",
+  verification: "Verification",
+  approval: "Approval",
+  rejection: "Rejection",
+  deduction: "Deduction",
+  payout: "Payout",
+  createdBy: "Created By",
 };
 
 const friendlyLabel = (key) =>
@@ -92,21 +88,29 @@ const friendlyLabel = (key) =>
     .replace(/^./, (c) => c.toUpperCase())
     .trim();
 
+// Nested objects (deduction, payout, approval, ...) get flattened into a
+// single readable line instead of rendering as "[object Object]".
 const friendlyValue = (key, value) => {
   if (value === null || value === undefined || value === "") return "—";
-  if (key === "status" && STATUS_VALUE_LABELS[value]) {
-    return STATUS_VALUE_LABELS[value];
-  }
-  if (key === "eventDate") return formatDate(value);
-  if (key === "scanTime") return formatDateTime(value);
-  if (key === "startTime" || key === "endTime") return formatTimeString(value);
+  if (key === "dateOfDeath" || key === "dateFiled") return formatDate(value);
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (Array.isArray(value))
+    return value.length ? `${value.length} item(s)` : "—";
+  if (typeof value === "object") {
+    const parts = Object.entries(value)
+      .filter(([, v]) => v !== null && v !== undefined && v !== "")
+      .map(
+        ([k, v]) =>
+          `${friendlyLabel(k)}: ${typeof v === "object" ? JSON.stringify(v) : v}`,
+      );
+    return parts.length ? parts.join(", ") : "—";
+  }
   return String(value);
 };
 
 // Turns a log's raw before/after snapshot into either a readable diff
-// (field changed from X to Y) or, for a create/delete with only one side,
-// a plain list of that record's key details — never the raw document.
+// (field changed from X to Y) or, for a create with only one side, a plain
+// list of that claim's key details — never the raw document.
 const describeChanges = (changes) => {
   if (!changes) return { kind: null, rows: [] };
   const { before, after } = changes;
@@ -137,18 +141,6 @@ const describeChanges = (changes) => {
   return { kind: "snapshot", rows };
 };
 
-const describeMetadata = (metadata) => {
-  if (!metadata) return [];
-  return Object.entries(metadata)
-    .filter(
-      ([, value]) => value !== null && value !== undefined && value !== "",
-    )
-    .map(([key, value]) => ({
-      label: friendlyLabel(key),
-      value: friendlyValue(key, value),
-    }));
-};
-
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -157,12 +149,9 @@ const AuditLogs = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Filter states
   const [filters, setFilters] = useState({
     action: "",
     userRole: "",
-    module: "",
-    entityType: "",
     startDate: "",
     endDate: "",
     page: 1,
@@ -175,19 +164,19 @@ const AuditLogs = () => {
     total: 0,
     pages: 1,
   });
-
   const [stats, setStats] = useState(null);
 
-  // Fetch audit logs
+  // This screen only ever shows the Mortuary module's own trail — module
+  // is fixed, not a user-editable filter.
   const fetchAuditLogs = useCallback(
     async (showLoader = false) => {
-      if (showLoader) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
+      if (showLoader) setLoading(true);
+      else setRefreshing(true);
       try {
-        const response = await auditAPI.getLogs(filters);
+        const response = await auditAPI.getLogs({
+          ...filters,
+          module: "mortuary",
+        });
         setLogs(response.logs || []);
         setPagination(response.pagination || {});
         setLastUpdated(new Date());
@@ -201,7 +190,6 @@ const AuditLogs = () => {
     [filters],
   );
 
-  // Fetch statistics
   const fetchStats = useCallback(async () => {
     try {
       if (filters.startDate && filters.endDate) {
@@ -221,34 +209,22 @@ const AuditLogs = () => {
   }, [fetchAuditLogs]);
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchAuditLogs(false);
-    }, 15000);
-
+    const intervalId = setInterval(() => fetchAuditLogs(false), 15000);
     return () => clearInterval(intervalId);
   }, [fetchAuditLogs]);
 
   useEffect(() => {
-    if (filters.startDate && filters.endDate) {
-      fetchStats();
-    }
+    if (filters.startDate && filters.endDate) fetchStats();
   }, [fetchStats, filters.startDate, filters.endDate]);
 
-  const handleFilterChange = (key, value) => {
+  const handleFilterChange = (key, value) =>
     setFilters({ ...filters, [key]: value, page: 1 });
-  };
-
-  const handlePageChange = (newPage) => {
+  const handlePageChange = (newPage) =>
     setFilters({ ...filters, page: newPage });
-  };
-
-  const handleRefresh = () => {
-    fetchAuditLogs(false);
-  };
+  const handleRefresh = () => fetchAuditLogs(false);
 
   const handleExportCSV = () => {
     if (logs.length === 0) return;
-
     const headers = [
       "Timestamp",
       "Role",
@@ -257,7 +233,6 @@ const AuditLogs = () => {
       "Status",
       "Description",
     ];
-
     const rows = logs.map((log) => [
       formatDateTime(log.timestamp),
       log.userRole,
@@ -266,19 +241,17 @@ const AuditLogs = () => {
       log.status,
       log.description,
     ]);
-
     const csvContent = [
       headers.join(","),
       ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
     ].join("\n");
-
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `audit-logs-${new Date().toISOString().split("T")[0]}.csv`,
+      `mortuary-audit-logs-${new Date().toISOString().split("T")[0]}.csv`,
     );
     link.click();
   };
@@ -296,55 +269,27 @@ const AuditLogs = () => {
     }
   };
 
-  const getActionColor = (action) => {
-    const actionColors = {
-      event_created: "bg-blue-100 text-blue-800",
-      event_updated: "bg-purple-100 text-purple-800",
-      event_deleted: "bg-red-100 text-red-800",
-      attendance_recorded: "bg-green-100 text-green-800",
-      attendance_updated: "bg-yellow-100 text-yellow-800",
-      member_imported: "bg-indigo-100 text-indigo-800",
-      qr_code_generated: "bg-pink-100 text-pink-800",
-      scanner_registered: "bg-cyan-100 text-cyan-800",
-    };
-    return actionColors[action] || "bg-slate-100 text-slate-800";
-  };
-
-  const getRoleColor = (role) => {
-    const roleColors = {
-      admin: "bg-red-100 text-red-800",
-      secretary: "bg-blue-100 text-blue-800",
-      scanner: "bg-green-100 text-green-800",
-      member: "bg-slate-100 text-slate-800",
-      super_admin: "bg-purple-100 text-purple-800",
-    };
-    return roleColors[role] || "bg-slate-100 text-slate-800";
-  };
-
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            AUDIT LOGS
+            Audit Logs
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Monitor and track all activities in the attendance module
+            Monitor and track all claim activity in the mortuary module
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-coop-green/40 hover:bg-green-50 hover:text-coop-green"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-coop-green/40 hover:bg-green-50 hover:text-coop-green"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
             <span
               className={`h-2.5 w-2.5 rounded-full ${refreshing ? "bg-yellow-500" : "bg-green-500"}`}
@@ -359,7 +304,7 @@ const AuditLogs = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -408,9 +353,7 @@ const AuditLogs = () => {
           <Filter className="w-4 h-4 text-coop-green" />
           <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
-          {/* Date Range */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-700">
               Start Date
@@ -422,7 +365,6 @@ const AuditLogs = () => {
               className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
             />
           </div>
-
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-700">
               End Date
@@ -434,8 +376,6 @@ const AuditLogs = () => {
               className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
             />
           </div>
-
-          {/* Role Filter */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-700">
               Role
@@ -447,14 +387,10 @@ const AuditLogs = () => {
             >
               <option value="">All Roles</option>
               <option value="admin">Admin</option>
-              <option value="secretary">Secretary</option>
-              <option value="scanner">Scanner</option>
-              <option value="member">Member</option>
+              <option value="treasurer">Treasurer</option>
               <option value="super_admin">Super Admin</option>
             </select>
           </div>
-
-          {/* Action Filter */}
           <div className="space-y-2 xl:col-span-2">
             <label className="block text-sm font-medium text-slate-700">
               Action
@@ -466,14 +402,14 @@ const AuditLogs = () => {
                 className="w-full sm:flex-1 h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
               >
                 <option value="">All Actions</option>
-                <option value="event_created">Event Created</option>
-                <option value="event_updated">Event Updated</option>
-                <option value="event_deleted">Event Deleted</option>
-                <option value="attendance_recorded">Attendance Recorded</option>
-                <option value="member_imported">Member Imported</option>
-                <option value="qr_code_generated">QR Generated</option>
+                <option value="claim_created">Claim Filed</option>
+                <option value="claim_approved">Claim Approved</option>
+                <option value="claim_rejected">Claim Rejected</option>
+                <option value="claim_deduction_processed">
+                  Deduction Processed
+                </option>
+                <option value="claim_released">Benefit Released</option>
               </select>
-
               <button
                 onClick={handleExportCSV}
                 className="inline-flex h-10 items-center justify-center gap-2 px-5 bg-coop-green text-white text-sm font-semibold rounded-lg hover:bg-coop-darkGreen transition-colors whitespace-nowrap sm:w-auto w-full"
@@ -486,7 +422,7 @@ const AuditLogs = () => {
         </div>
       </div>
 
-      {/* Audit Logs Table */}
+      {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center h-64">
@@ -581,7 +517,6 @@ const AuditLogs = () => {
               </table>
             </div>
 
-            {/* Pagination */}
             <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-slate-200">
               <div className="text-sm text-slate-600">
                 Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
@@ -652,7 +587,7 @@ const AuditLogs = () => {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase">
-                      When
+                      Date
                     </p>
                     <p className="text-sm text-slate-900 mt-1">
                       {formatDateTime(selectedLog.timestamp)}
@@ -725,33 +660,6 @@ const AuditLogs = () => {
                     <div>
                       <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
                         Details
-                      </p>
-                      <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                        {rows.map((row) => (
-                          <div
-                            key={row.label}
-                            className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                          >
-                            <span className="font-medium text-slate-700">
-                              {row.label}
-                            </span>
-                            <span className="text-slate-900 text-right">
-                              {row.value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {(() => {
-                  const rows = describeMetadata(selectedLog.metadata);
-                  if (!rows.length) return null;
-                  return (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                        Additional Info
                       </p>
                       <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
                         {rows.map((row) => (

@@ -20,6 +20,9 @@ const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { getMemberBalanceSnapshots } = require('./deductionController');
 const { checkAndNotify } = require('../services/thresholdNotificationService');
+const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // A claim sitting in "pending_deduction" IS the notification to the
 // Treasurer — this codebase has no generic in-app notification system
@@ -62,6 +65,38 @@ const listAwaitingRelease = async (req, res) => {
   }
 };
 
+// The Claim Disbursement Report — every claim that has already been paid
+// out, for record-keeping (DV number, who released it, when, how much).
+const listReleasedClaims = async (req, res) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const { search } = req.query;
+    const query = { status: 'released' };
+
+    if (search) {
+      const regex = new RegExp(escapeRegex(search), 'i');
+      query.$or = [
+        { claimId: regex },
+        { memberName: regex },
+        { beneficiaryName: regex },
+        { 'payout.dvNumber': regex },
+      ];
+    }
+
+    const total = await Claim.countDocuments(query);
+    const claims = await Claim.find(query).sort({ 'payout.releasedAt': -1 }).skip(skip).limit(limit);
+
+    res.status(200).json(buildPaginatedResponse(claims, total, page, limit));
+  } catch (error) {
+    console.error('Error fetching disbursement report:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching disbursement report',
+      error: error.message,
+    });
+  }
+};
+
 const getClaimById = async (req, res) => {
   try {
     const { claimId } = req.params;
@@ -79,6 +114,58 @@ const getClaimById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching claim',
+      error: error.message,
+    });
+  }
+};
+
+// Read-only dry run of Flow A — lets the Treasurer see exactly who and how
+// much this deduction will touch before committing to it. Same member
+// snapshot processClaimDeduction uses, just without writing anything.
+const previewClaimDeduction = async (req, res) => {
+  try {
+    const { claimId } = req.params;
+    const claim = await Claim.findOne({ claimId });
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found' });
+    }
+    if (claim.status !== 'pending_deduction') {
+      return res.status(400).json({
+        success: false,
+        message: `Claim cannot be previewed for deduction from status "${claim.status}"`,
+      });
+    }
+
+    let deductionSetting = await DeductionSetting.findOne({ status: 'active' });
+    const amountPerMember = req.query.amount
+      ? parseFloat(req.query.amount)
+      : deductionSetting?.amount ?? 25;
+
+    if (isNaN(amountPerMember) || amountPerMember <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid deduction amount' });
+    }
+
+    const { members } = await getMemberBalanceSnapshots();
+    const membersCharged = members.length;
+    const totalCollected = Math.round(amountPerMember * membersCharged * 100) / 100;
+    const membersGoingNegative = members.filter((m) => (m.balance || 0) - amountPerMember < 0).length;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        claimId,
+        memberName: claim.memberName,
+        amountPerMember,
+        membersCharged,
+        totalCollected,
+        membersGoingNegative,
+      },
+    });
+  } catch (error) {
+    console.error('Error previewing claim deduction:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error previewing claim deduction',
       error: error.message,
     });
   }
@@ -157,6 +244,7 @@ const processClaimDeduction = async (req, res) => {
       }
     }
 
+    const before = claim.toObject();
     const now = new Date();
     claim.status = 'deduction_processed';
     claim.deduction = {
@@ -176,6 +264,22 @@ const processClaimDeduction = async (req, res) => {
 
     await claim.save();
 
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: processedBy,
+      userRole: req.user?.role || 'treasurer',
+      action: 'claim_deduction_processed',
+      module: 'mortuary',
+      entityType: 'claim',
+      entityId: claim.claimId,
+      entityName: claim.memberName,
+      description: `Charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total) for claim ${claim.claimId}`,
+      changes: { before, after: claim.toObject() },
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
     res.status(200).json({
       success: true,
       message: `Deduction processed for ${membersCharged} members`,
@@ -192,12 +296,18 @@ const processClaimDeduction = async (req, res) => {
 };
 
 // Flow B, per claim: pay the deceased member's own accumulated balance out
-// to their beneficiary.
+// to their beneficiary — this is the Claim Disbursement recording step.
+// A DV (Disbursement Voucher) number is required since it's the physical
+// paper trail the cooperative's own accounting already relies on.
 const releaseClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
-    const { amount, paymentMethod } = req.body;
+    const { amount, paymentMethod, dvNumber, releaseDate, remarks } = req.body;
     const releasedBy = req.body.releasedBy || req.user?.username || 'treasurer';
+
+    if (!dvNumber?.trim()) {
+      return res.status(400).json({ success: false, message: 'A DV (Disbursement Voucher) number is required' });
+    }
 
     const claim = await Claim.findOne({ claimId });
     if (!claim) {
@@ -221,20 +331,24 @@ const releaseClaim = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid payout amount' });
     }
 
+    const parsedReleaseDate = releaseDate ? new Date(releaseDate) : new Date();
+    const effectiveReleaseDate = isNaN(parsedReleaseDate.getTime()) ? new Date() : parsedReleaseDate;
+
     const newBalance = currentBalance - payoutAmount;
+    const before = claim.toObject();
 
     const ledgerEntry = new Ledger({
       ledgerId: uuidv4(),
       memberId: claim.memberId,
       transactionType: 'claim_payout',
-      description: `Death benefit payout to ${claim.beneficiaryName}`,
+      description: `Death benefit payout to ${claim.beneficiaryName} (DV# ${dvNumber.trim()})`,
       credit: 0,
       debit: payoutAmount,
       balance: newBalance,
       referenceId: claimId,
       beneficiary: claim.beneficiaryName,
       paymentMethod: paymentMethod || 'cash',
-      transactionDate: new Date(),
+      transactionDate: effectiveReleaseDate,
       recordedBy: releasedBy,
     });
     await ledgerEntry.save();
@@ -244,18 +358,36 @@ const releaseClaim = async (req, res) => {
     claim.payout = {
       amount: payoutAmount,
       paymentMethod: paymentMethod || 'cash',
+      dvNumber: dvNumber.trim(),
+      remarks: remarks?.trim() || undefined,
       releasedBy,
-      releasedAt: now,
+      releasedAt: effectiveReleaseDate,
       ledgerId: ledgerEntry.ledgerId,
     };
     claim.statusHistory.push({
       status: 'released',
       changedBy: releasedBy,
       changedAt: now,
-      notes: `₱${payoutAmount} released to ${claim.beneficiaryName}`,
+      notes: `₱${payoutAmount} released to ${claim.beneficiaryName} (DV# ${dvNumber.trim()})`,
     });
 
     await claim.save();
+
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: releasedBy,
+      userRole: req.user?.role || 'treasurer',
+      action: 'claim_released',
+      module: 'mortuary',
+      entityType: 'claim',
+      entityId: claim.claimId,
+      entityName: claim.memberName,
+      description: `Released ₱${payoutAmount} to ${claim.beneficiaryName} for claim ${claim.claimId} (DV# ${dvNumber.trim()})`,
+      changes: { before, after: claim.toObject() },
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
 
     res.status(200).json({
       success: true,
@@ -275,7 +407,9 @@ const releaseClaim = async (req, res) => {
 module.exports = {
   listPendingDeduction,
   listAwaitingRelease,
+  listReleasedClaims,
   getClaimById,
   processClaimDeduction,
+  previewClaimDeduction,
   releaseClaim,
 };

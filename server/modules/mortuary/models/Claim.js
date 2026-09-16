@@ -103,6 +103,8 @@ const claimSchema = new mongoose.Schema(
     payout: {
       amount: { type: Number },
       paymentMethod: { type: String, enum: ['cash'], default: 'cash' },
+      dvNumber: { type: String },
+      remarks: { type: String },
       releasedBy: { type: String },
       releasedAt: { type: Date },
       ledgerId: { type: String },

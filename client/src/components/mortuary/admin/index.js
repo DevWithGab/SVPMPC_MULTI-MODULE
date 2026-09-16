@@ -10,3 +10,5 @@ export { default as Payouts } from './Payouts';
 export { default as ProfileUpdates } from './ProfileUpdates';
 export { default as Settings } from './Settings';
 export { default as Reports } from './Reports';
+export { default as AuditLogs } from './AuditLogs';
+export { default as DatabaseBackup } from './DatabaseBackup';

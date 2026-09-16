@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown } from 'lucide-react';
 import { AreaChart, Area, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
 import StatCard from '../shared/StatCard';
@@ -153,6 +153,33 @@ const Dashboard = ({ stats, contributions = [] }) => {
           subtitle={isOptimal ? 'Optimal' : 'Needs attention'}
           icon={ShieldCheck}
           color={isOptimal ? 'emerald' : 'rose'}
+        />
+      </div>
+
+      {/* Claims Fund — death-fund assessment money in vs. benefit money out,
+          across every claim. Separate from Total Fund above, which is
+          members' own contribution balances. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard
+          title="Total Deductions Collected"
+          value={`₱${(stats?.totalDeductionsCollected || 0).toLocaleString()}`}
+          subtitle="From death-fund assessments"
+          icon={TrendingUp}
+          color="blue"
+        />
+        <StatCard
+          title="Total Claims Released"
+          value={`₱${(stats?.totalReleased || 0).toLocaleString()}`}
+          subtitle="Benefits paid out (max ₱100,000/claim)"
+          icon={TrendingDown}
+          color="rose"
+        />
+        <StatCard
+          title="Net Claims Income"
+          value={`₱${(stats?.netClaimsBalance || 0).toLocaleString()}`}
+          subtitle="Collected minus released"
+          icon={Wallet}
+          color={(stats?.netClaimsBalance || 0) >= 0 ? 'emerald' : 'rose'}
         />
       </div>
 
