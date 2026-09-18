@@ -9,20 +9,7 @@ import { Pie, PieChart } from 'recharts';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import api from '../../../services/api';
-
-const StatCard = ({ title, value, icon: Icon, color = "green" }) => (
-  <Card className="p-6 border-slate-200/60 shadow-lg rounded-[2rem] bg-white">
-    <div className="flex items-center gap-4">
-      <div className={`p-3 ${color === 'green' ? 'bg-green-50' : `bg-${color}-50`} rounded-xl`}>
-        <Icon className={`w-6 h-6 ${color === 'green' ? 'text-coop-green' : `text-${color}-600`}`} />
-      </div>
-      <div>
-        <p className="text-sm font-bold text-slate-500">{title}</p>
-        <h3 className="text-2xl font-black text-slate-950">{value}</h3>
-      </div>
-    </div>
-  </Card>
-);
+import StatCard from '../shared/StatCard';
 
 const MemberRow = ({ member }) => (
   <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">

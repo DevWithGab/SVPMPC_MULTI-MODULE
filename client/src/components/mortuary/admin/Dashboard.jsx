@@ -31,63 +31,25 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { mortuaryDashboardAPI } from "../../../services/api";
 import { getClaimStatusMeta } from "./claimMeta";
+import StatCard from "../shared/StatCard";
 
 // ---- Local presentational pieces -------------------------------------
-// Kept local to this page (rather than extending the shared StatCard/Card)
-// so this redesign doesn't ripple into the treasurer or attendance
-// dashboards, which use those same primitives.
-
-const TONE = {
-  green: { bg: "bg-green-50", text: "text-coop-green" },
-  amber: { bg: "bg-amber-50", text: "text-amber-600" },
-  blue: { bg: "bg-blue-50", text: "text-blue-600" },
-  rose: { bg: "bg-rose-50", text: "text-rose-600" },
-  slate: { bg: "bg-slate-100", text: "text-slate-500" },
-};
 
 const toAmount = (value) => Number(value) || 0;
 const formatAmount = (value) => toAmount(value).toLocaleString();
 
-const StatTile = ({
-  label,
-  value,
-  subtitle,
-  icon: Icon,
-  tone = "green",
-  solid = false,
-  onClick,
-}) => {
-  const t = TONE[tone] || TONE.green;
-  const Tag = onClick ? "button" : "div";
-  return (
-    <Tag
-      type={onClick ? "button" : undefined}
-      onClick={onClick}
-      className={`w-full text-left bg-white border border-slate-200 rounded-2xl p-5 flex items-start gap-4 ${
-        onClick
-          ? "transition-colors hover:border-coop-green/40 hover:bg-green-50/40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/40"
-          : ""
-      }`}
-    >
-      <div
-        className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${solid ? "bg-coop-green" : t.bg}`}
-      >
-        <Icon className={`w-5 h-5 ${solid ? "text-white" : t.text}`} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide truncate">
-          {label}
-        </p>
-        <p className="text-2xl font-bold text-slate-900 mt-1 leading-none">
-          {value}
-        </p>
-        {subtitle && (
-          <p className="text-xs text-slate-400 mt-1.5">{subtitle}</p>
-        )}
-      </div>
-    </Tag>
-  );
-};
+// Thin wrapper so this page keeps its own `label`/`tone`/`solid` vocabulary
+// while the gradient look itself lives in one place (shared/StatCard).
+const StatTile = ({ label, value, subtitle, icon, tone = "green", solid = false, onClick }) => (
+  <StatCard
+    title={label}
+    value={value}
+    subtitle={subtitle}
+    icon={icon}
+    color={solid ? "green" : tone}
+    onClick={onClick}
+  />
+);
 
 const getActivityIcon = (status) => {
   switch (status) {
