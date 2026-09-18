@@ -2,7 +2,6 @@ export { default as Dashboard } from './Dashboard.jsx';
 export { default as MemberBalances } from './MemberBalances.jsx';
 export { default as Contributions } from './Contributions.jsx';
 export { default as DeathVerifications } from './DeathVerifications.jsx';
-export { default as Reports } from './Reports.jsx';
 export { default as MemberLedger } from './MemberLedger.jsx';
 export { default as FundBalances } from './FundBalances.jsx';
 export { default as ContributionManagement } from './ContributionManagement.jsx';

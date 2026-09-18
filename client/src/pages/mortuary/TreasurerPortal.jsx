@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, CreditCard, FileText, LayoutGrid,
-  LogOut, BarChart3, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
+  LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
@@ -10,7 +10,6 @@ import {
   Dashboard,
   MemberBalances,
   Contributions,
-  Reports,
   MemberLedger,
   ClaimsPendingDeduction,
   ClaimsAwaitingRelease,
@@ -568,14 +567,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             setIsAddContributionOpen={openAddContribution}
           />
         );
-      case 'reports':
-        return (
-          <Reports 
-            members={members}
-            contributions={contributions}
-            stats={stats}
-          />
-        );
       case 'ledger':
         return (
           <MemberLedger
@@ -655,7 +646,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="reports" icon={BarChart3} label="Fund Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
         </nav>
 
         {/* Footer */}
