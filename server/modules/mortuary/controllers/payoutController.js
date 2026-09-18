@@ -1,5 +1,6 @@
 const { Member } = require('../../../shared/models');
 const { Ledger } = require('../models');
+const { getLatestBalance } = require('../utils/ledgerBalance');
 
 const payoutController = {
   // Get all payouts
@@ -68,11 +69,7 @@ const payoutController = {
       }
 
       // Get current balance
-      const lastLedgerEntry = await Ledger.findOne({ 
-        memberId: member_id 
-      }).sort({ transactionDate: -1, _id: -1 });
-
-      const currentBalance = lastLedgerEntry ? lastLedgerEntry.balance : 0;
+      const currentBalance = await getLatestBalance(member_id);
       const newBalance = currentBalance - amount;
 
       // Create payout ledger entry

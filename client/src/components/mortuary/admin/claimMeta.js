@@ -52,6 +52,9 @@ export const CLAIM_STATUS_META = {
   },
 };
 
+// Drives the status filter dropdown. 'approved' is deliberately absent: the
+// enum still allows it, but approveClaim moves a claim straight to
+// 'pending_deduction', so offering it as a filter would always return nothing.
 export const CLAIM_STATUS_ORDER = [
   'pending_requirements',
   'pending_deduction',
@@ -59,6 +62,26 @@ export const CLAIM_STATUS_ORDER = [
   'released',
   'rejected',
 ];
+
+// Who a claim is waiting on at each status, and what the next step is called.
+// A status badge says what a claim IS; this says what someone should DO about
+// it, which is what the list view needs to label its action button and to mark
+// the rows that need the Admin rather than the Treasurer.
+//
+//   actor 'admin'     - the Admin acts next; render as the primary call to action
+//   actor 'treasurer' - handed off, the Admin can only look
+//   actor null        - settled, nothing left to do
+export const CLAIM_STATUS_ACTION = {
+  pending_requirements: { actor: 'admin', label: 'Review Requirements', hint: 'Needs your review' },
+  approved: { actor: 'admin', label: 'Review Claim', hint: 'Needs your review' },
+  pending_deduction: { actor: 'treasurer', label: 'View', hint: 'With Treasurer' },
+  deduction_processed: { actor: 'treasurer', label: 'View', hint: 'With Treasurer' },
+  released: { actor: null, label: 'View Details', hint: '' },
+  rejected: { actor: null, label: 'View Details', hint: '' },
+};
+
+export const getClaimAction = (status) =>
+  CLAIM_STATUS_ACTION[status] || { actor: null, label: 'View Details', hint: '' };
 
 export const getClaimStatusMeta = (status) =>
   CLAIM_STATUS_META[status] || CLAIM_STATUS_META.pending_requirements;

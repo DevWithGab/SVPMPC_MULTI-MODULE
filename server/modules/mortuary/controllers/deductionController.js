@@ -8,12 +8,6 @@ const { getPaginationParams, buildPaginationMeta } = require('../../../shared/ut
 const DEDUCTION_AMOUNT = 25; // 25 pesos per death
 const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
 
-const extractBarangay = (address) => {
-  if (!address) return 'Not Specified';
-  const parts = address.split(',');
-  return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
-};
-
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter }) => {
@@ -25,11 +19,19 @@ const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter }) => {
   }
 
   if (barangayFilter && barangayFilter !== 'All') {
-    const barangayRegex = new RegExp(escapeRegex(barangayFilter), 'i');
+    // The filter value comes from the list of distinct Member.barangay values,
+    // so match that field exactly. Legacy members saved before barangay was
+    // captured separately have it blank — only those fall back to matching the
+    // address text, otherwise a member living on a street named after another
+    // barangay would be filtered into the wrong one.
+    const exactBarangay = new RegExp(`^${escapeRegex(barangayFilter)}$`, 'i');
     andConditions.push({
       $or: [
-        { barangay: barangayRegex },
-        { address: barangayRegex },
+        { barangay: exactBarangay },
+        {
+          barangay: { $in: [null, ''] },
+          address: new RegExp(escapeRegex(barangayFilter), 'i'),
+        },
       ],
     });
   }
@@ -79,8 +81,11 @@ const getMemberBalanceSnapshots = async ({
               $expr: { $eq: ['$memberId', '$$memberId'] },
             },
           },
-          // Sort uses compound index: memberId + transactionDate
-          { $sort: { transactionDate: -1, createdAt: -1 } },
+          // Posting order (compound index: memberId + createdAt). Ordering by
+          // transactionDate here is what froze member balances — a row dated
+          // ahead of "now" masked every deduction posted after it. See
+          // utils/ledgerBalance.
+          { $sort: { createdAt: -1, _id: -1 } },
           { $limit: 1 },
           { $project: { balance: 1, transactionDate: 1, _id: 0 } }, // Exclude _id for smaller payload
         ],

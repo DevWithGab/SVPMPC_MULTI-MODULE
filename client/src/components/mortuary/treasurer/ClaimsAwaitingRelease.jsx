@@ -8,11 +8,14 @@ import { printClaimReceipt } from './claimReceipt';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 
+const peso = (value) =>
+  `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [target, setTarget] = useState(null);
-  const [form, setForm] = useState({ dvNumber: '', releaseDate: todayIso(), amount: '', remarks: '' });
+  const [form, setForm] = useState({ dvNumber: '', releaseDate: todayIso(), remarks: '' });
   const [submitting, setSubmitting] = useState(false);
   const [released, setReleased] = useState(null); // the just-released claim, once confirmed
 
@@ -35,12 +38,7 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
   const openModal = (claim) => {
     setTarget(claim);
     setReleased(null);
-    setForm({
-      dvNumber: '',
-      releaseDate: todayIso(),
-      amount: claim.deduction?.totalCollected ? String(claim.deduction.totalCollected) : '',
-      remarks: '',
-    });
+    setForm({ dvNumber: '', releaseDate: todayIso(), remarks: '' });
   };
 
   const closeModal = () => {
@@ -59,8 +57,10 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
 
     setSubmitting(true);
     try {
+      // No amount is sent: the payout is always the total collected from the
+      // other members for this claim and the server resolves it, so it cannot
+      // be altered from this screen.
       const res = await treasurerAPI.releaseClaim(target.claimId, {
-        amount: form.amount ? parseFloat(form.amount) : undefined,
         dvNumber: form.dvNumber.trim(),
         releaseDate: form.releaseDate,
         remarks: form.remarks.trim() || undefined,
@@ -184,17 +184,42 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
 
             <div>
               <label className="text-sm font-semibold text-slate-700 mb-1 block">
-                Amount Released (₱) — defaults to the member's current balance if left blank
+                Amount Released (₱) — to the beneficiary
               </label>
               <Input
-                type="number"
-                min="1"
-                step="0.01"
-                value={form.amount}
-                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                placeholder="Member's current balance"
-                className="h-12 text-lg font-bold"
+                type="text"
+                value={peso(target?.payoutAmount ?? target?.deduction?.totalCollected)}
+                readOnly
+                className="h-12 text-lg font-bold bg-slate-50 text-slate-700 cursor-not-allowed"
               />
+              <p className="text-xs text-slate-400 mt-1">
+                {target?.deduction?.membersCharged
+                  ? `${target.deduction.membersCharged.toLocaleString()} members × ${peso(target.deduction.amountPerMember)} deducted for this claim`
+                  : 'Set automatically from the deduction collected for this claim'}{' '}
+                — this cannot be edited.
+              </p>
+
+              {/* Once the assessment collects past the benefit cap, the surplus
+                  is the cooperative's income — show the Treasurer the split
+                  rather than leaving the difference unexplained. */}
+              {target?.retainedAmount > 0 && (
+                <dl className="mt-3 border border-slate-200 rounded-lg divide-y divide-slate-100 text-sm">
+                  <div className="flex justify-between px-3 py-2">
+                    <dt className="text-slate-500">Total collected from members</dt>
+                    <dd className="font-semibold text-slate-700">{peso(target.deduction?.totalCollected)}</dd>
+                  </div>
+                  <div className="flex justify-between px-3 py-2">
+                    <dt className="text-slate-500">
+                      Released to beneficiary (cap {peso(target.maxBenefitAmount)})
+                    </dt>
+                    <dd className="font-semibold text-slate-700">{peso(target.payoutAmount)}</dd>
+                  </div>
+                  <div className="flex justify-between px-3 py-2 bg-slate-50">
+                    <dt className="text-slate-500">Retained as cooperative income</dt>
+                    <dd className="font-bold text-coop-green">{peso(target.retainedAmount)}</dd>
+                  </div>
+                </dl>
+              )}
             </div>
 
             <div>

@@ -183,8 +183,12 @@ export default function RegisterClaimModal({ isOpen, onClose, members, user, onR
             <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
               Deceased Member <span className="text-red-500">*</span>
             </label>
+            {/* No balance is passed: getAllMembers doesn't return one, and a
+                member's contribution balance has no bearing on which deceased
+                member a claim is filed for. The picker omits the figure rather
+                than showing a placeholder ₱0 that reads as real. */}
             <SearchableMemberSelect
-              members={(members || []).map((m) => ({ id: m.id, name: m.name, address: m.address, balance: 0 }))}
+              members={(members || []).map((m) => ({ id: m.id, name: m.name, barangay: m.barangay, address: m.address }))}
               value={memberId}
               onChange={setMemberId}
               placeholder="Search member by name or ID..."

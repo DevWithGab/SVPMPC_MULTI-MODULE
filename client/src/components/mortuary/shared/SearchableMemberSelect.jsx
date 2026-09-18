@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight } from 'lucide-react';
+import { getBarangay } from '../../../utils/helpers';
 
 const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Search member...", extraOptions = [] }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -107,14 +108,20 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
                        {m.name || 'Unknown Member'}
                      </p>
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                       UID: {m.id?.toString().padStart(6, '0') || '000000'} • {(m.address || '').split(',')[0] || 'No Address'}
+                       UID: {m.id?.toString().padStart(6, '0') || '000000'} • {getBarangay(m)}
                      </p>
                    </div>
-                   <div className="text-right">
-                      <p className={`text-xs font-black ${(m.balance || 0) >= 1000 ? 'text-coop-green' : 'text-rose-500'}`}>
-                        ₱{(m.balance || 0).toLocaleString()}
-                      </p>
-                   </div>
+                   {/* Callers that have no balance to show omit it entirely —
+                       rendering ₱0 would read as a real balance and, being under
+                       the low-balance threshold, would paint every member red.
+                       A genuine 0 still shows, hence the nullish check. */}
+                   {m.balance != null && (
+                     <div className="text-right">
+                        <p className={`text-xs font-black ${m.balance >= 1000 ? 'text-coop-green' : 'text-rose-500'}`}>
+                          ₱{m.balance.toLocaleString()}
+                        </p>
+                     </div>
+                   )}
                  </button>
                ))
             ) : (

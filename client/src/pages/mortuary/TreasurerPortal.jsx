@@ -14,7 +14,8 @@ import {
   MemberLedger,
   ClaimsPendingDeduction,
   ClaimsAwaitingRelease,
-  ClaimDisbursementReport
+  ClaimDisbursementReport,
+  ClaimIncomeReport
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
@@ -24,6 +25,7 @@ import { Toast } from '../../components/ui/toast';
 import Button from '../../components/shared/ui/Button';
 import Input from '../../components/shared/ui/Input';
 import api from '../../services/api';
+import { getBarangay } from '../../utils/helpers';
 
 const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate }) => (
   <button
@@ -53,6 +55,7 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
       { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
       { id: 'awaiting-release', label: 'Awaiting Release', count: counts?.awaitingRelease ?? 0 },
       { id: 'disbursement-report', label: 'Disbursement Report', count: 0 },
+      { id: 'income-report', label: 'Income Report', count: 0 },
     ].map((opt) => (
       <button
         key={opt.id}
@@ -73,12 +76,6 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
   </div>
 );
 
-const extractBarangay = (address) => {
-  if (!address) return 'Not Specified';
-  const parts = address.split(',');
-  return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
-};
-
 const PortalSkeleton = () => (
   <div className="space-y-6 animate-pulse" role="status" aria-label="Loading treasurer data">
     <div className="space-y-2">
@@ -97,7 +94,7 @@ const PortalSkeleton = () => (
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [claimsView, setClaimsView] = useState('pending-deduction'); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report'
+  const [claimsView, setClaimsView] = useState('pending-deduction'); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState({
@@ -402,18 +399,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
        return showToast('Please select a specific sector to trigger an automated notice.', 'error');
     }
 
-    const extractBarangay = (address) => {
-      if (!address) return 'Not Specified';
-      const parts = address.split(',');
-      return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
-    };
-
-    const targetedMembersCount = members.filter(m => {
-        if (!m.address) return false;
-        const parts = m.address.split(',');
-        const brgy = parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
-        return brgy === barangayFilter;
-    }).length;
+    const targetedMembersCount = members.filter(m => getBarangay(m) === barangayFilter).length;
 
     try {
       const res = await fetch('/api/admin/trigger-sector-notice', {
@@ -566,8 +552,10 @@ const TreasurerPortal = ({ user, onBack, token }) => {
               <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
             ) : claimsView === 'awaiting-release' ? (
               <ClaimsAwaitingRelease user={user} showToast={showToast} onReleased={refreshAllData} />
-            ) : (
+            ) : claimsView === 'disbursement-report' ? (
               <ClaimDisbursementReport />
+            ) : (
+              <ClaimIncomeReport />
             )}
           </div>
         );

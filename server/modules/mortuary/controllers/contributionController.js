@@ -4,6 +4,7 @@ const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { checkAndNotify } = require('../services/thresholdNotificationService');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
+const { getLatestBalance } = require('../utils/ledgerBalance');
 
 // Record contribution (admin)
 const recordContribution = async (req, res) => {
@@ -31,11 +32,9 @@ const recordContribution = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // Get current balance - sort by transactionDate (with createdAt as tiebreaker)
-    // to match how every other balance lookup in this module determines "latest"
-    // (getMemberBalance, getMemberBalanceSnapshots, releaseClaim, etc).
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
-    const currentBalance = latestLedger ? latestLedger.balance : 0;
+    // Posting order — see utils/ledgerBalance for why transactionDate must not
+    // decide this. Shared by every balance lookup in the module.
+    const currentBalance = await getLatestBalance(memberId);
     const newBalance = currentBalance + amount;
 
     // Create contribution record

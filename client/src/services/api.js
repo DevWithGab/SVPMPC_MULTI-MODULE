@@ -777,10 +777,18 @@ export const treasurerAPI = {
 
   // Read-only dry run — shown as the confirm-step preview before committing
   // to a deduction (how many members, per-member amount, total collected).
-  previewClaimDeduction: async (claimId, amount) => {
-    const response = await api.get(`/mortuary/treasurer/claims/${claimId}/deduction-preview`, {
-      params: amount ? { amount } : {},
-    });
+  // The per-member amount always comes from the Admin-set rate on the server;
+  // the Treasurer has no say in it, so nothing is passed in here.
+  previewClaimDeduction: async (claimId) => {
+    const response = await api.get(`/mortuary/treasurer/claims/${claimId}/deduction-preview`);
+    return response.data;
+  },
+
+  // The active Admin-set deduction rate, read-only. Same underlying setting the
+  // Admin edits in Deduction Settings — surfaced here so the Treasurer's
+  // Process Deduction screen can display the rate it is about to charge.
+  getDeductionRate: async () => {
+    const response = await api.get('/mortuary/treasurer/deduction-rate');
     return response.data;
   },
 
@@ -793,6 +801,15 @@ export const treasurerAPI = {
   // record-keeping (DV number, released by/when, amount).
   getDisbursementReport: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims/disbursement-report', { params });
+    return response.data;
+  },
+
+  // Claims Income Report — one row per claim that reached the deduction stage:
+  // collected from members, released to the beneficiary, retained as income.
+  // The response also carries `totals` across every matching claim (not just
+  // the page) and the active `maxBenefitAmount`.
+  getClaimIncomeReport: async (params = {}) => {
+    const response = await api.get('/mortuary/treasurer/claims/income-report', { params });
     return response.data;
   },
 };

@@ -3,12 +3,7 @@ import { Search, ArrowUpDown, ChevronRight, Wallet, Clock, AlertTriangle } from 
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import StatCard from '../shared/StatCard';
-
-const extractBarangay = (address) => {
-  if (!address) return 'Not Specified';
-  const parts = address.split(',');
-  return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
-};
+import { getBarangay } from '../../../utils/helpers';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -39,7 +34,7 @@ const MemberBalances = ({
 
   const filteredMembers = members
     .filter(m => (memberFilter === 'low' ? m.balance < 1000 : true))
-    .filter(m => (barangayFilter === 'All' ? true : extractBarangay(m.address) === barangayFilter))
+    .filter(m => (barangayFilter === 'All' ? true : getBarangay(m) === barangayFilter))
     .filter(m => (statusFilter === 'all' ? true : m.status === statusFilter))
     .filter(m => (m.name?.toLowerCase().includes(searchQuery.toLowerCase()) || m.id?.toString().includes(searchQuery)))
     .sort((a, b) => sortOrder === 'asc' ? a.balance - b.balance : b.balance - a.balance);
@@ -47,7 +42,7 @@ const MemberBalances = ({
   const totalPagesMemberBalances = Math.ceil(filteredMembers.length / itemsPerPage) || 1;
   const currentMembersBalancesChunk = filteredMembers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const uniqueBarangays = ['All', ...Array.from(new Set(members.map(m => extractBarangay(m.address))))].sort();
+  const uniqueBarangays = ['All', ...Array.from(new Set(members.map(getBarangay)))].sort();
   const hasActiveFilters = searchQuery !== '' || barangayFilter !== 'All' || statusFilter !== 'all' || memberFilter !== 'all';
   const clearFilters = () => {
     setSearchQuery('');
@@ -230,7 +225,7 @@ const MemberBalances = ({
                   </div>
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-600 hidden md:table-cell">
-                  {extractBarangay(m.address)}
+                  {getBarangay(m)}
                 </td>
                 <td className="px-6 py-4 text-right">
                   <span

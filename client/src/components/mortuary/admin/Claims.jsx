@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle } from 'lucide-react';
+import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle, ChevronRight } from 'lucide-react';
 import StatCard from '../shared/StatCard';
 import { claimAPI, mortuaryMemberAPI, mortuaryDashboardAPI } from '../../../services/api';
-import { getClaimStatusMeta, CLAIM_STATUS_ORDER } from './claimMeta';
+import { getClaimStatusMeta, getClaimAction, CLAIM_STATUS_ORDER } from './claimMeta';
 import ClaimDetails from './ClaimDetails';
 import RegisterClaimModal from './modals/RegisterClaimModal';
 
@@ -120,6 +120,9 @@ export default function Claims({ user }) {
               value={claimCounts[status] ?? 0}
               icon={icon}
               color={color}
+              // These double as quick filters, which was discoverable only by
+              // hovering — spell it out on the card itself.
+              subtitle={statusFilter === status ? 'Filtering by this — click to clear' : 'Click to filter'}
               active={statusFilter === status}
               onClick={() => setStatusFilter(statusFilter === status ? 'all' : status)}
             />
@@ -173,23 +176,39 @@ export default function Claims({ user }) {
               <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Beneficiary</th>
               <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Date Filed</th>
               <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
+              <th className="text-right px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">Loading claims...</td>
+                <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">Loading claims...</td>
               </tr>
             ) : claims.length > 0 ? (
               claims.map((claim) => {
                 const meta = getClaimStatusMeta(claim.status);
+                const action = getClaimAction(claim.status);
+                const needsAdmin = action.actor === 'admin';
+                const open = () => setSelectedClaimId(claim.claimId);
                 return (
+                  // The row stays clickable as a mouse convenience, but it is
+                  // NOT given role="button"/tabIndex: that would nest an
+                  // interactive element inside another. The Action button below
+                  // is the real control, so keyboard users tab straight to it.
                   <tr
                     key={claim.claimId}
-                    onClick={() => setSelectedClaimId(claim.claimId)}
-                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={open}
+                    className={`transition-colors cursor-pointer ${
+                      needsAdmin ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-slate-50/50'
+                    }`}
                   >
-                    <td className="px-6 py-4 text-xs font-mono text-slate-500">{claim.claimId.slice(0, 8)}</td>
+                    {/* Accent lives on the first cell rather than the row —
+                        a border on a <tr> is swallowed by border-collapse. */}
+                    <td className={`px-6 py-4 text-xs font-mono text-slate-500 border-l-2 ${
+                      needsAdmin ? 'border-amber-400' : 'border-transparent'
+                    }`}>
+                      {claim.claimId.slice(0, 8)}
+                    </td>
                     <td className="px-6 py-4 text-sm font-semibold text-slate-900">{claim.memberName}</td>
                     <td className="px-6 py-4 text-sm text-slate-600 hidden md:table-cell">{claim.beneficiaryName}</td>
                     <td className="px-6 py-4 text-sm text-slate-500 hidden sm:table-cell">
@@ -200,13 +219,37 @@ export default function Claims({ user }) {
                         <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                         {meta.label}
                       </span>
+                      {/* The badge says what the claim is; this says whose turn
+                          it is, which is what the Admin is actually scanning for. */}
+                      {action.hint && (
+                        <span className={`block text-[11px] mt-1 ${
+                          needsAdmin ? 'font-semibold text-amber-700' : 'text-slate-400'
+                        }`}>
+                          {action.hint}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); open(); }}
+                        aria-label={`${action.label} for the claim of ${claim.memberName}`}
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/40 ${
+                          needsAdmin
+                            ? 'bg-coop-green hover:bg-coop-darkGreen text-white'
+                            : 'border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-coop-green'
+                        }`}
+                      >
+                        {action.label}
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">
+                <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">
                   <div className="flex flex-col items-center gap-2">
                     <FileText className="w-8 h-8 text-slate-300" />
                     {error || 'No claims found.'}

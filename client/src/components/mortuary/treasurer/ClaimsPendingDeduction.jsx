@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Banknote, Loader2, AlertTriangle, FileText } from 'lucide-react';
+import { Banknote, Loader2, AlertTriangle, FileText, Lock } from 'lucide-react';
 import Modal from '../shared/Modal';
 import Button from '../../shared/ui/Button';
-import Input from '../../shared/ui/Input';
 import { treasurerAPI } from '../../../services/api';
 
 export default function ClaimsPendingDeduction({ user, showToast, onProcessed }) {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [target, setTarget] = useState(null); // claim being processed
-  const [amount, setAmount] = useState('');
+  // The per-member amount is set by the Admin in Deduction Settings and is only
+  // displayed here — the Treasurer can't change it, and the server resolves it
+  // again on its own, so nothing about the amount is sent from this screen.
+  const [rate, setRate] = useState(null);
   const [confirmStep, setConfirmStep] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -27,13 +29,22 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
     }
   }, []);
 
+  const loadRate = useCallback(async () => {
+    try {
+      const res = await treasurerAPI.getDeductionRate();
+      setRate(res?.data || null);
+    } catch {
+      setRate(null);
+    }
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadRate();
+  }, [load, loadRate]);
 
   const openModal = (claim) => {
     setTarget(claim);
-    setAmount('25');
     setConfirmStep(false);
     setPreview(null);
   };
@@ -47,16 +58,11 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
 
   const handleReview = async (e) => {
     e.preventDefault();
-    const parsed = parseFloat(amount);
-    if (isNaN(parsed) || parsed <= 0) {
-      showToast?.('Enter a valid amount.', 'error');
-      return;
-    }
     setConfirmStep(true);
     setPreviewLoading(true);
     setPreview(null);
     try {
-      const res = await treasurerAPI.previewClaimDeduction(target.claimId, parsed);
+      const res = await treasurerAPI.previewClaimDeduction(target.claimId);
       setPreview(res?.data || null);
     } catch (err) {
       showToast?.(err.response?.data?.message || 'Unable to preview this deduction.', 'error');
@@ -71,7 +77,6 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
     setSubmitting(true);
     try {
       const res = await treasurerAPI.processClaimDeduction(target.claimId, {
-        customAmount: parseFloat(amount),
         processedBy: user?.name || user?.username,
       });
       showToast?.(res?.message || 'Deduction processed.', 'success');
@@ -147,9 +152,22 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
               Charge every other active member for the death of{' '}
               <span className="font-bold text-slate-800">{target?.memberName}</span>.
             </p>
+            {/* Read-only by design: the rate is the Admin's to set, not the
+                Treasurer's to adjust per claim. */}
             <div>
-              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount per member (₱)</label>
-              <Input type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required className="h-12 text-lg font-bold" />
+              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount per member</label>
+              <div className="h-12 px-4 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50">
+                <span className="text-lg font-bold text-slate-900">
+                  {rate?.amount != null ? `₱${Number(rate.amount).toLocaleString()}` : '—'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                  <Lock className="w-3.5 h-3.5" /> Fixed rate
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1.5">
+                Set by the Admin in Deduction Settings
+                {rate?.effectiveDate ? ` • effective ${new Date(rate.effectiveDate).toLocaleDateString()}` : ''}.
+              </p>
             </div>
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="ghost" onClick={closeModal} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
@@ -165,7 +183,8 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
             <div className="flex items-start gap-3 p-4 border border-rose-200 bg-rose-50 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <p className="text-sm text-rose-800">
-                This will immediately deduct <span className="font-bold">₱{parseFloat(amount || 0).toLocaleString()}</span> from
+                This will immediately deduct{' '}
+                <span className="font-bold">₱{Number(preview?.amountPerMember ?? rate?.amount ?? 0).toLocaleString()}</span> from
                 every active member and cannot be undone.
               </p>
             </div>

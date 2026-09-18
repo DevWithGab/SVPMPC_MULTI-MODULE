@@ -2,33 +2,62 @@ const Ledger = require('../models/Ledger');
 const Contribution = require('../models/Contribution');
 const Claim = require('../models/Claim');
 const { Member } = require('../../../shared/models');
+const { LATEST_FIRST } = require('../utils/ledgerBalance');
 
-// Death-fund assessment money in vs. benefit money out, across every claim
-// ever processed — not the per-member contribution balance (fundBalance)
-// tracked separately. A claim only has `deduction`/`payout` once it reaches
-// that stage, so unset ones contribute 0 via $ifNull rather than being
-// excluded. Shared by both the Treasurer and Admin dashboards so the two
-// stay in agreement.
-const getClaimFinancialTotals = async () => {
+// The three claim-side money figures, as a clearing account. Money collected
+// for a claim is HELD until the disbursement is recorded, then splits in two:
+// the benefit to the beneficiary and the surplus to the cooperative. So across
+// a claim's life the tiles move like this:
+//
+//   after deduction   collected 52,200   released      0   income     0
+//   after release     collected      0   released 50,000   income 2,200
+//
+// The three always reconcile: held + released + income = everything ever
+// collected. Nothing is double-counted and nothing is stranded.
+//
+//   - totalDeductionsCollected: collected for claims NOT yet released. Drains
+//     to 0 as each claim is disbursed — it is money in hand, not a lifetime
+//     total. Critically it must NOT count a released claim, or the same pesos
+//     would show up both here and in released/income.
+//   - totalReleased: what actually went out to beneficiaries.
+//   - netClaimsBalance: the surplus kept, recognised on release. Derived from
+//     the ACTUAL payout rather than the cap, so claims released under the old
+//     pre-cap rule (payout was the deceased member's own balance) report the
+//     surplus that really was retained, even when that is negative.
+//
+// A claim only has `deduction`/`payout` once it reaches that stage, so unset
+// ones contribute 0 via $ifNull rather than being excluded. Shared by both
+// dashboards and the Claims Income Report so all three stay in agreement.
+const getClaimFinancialTotals = async (match) => {
+  const collected = { $ifNull: ['$deduction.totalCollected', 0] };
+  const payout = { $ifNull: ['$payout.amount', 0] };
+  // A claim is settled once a payout amount exists on it.
+  const isReleased = { $ne: [{ $ifNull: ['$payout.amount', null] }, null] };
+
   const [claimTotals] = await Claim.aggregate([
+    // The dashboards total every claim; the Claims Income Report passes its
+    // current search filter so the report footer matches the rows shown.
+    ...(match ? [{ $match: match }] : []),
     {
       $group: {
         _id: null,
-        totalDeductionsCollected: { $sum: { $ifNull: ['$deduction.totalCollected', 0] } },
-        totalReleased: { $sum: { $ifNull: ['$payout.amount', 0] } },
+        totalDeductionsCollected: { $sum: { $cond: [isReleased, 0, collected] } },
+        totalReleased: { $sum: payout },
+        netClaimsBalance: {
+          $sum: { $cond: [isReleased, { $subtract: [collected, payout] }, 0] },
+        },
       },
     },
   ]);
-  const totalDeductionsCollected = claimTotals?.totalDeductionsCollected || 0;
-  const totalReleased = claimTotals?.totalReleased || 0;
+
+  const round = (n) => Math.round((n || 0) * 100) / 100;
   return {
-    totalDeductionsCollected,
-    totalReleased,
-    netClaimsBalance: totalDeductionsCollected - totalReleased,
+    totalDeductionsCollected: round(claimTotals?.totalDeductionsCollected),
+    totalReleased: round(claimTotals?.totalReleased),
+    netClaimsBalance: round(claimTotals?.netClaimsBalance),
   };
 };
 
-// Get member dashboard data
 const getDashboard = async (req, res) => {
   try {
     const { memberId } = req.params;
@@ -40,7 +69,7 @@ const getDashboard = async (req, res) => {
     }
 
     // Get current balance
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
+    const latestLedger = await Ledger.findOne({ memberId }).sort(LATEST_FIRST);
     const currentBalance = latestLedger ? latestLedger.balance : 0;
 
     // Get contribution history (last 12 months)
@@ -104,7 +133,7 @@ const getTreasurerDashboard = async (req, res) => {
     
     for (const member of members) {
       const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-        .sort({ createdAt: -1 });
+        .sort(LATEST_FIRST);
       
       const balance = latestLedger ? latestLedger.balance : 0;
       fundBalance += balance;
@@ -254,9 +283,9 @@ const getAdminDashboard = async (req, res) => {
           ...claimCountsByStatus,
           totalDeductionsCollected,
           totalReleased,
-          // What's been collected for death-fund assessments but not yet
-          // paid out — "total income" from the claims side, separate from
-          // members' own contribution balances (fundBalance).
+          // The cooperative's income from the claims side: the surplus kept
+          // once a claim is disbursed. Separate from members' own
+          // contribution balances (fundBalance).
           netClaimsBalance,
         },
         recentClaimActivities,
@@ -276,4 +305,5 @@ module.exports = {
   getDashboard,
   getTreasurerDashboard,
   getAdminDashboard,
+  getClaimFinancialTotals,
 };

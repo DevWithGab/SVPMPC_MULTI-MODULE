@@ -50,7 +50,7 @@ const getEventDateValue = (event) => {
   return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
 };
 
-const QuickActionTile = ({ label, subtitle, onClick, accent = false }) => (
+const QuickActionTile = ({ icon: Icon, label, subtitle, onClick, accent = false }) => (
   <button
     type="button"
     onClick={onClick}

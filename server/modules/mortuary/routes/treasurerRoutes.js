@@ -41,11 +41,14 @@ const {
   listPendingDeduction,
   listAwaitingRelease,
   listReleasedClaims,
+  listClaimFinancials,
   getClaimById,
   processClaimDeduction,
   previewClaimDeduction,
   releaseClaim
 } = require('../controllers/treasurerClaimController');
+
+const { getCurrentRate } = require('../controllers/deductionSettingController');
 
 const router = express.Router();
 
@@ -62,6 +65,11 @@ router.get('/contributions/:memberId', getContributionHistory);
 router.get('/contributions', getAllContributions);
 
 // Member balance management routes
+// Read-only view of the Admin-set deduction rate. Only the Admin can change it
+// (POST lives on the admin router) — the Treasurer just needs to see the amount
+// its Process Deduction screen is about to charge.
+router.get('/deduction-rate', getCurrentRate);
+
 router.get('/balances/all', getAllMemberBalances);
 router.post('/balances/automatic-deduction', processAutomaticDeduction);
 router.get('/balances/low-balance-check', checkLowBalanceMembers);
@@ -87,6 +95,7 @@ router.get('/claims/awaiting-release', listAwaitingRelease);
 // Literal paths above must stay ahead of the '/claims/:claimId' param route
 // below, or Express would match them as a claimId of "disbursement-report" etc.
 router.get('/claims/disbursement-report', listReleasedClaims);
+router.get('/claims/income-report', listClaimFinancials);
 router.get('/claims/:claimId', getClaimById);
 router.get('/claims/:claimId/deduction-preview', previewClaimDeduction);
 router.post('/claims/:claimId/process-deduction', processClaimDeduction);

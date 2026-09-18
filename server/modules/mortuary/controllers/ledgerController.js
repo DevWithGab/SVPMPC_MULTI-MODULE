@@ -1,6 +1,7 @@
 const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
+const { LATEST_FIRST, getLatestBalance } = require('../utils/ledgerBalance');
 
 // Get member ledger - with pagination
 const getMemberLedger = async (req, res) => {
@@ -17,17 +18,15 @@ const getMemberLedger = async (req, res) => {
     // Get total count for pagination
     const total = await Ledger.countDocuments({ memberId });
 
-    // Get paginated ledger entries — createdAt breaks ties between entries
-    // that share a transactionDate (e.g. two same-day contributions), so the
-    // one actually posted last still sorts first.
+    // Listed in posting order, matching how the running `balance` column was
+    // computed — sorting a statement by the editable transactionDate would show
+    // the balance column jumping around. See utils/ledgerBalance.
     const ledgerEntries = await Ledger.find({ memberId })
-      .sort({ transactionDate: -1, createdAt: -1 })
+      .sort(LATEST_FIRST)
       .skip(skip)
       .limit(limit);
 
-    // Get current balance (from most recent entry)
-    const latestEntry = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
-    const currentBalance = latestEntry ? latestEntry.balance : 0;
+    const currentBalance = await getLatestBalance(memberId);
 
     // Calculate totals (from all entries, not just paginated)
     const allEntries = await Ledger.find({ memberId });
@@ -84,10 +83,9 @@ const getAllLedger = async (req, res) => {
     // Get total count for pagination
     const total = await Ledger.countDocuments(query);
 
-    // Get paginated ledger entries — createdAt breaks ties between entries
-    // that share a transactionDate, so the one actually posted last sorts first.
+    // Posting order, same reason as getMemberLedger above.
     const ledgerEntries = await Ledger.find(query)
-      .sort({ transactionDate: -1, createdAt: -1 })
+      .sort(LATEST_FIRST)
       .skip(skip)
       .limit(limit);
 
@@ -127,8 +125,7 @@ const getMemberBalance = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    const latestLedger = await Ledger.findOne({ memberId }).sort({ transactionDate: -1, createdAt: -1 });
-    const balance = latestLedger ? latestLedger.balance : 0;
+    const balance = await getLatestBalance(memberId);
 
     res.status(200).json({
       memberId,
@@ -205,11 +202,10 @@ const bulkUploadLedger = async (req, res) => {
         }
 
         // Get current balance for this member
-        const lastLedgerEntry = await Ledger.findOne({ 
-          memberId: entry.memberId 
-        }).sort({ transactionDate: -1, _id: -1 });
-
-        const currentBalance = lastLedgerEntry ? lastLedgerEntry.balance : 0;
+        // Posting order, not the uploaded transactionDate: a bulk file may
+        // carry back-dated or future-dated rows, and the running balance has to
+        // follow the order rows are actually written.
+        const currentBalance = await getLatestBalance(entry.memberId);
         const credit = parseFloat(entry.credit) || 0;
         const debit = parseFloat(entry.debit) || 0;
         const newBalance = currentBalance + credit - debit;

@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, X, Loader, Download } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
-
-const extractBarangay = (address) => {
-  if (!address) return 'Not Specified';
-  const parts = address.split(',');
-  return parts[0].trim().replace(/^Brgy\.\s*/i, '').replace(/^Barangay\s*/i, '');
-};
+import { getBarangay } from '../../../utils/helpers';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -513,7 +508,7 @@ const MemberLedger = ({
   }
 
   // ─── Member List View ───
-  const uniqueBarangays = ['All', ...Array.from(new Set(members.map(m => extractBarangay(m.address))))].sort();
+  const uniqueBarangays = ['All', ...Array.from(new Set(members.map(getBarangay)))].sort();
   const visibleMembers = ledgerMembers;
   const totalMembers = pagination?.total ?? visibleMembers.length;
   const totalPages = pagination?.totalPages ?? (Math.ceil(totalMembers / itemsPerPage) || 1);
@@ -621,7 +616,7 @@ const MemberLedger = ({
                     </div>
                   </div>
                 </td>
-                <td className="px-5 py-4 text-sm text-slate-600">{extractBarangay(member.address)}</td>
+                <td className="px-5 py-4 text-sm text-slate-600">{getBarangay(member)}</td>
                 <td className="px-5 py-4 text-right">
                   <span className={`text-sm font-bold tabular-nums ${member.balance < 1000 ? 'text-red-500' : 'text-slate-900'}`}>
                     ₱{member.balance?.toLocaleString()}

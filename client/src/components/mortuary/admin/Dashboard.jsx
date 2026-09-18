@@ -401,10 +401,10 @@ const Dashboard = ({
     claimCounts.totalDeductionsCollected,
   );
   const totalClaimsReleased = toAmount(claimCounts.totalReleased);
-  const netClaimsBalance = toAmount(
-    claimCounts.netClaimsBalance ??
-      totalDeductionsCollected - totalClaimsReleased,
-  );
+  // No client-side fallback: income is collected-above-the-cap, which the
+  // server derives per claim. Recomputing it here as collected-minus-released
+  // would silently report the beneficiary's unreleased money as income.
+  const netClaimsBalance = toAmount(claimCounts.netClaimsBalance);
 
   const exportToCSV = (data, filename) => {
     if (data.length === 0) return;
@@ -568,12 +568,14 @@ const Dashboard = ({
       {/* Claims fund — money the death-fund assessments have brought in vs.
           benefits already released, across every claim (not the same as
           Total Fund Balance above, which is members' own contribution
-          balances). Net Claims Income is what's left after releasing. */}
+          balances). A claim releases what was collected for it up to the
+          ₱50,000 benefit cap; the surplus above the cap is the cooperative's
+          income, which is what Net Claims Income totals. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatTile
           label="Total Deductions Collected"
           value={`₱${totalDeductionsCollected.toLocaleString()}`}
-          subtitle="From death-fund assessments"
+          subtitle="Held, awaiting release"
           icon={TrendingUp}
           tone="blue"
           onClick={() => setActiveTab("claims")}
@@ -581,7 +583,7 @@ const Dashboard = ({
         <StatTile
           label="Total Claims Released"
           value={`₱${totalClaimsReleased.toLocaleString()}`}
-          subtitle="Benefits paid out (max ₱100,000/claim)"
+          subtitle="Benefits paid out (max ₱50,000/claim)"
           icon={TrendingDown}
           tone="rose"
           onClick={() => setActiveTab("claims")}
@@ -589,7 +591,7 @@ const Dashboard = ({
         <StatTile
           label="Net Claims Income"
           value={`₱${netClaimsBalance.toLocaleString()}`}
-          subtitle="Collected minus released"
+          subtitle="Surplus retained by the cooperative"
           icon={Wallet}
           solid
         />

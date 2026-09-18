@@ -69,12 +69,15 @@ const adminController = {
   // Create new member
   createMember: async (req, res) => {
     try {
-      const { name, contact, status = 'active' } = req.body;
+      const { name, contact, barangay, address, status = 'active' } = req.body;
 
-      if (!name || !contact) {
+      // Barangay and address are separate required fields on Member — the
+      // barangay is what the treasurer screens filter and group by, so it
+      // can't be a placeholder or be inferred from the address text.
+      if (!name || !contact || !barangay || !address) {
         return res.status(400).json({
           success: false,
-          message: 'Name and contact are required'
+          message: 'Name, contact, barangay and address are required'
         });
       }
 
@@ -88,8 +91,8 @@ const adminController = {
         memberName: name,
         phoneNumber: contact,
         email: `member${memberId}@temp.com`, // Temporary email
-        barangay: 'Not specified',
-        address: 'Not specified',
+        barangay: barangay.trim(),
+        address: address.trim(),
         status,
         joinDate: new Date()
       });
@@ -117,6 +120,8 @@ const adminController = {
           id: member.memberId,
           name: member.memberName,
           contact: member.phoneNumber,
+          barangay: member.barangay,
+          address: member.address,
           status: member.status,
           join_date: member.joinDate.toISOString().split('T')[0]
         }
@@ -148,6 +153,8 @@ const adminController = {
       // Map frontend fields to database fields
       if (updateData.name) member.memberName = updateData.name;
       if (updateData.contact) member.phoneNumber = updateData.contact;
+      if (updateData.barangay) member.barangay = updateData.barangay.trim();
+      if (updateData.address) member.address = updateData.address.trim();
       if (updateData.status) member.status = updateData.status;
 
       await member.save();
@@ -159,6 +166,8 @@ const adminController = {
           id: member.memberId,
           name: member.memberName,
           contact: member.phoneNumber,
+          barangay: member.barangay,
+          address: member.address,
           status: member.status,
           join_date: member.joinDate.toISOString().split('T')[0]
         }
@@ -235,10 +244,10 @@ const adminController = {
 
       for (const memberData of members) {
         try {
-          const { name, contact, status = 'active' } = memberData;
+          const { name, contact, barangay, address, status = 'active' } = memberData;
 
-          if (!name || !contact) {
-            errors.push(`Missing name or contact for member: ${JSON.stringify(memberData)}`);
+          if (!name || !contact || !barangay || !address) {
+            errors.push(`Missing name, contact, barangay or address for member: ${JSON.stringify(memberData)}`);
             continue;
           }
 
@@ -249,8 +258,8 @@ const adminController = {
             memberName: name,
             phoneNumber: contact,
             email: `member${memberId}@temp.com`,
-            barangay: 'Not specified',
-            address: 'Not specified',
+            barangay: barangay.trim(),
+            address: address.trim(),
             status,
             joinDate: new Date()
           });
@@ -275,6 +284,8 @@ const adminController = {
             id: member.memberId,
             name: member.memberName,
             contact: member.phoneNumber,
+            barangay: member.barangay,
+            address: member.address,
             status: member.status,
             join_date: member.joinDate.toISOString().split('T')[0]
           });
