@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { loadAllPages } from '../../utils/loadAllPages';
+import LoadError from '../../components/shared/common/LoadError';
+import useUrlState from '../../hooks/useUrlState';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Users, CreditCard, FileText, LayoutGrid,
   LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
@@ -92,8 +95,8 @@ const PortalSkeleton = () => (
 
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [claimsView, setClaimsView] = useState('pending-deduction'); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
+  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'ledger', 'contributions']);
+  const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'awaiting-release', 'disbursement-report', 'income-report']); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState({
@@ -114,7 +117,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       deceased: 0
     }
   });
-  const [selectedMemberLedger, setSelectedMemberLedger] = useState([]);
+  const [ledgerSnapshot, setLedgerSnapshot] = useState({ memberId: null, entries: [] });
   const [loadingMemberLedger, setLoadingMemberLedger] = useState(false);
   const [claimsCounts, setClaimsCounts] = useState({ pendingDeduction: 0, awaitingRelease: 0 });
   const [toast, setToast] = useState(null);
@@ -128,8 +131,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const itemsPerPage = 50;
   const [ledgerMembers, setLedgerMembers] = useState([]);
   const [ledgerPagination, setLedgerPagination] = useState(null);
-  const skipNextLedgerPageFetchRef = useRef(false);
-  const ledgerFetchTimeoutRef = useRef(null);
   
   // Modal states
   const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
@@ -155,23 +156,38 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   // ledger. Null means the general "Record Payment" flow, which still
   // searches across all members.
   const [lockedContributionMember, setLockedContributionMember] = useState(null);
-  const [selectedLedgerMember, setSelectedLedgerMember] = useState(null);
-  const prevMembersRef = useRef([]);
+  const [selectedMemberId, setSelectedMemberId] = useUrlState('member', null);
+  const selectedMemberLedger = ledgerSnapshot.memberId === selectedMemberId ? ledgerSnapshot.entries : [];
+  const selectedLedgerMember = members.find(member => String(member.id || member.memberId) === selectedMemberId) || null;
+  const setSelectedLedgerMember = member => setSelectedMemberId(member ? String(member.id || member.memberId) : null);
+  const [loadErrors, setLoadErrors] = useState({});
+  const [loaded, setLoaded] = useState({});
+  const [retrying, setRetrying] = useState(false);
+  const ledgerRequestRef = useRef(0);
+  const ledgerListRequestRef = useRef(0);
+  const markLoaded = useCallback(key => {
+    setLoadErrors(previous => ({ ...previous, [key]: null }));
+    setLoaded(previous => ({ ...previous, [key]: true }));
+  }, []);
+  const markFailed = useCallback((key, label) => setLoadErrors(previous => ({ ...previous, [key]: `Unable to load ${label}.` })), []);
 
   // Data fetching functions
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       const response = await api.get('/mortuary/treasurer/balances/all');
+      if (!response.data.success) throw new Error(response.data.message || 'Request failed');
       if (response.data.success) {
         setMembers(response.data.data.members || []);
+        markLoaded('members');
       }
     } catch (error) {
       console.error('Error fetching members:', error);
-      setMembers([]); // Set empty array on error
+      markFailed('members', 'member balances');
     }
-  };
+  }, [markLoaded, markFailed]);
 
-  const fetchLedgerMembers = async (page = currentPage, search = searchQuery, barangay = barangayFilter) => {
+  const fetchLedgerMembers = useCallback(async (page = currentPage, search = searchQuery, barangay = barangayFilter) => {
+    const request = ++ledgerListRequestRef.current;
     try {
       const response = await api.get('/mortuary/treasurer/balances/all', {
         params: {
@@ -182,33 +198,39 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         },
       });
 
+      if (!response.data.success) throw new Error(response.data.message || 'Request failed');
       if (response.data.success) {
+        if (request !== ledgerListRequestRef.current) return;
+        markLoaded('ledgerList');
         setLedgerMembers(response.data.data.members || []);
         setLedgerPagination(response.data.data.pagination || null);
       }
     } catch (error) {
       console.error('Error fetching paginated ledger members:', error);
-      setLedgerMembers([]);
-      setLedgerPagination(null);
+      if (request === ledgerListRequestRef.current) markFailed('ledgerList', 'the member ledger list');
     }
-  };
+  }, [markLoaded, markFailed, currentPage, searchQuery, barangayFilter]);
 
-  const fetchContributions = async () => {
+  const fetchContributions = useCallback(async () => {
     try {
-      const response = await api.get('/mortuary/treasurer/contributions');
-      if (response.data.success) {
-        setContributions(response.data.data || []);
-      }
+      const records = await loadAllPages(async page => {
+        const response = await api.get('/mortuary/treasurer/contributions', { params: { page, limit: 100 } });
+        return response.data;
+      });
+      setContributions(records);
+      markLoaded('contributions');
     } catch (error) {
       console.error('Error fetching contributions:', error);
-      setContributions([]); // Set empty array on error
+      markFailed('contributions', 'contributions');
     }
-  };
+  }, [markLoaded, markFailed]);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
       const response = await api.get('/mortuary/treasurer/dashboard');
+      if (!response.data.success || !response.data.data) throw new Error(response.data.message || 'Request failed');
       if (response.data.success) {
+        markLoaded('stats');
         setStats(response.data.data || {
           fundBalance: 0,
           activeMembers: 0,
@@ -230,9 +252,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       }
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
-      // Keep default stats on error
+      markFailed('stats', 'dashboard totals');
     }
-  };
+  }, [markLoaded, markFailed]);
 
   // A member's full ledger history, fetched from the dedicated per-member
   // endpoint (not the old global /mortuary/ledger, which only ever returned
@@ -240,60 +262,55 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   // for any individual member once other members had also transacted).
   // The endpoint caps each page at 100 rows, so long histories are paged
   // through in a loop rather than truncated to the first page.
-  const fetchMemberLedgerEntries = async (memberId) => {
-    if (!memberId) return [];
-    const perPage = 100;
-    let page = 1;
-    let totalPages = 1;
-    let allEntries = [];
-    try {
-      do {
-        const response = await api.get(`/mortuary/treasurer/ledger/${memberId}`, {
-          params: { page, limit: perPage },
-        });
-        if (!response.data.success) break;
-        allEntries = allEntries.concat(response.data.data || []);
-        totalPages = response.data.pagination?.totalPages || 1;
-        page += 1;
-      } while (page <= totalPages);
-    } catch (error) {
-      console.error('Error fetching member ledger:', error);
-    }
-    return allEntries;
-  };
+  const fetchMemberLedgerEntries = memberId => loadAllPages(async page => {
+    const response = await api.get(`/mortuary/treasurer/ledger/${encodeURIComponent(memberId)}`, {
+      params: { page, limit: 100 },
+    });
+    return response.data;
+  });
 
   const refreshSelectedMemberLedger = async (memberId) => {
-    const id = memberId || selectedLedgerMember?.id || selectedLedgerMember?.memberId;
+    const id = memberId || selectedMemberId;
     if (!id) return;
+    const request = ++ledgerRequestRef.current;
     setLoadingMemberLedger(true);
-    const entries = await fetchMemberLedgerEntries(id);
-    setSelectedMemberLedger(entries);
-    setLoadingMemberLedger(false);
+    try {
+      const entries = await fetchMemberLedgerEntries(id);
+      if (request !== ledgerRequestRef.current) return;
+      setLedgerSnapshot({ memberId: String(id), entries });
+      markLoaded('ledger');
+    } catch {
+      if (request === ledgerRequestRef.current) markFailed('ledger', 'the complete member ledger');
+    } finally {
+      if (request === ledgerRequestRef.current) setLoadingMemberLedger(false);
+    }
   };
 
   // Counts for the Claims tab toggle badges. limit: 1 keeps these cheap —
   // only the pagination total is needed, not the actual rows.
-  const fetchClaimsCounts = async () => {
+  const fetchClaimsCounts = useCallback(async () => {
     try {
       const [pendingRes, releaseRes] = await Promise.all([
         api.get('/mortuary/treasurer/claims/pending-deduction', { params: { limit: 1 } }),
         api.get('/mortuary/treasurer/claims/awaiting-release', { params: { limit: 1 } }),
       ]);
+      if (!pendingRes.data.success || !releaseRes.data.success) throw new Error('Unable to load claim counts');
+      markLoaded('claims');
       setClaimsCounts({
         pendingDeduction: pendingRes.data?.pagination?.total ?? 0,
         awaitingRelease: releaseRes.data?.pagination?.total ?? 0,
       });
     } catch (error) {
       console.error('Error fetching claims counts:', error);
+      markFailed('claims', 'claim counts');
     }
-  };
+  }, [markLoaded, markFailed]);
 
   // Utility functions
   const showToast = (message, type) => setToast({ message, type });
 
   const openMemberLedger = (member) => {
-    setSelectedLedgerMember(member);
-    setActiveTab('ledger');
+    setActiveTab('ledger', { member: member.id || member.memberId });
   };
 
   // "Record Payment" (Contributions tab) — the general flow, searching
@@ -334,7 +351,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       fetchContributions(),
       fetchDashboardStats(),
       fetchClaimsCounts(),
-      ...(selectedLedgerMember ? [refreshSelectedMemberLedger()] : [])
+      ...(selectedMemberId ? [refreshSelectedMemberLedger()] : [])
     ]);
   };
 
@@ -358,31 +375,12 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         closeAddContributionModal();
         setNewContribution({ member_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'paid' });
         
-        // Refresh all data after contribution is recorded
+        // A refresh failure must not tell the user that a successful payment failed.
         await Promise.all([
-          fetchContributions(),
-          fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
-          fetchDashboardStats()
+          fetchMembers(), fetchContributions(), fetchLedgerMembers(), fetchDashboardStats(),
+          ...(selectedMemberId === String(contributedMemberId) ? [refreshSelectedMemberLedger(contributedMemberId)] : []),
         ]);
 
-        // Fetch members last so we can update the selected member
-        const membersResponse = await api.get('/mortuary/treasurer/balances/all');
-        if (membersResponse.data.success) {
-          const updatedMembers = membersResponse.data.data.members || [];
-          setMembers(updatedMembers);
-
-          // If we're viewing the member we just added a contribution for, update the selection
-          if (selectedLedgerMember) {
-            if (selectedLedgerMember.id === contributedMemberId || selectedLedgerMember.memberId === contributedMemberId) {
-              const updatedMember = updatedMembers.find(m => m.id === contributedMemberId || m.memberId === contributedMemberId);
-              if (updatedMember) {
-                setSelectedLedgerMember(updatedMember);
-              }
-              await refreshSelectedMemberLedger(contributedMemberId);
-            }
-          }
-        }
-        
         showToast('Contribution recorded.', 'success');
       }
     } catch (error) {
@@ -429,7 +427,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       ]);
       setInitialLoading(false);
     })();
-  }, []);
+  }, [fetchMembers, fetchContributions, fetchDashboardStats, fetchClaimsCounts]);
 
   // `members` is otherwise only fetched once on mount, so a member added by
   // the Super Admin (or elsewhere) after this portal loaded would silently
@@ -439,8 +437,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     if (isAddContributionOpen) {
       fetchMembers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAddContributionOpen]);
+  }, [isAddContributionOpen, fetchMembers]);
 
   useEffect(() => {
     window.localStorage.setItem('treasurerSidebarCollapsed', String(sidebarCollapsed));
@@ -453,69 +450,34 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'ledger' && currentPage !== 1) {
-      skipNextLedgerPageFetchRef.current = true;
-    }
-
-    setCurrentPage(1);
-
     if (activeTab !== 'ledger') return;
-
-    // Debounce so typing in the search box doesn't fire a request per keystroke
-    if (ledgerFetchTimeoutRef.current) clearTimeout(ledgerFetchTimeoutRef.current);
-    ledgerFetchTimeoutRef.current = setTimeout(() => {
-      fetchLedgerMembers(1, searchQuery, barangayFilter);
-    }, 350);
-
-    return () => {
-      if (ledgerFetchTimeoutRef.current) clearTimeout(ledgerFetchTimeoutRef.current);
-    };
-  }, [searchQuery, barangayFilter, memberFilter, activeTab]);
+    const timeout = setTimeout(() => fetchLedgerMembers(), 350);
+    return () => clearTimeout(timeout);
+  }, [activeTab, fetchLedgerMembers]);
 
   useEffect(() => {
-    if (activeTab !== 'ledger') return;
-
-    if (skipNextLedgerPageFetchRef.current) {
-      skipNextLedgerPageFetchRef.current = false;
-      return;
-    }
-
-    fetchLedgerMembers(currentPage, searchQuery, barangayFilter);
-  }, [activeTab, currentPage]);
-
-  // Load the selected member's full ledger history whenever the selection
-  // changes — covers both entry points (MemberBalances' "Open Ledger" and
-  // clicking a row directly inside the Members Ledger tab).
-  useEffect(() => {
-    const id = selectedLedgerMember?.id || selectedLedgerMember?.memberId;
-    if (!id) {
-      setSelectedMemberLedger([]);
-      return;
-    }
-    refreshSelectedMemberLedger(id);
+    setLedgerSnapshot({ memberId: null, entries: [] });
+    setLoaded(previous => ({ ...previous, ledger: false }));
+    setLoadErrors(previous => ({ ...previous, ledger: null }));
+    if (selectedMemberId) refreshSelectedMemberLedger(selectedMemberId);
+    return () => { ledgerRequestRef.current += 1; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLedgerMember?.id, selectedLedgerMember?.memberId]);
-
-  // Update selected ledger member when members array changes
-  useEffect(() => {
-    if (selectedLedgerMember && members.length > 0) {
-      const updatedMember = members.find(m => 
-        (m.id === selectedLedgerMember.id) || 
-        (m.memberId === selectedLedgerMember.id) ||
-        (m.id === selectedLedgerMember.memberId) ||
-        (m.memberId === selectedLedgerMember.memberId)
-      );
-      
-      if (updatedMember && updatedMember.balance !== selectedLedgerMember.balance) {
-        setSelectedLedgerMember(updatedMember);
-      }
-    }
-    prevMembersRef.current = members;
-  }, [members, selectedLedgerMember]);
+  }, [selectedMemberId]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, barangayFilter, memberFilter, activeTab]);
+
+  const relevantKeys = {
+    dashboard: ['stats', 'contributions'], members: ['members'],
+    contributions: ['contributions'], claims: ['claims'],
+    ledger: selectedMemberId ? ['members', 'ledger'] : ['ledgerList'],
+  }[activeTab] || [];
+  const hasInitialFailure = relevantKeys.some(key => loadErrors[key] && !loaded[key]);
+  const retryLoads = async () => {
+    setRetrying(true);
+    try { await refreshAllData(); } finally { setRetrying(false); }
+  };
 
   // Render active view
   const renderActiveView = () => {
@@ -568,12 +530,13 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           />
         );
       case 'ledger':
+        if (selectedMemberId && !selectedLedgerMember) return <p role="status" className="text-sm text-slate-600">{loaded.members ? 'This member could not be found. Select Members Ledger to return to the list.' : 'Loading member...'}</p>;
         return (
           <MemberLedger
             members={members}
             ledgerMembers={ledgerMembers}
             memberLedgerEntries={selectedMemberLedger}
-            loadingMemberLedger={loadingMemberLedger}
+            loadingMemberLedger={loadingMemberLedger || (!!selectedMemberId && ledgerSnapshot.memberId !== selectedMemberId && !loadErrors.ledger)}
             selectedLedgerMember={selectedLedgerMember}
             setSelectedLedgerMember={setSelectedLedgerMember}
             searchQuery={searchQuery}
@@ -702,7 +665,10 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         </div>
 
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
-          {initialLoading ? <PortalSkeleton /> : renderActiveView()}
+          {Object.entries(loadErrors).filter(([, message]) => message).map(([key, message]) => (
+            <LoadError key={key} message={message} onRetry={retryLoads} retrying={retrying} />
+          ))}
+          {initialLoading ? <PortalSkeleton /> : hasInitialFailure ? null : renderActiveView()}
         </main>
       </div>
 

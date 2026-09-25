@@ -4,30 +4,6 @@ const Claim = require('../models/Claim');
 const { Member } = require('../../../shared/models');
 const { LATEST_FIRST } = require('../utils/ledgerBalance');
 
-// The three claim-side money figures, as a clearing account. Money collected
-// for a claim is HELD until the disbursement is recorded, then splits in two:
-// the benefit to the beneficiary and the surplus to the cooperative. So across
-// a claim's life the tiles move like this:
-//
-//   after deduction   collected 52,200   released      0   income     0
-//   after release     collected      0   released 50,000   income 2,200
-//
-// The three always reconcile: held + released + income = everything ever
-// collected. Nothing is double-counted and nothing is stranded.
-//
-//   - totalDeductionsCollected: collected for claims NOT yet released. Drains
-//     to 0 as each claim is disbursed — it is money in hand, not a lifetime
-//     total. Critically it must NOT count a released claim, or the same pesos
-//     would show up both here and in released/income.
-//   - totalReleased: what actually went out to beneficiaries.
-//   - netClaimsBalance: the surplus kept, recognised on release. Derived from
-//     the ACTUAL payout rather than the cap, so claims released under the old
-//     pre-cap rule (payout was the deceased member's own balance) report the
-//     surplus that really was retained, even when that is negative.
-//
-// A claim only has `deduction`/`payout` once it reaches that stage, so unset
-// ones contribute 0 via $ifNull rather than being excluded. Shared by both
-// dashboards and the Claims Income Report so all three stay in agreement.
 const getClaimFinancialTotals = async (match) => {
   const collected = { $ifNull: ['$deduction.totalCollected', 0] };
   const payout = { $ifNull: ['$payout.amount', 0] };
@@ -187,7 +163,7 @@ const getTreasurerDashboard = async (req, res) => {
         totalDeductionsCollected,
         totalReleased,
         netClaimsBalance,
-        healthRatio: totalMembers > 0 ? Math.round(((totalMembers - lowBalanceCount) / totalMembers) * 100) : 0,
+        healthRatio: activeMembers > 0 ? Math.round(((activeMembers - lowBalanceCount) / activeMembers) * 100) : null,
         // Member standing breakdown
         memberStanding: {
           excellent: excellentStandingCount,

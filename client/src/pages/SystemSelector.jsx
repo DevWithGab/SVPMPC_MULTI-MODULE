@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Database,
   QrCode,
@@ -42,12 +42,6 @@ export default function SystemSelector({ onModuleSelect }) {
   const [loginError, setLoginError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
-
-  // Clear any existing mock authentication data on component mount
-  useEffect(() => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-  }, []);
 
   const systems = [
     {

@@ -1,3 +1,5 @@
+import LoadError from '../../components/shared/common/LoadError';
+import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
@@ -71,8 +73,8 @@ export default function AttendanceOperatorPortal({
     }
   }, [currentUser, onBack]);
 
-  const { attendanceLogs, events, refreshData } = useAttendance();
-  const [activeTab, setActiveTab] = useState("home");
+  const { attendanceLogs, events, refreshData, loadError, loading, hasLoaded } = useAttendance();
+  const [activeTab, setActiveTab] = useUrlState('tab', 'home', ['home', 'scanner', 'live']);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("operatorSidebarCollapsed") === "true";
@@ -297,6 +299,7 @@ export default function AttendanceOperatorPortal({
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto">
+            {loadError && <LoadError message={loadError} onRetry={refreshData} retrying={loading} />}
           <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <AnimatePresence mode="wait">
               <Motion.div
@@ -306,7 +309,7 @@ export default function AttendanceOperatorPortal({
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                {renderContent()}
+                {(!loadError || hasLoaded) && renderContent()}
               </Motion.div>
             </AnimatePresence>
           </div>

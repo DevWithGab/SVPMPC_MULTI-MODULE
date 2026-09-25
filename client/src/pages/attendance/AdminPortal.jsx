@@ -1,3 +1,5 @@
+import LoadError from '../../components/shared/common/LoadError';
+import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
@@ -84,8 +86,10 @@ const AdminPortal = ({ onBack, user }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'live', 'events', 'members', 'reports', 'auditlogs', 'backup']);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   // State for data
   const [members, setMembers] = useState([]);
@@ -163,8 +167,11 @@ const AdminPortal = ({ onBack, user }) => {
       if (attendanceRes.attendance) {
         setAttendanceLogs(normalizeAttendanceRecords(attendanceRes.attendance));
       }
+      setHasLoaded(true);
+      setLoadError(null);
     } catch (error) {
       console.error("Error fetching initial data:", error);
+      setLoadError('Unable to load attendance records and events.');
     } finally {
       setLoading(false);
     }
@@ -372,8 +379,9 @@ const AdminPortal = ({ onBack, user }) => {
         </div>
 
         <main className="flex-1 overflow-y-auto">
+          {loadError && <LoadError message={loadError} onRetry={fetchInitialData} retrying={loading} />}
           <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            <AnimatePresence mode="wait">
+            {(!loadError || hasLoaded) && <AnimatePresence mode="wait">
               <Motion.div
                 key={activeSection}
                 initial={{ opacity: 0, y: 8 }}
@@ -428,7 +436,7 @@ const AdminPortal = ({ onBack, user }) => {
                   />
                 )}
               </Motion.div>
-            </AnimatePresence>
+            </AnimatePresence>}
           </div>
         </main>
       </div>

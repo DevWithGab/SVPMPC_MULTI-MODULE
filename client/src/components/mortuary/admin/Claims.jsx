@@ -1,3 +1,4 @@
+import useUrlState from '../../../hooks/useUrlState';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle, ChevronRight } from 'lucide-react';
 import StatCard from '../shared/StatCard';
@@ -26,7 +27,7 @@ export default function Claims({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [selectedClaimId, setSelectedClaimId] = useState(null);
+  const [selectedClaimId, setSelectedClaimId] = useUrlState('claim', null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   const loadClaims = useCallback(async () => {

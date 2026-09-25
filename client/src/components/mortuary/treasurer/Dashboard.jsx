@@ -1,3 +1,4 @@
+import { contributionTrend, memberBalanceCoverage, contributionGrowth } from '../../../utils/dashboardMetrics';
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown } from 'lucide-react';
 import { AreaChart, Area, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -5,10 +6,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/char
 import StatCard from '../shared/StatCard';
 
 const Dashboard = ({ stats, contributions = [] }) => {
-  const atRiskMembersCount = stats?.lowBalanceMembers || 0;
-  const totalMembersCount = stats?.totalMembers || 1;
-  const healthyRatio = Math.round(((totalMembersCount - atRiskMembersCount) / totalMembersCount) * 100) || 0;
-  const isOptimal = healthyRatio >= 80;
+  const healthyRatio = memberBalanceCoverage(stats);
 
   const memberStandingData = [
     { standing: "excellent", members: stats?.memberStanding?.excellent || 0, fill: "#10b981" },
@@ -38,59 +36,10 @@ const Dashboard = ({ stats, contributions = [] }) => {
     deceased: { label: "Deceased", color: "#1e293b" },
   };
 
-  const calculateChartData = () => {
-    const monthlyTotals = {};
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    contributions.forEach(c => {
-      if (c.payment_date) {
-        const date = new Date(c.payment_date);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        if (!monthlyTotals[monthKey]) {
-          monthlyTotals[monthKey] = { contributions: 0, count: 0 };
-        }
-        monthlyTotals[monthKey].contributions += c.amount || 0;
-        monthlyTotals[monthKey].count += 1;
-      }
-    });
-
-    // Walk every one of the trailing 6 calendar months, not just the ones
-    // that had a contribution — otherwise a month with zero activity is
-    // skipped entirely and the line jumps straight from the last active
-    // month to the next, masking the gap (and skewing the growth-rate
-    // comparison, which assumes it's comparing consecutive months).
-    const now = new Date();
-    const last6Months = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const totals = monthlyTotals[monthKey] || { contributions: 0, count: 0 };
-      last6Months.push({ month: monthNames[d.getMonth()], fullKey: monthKey, ...totals });
-    }
-
-    if (!last6Months.some(item => item.contributions > 0)) {
-      return [{ month: 'No Data', contributions: 0, balance: 0, count: 0 }];
-    }
-
-    let cumulativeBalance = 0;
-    return last6Months.map(item => {
-      cumulativeBalance += item.contributions;
-      return { ...item, balance: cumulativeBalance };
-    });
-  };
-
-  const chartData = calculateChartData();
-
-  const calculateGrowthRate = () => {
-    if (chartData.length < 2) return 0;
-    const lastMonth = chartData[chartData.length - 1].contributions;
-    const previousMonth = chartData[chartData.length - 2].contributions;
-    if (previousMonth === 0) return 0;
-    return (((lastMonth - previousMonth) / previousMonth) * 100).toFixed(1);
-  };
-
-  const growthRate = calculateGrowthRate();
+  const chartData = contributionTrend(contributions);
+  const growthRate = contributionGrowth(chartData);
   const isPositiveGrowth = growthRate >= 0;
-  const hasEnoughDataToCompare = chartData.length >= 2 && chartData[0].month !== 'No Data';
+  const hasEnoughDataToCompare = growthRate !== null;
 
   // "January - June 2024" style range, matching shadcn's chart caption convention.
   const dateRangeLabel = (() => {
@@ -106,12 +55,12 @@ const Dashboard = ({ stats, contributions = [] }) => {
   })();
 
   const trendCaption = hasEnoughDataToCompare
-    ? `${isPositiveGrowth ? 'Trending up' : 'Trending down'} vs last month · ${dateRangeLabel}`
+    ? `Month to date vs full previous month · ${dateRangeLabel}`
     : dateRangeLabel;
 
   const chartConfig = {
     contributions: { label: "Contributions", color: "#2D7A3E" },
-    balance: { label: "Fund Balance", color: "#10b981" },
+    cumulative: { label: "Cumulative Contributions", color: "#10b981" },
   };
 
   const standingColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
@@ -127,9 +76,9 @@ const Dashboard = ({ stats, contributions = [] }) => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Fund"
+          title="Active Member Balances"
           value={`₱${stats?.fundBalance?.toLocaleString() || '0'}`}
-          subtitle="Mortuary fund balance"
+          subtitle="Sum of active member ledger balances"
           icon={Wallet}
           color="emerald"
         />
@@ -148,11 +97,11 @@ const Dashboard = ({ stats, contributions = [] }) => {
           color="amber"
         />
         <StatCard
-          title="Capital Adequacy"
-          value={`${healthyRatio}%`}
-          subtitle={isOptimal ? 'Optimal' : 'Needs attention'}
+          title="Above Minimum Balance"
+          value={healthyRatio === null ? 'N/A' : `${healthyRatio}%`}
+          subtitle="Active members with at least PHP 1,000"
           icon={ShieldCheck}
-          color={isOptimal ? 'emerald' : 'rose'}
+          color={healthyRatio === null ? 'blue' : healthyRatio >= 80 ? 'emerald' : 'rose'}
         />
       </div>
 
@@ -165,7 +114,7 @@ const Dashboard = ({ stats, contributions = [] }) => {
         <StatCard
           title="Total Deductions Collected"
           value={`₱${(stats?.totalDeductionsCollected || 0).toLocaleString()}`}
-          subtitle="Held, awaiting release"
+          subtitle="All-time assessments collected"
           icon={TrendingUp}
           color="blue"
         />
@@ -192,11 +141,11 @@ const Dashboard = ({ stats, contributions = [] }) => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-slate-900">Fund Growth</p>
+                <p className="text-sm font-semibold text-slate-900">Monthly Contributions</p>
                 {hasEnoughDataToCompare && (
                   <span className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded ${isPositiveGrowth ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                     {isPositiveGrowth ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {Math.abs(growthRate)}%
+                    {Math.abs(growthRate).toFixed(1)}%
                   </span>
                 )}
               </div>
@@ -216,13 +165,13 @@ const Dashboard = ({ stats, contributions = [] }) => {
               <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${(v / 1000).toFixed(0)}k`} />
               <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
-              <Area type="natural" dataKey="contributions" stroke="var(--color-contributions)" strokeWidth={2} fill="url(#fillContributions)" dot={false} activeDot={{ r: 5 }} />
+              <Area type="monotone" dataKey="contributions" stroke="var(--color-contributions)" strokeWidth={2} fill="url(#fillContributions)" dot={false} activeDot={{ r: 5 }} />
             </AreaChart>
           </ChartContainer>
 
           <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
             <div>
-              <p className="text-xs text-slate-400">Total Collected</p>
+              <p className="text-xs text-slate-400">Collected in Shown Period</p>
               <p className="text-sm font-bold text-slate-900">₱{chartData.reduce((s, d) => s + d.contributions, 0).toLocaleString()}</p>
             </div>
             <div>
@@ -239,29 +188,29 @@ const Dashboard = ({ stats, contributions = [] }) => {
         {/* Cumulative Balance Area Chart */}
         <div className="bg-white border border-slate-200 rounded-xl p-6">
           <div className="mb-4">
-            <p className="text-sm font-semibold text-slate-900">Fund Balance</p>
-            <p className="text-xs text-slate-400 mt-0.5">{trendCaption}</p>
+            <p className="text-sm font-semibold text-slate-900">Cumulative Contributions</p>
+            <p className="text-xs text-slate-400 mt-0.5">Contributions in the shown six months; excludes opening balances and outflows.</p>
           </div>
 
           <ChartContainer config={chartConfig} className="h-[180px] w-full">
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="fillBalance" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-balance)" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="var(--color-balance)" stopOpacity={0.02} />
+                  <stop offset="5%" stopColor="var(--color-cumulative)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="var(--color-cumulative)" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
               <YAxis hide />
               <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
-              <Area type="natural" dataKey="balance" stroke="var(--color-balance)" strokeWidth={2} fill="url(#fillBalance)" dot={false} activeDot={{ r: 5 }} />
+              <Area type="monotone" dataKey="cumulative" stroke="var(--color-cumulative)" strokeWidth={2} fill="url(#fillBalance)" dot={false} activeDot={{ r: 5 }} />
             </AreaChart>
           </ChartContainer>
 
           <div className="mt-4 pt-4 border-t border-slate-100">
-            <p className="text-xs text-slate-400">Current Balance</p>
-            <p className="text-lg font-bold text-slate-900">₱{stats?.fundBalance?.toLocaleString() || '0'}</p>
+            <p className="text-xs text-slate-400">Contributions in Shown Period</p>
+            <p className="text-lg font-bold text-slate-900">₱{chartData[chartData.length - 1].cumulative.toLocaleString()}</p>
           </div>
         </div>
       </div>
