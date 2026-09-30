@@ -75,21 +75,38 @@ export default function Beneficiaries({ user }) {
               <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Beneficiary Name</th>
               <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Relationship</th>
               <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Contact Number</th>
+              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
               <th className="text-right px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">Loading beneficiaries...</td>
+                <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">Loading beneficiaries...</td>
               </tr>
             ) : beneficiaries.length > 0 ? (
               beneficiaries.map((b) => (
-                <tr key={b.beneficiaryId} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={b.memberId} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4 text-sm font-semibold text-slate-900">{b.memberName}</td>
-                  <td className="px-6 py-4 text-sm text-slate-700">{b.beneficiaryName}</td>
-                  <td className="px-6 py-4 text-sm text-slate-500 hidden sm:table-cell">{b.relationship}</td>
-                  <td className="px-6 py-4 text-sm text-slate-500 hidden md:table-cell">{b.contactNumber}</td>
+                  <td className="px-6 py-4 text-sm text-slate-700">{b.beneficiaryName || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500 hidden sm:table-cell">{b.relationship || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500 hidden md:table-cell">{b.contactNumber || '—'}</td>
+                  <td className="px-6 py-4">
+                    {b.isRegistered ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        Registered
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+                        title="Captured at sign-up only — no contact number or formal record on file yet"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Not registered
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-3">
                       <button
@@ -102,7 +119,7 @@ export default function Beneficiaries({ user }) {
                       <button
                         onClick={() => setEditRecord(b)}
                         className="text-slate-400 hover:text-coop-green transition-colors"
-                        title="Update"
+                        title={b.isRegistered ? 'Update' : 'Register beneficiary'}
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -112,10 +129,10 @@ export default function Beneficiaries({ user }) {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">
+                <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">
                   <div className="flex flex-col items-center gap-2">
                     <Users className="w-8 h-8 text-slate-300" />
-                    {error || 'No beneficiaries found.'}
+                    {error || 'No active members found.'}
                   </div>
                 </td>
               </tr>

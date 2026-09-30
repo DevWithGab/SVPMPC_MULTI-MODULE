@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, TrendingUp, Users, PhilippinePeso, FileText, ClipboardCheck, Heart } from 'lucide-react';
+import { Download, TrendingUp, Users, PhilippinePeso, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { claimAPI } from '../../../services/api';
@@ -14,7 +14,27 @@ const REPORT_TYPES = [
   { id: 'contributions', label: 'Contributions', icon: TrendingUp },
   { id: 'claims', label: 'Claims Report', icon: ClipboardCheck },
   { id: 'deceasedMembers', label: 'Deceased Members', icon: Heart },
+  { id: 'memberStanding', label: 'Member Standing', icon: AlertTriangle },
+  { id: 'deductions', label: 'Deductions & Payouts', icon: Receipt },
 ];
+
+// Mirrors the balance thresholds used server-side in dashboardController.js
+// so this report's categories match the Member Standing pie chart on the
+// dashboard exactly.
+const STANDING_THRESHOLDS = { excellent: 10000, good: 5000, fair: 1000 };
+const getStandingLabel = (balance) => {
+  const value = balance ?? 0;
+  if (value >= STANDING_THRESHOLDS.excellent) return 'Excellent';
+  if (value >= STANDING_THRESHOLDS.good) return 'Good';
+  if (value >= STANDING_THRESHOLDS.fair) return 'Fair';
+  return 'At Risk';
+};
+const STANDING_BADGE_STYLES = {
+  Excellent: 'bg-green-50 text-green-700 border-green-200',
+  Good: 'bg-blue-50 text-blue-700 border-blue-200',
+  Fair: 'bg-amber-50 text-amber-700 border-amber-200',
+  'At Risk': 'bg-red-50 text-red-700 border-red-200',
+};
 
 const Reports = ({ contributions = [], stats = {}, members = [] }) => {
   const [reportType, setReportType] = useState('summary');
@@ -36,22 +56,55 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
 
   const deceasedMembers = useMemo(() => members.filter((m) => m.status === 'deceased'), [members]);
 
+  // Active members ranked worst-balance-first so the treasurer can act on
+  // the ones nearest a balance notice without re-sorting.
+  const memberStandingList = useMemo(() => {
+    return members
+      .filter((m) => m.status === 'active')
+      .map((m) => ({
+        id: m.id || m.memberId,
+        name: m.name || m.memberName,
+        barangay: m.barangay || 'N/A',
+        balance: m.currentBalance ?? 0,
+        standing: getStandingLabel(m.currentBalance),
+      }))
+      .sort((a, b) => a.balance - b.balance);
+  }, [members]);
+
+  // Per-claim deduction/payout line items — richer than a single aggregate
+  // total since it shows exactly which claims funded the collected amount.
+  const deductionsData = useMemo(() => {
+    return claims.map((c) => ({
+      claimId: c.claimId,
+      memberName: c.memberName,
+      status: c.status,
+      deductionCollected: c.deduction?.totalCollected || 0,
+      payoutAmount: c.payout?.amount || 0,
+    }));
+  }, [claims]);
+
   const metrics = useMemo(() => {
     const totalContributions = contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
+    const totalDeductionsCollected = deductionsData.reduce((sum, c) => sum + c.deductionCollected, 0);
+    const totalPayoutsReleased = deductionsData.reduce((sum, c) => sum + c.payoutAmount, 0);
     return {
       totalContributions,
+      totalDeductionsCollected,
+      totalPayoutsReleased,
       activeMembers: members.filter(m => m.status === 'active').length,
       inactiveMembers: members.filter(m => m.status === 'inactive').length,
       deceasedMembers: deceasedMembers.length,
       totalMembers: members.length,
     };
-  }, [contributions, members, deceasedMembers]);
+  }, [contributions, members, deceasedMembers, deductionsData]);
 
   const paginatedData = useMemo(() => {
     let data = [];
     if (reportType === 'contributions') data = contributions;
     else if (reportType === 'claims') data = claims;
     else if (reportType === 'deceasedMembers') data = deceasedMembers;
+    else if (reportType === 'memberStanding') data = memberStandingList;
+    else if (reportType === 'deductions') data = deductionsData;
 
     const total = data.length;
     const startIndex = (page - 1) * limit;
@@ -64,7 +117,7 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       hasNextPage: endIndex < total,
       hasPrevPage: page > 1
     };
-  }, [reportType, contributions, claims, deceasedMembers, page, limit]);
+  }, [reportType, contributions, claims, deceasedMembers, memberStandingList, deductionsData, page, limit]);
 
   const generatePDF = () => {
     try {
@@ -88,6 +141,8 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
         const summaryData = [
           ['Total Fund Balance', `P${stats?.fundBalance || 0}`],
           ['Total Contributions Collected', `P${metrics.totalContributions}`],
+          ['Total Deductions Collected', `P${metrics.totalDeductionsCollected}`],
+          ['Total Payouts Released', `P${metrics.totalPayoutsReleased}`],
           ['', ''],
           ['Total Members', metrics.totalMembers.toString()],
           ['Active Members', metrics.activeMembers.toString()],
@@ -156,6 +211,42 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
           headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
           styles: { fontSize: 8 },
         });
+      } else if (reportType === 'memberStanding') {
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Member Standing Report', 14, startY);
+        const data = memberStandingList.slice(0, 200).map(m => [
+          m.id, m.name, m.barangay, `P${m.balance}`, m.standing,
+        ]);
+        autoTable(doc, {
+          startY: startY + 5,
+          head: [['ID', 'Name', 'Barangay', 'Balance', 'Standing']],
+          body: data,
+          theme: 'striped',
+          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
+          styles: { fontSize: 8 },
+          columnStyles: { 3: { halign: 'right' } },
+        });
+      } else if (reportType === 'deductions') {
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Deductions & Payouts Report', 14, startY);
+        const data = deductionsData.slice(0, 200).map(c => [
+          c.claimId.slice(0, 8),
+          c.memberName,
+          getClaimStatusMeta(c.status).label,
+          `P${c.deductionCollected}`,
+          `P${c.payoutAmount}`,
+        ]);
+        autoTable(doc, {
+          startY: startY + 5,
+          head: [['Claim ID', 'Member', 'Status', 'Deducted', 'Released']],
+          body: data,
+          theme: 'striped',
+          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
+          styles: { fontSize: 8 },
+          columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' } },
+        });
       }
 
       const pageCount = doc.internal.getNumberOfPages();
@@ -183,6 +274,8 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       csvContent = 'Metric,Value\n';
       csvContent += `"Total Fund Balance","₱${(stats?.fundBalance || 0).toLocaleString()}"\n`;
       csvContent += `"Total Contributions","₱${metrics.totalContributions.toLocaleString()}"\n`;
+      csvContent += `"Total Deductions Collected","₱${metrics.totalDeductionsCollected.toLocaleString()}"\n`;
+      csvContent += `"Total Payouts Released","₱${metrics.totalPayoutsReleased.toLocaleString()}"\n`;
       csvContent += `"Total Members","${metrics.totalMembers}"\n`;
       csvContent += `"Active Members","${metrics.activeMembers}"\n`;
       csvContent += `"Inactive Members","${metrics.inactiveMembers}"\n`;
@@ -204,6 +297,18 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       csvContent = 'ID,Name,Barangay,Join Date\n';
       deceasedMembers.forEach(m => {
         csvContent += `"${m.id || m.memberId}","${m.name || m.memberName}","${m.barangay || ''}","${m.join_date || ''}"\n`;
+      });
+    } else if (reportType === 'memberStanding') {
+      filename = `member-standing-${new Date().toISOString().split('T')[0]}.csv`;
+      csvContent = 'ID,Name,Barangay,Balance,Standing\n';
+      memberStandingList.forEach(m => {
+        csvContent += `"${m.id}","${m.name}","${m.barangay}","${m.balance}","${m.standing}"\n`;
+      });
+    } else if (reportType === 'deductions') {
+      filename = `deductions-payouts-${new Date().toISOString().split('T')[0]}.csv`;
+      csvContent = 'Claim ID,Member,Status,Deducted,Released\n';
+      deductionsData.forEach(c => {
+        csvContent += `"${c.claimId}","${c.memberName}","${getClaimStatusMeta(c.status).label}","${c.deductionCollected}","${c.payoutAmount}"\n`;
       });
     }
 
@@ -307,9 +412,17 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
                     <span className="text-slate-500">Total Fund Balance</span>
                     <span className="font-semibold text-slate-900">₱{(stats?.fundBalance || 0).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between py-2 text-sm">
+                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
                     <span className="text-slate-500">Total Contributions</span>
                     <span className="font-semibold text-coop-green">₱{metrics.totalContributions.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
+                    <span className="text-slate-500">Total Deductions Collected</span>
+                    <span className="font-semibold text-slate-900">₱{metrics.totalDeductionsCollected.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between py-2 text-sm">
+                    <span className="text-slate-500">Total Payouts Released</span>
+                    <span className="font-semibold text-rose-600">₱{metrics.totalPayoutsReleased.toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -406,6 +519,67 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
                       <td className="px-5 py-2.5 text-xs text-slate-500">{m.join_date || 'N/A'}</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            )}
+
+            {reportType === 'memberStanding' && (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">ID</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Balance</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Standing</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedData.data.map((m, idx) => (
+                    <tr key={idx}>
+                      <td className="px-5 py-2.5 text-xs text-slate-500">#{m.id}</td>
+                      <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">{m.name}</td>
+                      <td className="px-5 py-2.5 text-xs text-slate-500">{m.barangay}</td>
+                      <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{m.balance.toLocaleString()}</td>
+                      <td className="px-5 py-2.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border ${STANDING_BADGE_STYLES[m.standing]}`}>
+                          {m.standing}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {reportType === 'deductions' && (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deducted</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Released</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedData.data.map((c) => {
+                    const meta = getClaimStatusMeta(c.status);
+                    return (
+                      <tr key={c.claimId}>
+                        <td className="px-5 py-2.5 text-xs font-mono text-slate-500">{c.claimId.slice(0, 8)}</td>
+                        <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">{c.memberName}</td>
+                        <td className="px-5 py-2.5">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full border ${meta.bg} ${meta.text} ${meta.border}`}>
+                            {meta.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{c.deductionCollected.toLocaleString()}</td>
+                        <td className="px-5 py-2.5 text-xs font-semibold text-rose-600">₱{c.payoutAmount.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

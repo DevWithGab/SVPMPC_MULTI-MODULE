@@ -63,8 +63,6 @@ const Dashboard = ({ stats, contributions = [] }) => {
     cumulative: { label: "Cumulative Contributions", color: "#10b981" },
   };
 
-  const standingColors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -244,10 +242,10 @@ const Dashboard = ({ stats, contributions = [] }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-100">
-            {memberStandingData.map((item, i) => (
+            {memberStandingData.map((item) => (
               <div key={item.standing} className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: standingColors[i] }} />
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.fill }} />
                   <span className="text-slate-600">{item.standing === 'atRisk' ? 'At Risk' : item.standing.charAt(0).toUpperCase() + item.standing.slice(1)}</span>
                 </span>
                 <span className="font-bold text-slate-900">{item.members}</span>

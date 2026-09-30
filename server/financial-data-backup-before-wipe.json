@@ -1,0 +1,431 @@
+{
+  "ledgers": [
+    {
+      "_id": "6a981b016047c536e5049436",
+      "ledgerId": "a74c30bf-ec1d-48ff-aa71-7fcdd4786851",
+      "memberId": "MEM-2024-003",
+      "transactionType": "contribution",
+      "description": "Contribution payment - cash",
+      "credit": 1000,
+      "debit": 0,
+      "balance": 1000,
+      "referenceId": "CONTRIB-1788353281710",
+      "transactionDate": "2026-09-02T12:48:01.733Z",
+      "recordedBy": "admin",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-02T12:48:01.735Z",
+      "updatedAt": "2026-09-02T12:48:01.735Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa75d639b7966d742b9f232",
+      "ledgerId": "ce8cdf20-4758-43a4-b444-e4ba274d32f2",
+      "memberId": "MEM-2024-002",
+      "transactionType": "automatic_deduction",
+      "description": "Death fund assessment for Juan Dela Cruz",
+      "credit": 0,
+      "debit": 25,
+      "balance": -25,
+      "referenceId": "7c9fafe8-d404-4206-b67b-80f5f76095db",
+      "transactionDate": "2026-09-14T02:35:15.809Z",
+      "recordedBy": "mortuary.treasurer",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T02:35:15.810Z",
+      "updatedAt": "2026-09-14T02:35:15.810Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa75d639b7966d742b9f234",
+      "ledgerId": "e35306cf-8ec1-48bb-b15c-272f513accaf",
+      "memberId": "MEM-2024-003",
+      "transactionType": "automatic_deduction",
+      "description": "Death fund assessment for Juan Dela Cruz",
+      "credit": 0,
+      "debit": 25,
+      "balance": 975,
+      "referenceId": "7c9fafe8-d404-4206-b67b-80f5f76095db",
+      "transactionDate": "2026-09-14T02:35:15.841Z",
+      "recordedBy": "mortuary.treasurer",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T02:35:15.843Z",
+      "updatedAt": "2026-09-14T02:35:15.843Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa75db09b7966d742b9f24e",
+      "ledgerId": "b00698ec-efa1-4051-87c3-c13630e9d55e",
+      "memberId": "MEM-2024-001",
+      "transactionType": "claim_payout",
+      "description": "Death benefit payout to Maria Dela Cruz (Wife)",
+      "credit": 0,
+      "debit": 100000,
+      "balance": -100000,
+      "referenceId": "7c9fafe8-d404-4206-b67b-80f5f76095db",
+      "transactionDate": "2026-09-14T02:36:32.036Z",
+      "recordedBy": "mortuary.treasurer",
+      "beneficiary": "Maria Dela Cruz (Wife)",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T02:36:32.037Z",
+      "updatedAt": "2026-09-14T02:36:32.037Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa768d58d192594245b631d",
+      "ledgerId": "8a27ece4-af3a-429e-b460-f191dea2f3f1",
+      "memberId": "MEM-1789356039715",
+      "transactionType": "automatic_deduction",
+      "description": "Death fund assessment for Maria Santos",
+      "credit": 0,
+      "debit": 25,
+      "balance": -25,
+      "referenceId": "b39d545e-86c7-4a10-8fdf-83ddfd397dab",
+      "transactionDate": "2026-09-14T03:24:05.840Z",
+      "recordedBy": "mortuary.treasurer",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T03:24:05.843Z",
+      "updatedAt": "2026-09-14T03:24:05.843Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa768d58d192594245b631f",
+      "ledgerId": "ceee7b27-d97d-47a4-889c-76627d7a2abd",
+      "memberId": "MEM-2024-003",
+      "transactionType": "automatic_deduction",
+      "description": "Death fund assessment for Maria Santos",
+      "credit": 0,
+      "debit": 25,
+      "balance": 950,
+      "referenceId": "b39d545e-86c7-4a10-8fdf-83ddfd397dab",
+      "transactionDate": "2026-09-14T03:24:05.860Z",
+      "recordedBy": "mortuary.treasurer",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T03:24:05.862Z",
+      "updatedAt": "2026-09-14T03:24:05.862Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa7692e8d192594245b6331",
+      "ledgerId": "b0d653f2-9493-4997-bd6d-aa4fc0150fff",
+      "memberId": "MEM-2024-002",
+      "transactionType": "claim_payout",
+      "description": "Death benefit payout to Pedro Santos (Husband) (DV# DV-2026-1409)",
+      "credit": 0,
+      "debit": 50,
+      "balance": -75,
+      "referenceId": "b39d545e-86c7-4a10-8fdf-83ddfd397dab",
+      "transactionDate": "2026-09-14T00:00:00.000Z",
+      "recordedBy": "mortuary.treasurer",
+      "beneficiary": "Pedro Santos (Husband)",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T03:25:34.194Z",
+      "updatedAt": "2026-09-14T03:25:34.194Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa7a4414d089351bf9599e5",
+      "ledgerId": "556e2a54-2fad-427f-9aae-54ae094d4c08",
+      "memberId": "MEM-1789356039715",
+      "transactionType": "contribution",
+      "description": "Contribution payment - cash",
+      "credit": 1500,
+      "debit": 0,
+      "balance": 1475,
+      "referenceId": "CONTRIB-1789371457166",
+      "transactionDate": "2026-09-14T07:37:37.281Z",
+      "recordedBy": "admin",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T07:37:37.283Z",
+      "updatedAt": "2026-09-14T07:37:37.283Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa7aace4d089351bf9599e9",
+      "ledgerId": "61bac971-cb78-428b-b27b-ae90695cba77",
+      "memberId": "MEM-1789369845231",
+      "transactionType": "contribution",
+      "description": "Contribution payment - cash",
+      "credit": 5000,
+      "debit": 0,
+      "balance": 5000,
+      "referenceId": "CONTRIB-1789373134144",
+      "transactionDate": "2026-09-14T08:05:34.148Z",
+      "recordedBy": "admin",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T08:05:34.149Z",
+      "updatedAt": "2026-09-14T08:05:34.149Z",
+      "__v": 0
+    },
+    {
+      "_id": "6abb937a1ca5514cfdb0e85f",
+      "ledgerId": "c214dc7d-bb39-43e0-96e2-8a32df9b0e6c",
+      "memberId": "MEM-1789369512225",
+      "transactionType": "contribution",
+      "description": "Contribution payment - cash",
+      "credit": 6000,
+      "debit": 0,
+      "balance": 6000,
+      "referenceId": "CONTRIB-1790677882047",
+      "transactionDate": "2026-09-29T10:31:22.145Z",
+      "recordedBy": "admin",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-29T10:31:22.147Z",
+      "updatedAt": "2026-09-29T10:31:22.147Z",
+      "__v": 0
+    }
+  ],
+  "contributions": [
+    {
+      "_id": "6a981b016047c536e5049435",
+      "contributionId": "CONTRIB-1788353281710",
+      "memberId": "MEM-2024-003",
+      "amount": 1000,
+      "paymentDate": "2026-09-02T00:00:00.000Z",
+      "dueDate": "2026-09-02T12:48:01.698Z",
+      "status": "paid",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-02T12:48:01.719Z",
+      "updatedAt": "2026-09-02T12:48:01.719Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa7a4414d089351bf9599e4",
+      "contributionId": "CONTRIB-1789371457166",
+      "memberId": "MEM-1789356039715",
+      "amount": 1500,
+      "paymentDate": "2026-09-14T00:00:00.000Z",
+      "dueDate": "2026-09-14T07:37:37.158Z",
+      "status": "paid",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T07:37:37.169Z",
+      "updatedAt": "2026-09-14T07:37:37.169Z",
+      "__v": 0
+    },
+    {
+      "_id": "6aa7aace4d089351bf9599e8",
+      "contributionId": "CONTRIB-1789373134144",
+      "memberId": "MEM-1789369845231",
+      "amount": 5000,
+      "paymentDate": "2026-09-14T00:00:00.000Z",
+      "dueDate": "2026-09-14T08:05:34.134Z",
+      "status": "paid",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-14T08:05:34.145Z",
+      "updatedAt": "2026-09-14T08:05:34.145Z",
+      "__v": 0
+    },
+    {
+      "_id": "6abb937a1ca5514cfdb0e85e",
+      "contributionId": "CONTRIB-1790677882047",
+      "memberId": "MEM-1789369512225",
+      "amount": 6000,
+      "paymentDate": "2026-09-29T00:00:00.000Z",
+      "dueDate": "2026-09-29T10:31:22.039Z",
+      "status": "paid",
+      "paymentMethod": "cash",
+      "createdAt": "2026-09-29T10:31:22.051Z",
+      "updatedAt": "2026-09-29T10:31:22.051Z",
+      "__v": 0
+    }
+  ],
+  "claims": [
+    {
+      "_id": "6aa756659b7966d742b9f1aa",
+      "claimId": "7c9fafe8-d404-4206-b67b-80f5f76095db",
+      "memberId": "MEM-2024-001",
+      "memberName": "Juan Dela Cruz",
+      "beneficiaryId": "35380e18-9bf9-49d5-8764-3ccf8fdba615",
+      "beneficiaryName": "Maria Dela Cruz (Wife)",
+      "beneficiaryRelationship": "wife",
+      "beneficiaryContact": "09281712323",
+      "dateOfDeath": "2026-09-02T00:00:00.000Z",
+      "dateFiled": "2026-09-14T02:05:25.708Z",
+      "causeOfDeath": "Accident",
+      "status": "released",
+      "requirements": {
+        "claimApplicationForm": {
+          "submitted": true,
+          "received": false,
+          "verified": true
+        },
+        "deathCertificate": {
+          "submitted": true,
+          "received": true,
+          "verified": true
+        },
+        "memberCooperativeId": {
+          "submitted": true,
+          "received": true,
+          "verified": true
+        },
+        "beneficiaryValidId": {
+          "submitted": true,
+          "received": true,
+          "verified": true
+        }
+      },
+      "payout": {
+        "amount": 100000,
+        "paymentMethod": "cash",
+        "releasedBy": "mortuary.treasurer",
+        "releasedAt": "2026-09-14T02:36:32.039Z",
+        "ledgerId": "b00698ec-efa1-4051-87c3-c13630e9d55e"
+      },
+      "statusHistory": [
+        {
+          "status": "pending_requirements",
+          "changedBy": "mortuary.admin",
+          "changedAt": "2026-09-14T02:05:25.708Z",
+          "notes": "Claim filed",
+          "_id": "6aa756659b7966d742b9f1ab"
+        },
+        {
+          "status": "approved",
+          "changedBy": "mortuary.admin",
+          "changedAt": "2026-09-14T02:32:36.519Z",
+          "notes": "Requirements verified and approved",
+          "_id": "6aa75cc49b7966d742b9f212"
+        },
+        {
+          "status": "pending_deduction",
+          "changedBy": "mortuary.admin",
+          "changedAt": "2026-09-14T02:32:36.519Z",
+          "notes": "Ready for Treasurer month-end processing",
+          "_id": "6aa75cc49b7966d742b9f213"
+        },
+        {
+          "status": "deduction_processed",
+          "changedBy": "mortuary.treasurer",
+          "changedAt": "2026-09-14T02:35:15.847Z",
+          "notes": "Charged 2 active members ₱25 each (₱50 total)",
+          "_id": "6aa75d639b7966d742b9f235"
+        },
+        {
+          "status": "released",
+          "changedBy": "mortuary.treasurer",
+          "changedAt": "2026-09-14T02:36:32.039Z",
+          "notes": "₱100000 released to Maria Dela Cruz (Wife)",
+          "_id": "6aa75db09b7966d742b9f24f"
+        }
+      ],
+      "createdBy": "mortuary.admin",
+      "createdAt": "2026-09-14T02:05:25.715Z",
+      "updatedAt": "2026-09-14T02:36:32.041Z",
+      "__v": 3,
+      "verification": {
+        "verifiedBy": "mortuary.admin",
+        "verificationDate": "2026-09-14T00:00:00.000Z",
+        "remarks": ""
+      },
+      "approval": {
+        "approvedBy": "mortuary.admin",
+        "approvedAt": "2026-09-14T02:32:36.519Z"
+      },
+      "deduction": {
+        "deductionSettingId": "f77ec54d-12bb-433b-8a83-a91e2e8e1f53",
+        "amountPerMember": 25,
+        "membersCharged": 2,
+        "totalCollected": 50,
+        "processedBy": "mortuary.treasurer",
+        "processedAt": "2026-09-14T02:35:15.847Z"
+      }
+    },
+    {
+      "_id": "6aa7605c9b7966d742b9f279",
+      "claimId": "b39d545e-86c7-4a10-8fdf-83ddfd397dab",
+      "memberId": "MEM-2024-002",
+      "memberName": "Maria Santos",
+      "beneficiaryId": "df2008a3-f7ec-4fba-952d-e315becb8586",
+      "beneficiaryName": "Pedro Santos (Husband)",
+      "beneficiaryRelationship": "Husband",
+      "beneficiaryContact": "09474655333",
+      "dateOfDeath": "2026-09-03T00:00:00.000Z",
+      "dateFiled": "2026-09-14T02:47:56.271Z",
+      "causeOfDeath": "Aging",
+      "status": "released",
+      "requirements": {
+        "claimApplicationForm": {
+          "submitted": true,
+          "received": false,
+          "verified": true
+        },
+        "deathCertificate": {
+          "submitted": true,
+          "received": false,
+          "verified": true
+        },
+        "memberCooperativeId": {
+          "submitted": true,
+          "received": false,
+          "verified": true
+        },
+        "beneficiaryValidId": {
+          "submitted": true,
+          "received": false,
+          "verified": true
+        }
+      },
+      "statusHistory": [
+        {
+          "status": "pending_requirements",
+          "changedBy": "mortuary.admin",
+          "changedAt": "2026-09-14T02:47:56.271Z",
+          "notes": "Claim filed",
+          "_id": "6aa7605c9b7966d742b9f27a"
+        },
+        {
+          "status": "approved",
+          "changedBy": "mortuary.admin",
+          "changedAt": "2026-09-14T02:48:11.200Z",
+          "notes": "Requirements verified and approved",
+          "_id": "6aa7606b9b7966d742b9f28e"
+        },
+        {
+          "status": "pending_deduction",
+          "changedBy": "mortuary.admin",
+          "changedAt": "2026-09-14T02:48:11.200Z",
+          "notes": "Ready for Treasurer month-end processing",
+          "_id": "6aa7606b9b7966d742b9f28f"
+        },
+        {
+          "status": "deduction_processed",
+          "changedBy": "mortuary.treasurer",
+          "changedAt": "2026-09-14T03:24:05.866Z",
+          "notes": "Charged 2 active members ₱25 each (₱50 total)",
+          "_id": "6aa768d58d192594245b6320"
+        },
+        {
+          "status": "released",
+          "changedBy": "mortuary.treasurer",
+          "changedAt": "2026-09-14T03:25:34.198Z",
+          "notes": "₱50 released to Pedro Santos (Husband) (DV# DV-2026-1409)",
+          "_id": "6aa7692e8d192594245b6332"
+        }
+      ],
+      "createdBy": "mortuary.admin",
+      "createdAt": "2026-09-14T02:47:56.275Z",
+      "updatedAt": "2026-09-14T03:25:34.202Z",
+      "__v": 6,
+      "approval": {
+        "approvedBy": "mortuary.admin",
+        "approvedAt": "2026-09-14T02:48:11.200Z"
+      },
+      "deduction": {
+        "deductionSettingId": "f77ec54d-12bb-433b-8a83-a91e2e8e1f53",
+        "amountPerMember": 25,
+        "membersCharged": 2,
+        "totalCollected": 50,
+        "processedBy": "mortuary.treasurer",
+        "processedAt": "2026-09-14T03:24:05.866Z"
+      },
+      "payout": {
+        "amount": 50,
+        "paymentMethod": "cash",
+        "dvNumber": "DV-2026-1409",
+        "releasedBy": "mortuary.treasurer",
+        "releasedAt": "2026-09-14T00:00:00.000Z",
+        "ledgerId": "b0d653f2-9493-4997-bd6d-aa4fc0150fff"
+      }
+    }
+  ],
+  "backedUpAt": "2026-09-30T13:45:51.489Z"
+}

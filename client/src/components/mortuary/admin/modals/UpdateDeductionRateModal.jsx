@@ -58,7 +58,13 @@ export default function UpdateDeductionRateModal({ isOpen, onClose, currentAmoun
           <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
             New Amount (₱) <span className="text-red-500">*</span>
           </label>
-          <Input type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="25" />
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="25"
+          />
         </div>
 
         <div>

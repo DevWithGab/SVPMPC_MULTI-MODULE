@@ -27,7 +27,6 @@ import { Toast } from '../../components/ui/toast';
 import Button from '../../components/shared/ui/Button';
 import Input from '../../components/shared/ui/Input';
 import api from '../../services/api';
-import { getBarangay } from '../../utils/helpers';
 
 const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate }) => (
   <button
@@ -391,31 +390,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  const handleTriggerAutomatedNotice = async () => {
-    if (barangayFilter === 'All') {
-       return showToast('Please select a specific sector to trigger an automated notice.', 'error');
-    }
-
-    const targetedMembersCount = members.filter(m => getBarangay(m) === barangayFilter).length;
-
-    try {
-      const res = await fetch('/api/admin/trigger-sector-notice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetSector: barangayFilter, count: targetedMembersCount }),
-      });
-
-      if (res.ok) {
-        showToast(`Event triggered: Automated Notice queued for ${targetedMembersCount} members in Brgy ${barangayFilter}.`, 'success');
-      } else {
-        showToast('Failed to queue automated notice.', 'error');
-      }
-    } catch (error) {
-      console.error('Error triggering automated notice:', error);
-      showToast('Failed to queue automated notice.', 'error');
-    }
-  };
-
   // Effects
   useEffect(() => {
     (async () => {
@@ -491,8 +465,10 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         );
       case 'members':
         return (
-          <MemberBalances 
+          <MemberBalances
             members={members}
+            user={user}
+            showToast={showToast}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             barangayFilter={barangayFilter}
@@ -533,6 +509,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         if (selectedMemberId && !selectedLedgerMember) return <p role="status" className="text-sm text-slate-600">{loaded.members ? 'This member could not be found. Select Members Ledger to return to the list.' : 'Loading member...'}</p>;
         return (
           <MemberLedger
+            user={user}
             members={members}
             ledgerMembers={ledgerMembers}
             memberLedgerEntries={selectedMemberLedger}
@@ -548,7 +525,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             itemsPerPage={itemsPerPage}
             pagination={ledgerPagination}
             onAddDeposit={openAddDepositForMember}
-            handleTriggerAutomatedNotice={handleTriggerAutomatedNotice}
             showToast={showToast}
             refreshData={refreshAllData}
           />
@@ -576,7 +552,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             : isMobileMenuOpen ? 268 : 0,
         }}
         transition={{ type: 'tween', duration: 0.2 }}
-        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
+        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden print:hidden"
       >
         {/* Header */}
         <div className={`border-b border-white/10 flex items-center shrink-0 ${sidebarCollapsed ? 'justify-center py-5' : 'gap-3 px-5 py-5'}`}>
@@ -649,7 +625,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="lg:hidden bg-coop-darkGreen p-4 flex items-center justify-between shrink-0">
+        <div className="lg:hidden bg-coop-darkGreen p-4 flex items-center justify-between shrink-0 print:hidden">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             aria-label="Open menu"

@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const authController = require('../controllers/authController');
 const bulkImportController = require('../controllers/bulkImportController');
+const { loginLimiter, changePasswordLimiter } = require('../../middleware');
 
 const router = express.Router();
 
@@ -28,8 +29,8 @@ const upload = multer({
 });
 
 // Auth routes
-router.post('/login', authController.login);
-router.put('/change-password/:userId', authController.changePassword);
+router.post('/login', loginLimiter, authController.login);
+router.put('/change-password/:userId', changePasswordLimiter, authController.changePassword);
 router.get('/profile/:userId', authController.getUserProfile);
 router.get('/credential-history/:userId', authController.getCredentialHistory);
 router.get('/verify-token', authController.verifyToken);

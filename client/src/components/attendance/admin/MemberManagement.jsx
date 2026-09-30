@@ -26,6 +26,9 @@ import { memberAPI, resolveQrAssetUrl } from "../../../services/api";
 // source of truth the whole screen (badges, filters, actions) reads from.
 const qrState = (member) => {
   if (!member?.qrCodeGenerated) return "none";
+  // A deceased member's QR must never read as "active" here even if the
+  // qrCodeActive flag itself was never flipped off.
+  if (member.status === "deceased") return "inactive";
   return member.qrCodeActive === false ? "inactive" : "active";
 };
 

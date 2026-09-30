@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, X, Loader, Download } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
 import { getBarangay } from '../../../utils/helpers';
+import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice } from '../../../utils/balanceNotice';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -100,6 +101,7 @@ const groupEntriesByMonth = (entries, sortOrder) => {
 };
 
 const MemberLedger = ({
+  user,
   members,
   ledgerMembers = [],
   memberLedgerEntries = [],
@@ -115,7 +117,6 @@ const MemberLedger = ({
   itemsPerPage,
   pagination,
   onAddDeposit,
-  handleTriggerAutomatedNotice,
   showToast,
   refreshData
 }) => {
@@ -263,7 +264,6 @@ const MemberLedger = ({
 
     const totalReceived = mEntries.reduce((sum, e) => sum + (e.received || 0), 0);
     const totalWithdrawn = mEntries.reduce((sum, e) => sum + (e.withdrawn || 0), 0);
-    const netMovement = totalReceived - totalWithdrawn;
     const hasActiveLedgerFilters =
       transactionFilter !== 'all' || datePreset !== 'all';
     const monthGroups = groupEntriesByMonth(mEntries, sortOrder);
@@ -271,7 +271,7 @@ const MemberLedger = ({
     return (
       <div className="space-y-5 print:space-y-0">
         {/* Header */}
-        <div>
+        <div className="print:hidden">
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Member Ledger</h2>
           <p className="text-sm text-slate-500 mt-1">Transaction history for {currentMember.name}</p>
         </div>
@@ -302,6 +302,26 @@ const MemberLedger = ({
             >
               <Printer className="w-4 h-4" /> Print
             </button>
+            {(() => {
+              const noticeLevel = getNoticeLevel(currentMember.balance);
+              return (
+                <button
+                  onClick={() => printBalanceNotice(currentMember, user?.name)}
+                  disabled={!noticeLevel}
+                  title={noticeLevel ? undefined : 'Balance is at or above ₱1,000 — no notice needed'}
+                  className={`inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${
+                    noticeLevel === 3
+                      ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white focus-visible:ring-red-500'
+                      : noticeLevel
+                        ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white focus-visible:ring-amber-400'
+                        : 'bg-white border-slate-200 text-slate-400'
+                  }`}
+                >
+                  <Printer className="w-4 h-4" />
+                  {noticeLevel ? `Print ${NOTICE_LEVEL_LABELS[noticeLevel]}` : 'Print Notice'}
+                </button>
+              );
+            })()}
             <button
               onClick={() => onAddDeposit(currentMember)}
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
@@ -311,36 +331,11 @@ const MemberLedger = ({
           </div>
         </div>
 
-        {/* Member Info Card */}
-        <div id="printable-ledger" className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="p-5 border-b border-slate-100">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-base font-bold text-green-700">
-                {getInitials(currentMember.name)}
-              </div>
-              <div className="flex-1">
-                <p className="text-lg font-bold text-slate-900">{currentMember.name}</p>
-                <p className="text-xs text-slate-400">#{currentMember.id.toString().padStart(6, '0')}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-slate-400">Current Balance</p>
-                <p className="text-xl font-mono font-bold text-slate-900">{formatPeso(currentMember.balance)}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100">
-              <div>
-                <p className="text-xs text-slate-400">Address</p>
-                <p className="text-sm font-medium text-slate-700">{currentMember.address || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400">Beneficiary</p>
-                <p className="text-sm font-medium text-slate-700">{currentMember.beneficiaries || '—'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-x-5 gap-y-3 items-center print:hidden">
+        {/* Filters — kept outside #printable-ledger so it never prints,
+            and separate from the ledger card itself (not just print:hidden
+            inside it) per the requested layout. */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 print:hidden">
+          <div className="flex flex-wrap gap-x-5 gap-y-3 items-center">
             <div className="inline-flex border border-slate-200 overflow-hidden shrink-0" role="group" aria-label="Filter by transaction direction">
               {[
                 { value: 'all', label: 'All entries' },
@@ -408,6 +403,63 @@ const MemberLedger = ({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Member Info Card */}
+        <div id="printable-ledger" className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-slate-100">
+            {/* Letterhead — screen-hidden, shown only on the printed statement */}
+            <div className="hidden print:flex items-center justify-center gap-3 pb-4 mb-4 border-b border-slate-100">
+              <img
+                src="/SVPMPC-LOGO(MAIN).png"
+                alt=""
+                className="w-10 h-10 object-contain shrink-0"
+              />
+              <div className="text-center">
+                <p className="text-sm font-bold text-slate-900 tracking-tight">
+                  St. Vincent Parish Multi-Purpose Cooperative
+                </p>
+                <p className="text-[11px] text-slate-400">Mortuary Aid Fund Program</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <p className="text-lg font-bold text-slate-900">{currentMember.name}</p>
+                <p className="text-xs text-slate-400">#{currentMember.id.toString().padStart(6, '0')}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-400">Current Balance</p>
+                <p className="text-xl font-mono font-bold text-slate-900">{formatPeso(currentMember.balance)}</p>
+                {(() => {
+                  const level = getNoticeLevel(currentMember.balance);
+                  if (!level) return null;
+                  return (
+                    <span
+                      className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                        level === 3 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {NOTICE_LEVEL_LABELS[level]} due
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+              <div>
+                <p className="text-xs text-slate-400">Address</p>
+                <p className="text-sm font-medium text-slate-700">{currentMember.address || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Beneficiary</p>
+                <p className="text-sm font-medium text-slate-700">{currentMember.beneficiaries || '—'}</p>
+              </div>
+            </div>
+            <p className="hidden print:block text-center text-2xl font-extrabold text-coop-green uppercase tracking-widest mt-3 pt-3 border-t border-slate-100">
+              Mortuary Assistance Fund
+            </p>
+          </div>
 
           {/* Financial summary — statement-style: entry count on the left,
               monospaced totals on the right. Kept inside #printable-ledger so
@@ -428,18 +480,16 @@ const MemberLedger = ({
                 <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Withdrawn</p>
                 <p className="font-mono text-sm font-semibold text-red-500">{formatPeso(totalWithdrawn)}</p>
               </div>
-              <div className="text-right">
-                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Net Movement</p>
-                <p className="font-mono text-sm font-bold text-slate-900">{formatPeso(netMovement, { signed: true })}</p>
-              </div>
             </div>
           </div>
 
-          {/* Table */}
+          {/* Table — ruled like a paper ledger (outer border + vertical
+              dividers between columns, on top of the row separators) since
+              this is printed as an official statement. */}
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full border border-slate-200 border-collapse">
               <thead>
-                <tr className="border-b border-slate-100">
+                <tr className="border-b border-slate-200 divide-x divide-slate-200">
                   <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Reference</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Received</th>
@@ -456,8 +506,8 @@ const MemberLedger = ({
                   </tr>
                 </tbody>
               ) : monthGroups.length > 0 ? monthGroups.map((group) => (
-                <tbody key={group.key} className="divide-y divide-slate-100">
-                  <tr className="bg-slate-50/70">
+                <tbody key={group.key} className="divide-y divide-slate-200">
+                  <tr className="bg-slate-50/70 divide-x divide-slate-200">
                     <td colSpan={4} className="px-5 py-2 text-xs font-bold text-slate-500 tracking-wider">
                       {group.label}
                     </td>
@@ -466,7 +516,7 @@ const MemberLedger = ({
                     </td>
                   </tr>
                   {group.entries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors divide-x divide-slate-200">
                       <td className="px-5 py-3.5 text-sm text-slate-500 font-mono whitespace-nowrap align-top">
                         {formatLedgerDate(entry.date)}
                       </td>
@@ -574,14 +624,6 @@ const MemberLedger = ({
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
             >
               <Upload className="w-4 h-4" /> Bulk Upload
-            </button>
-            <button
-              onClick={handleTriggerAutomatedNotice}
-              disabled={barangayFilter === 'All'}
-              title={barangayFilter === 'All' ? 'Select a specific barangay above to send notices to its members' : undefined}
-              className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-            >
-              Send Notices
             </button>
           </div>
         </div>

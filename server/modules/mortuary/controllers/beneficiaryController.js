@@ -10,27 +10,79 @@ const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 // backstop for requests that don't go through that form (direct API calls).
 const PH_PHONE_REGEX = /^09\d{9}$/;
 
-// View Beneficiaries — current (active) ones by default
+// View Beneficiaries — one row per active member, showing whichever
+// beneficiary is currently on file for them.
+//
+// This is member-centric rather than Beneficiary-record-centric: some
+// active members only ever had a beneficiary captured as free text at
+// registration (Member.beneficiaries/beneficiaryRelationship) and never
+// went through the structured "Update Beneficiary" flow, so they'd have no
+// row at all in the Beneficiary collection. Starting from Member and left-
+// joining their current structured record (falling back to the legacy
+// free-text fields when there isn't one) means every active member shows
+// up here, matching what the screen's own subtitle promises — "current
+// beneficiary on file for each member" — and lets the admin see at a
+// glance who still needs to be formally registered.
 const getAllBeneficiaries = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     const search = (req.query.search || '').trim();
 
-    const query = { isActive: true };
+    const pipeline = [
+      { $match: { status: 'active' } },
+      {
+        $lookup: {
+          from: Beneficiary.collection.name,
+          let: { mid: '$memberId' },
+          pipeline: [
+            { $match: { $expr: { $and: [{ $eq: ['$memberId', '$$mid'] }, { $eq: ['$isActive', true] }] } } },
+            { $limit: 1 },
+          ],
+          as: 'beneficiaryRecord',
+        },
+      },
+      { $addFields: { beneficiaryRecord: { $arrayElemAt: ['$beneficiaryRecord', 0] } } },
+      {
+        $project: {
+          _id: 0,
+          memberId: 1,
+          memberName: 1,
+          beneficiaryId: '$beneficiaryRecord.beneficiaryId',
+          beneficiaryName: { $ifNull: ['$beneficiaryRecord.beneficiaryName', '$beneficiaries'] },
+          relationship: { $ifNull: ['$beneficiaryRecord.relationship', '$beneficiaryRelationship'] },
+          contactNumber: '$beneficiaryRecord.contactNumber',
+          address: '$beneficiaryRecord.address',
+          isRegistered: { $toBool: { $ifNull: ['$beneficiaryRecord.beneficiaryId', false] } },
+        },
+      },
+    ];
+
     if (search) {
       const searchRegex = new RegExp(escapeRegex(search), 'i');
-      query.$or = [
-        { memberName: searchRegex },
-        { memberId: searchRegex },
-        { beneficiaryName: searchRegex },
-      ];
+      pipeline.push({
+        $match: {
+          $or: [
+            { memberName: searchRegex },
+            { memberId: searchRegex },
+            { beneficiaryName: searchRegex },
+          ],
+        },
+      });
     }
 
-    const total = await Beneficiary.countDocuments(query);
-    const beneficiaries = await Beneficiary.find(query)
-      .sort({ memberName: 1 })
-      .skip(skip)
-      .limit(limit);
+    pipeline.push(
+      { $sort: { memberName: 1 } },
+      {
+        $facet: {
+          data: [{ $skip: skip }, { $limit: limit }],
+          totalCount: [{ $count: 'count' }],
+        },
+      }
+    );
+
+    const [result] = await Member.aggregate(pipeline);
+    const beneficiaries = result?.data || [];
+    const total = result?.totalCount?.[0]?.count || 0;
 
     res.status(200).json(buildPaginatedResponse(beneficiaries, total, page, limit));
   } catch (error) {

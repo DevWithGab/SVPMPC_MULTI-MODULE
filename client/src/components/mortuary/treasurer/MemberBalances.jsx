@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Search, ArrowUpDown, ChevronRight, Wallet, Clock, AlertTriangle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer } from 'lucide-react';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import StatCard from '../shared/StatCard';
 import { getBarangay } from '../../../utils/helpers';
+import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk } from '../../../utils/balanceNotice';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -14,6 +15,8 @@ const getInitials = (name) => {
 
 const MemberBalances = ({
   members,
+  user,
+  showToast,
   searchQuery,
   setSearchQuery,
   barangayFilter,
@@ -27,10 +30,42 @@ const MemberBalances = ({
 }) => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [printingLevel, setPrintingLevel] = useState(null);
 
   const lowBalanceMembers = members.filter(m => m.balance < 1000);
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
   const lowBalancePercent = members.length > 0 ? (lowBalanceMembers.length / members.length) * 100 : 0;
+
+  // Counted across every member (not just the current filtered/paginated
+  // view) so the bulk-print buttons below always reflect the true batch
+  // size regardless of what's on screen.
+  const noticeLevelCounts = useMemo(() => {
+    const counts = { 1: 0, 2: 0, 3: 0 };
+    members.forEach((m) => {
+      const level = getNoticeLevel(m.balance);
+      if (level) counts[level] += 1;
+    });
+    return counts;
+  }, [members]);
+
+  const handleBulkPrint = (level) => {
+    const count = noticeLevelCounts[level];
+    if (count === 0) return;
+    if (!window.confirm(`Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}? Each will print as a separate page in one job.`)) {
+      return;
+    }
+    setPrintingLevel(level);
+    try {
+      const printed = printBalanceNoticesBulk(members, level, user?.name);
+      if (printed === 0) {
+        showToast?.('Your browser blocked the print window. Please allow pop-ups and try again.', 'error');
+      } else {
+        showToast?.(`Queued ${printed} ${NOTICE_LEVEL_LABELS[level]} letter${printed === 1 ? '' : 's'} for printing.`, 'success');
+      }
+    } finally {
+      setPrintingLevel(null);
+    }
+  };
 
   const filteredMembers = members
     .filter(m => (memberFilter === 'low' ? m.balance < 1000 : true))
@@ -173,6 +208,39 @@ const MemberBalances = ({
         </div>
       </div>
 
+      {/* Bulk Notice Printing — prints every member at a given threshold as
+          one combined job (one letter per page) instead of opening each
+          member's ledger and printing them one at a time. */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Printer className="w-4 h-4 text-slate-400" />
+          <p className="text-sm font-semibold text-slate-900">Print notices by threshold</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3].map((level) => {
+            const count = noticeLevelCounts[level];
+            const isFinal = level === 3;
+            return (
+              <button
+                key={level}
+                onClick={() => handleBulkPrint(level)}
+                disabled={count === 0 || printingLevel !== null}
+                title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}` : undefined}
+                className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isFinal
+                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                }`}
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print {NOTICE_LEVEL_LABELS[level]}
+                <span className="px-1.5 py-0.5 text-xs rounded-full bg-white/70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <table className="w-full">
@@ -252,7 +320,7 @@ const MemberBalances = ({
                     aria-label={`Open ledger for ${m.name}`}
                     className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <BookOpen className="w-4 h-4" />
                   </button>
                 </td>
               </tr>
