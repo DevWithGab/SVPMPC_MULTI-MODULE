@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#166534" />
+    <title>You're offline | SVPMPC</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f0fdf4; color: #163422; font: 16px/1.6 system-ui, sans-serif; }
+      main { width: 100%; max-width: 460px; padding: 32px; background: white; border: 1px solid #bbdfc6; border-radius: 20px; }
+      .brand { color: #166534; font-weight: 700; letter-spacing: .08em; }
+      h1 { font-size: 28px; line-height: 1.2; }
+      p { color: #42594a; }
+      button { margin-top: 12px; padding: 12px 24px; border: 0; border-radius: 8px; background: #166534; color: white; font: inherit; font-weight: 600; cursor: pointer; }
+      button:focus-visible { outline: 3px solid #166534; outline-offset: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">SVPMPC</div>
+      <h1>You're offline</h1>
+      <p>Connect to the internet to open the management system. Attendance, member records, and financial transactions need a connection to the server.</p>
+      <p>Once connected, retry to return to the page you were opening.</p>
+      <button type="button" onclick="window.location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

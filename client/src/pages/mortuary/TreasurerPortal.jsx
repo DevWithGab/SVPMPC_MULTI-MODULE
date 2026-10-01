@@ -479,6 +479,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <Dashboard
             stats={stats}
             contributions={contributions}
+            claimsCounts={loaded.claims ? claimsCounts : null}
+            claimsError={loadErrors.claims}
           />
         );
       case 'members':

@@ -1,11 +1,11 @@
 import { contributionTrend, memberBalanceCoverage, contributionGrowth } from '../../../utils/dashboardMetrics';
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown } from 'lucide-react';
-import { AreaChart, Area, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { AreaChart, Area, Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
 import StatCard from '../shared/StatCard';
 
-const Dashboard = ({ stats, contributions = [] }) => {
+const Dashboard = ({ stats, contributions = [], claimsCounts, claimsError }) => {
   const healthyRatio = memberBalanceCoverage(stats);
 
   const memberStandingData = [
@@ -60,8 +60,18 @@ const Dashboard = ({ stats, contributions = [] }) => {
 
   const chartConfig = {
     contributions: { label: "Contributions", color: "#2D7A3E" },
-    cumulative: { label: "Cumulative Contributions", color: "#10b981" },
   };
+
+  const claimsConfig = {
+    claims: { label: "Claims" },
+    pendingDeduction: { label: "Pending deduction", color: "#f59e0b" },
+    awaitingRelease: { label: "Awaiting release", color: "#3b82f6" },
+  };
+  const claimsData = [
+    { stage: 'pendingDeduction', claims: claimsCounts?.pendingDeduction ?? 0, fill: 'var(--color-pendingDeduction)' },
+    { stage: 'awaitingRelease', claims: claimsCounts?.awaitingRelease ?? 0, fill: 'var(--color-awaitingRelease)' },
+  ];
+  const outstandingClaims = claimsData.reduce((total, row) => total + row.claims, 0);
 
   return (
     <div className="space-y-6">
@@ -183,36 +193,57 @@ const Dashboard = ({ stats, contributions = [] }) => {
           </div>
         </div>
 
-        {/* Cumulative Balance Area Chart */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
+        {/* Claims awaiting treasurer action */}
+        <div className="min-w-0 bg-white border border-slate-200 rounded-xl p-6">
           <div className="mb-4">
-            <p className="text-sm font-semibold text-slate-900">Cumulative Contributions</p>
-            <p className="text-xs text-slate-400 mt-0.5">Contributions in the shown six months; excludes opening balances and outflows.</p>
+            <p className="text-sm font-semibold text-slate-900">Claims Awaiting Action</p>
+            <p className="text-xs text-slate-400 mt-0.5">Current claims pending deduction or benefit release</p>
           </div>
 
-          <ChartContainer config={chartConfig} className="h-[180px] w-full">
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="fillBalance" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-cumulative)" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="var(--color-cumulative)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis hide />
-              <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
-              <Area type="monotone" dataKey="cumulative" stroke="var(--color-cumulative)" strokeWidth={2} fill="url(#fillBalance)" dot={false} activeDot={{ r: 5 }} />
-            </AreaChart>
-          </ChartContainer>
+          {claimsError || !claimsCounts || outstandingClaims === 0 ? (
+            <div role="status" className="flex h-[240px] items-center justify-center text-center text-sm text-slate-500">
+              {claimsError ? 'Unable to load claim counts. Retry using the notice above.'
+                : !claimsCounts ? 'Loading claim counts...'
+                : 'No claims pending deduction or release.'}
+            </div>
+          ) : (
+            <ChartContainer config={claimsConfig} className="h-[240px] w-full">
+              <BarChart accessibilityLayer data={claimsData} layout="vertical" margin={{ left: 0, right: 12 }}>
+                <CartesianGrid horizontal={false} stroke="#e2e8f0" />
+                <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} fontSize={11} />
+                <YAxis
+                  dataKey="stage"
+                  type="category"
+                  width={115}
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  tickFormatter={(stage) => claimsConfig[stage].label}
+                />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent
+                  labelKey="stage"
+                  formatter={(value) => `${value.toLocaleString()} ${value === 1 ? 'claim' : 'claims'}`}
+                />} />
+                <Bar dataKey="claims" radius={4} barSize={32} />
+              </BarChart>
+            </ChartContainer>
+          )}
 
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <p className="text-xs text-slate-400">Contributions in Shown Period</p>
-            <p className="text-lg font-bold text-slate-900">₱{chartData[chartData.length - 1].cumulative.toLocaleString()}</p>
-          </div>
+          {claimsCounts && !claimsError && (
+            <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+              {claimsData.map((item) => (
+                <div key={item.stage} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: claimsConfig[item.stage].color }} />
+                    {claimsConfig[item.stage].label}
+                  </span>
+                  <span className="font-bold tabular-nums text-slate-900">{item.claims.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
       {/* Pie Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Member Standing */}
