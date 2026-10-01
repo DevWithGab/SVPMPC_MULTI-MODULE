@@ -7,13 +7,12 @@ import {
   Filter,
   TrendingUp,
   FileText,
-  Search,
-  X,
   Loader2,
+  ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
 import {
   Table,
   TableBody,
@@ -22,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "../../ui/table";
-import { StatCard } from "../shared";
+import { StatCard, EventAttendeesPanel } from "../shared";
 import { pdfReportGenerator } from "../../../utils/pdfReportGenerator";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDate, formatTime } from "../../../utils/date";
@@ -31,7 +30,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const [selectedEvent, setSelectedEvent] = useState("all");
   const [selectedBarangay, setSelectedBarangay] = useState("all");
   const [dateRange, setDateRange] = useState("month");
-  const [searchTerm, setSearchTerm] = useState("");
   const [localEvents, setLocalEvents] = useState(events || []);
   const [localAttendanceLogs, setLocalAttendanceLogs] = useState(
     attendanceLogs || [],
@@ -40,6 +38,8 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [totalMembersInDb, setTotalMembersInDb] = useState(0);
   const [_totalAttendanceInDb, setTotalAttendanceInDb] = useState(0);
+  const [allMembers, setAllMembers] = useState([]);
+  const [viewingEvent, setViewingEvent] = useState(null);
 
   useEffect(() => {
     setLocalEvents(events || []);
@@ -86,11 +86,13 @@ export default function AttendanceReports({ attendanceLogs, events }) {
               : [];
 
         if (isMounted) {
+          setAllMembers(memberList);
           setTotalMembersInDb(memberList.length);
         }
       } catch (error) {
         console.error("Error loading members from DB:", error);
         if (isMounted) {
+          setAllMembers([]);
           setTotalMembersInDb(0);
         }
       }
@@ -183,9 +185,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     const matchesBarangay =
       selectedBarangay === "all" ||
       String(log.barangay || "").toLowerCase() === selectedBarangay;
-    const matchesSearch = log.memberName
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
 
     let matchesDate = true;
     if (dateRange !== "all") {
@@ -212,7 +211,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       }
     }
 
-    return matchesEvent && matchesBarangay && matchesSearch && matchesDate;
+    return matchesEvent && matchesBarangay && matchesDate;
   });
 
   // Calculate statistics
@@ -315,7 +314,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         filters: {
           event: selectedEvent,
           eventName: selectedEvent !== "all" ? selectedEvent : null,
-          search: searchTerm,
           dateRange:
             dateRange === "all"
               ? "All time"
@@ -498,6 +496,29 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     }
   };
 
+  // Clicking an event replaces this whole screen with its own page (not a
+  // modal, not an inline-expanding row) — a dedicated place to search for a
+  // specific member and see present/absent, with a way back to the report.
+  if (viewingEvent) {
+    return (
+      <div className="space-y-6 pb-12">
+        <button
+          onClick={() => setViewingEvent(null)}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-coop-green transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Reports
+        </button>
+        <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+          <EventAttendeesPanel
+            event={viewingEvent}
+            presentLogs={viewingEvent.presentLogs}
+            allMembers={allMembers}
+          />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -532,31 +553,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       {/* Filters */}
       <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
         <CardContent className="p-5 space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-              Search Member
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder="Search members..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-9 border-slate-200 rounded-lg"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  aria-label="Clear search"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/40 rounded"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
@@ -620,7 +616,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                   setSelectedEvent("all");
                   setSelectedBarangay("all");
                   setDateRange("month");
-                  setSearchTerm("");
                 }}
                 variant="outline"
                 className="w-full border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
@@ -714,83 +709,95 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                 </TableRow>
               </TableHeader>
               <TableBody className="stagger-in">
-                {eventSummary.map((event) => (
-                  <TableRow
-                    key={
-                      event.eventId ||
-                      event.id ||
-                      event._id ||
-                      event.displayName
-                    }
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <TableCell className="py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {event.displayName}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {event.location}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">
-                          {event.displayDate
-                            ? formatDate(event.displayDate)
-                            : "No date"}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {event.displayDate
-                            ? formatTime(event.displayDate)
-                            : "No time"}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <span className="text-sm font-medium text-slate-700">
-                        {event.attendanceCount} records
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-slate-400" />
+                {eventSummary.map((event) => {
+                  const eventKey =
+                    event.eventId || event.id || event._id || event.displayName;
+                  return (
+                    <TableRow
+                      key={eventKey}
+                      onClick={() =>
+                        setViewingEvent({
+                          name: event.displayName,
+                          date: event.displayDate,
+                          presentLogs: getEventAttendanceLogs(event),
+                        })
+                      }
+                      className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    >
+                      <TableCell className="py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {event.displayName}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {event.location}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">
+                            {event.displayDate
+                              ? formatDate(event.displayDate)
+                              : "No date"}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {event.displayDate
+                              ? formatTime(event.displayDate)
+                              : "No time"}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
                         <span className="text-sm font-medium text-slate-700">
-                          {event.uniqueAttendees} members
+                          {event.attendanceCount} records
                         </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleExportAttendeesByBarangay(event)}
-                          disabled={event.attendanceCount === 0}
-                          aria-label={`Export ${event.displayName} attendees as CSV`}
-                          title="Export attendees (CSV)"
-                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-slate-400" />
+                            <span className="text-sm font-medium text-slate-700">
+                              {event.uniqueAttendees} members
+                            </span>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-300" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div
+                          className="flex items-center gap-2"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleExportAttendeesByBarangayPDF(event)
-                          }
-                          disabled={event.attendanceCount === 0}
-                          aria-label={`Export ${event.displayName} attendees as PDF`}
-                          title="Export attendees (PDF)"
-                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleExportAttendeesByBarangay(event)}
+                            disabled={event.attendanceCount === 0}
+                            aria-label={`Export ${event.displayName} attendees as CSV`}
+                            title="Export attendees (CSV)"
+                            className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleExportAttendeesByBarangayPDF(event)
+                            }
+                            disabled={event.attendanceCount === 0}
+                            aria-label={`Export ${event.displayName} attendees as PDF`}
+                            title="Export attendees (PDF)"
+                            className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {eventSummary.length === 0 && (
                   <TableRow>
                     <TableCell

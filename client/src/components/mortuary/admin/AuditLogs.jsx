@@ -50,6 +50,20 @@ const ROLE_COLORS = {
 const getRoleColor = (role) =>
   ROLE_COLORS[role] || "bg-slate-100 text-slate-800";
 
+const ROLE_LABELS = {
+  admin: "Admin",
+  super_admin: "Super Admin",
+  treasurer: "Treasurer",
+  secretary: "Secretary",
+  member: "Member",
+};
+// CSS `capitalize` only affects the first letter of each space-separated
+// word, so a raw role like "super_admin" rendered as "Super_admin" — the
+// underscore stayed visible. This gives every role a real display name.
+const roleLabel = (role) =>
+  ROLE_LABELS[role] ||
+  (role || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 // Fields that are internal bookkeeping or already restated elsewhere (e.g.
 // statusHistory duplicates what the audit trail itself is showing).
 const INTERNAL_FIELDS = new Set([
@@ -79,6 +93,29 @@ const FIELD_LABELS = {
   deduction: "Deduction",
   payout: "Payout",
   createdBy: "Created By",
+  claimApplicationForm: "Claim Application Form",
+  deathCertificate: "Death Certificate",
+  memberCooperativeId: "Member Cooperative ID",
+  beneficiaryValidId: "Beneficiary Valid ID",
+  deductionSettingId: "Deduction Rate Used",
+  amountPerMember: "Amount Per Member",
+  membersCharged: "Members Charged",
+  totalCollected: "Total Collected",
+  processedBy: "Processed By",
+  processedAt: "Processed On",
+  verifiedBy: "Verified By",
+  verificationDate: "Verification Date",
+  approvedBy: "Approved By",
+  approvedAt: "Approved On",
+  rejectedBy: "Rejected By",
+  rejectedAt: "Rejected On",
+  reason: "Reason",
+  amount: "Amount",
+  paymentMethod: "Payment Method",
+  dvNumber: "DV Number",
+  releasedBy: "Released By",
+  releasedAt: "Released On",
+  ledgerId: "Ledger Reference",
 };
 
 const friendlyLabel = (key) =>
@@ -88,21 +125,48 @@ const friendlyLabel = (key) =>
     .replace(/^./, (c) => c.toUpperCase())
     .trim();
 
-// Nested objects (deduction, payout, approval, ...) get flattened into a
-// single readable line instead of rendering as "[object Object]".
+// A claim's requirements checklist (claimApplicationForm, deathCertificate,
+// ...) is itself {submitted, received, verified} — summarized as one plain
+// status instead of "submitted: true, received: false, verified: false".
+const requirementStatus = (item) => {
+  if (!item || typeof item !== "object") return "Not submitted";
+  if (item.verified) return "Verified";
+  if (item.received) return "Received, not yet verified";
+  if (item.submitted) return "Submitted, not yet received";
+  return "Not submitted";
+};
+
+// Nested objects (deduction, payout, approval, requirements, ...) get
+// flattened into a readable line instead of rendering as "[object Object]"
+// or, worse, raw JSON — recurses so a nested object inside a nested object
+// (e.g. requirements.deathCertificate) never falls through to JSON.stringify.
+// Timestamp-shaped keys (processedAt, releasedAt, verificationDate, ...)
+// otherwise render as a raw ISO string — this catches any of them by name
+// pattern rather than needing every one listed individually.
+const DATE_KEY_PATTERN = /(At|Date)$/;
+
 const friendlyValue = (key, value) => {
   if (value === null || value === undefined || value === "") return "—";
   if (key === "dateOfDeath" || key === "dateFiled") return formatDate(value);
+  if (
+    typeof value === "string" &&
+    DATE_KEY_PATTERN.test(key) &&
+    !Number.isNaN(new Date(value).getTime())
+  ) {
+    return formatDateTime(value);
+  }
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (key === "requirements" && value && typeof value === "object") {
+    return Object.entries(value)
+      .map(([k, v]) => `${friendlyLabel(k)}: ${requirementStatus(v)}`)
+      .join("; ");
+  }
   if (Array.isArray(value))
     return value.length ? `${value.length} item(s)` : "—";
   if (typeof value === "object") {
     const parts = Object.entries(value)
       .filter(([, v]) => v !== null && v !== undefined && v !== "")
-      .map(
-        ([k, v]) =>
-          `${friendlyLabel(k)}: ${typeof v === "object" ? JSON.stringify(v) : v}`,
-      );
+      .map(([k, v]) => `${friendlyLabel(k)}: ${friendlyValue(k, v)}`);
     return parts.length ? parts.join(", ") : "—";
   }
   return String(value);
@@ -235,7 +299,7 @@ const AuditLogs = () => {
     ];
     const rows = logs.map((log) => [
       formatDateTime(log.timestamp),
-      log.userRole,
+      roleLabel(log.userRole),
       actionLabel(log.action),
       log.entityName || "-",
       log.status,
@@ -473,9 +537,9 @@ const AuditLogs = () => {
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${getRoleColor(log.userRole)}`}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleColor(log.userRole)}`}
                           >
-                            {log.userRole}
+                            {roleLabel(log.userRole)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm">
@@ -598,9 +662,9 @@ const AuditLogs = () => {
                       By
                     </p>
                     <span
-                      className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${getRoleColor(selectedLog.userRole)}`}
+                      className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${getRoleColor(selectedLog.userRole)}`}
                     >
-                      {selectedLog.userRole}
+                      {roleLabel(selectedLog.userRole)}
                     </span>
                   </div>
                   <div>

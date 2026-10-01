@@ -34,7 +34,7 @@ export default function DeductionSettings({ user }) {
   return (
     <div className="space-y-6 pb-12">
       <p className="text-slate-500 text-sm">
-        The standard deduction amount charged to active members during month-end claim processing.
+        The standard deduction amount charged to active members when a death claim is processed.
       </p>
 
       {loading ? (

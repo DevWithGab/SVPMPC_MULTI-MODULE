@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Users,
   Wallet,
@@ -63,6 +63,33 @@ export default function DatabaseBackup({
   const [restoreResult, setRestoreResult] = useState(null); // { summary } | { error }
   const [parseError, setParseError] = useState("");
 
+  // A member's balance isn't a field on Member — it's derived from the
+  // latest entry in their Ledger history. Fetched separately (and lazily,
+  // only while this screen is open) since it can grow large and nothing
+  // else on the admin dashboard needs it.
+  const [ledgers, setLedgers] = useState([]);
+  const [loadingLedgers, setLoadingLedgers] = useState(true);
+  const [ledgerLoadError, setLedgerLoadError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingLedgers(true);
+    backupAPI
+      .getMortuaryLedgerExport()
+      .then((res) => {
+        if (!cancelled) setLedgers(Array.isArray(res?.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setLedgerLoadError("Unable to load ledger data for backup.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLedgers(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const downloadMembersCSV = () => {
     const csv = toCSV([
       [
@@ -121,17 +148,49 @@ export default function DatabaseBackup({
     );
   };
 
+  const downloadLedgerCSV = () => {
+    const csv = toCSV([
+      [
+        "Ledger ID",
+        "Member ID",
+        "Transaction Type",
+        "Description",
+        "Credit",
+        "Debit",
+        "Balance",
+        "Transaction Date",
+      ],
+      ...ledgers.map((l) => [
+        l.ledgerId || "",
+        l.memberId || "",
+        l.transactionType || "",
+        l.description || "",
+        l.credit ?? 0,
+        l.debit ?? 0,
+        l.balance ?? "",
+        l.transactionDate || "",
+      ]),
+    ]);
+    downloadBlob(
+      "﻿" + csv,
+      "text/csv;charset=utf-8;",
+      `mortuary_ledger_backup_${todayStamp()}.csv`,
+    );
+  };
+
   const downloadFullBackup = () => {
     const data = {
       exportDate: new Date().toISOString(),
-      exportVersion: "1.0",
+      exportVersion: "2.0",
       system: "Mortuary Fund Management",
       members: members.map(normalizeMemberForBackup),
       contributions,
+      ledgers,
       metadata: {
         totalMembers: members.length,
         activeMembers: members.filter((m) => m.status === "active").length,
         totalContributions: contributions.length,
+        totalLedgerEntries: ledgers.length,
         exportedBy: user?.name || "Admin",
       },
     };
@@ -157,10 +216,12 @@ export default function DatabaseBackup({
       const text = await file.text();
       const parsed = JSON.parse(text);
       const hasAny =
-        Array.isArray(parsed?.members) || Array.isArray(parsed?.contributions);
+        Array.isArray(parsed?.members) ||
+        Array.isArray(parsed?.contributions) ||
+        Array.isArray(parsed?.ledgers);
       if (!hasAny) {
         setParseError(
-          'This file has no "members" or "contributions" array — it doesn\'t look like a Mortuary system backup.',
+          'This file has no "members", "contributions", or "ledgers" array — it doesn\'t look like a Mortuary system backup.',
         );
         return;
       }
@@ -215,7 +276,7 @@ export default function DatabaseBackup({
       </div>
 
       {/* Backup Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="p-3 bg-green-50 rounded-xl">
             <Users className="w-5 h-5 text-coop-green" />
@@ -240,15 +301,38 @@ export default function DatabaseBackup({
             </p>
           </div>
         </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div className="p-3 bg-amber-50 rounded-xl">
+            <Database className="w-5 h-5 text-amber-700" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Ledger Entries (Balances)
+            </p>
+            <p className="text-xl font-bold text-slate-900">
+              {loadingLedgers ? "…" : ledgers.length}
+            </p>
+          </div>
+        </div>
       </div>
+
+      {ledgerLoadError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
+          <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-700">
+            {ledgerLoadError} The "Complete System Backup" below won't include
+            member balances until this loads — refresh the page to retry.
+          </p>
+        </div>
+      )}
 
       {/* Backup Options */}
       <div>
         <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">
           Backup
         </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-green-50 rounded-xl shrink-0">
                 <Users className="w-6 h-6 text-coop-green" />
@@ -276,14 +360,14 @@ export default function DatabaseBackup({
             </div>
             <button
               onClick={downloadMembersCSV}
-              className="w-full h-11 px-4 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 mt-auto bg-white border-2 border-coop-green text-coop-green hover:bg-green-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-4 h-4" />
-              Download Members CSV
+              Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-blue-50 rounded-xl shrink-0">
                 <Wallet className="w-6 h-6 text-blue-700" />
@@ -311,24 +395,60 @@ export default function DatabaseBackup({
             </div>
             <button
               onClick={downloadContributionsCSV}
-              className="w-full h-11 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 mt-auto bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-4 h-4" />
-              Download Contributions CSV
+              Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-amber-50 rounded-xl shrink-0">
-                <Database className="w-6 h-6 text-amber-700" />
+                <Wallet className="w-6 h-6 text-amber-700" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-slate-900">
-                  Complete System Backup
+                  Member Balances
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Full database export in JSON format — restorable from below
+                  Export the full ledger history behind every balance
+                </p>
+              </div>
+            </div>
+            <div className="space-y-2.5 mb-6 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Total Records</span>
+                <span className="font-semibold text-slate-900">
+                  {loadingLedgers ? "…" : ledgers.length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Format</span>
+                <span className="font-semibold text-slate-900">CSV</span>
+              </div>
+            </div>
+            <button
+              onClick={downloadLedgerCSV}
+              disabled={loadingLedgers}
+              className="w-full h-11 px-4 mt-auto bg-white border-2 border-amber-600 text-amber-700 hover:bg-amber-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FileText className="w-4 h-4" />
+              Download CSV
+            </button>
+          </div>
+
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-green-50 rounded-xl shrink-0">
+                <Database className="w-6 h-6 text-coop-green" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Complete Backup
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Full export in JSON — restorable from below
                 </p>
               </div>
             </div>
@@ -345,10 +465,17 @@ export default function DatabaseBackup({
                   {contributions.length}
                 </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Ledger Entries (Balances)</span>
+                <span className="font-semibold text-slate-900">
+                  {loadingLedgers ? "…" : ledgers.length}
+                </span>
+              </div>
             </div>
             <button
               onClick={downloadFullBackup}
-              className="w-full h-11 px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              disabled={loadingLedgers}
+              className="w-full h-11 px-4 mt-auto bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText className="w-4 h-4" />
               Download JSON Backup
@@ -372,8 +499,8 @@ export default function DatabaseBackup({
                 Restore from Backup
               </h3>
               <p className="text-sm text-slate-500 mt-1">
-                Upload a "Complete System Backup" .json file to restore members
-                and contributions.
+                Upload a "Complete System Backup" .json file to restore
+                members, contributions, and member balances.
               </p>
             </div>
           </div>
@@ -428,6 +555,11 @@ export default function DatabaseBackup({
                     {pendingRestore.contributions.length} contributions
                   </span>
                 )}
+                {Array.isArray(pendingRestore.ledgers) && (
+                  <span>
+                    {pendingRestore.ledgers.length} ledger entries (balances)
+                  </span>
+                )}
               </div>
               <div className="flex gap-3">
                 <button
@@ -465,6 +597,9 @@ export default function DatabaseBackup({
                 )}
                 {summaryCounts("contributions") && (
                   <p>Contributions: {summaryCounts("contributions")}</p>
+                )}
+                {summaryCounts("ledgers") && (
+                  <p>Ledger entries (balances): {summaryCounts("ledgers")}</p>
                 )}
               </div>
             </div>

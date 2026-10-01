@@ -854,9 +854,17 @@ export const backupAPI = {
     return response.data;
   },
 
-  // Mortuary's equivalent — accepts { members, contributions }, any subset.
+  // Mortuary's equivalent — accepts { members, contributions, ledgers }, any subset.
   restoreMortuary: async (backupData) => {
     const response = await api.post('/mortuary/admin/backup/restore', backupData);
+    return response.data;
+  },
+
+  // Raw, unpaginated Ledger export for the "Complete System Backup" button —
+  // this is what actually carries every member's balance history, since
+  // Member itself has no balance field.
+  getMortuaryLedgerExport: async () => {
+    const response = await api.get('/mortuary/admin/backup/ledger');
     return response.data;
   },
 };

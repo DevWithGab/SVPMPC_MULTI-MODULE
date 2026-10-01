@@ -73,6 +73,7 @@ router.post('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeT
 
 // Database backup/restore — restore is a bulk write over live data, so it
 // gets the same explicit auth as the other consequential routes above.
+router.get('/backup/ledger', authenticateToken, authorizeAdminOnly, backupController.getLedgerExport);
 router.post('/backup/restore', authenticateToken, authorizeAdminOnly, backupController.restoreBackup);
 
 module.exports = router;

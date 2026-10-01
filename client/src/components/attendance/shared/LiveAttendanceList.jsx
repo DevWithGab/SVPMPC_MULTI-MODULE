@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Activity, RefreshCw, CalendarOff } from "lucide-react";
-import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
+import { RefreshCw, CalendarOff } from "lucide-react";
+import { attendanceAPI, eventAPI } from "../../../services/api";
 import { formatDateTime, formatTime } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 
@@ -13,6 +13,24 @@ const ATTENDANCE_FETCH_PAGE_SIZE = 100;
 const getEventKey = (event) =>
   event?.eventId || event?.id || event?._id || event?.name || event?.eventName;
 
+const getAttendanceKey = (record) =>
+  record?.memberId ||
+  record?.member_id ||
+  record?.member?.memberId ||
+  record?.member?.member_id ||
+  record?.memberName ||
+  record?.name;
+
+const getMemberDisplayName = (record) =>
+  String(
+    record?.memberName || record?.member_name || record?.name || "Unknown member",
+  );
+
+// Tracks who has actually checked in to the active event — not a full
+// member roster with synthesized "Absent" rows for everyone who hasn't
+// scanned yet. A present/absent breakdown against the whole membership
+// belongs on the event's own report (see EventAttendeesPanel), not here;
+// this is purely a live feed of real check-ins as they happen.
 export default function LiveAttendanceList({
   attendanceLogs: propAttendanceLogs = [],
   initialLogs = [],
@@ -27,12 +45,10 @@ export default function LiveAttendanceList({
   const eventsSource = propEvents.length ? propEvents : initialEvents;
   const [attendanceLogs, setAttendanceLogs] = useState(attendanceLogsSource);
   const [events, setEvents] = useState(eventsSource);
-  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [error, setError] = useState("");
   const [selectedBarangay, setSelectedBarangay] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const isRefreshingRef = useRef(false);
@@ -62,31 +78,12 @@ export default function LiveAttendanceList({
     }
   }, []);
 
-  const fetchLiveAttendance = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const memberData = await memberAPI.getAllMembers();
-
-      if (memberData.status === "fulfilled" || memberData) {
-        setMembers(memberData.members || []);
-      } else {
-        throw memberData.reason;
-      }
-    } catch (fetchError) {
-      setError(fetchError?.message || "Unable to load members.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   // Pulls every attendance record for one event via the dedicated per-event
   // endpoint, paging through it in full — the generic "all attendance"
   // endpoint (and the attendanceLogs prop, sourced from it) only ever
   // returns the 10 most recent records *across every event combined*, so
   // any event with more than a handful of check-ins would have its older
-  // attendees quietly fall out of view and look "Absent" again.
+  // attendees quietly fall out of view.
   const fetchEventAttendance = useCallback(async (eventId) => {
     if (!eventId) return [];
     let page = 1;
@@ -124,11 +121,10 @@ export default function LiveAttendanceList({
   const handleRefresh = useCallback(async () => {
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
+    setLoading(true);
+    setError("");
     try {
-      const [, fetchedEvents] = await Promise.all([
-        fetchLiveAttendance(),
-        fetchEventsFromDB(),
-      ]);
+      const fetchedEvents = await fetchEventsFromDB();
 
       // Mirrors the activeEvent memo below, but resolved from the events we
       // just fetched rather than state (which hasn't re-rendered yet).
@@ -149,15 +145,10 @@ export default function LiveAttendanceList({
       }
       setLastRefreshedAt(new Date());
     } finally {
+      setLoading(false);
       isRefreshingRef.current = false;
     }
-  }, [
-    fetchLiveAttendance,
-    fetchEventsFromDB,
-    fetchEventAttendance,
-    currentEvent,
-    onRefresh,
-  ]);
+  }, [fetchEventsFromDB, fetchEventAttendance, currentEvent, onRefresh]);
 
   useEffect(() => {
     handleRefresh();
@@ -175,35 +166,6 @@ export default function LiveAttendanceList({
 
     return () => clearInterval(interval);
   }, [handleRefresh]);
-
-  const getMemberKey = (member) =>
-    member?.memberId || member?.id || member?._id || member?.qrCode;
-
-  const getMemberDisplayName = (member) =>
-    String(member?.memberName || member?.name || "Unknown member");
-
-  const getAttendanceKey = (record) =>
-    record?.memberId ||
-    record?.member_id ||
-    record?.member?.memberId ||
-    record?.member?.member_id ||
-    record?.memberName ||
-    record?.name;
-
-  const availableBarangays = useMemo(() => {
-    const barangays = new Set();
-    members.forEach((member) => {
-      const barangay =
-        member?.barangay || member?.barangayName || member?.barangay_name;
-      if (barangay) barangays.add(barangay);
-    });
-    attendanceLogs.forEach((record) => {
-      const barangay =
-        record.barangay || record.barangayName || record.barangay_name;
-      if (barangay) barangays.add(barangay);
-    });
-    return ["all", ...Array.from(barangays).sort()];
-  }, [attendanceLogs, members]);
 
   const activeEvent = useMemo(() => {
     const currentEventKey = String(getEventKey(currentEvent) || "").trim();
@@ -235,70 +197,47 @@ export default function LiveAttendanceList({
   }, [activeEvent]);
 
   const liveRows = useMemo(() => {
-    if (!members.length) {
-      return [];
-    }
-
-    const normalizedRecords = attendanceLogs.map((record) => ({
-      ...record,
-      eventKey:
-        record.eventId || record.event_id || record.event || record.eventName,
-      memberKey: getAttendanceKey(record),
-      status: String(record.status || "present").toLowerCase(),
-    }));
-
-    const selectedEventRows = normalizedRecords.filter((record) => {
-      const recordEventKey = String(record.eventKey || "");
-      return recordEventKey === activeEventKey;
-    });
-
-    const attendanceMap = new Map();
-    selectedEventRows.forEach((record) => {
-      const memberKey = String(getAttendanceKey(record) || "");
-      if (!memberKey) return;
-      attendanceMap.set(memberKey, record);
-    });
-
-    return members.map((member) => {
-      const memberKey = String(getMemberKey(member) || "");
-      const record = attendanceMap.get(memberKey);
-      const isPresent = Boolean(record);
-      const derivedStatus =
-        record?.status || (isPresent ? "present" : "absent");
-
-      return {
-        member,
-        memberKey,
-        record,
-        status: derivedStatus,
-        eventName: selectedEventLabel,
+    return attendanceLogs
+      .filter((record) => {
+        const recordEventKey = String(
+          record.eventId ||
+            record.event_id ||
+            record.event ||
+            record.eventName ||
+            "",
+        );
+        return recordEventKey === activeEventKey;
+      })
+      .map((record) => ({
+        recordId: record._id || getAttendanceKey(record),
+        memberKey: String(getAttendanceKey(record) || ""),
+        memberName: getMemberDisplayName(record),
+        memberId: record.memberId || record.member_id || "",
+        barangay:
+          record.barangay || record.barangayName || record.barangay_name || "",
         scanTime:
-          record?.scanTime || record?.timestamp || record?.createdAt || null,
-      };
+          record.scanTime || record.timestamp || record.createdAt || null,
+      }));
+  }, [attendanceLogs, activeEventKey]);
+
+  const availableBarangays = useMemo(() => {
+    const barangays = new Set();
+    liveRows.forEach((row) => {
+      if (row.barangay) barangays.add(row.barangay);
     });
-  }, [attendanceLogs, members, activeEventKey, selectedEventLabel]);
+    return ["all", ...Array.from(barangays).sort()];
+  }, [liveRows]);
 
   const filteredAttendance = useMemo(() => {
-    return liveRows.filter((row) => {
-      const barangay =
-        row.member?.barangay ||
-        row.member?.barangayName ||
-        row.member?.barangay_name;
-
-      const matchesBarangay =
-        selectedBarangay === "all" || barangay === selectedBarangay;
-
-      const matchesStatus =
-        selectedStatus === "all" || row.status === selectedStatus;
-
-      return matchesBarangay && matchesStatus;
-    });
-  }, [liveRows, selectedBarangay, selectedStatus]);
+    return liveRows.filter(
+      (row) => selectedBarangay === "all" || row.barangay === selectedBarangay,
+    );
+  }, [liveRows, selectedBarangay]);
 
   // Reset to page 1 whenever the visible dataset would change underneath the reader
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBarangay, selectedStatus, activeEventKey]);
+  }, [selectedBarangay, activeEventKey]);
 
   const totalPages = Math.max(
     1,
@@ -322,16 +261,6 @@ export default function LiveAttendanceList({
     [filteredAttendance, safePage],
   );
 
-  const presentCount = useMemo(
-    () => filteredAttendance.filter((row) => row.status === "present").length,
-    [filteredAttendance],
-  );
-
-  const absentCount = useMemo(
-    () => filteredAttendance.filter((row) => row.status === "absent").length,
-    [filteredAttendance],
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -340,8 +269,7 @@ export default function LiveAttendanceList({
             LIVE ATTENDANCE
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            View the latest attendance records captured across the attendance
-            system in real time.
+            Members checking in to the active event, in real time.
           </p>
           <div
             className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ring-1 ${
@@ -394,24 +322,19 @@ export default function LiveAttendanceList({
           <div className="flex flex-col gap-4 px-6 py-4 border-b border-slate-200 bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Attendance records
+                Members present
               </p>
               <p className="text-2xl font-bold text-slate-900">
                 {filteredAttendance.length}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 text-sm text-slate-500">
-              <span className="rounded-full bg-green-50 px-3 py-1 font-semibold text-coop-green">
-                Present: {presentCount}
-              </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">
-                Absent: {absentCount}
-              </span>
-            </div>
+            <span className="self-start rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-coop-green">
+              Present: {filteredAttendance.length}
+            </span>
           </div>
 
           <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <label className="space-y-1.5 text-sm font-semibold text-slate-700">
                 Filter by barangay
                 <select
@@ -427,26 +350,13 @@ export default function LiveAttendanceList({
                 </select>
               </label>
 
-              <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                Filter by status
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-coop-green focus:outline-none focus:ring-2 focus:ring-coop-green/20"
-                >
-                  <option value="all">All statuses</option>
-                  <option value="present">Present</option>
-                  <option value="absent">Absent</option>
-                </select>
-              </label>
-
               <div className="space-y-1.5 text-sm font-semibold text-slate-700">
                 <span className="block text-slate-400 font-medium">
                   Showing
                 </span>
                 <div className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">
-                  {filteredAttendance.length} /{" "}
-                  {members.length || attendanceLogs.length} members
+                  {filteredAttendance.length} check-in
+                  {filteredAttendance.length === 1 ? "" : "s"}
                 </div>
               </div>
 
@@ -470,36 +380,26 @@ export default function LiveAttendanceList({
               <thead className="bg-white">
                 <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wide text-xs font-semibold">
                   <th className="px-4 py-3">Member</th>
-                  <th className="px-4 py-3">Event</th>
                   <th className="px-4 py-3">Time</th>
                   <th className="px-4 py-3">Barangay</th>
-                  <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white stagger-in">
                 {paginatedAttendance.length > 0 ? (
-                  paginatedAttendance.map((record, index) => {
-                    const memberName = getMemberDisplayName(record.member);
-                    const eventName =
-                      record.eventName || record.event || "All events";
-                    const scanTime = record.scanTime;
-                    const timeLabel = scanTime
-                      ? formatDateTime(scanTime)
-                      : record.status === "absent"
-                        ? "Not recorded"
-                        : "Unknown time";
-                    const statusLabel =
-                      record.status === "absent" ? "Absent" : "Present";
+                  paginatedAttendance.map((row) => {
+                    const timeLabel = row.scanTime
+                      ? formatDateTime(row.scanTime)
+                      : "Unknown time";
 
                     return (
                       <tr
-                        key={record.record?._id || record.memberKey || index}
+                        key={row.recordId || row.memberKey}
                         className="hover:bg-slate-50 transition-colors"
                       >
                         <td className="px-4 py-3 font-semibold text-slate-900">
                           <div className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-coop-green text-xs font-bold text-white shrink-0">
-                              {memberName
+                              {row.memberName
                                 .split(" ")
                                 .filter(Boolean)
                                 .map((part) => part[0])
@@ -509,34 +409,19 @@ export default function LiveAttendanceList({
                             </div>
                             <div>
                               <div className="font-semibold text-slate-900">
-                                {memberName}
+                                {row.memberName}
                               </div>
                               <div className="text-xs text-slate-400">
-                                ID:{" "}
-                                {record.member?.memberId ||
-                                  record.memberKey ||
-                                  "N/A"}
+                                ID: {row.memberId || row.memberKey || "N/A"}
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3">{eventName}</td>
                         <td className="px-4 py-3 text-slate-500">
                           {timeLabel}
                         </td>
                         <td className="px-4 py-3 text-slate-500">
-                          {record.member?.barangay || "Unassigned"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
-                              record.status === "absent"
-                                ? "bg-slate-100 text-slate-600"
-                                : "bg-green-100 text-coop-green"
-                            }`}
-                          >
-                            {statusLabel}
-                          </span>
+                          {row.barangay || "Unassigned"}
                         </td>
                       </tr>
                     );
@@ -544,10 +429,10 @@ export default function LiveAttendanceList({
                 ) : (
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="3"
                       className="px-4 py-8 text-center text-slate-500"
                     >
-                      No members match the selected filters.
+                      No check-ins yet for this event.
                     </td>
                   </tr>
                 )}

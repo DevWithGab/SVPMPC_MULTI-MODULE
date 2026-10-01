@@ -283,7 +283,7 @@ const approveClaim = async (req, res) => {
     claim.approval = { approvedBy, approvedAt: now };
     claim.statusHistory.push(
       { status: 'approved', changedBy: approvedBy, changedAt: now, notes: 'Requirements verified and approved' },
-      { status: 'pending_deduction', changedBy: approvedBy, changedAt: now, notes: 'Ready for Treasurer month-end processing' },
+      { status: 'pending_deduction', changedBy: approvedBy, changedAt: now, notes: 'Ready for Treasurer processing' },
     );
 
     await claim.save();

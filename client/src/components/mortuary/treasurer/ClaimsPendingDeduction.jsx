@@ -96,7 +96,7 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
       <div>
         <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Pending Deduction</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Claims approved by Admin, ready for the month-end death-fund assessment.
+          Claims approved by Admin, ready for the death-fund assessment.
         </p>
       </div>
 

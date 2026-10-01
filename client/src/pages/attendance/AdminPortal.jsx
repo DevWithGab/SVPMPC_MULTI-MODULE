@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   Users,
   Calendar,
-  BarChart3,
   FileText,
   Activity,
   Shield,
@@ -19,7 +18,6 @@ import {
   Dashboard,
   EventManagement,
   MemberManagement,
-  Reports,
   AuditLogs,
   DatabaseBackup,
 } from "../../components/attendance/admin";
@@ -86,7 +84,7 @@ const AdminPortal = ({ onBack, user }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'live', 'events', 'members', 'reports', 'auditlogs', 'backup']);
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'live', 'events', 'members', 'auditlogs', 'backup']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -215,7 +213,6 @@ const AdminPortal = ({ onBack, user }) => {
     { id: "live", label: "Live Attendance", icon: Activity },
     { id: "events", label: "Event Approvals", icon: Calendar },
     { id: "members", label: "Member QR Management", icon: Users },
-    { id: "reports", label: "Reports", icon: BarChart3 },
     { id: "auditlogs", label: "Audit Logs", icon: Shield },
     { id: "backup", label: "Backup & Restore", icon: FileText },
   ];
@@ -422,8 +419,6 @@ const AdminPortal = ({ onBack, user }) => {
                     currentEvent={currentEvent}
                   />
                 )}
-
-                {activeSection === "reports" && <Reports events={events} />}
 
                 {activeSection === "auditlogs" && <AuditLogs />}
 
