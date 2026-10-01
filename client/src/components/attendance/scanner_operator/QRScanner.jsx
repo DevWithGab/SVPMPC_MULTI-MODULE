@@ -21,6 +21,7 @@ import {
   XCircle,
   Info,
   PieChart as PieChartIcon,
+  Loader2,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Pie, PieChart, Cell } from "recharts";
@@ -28,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { ChartContainer } from "../../ui/chart";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { Modal } from "../../ui/modal";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import jsQR from "jsqr";
 import { formatDate, formatTime, formatDateTime } from "../../../utils/date";
@@ -95,7 +97,10 @@ export default function QRScanner({
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [memberLoadError, setMemberLoadError] = useState("");
   const [showManualLookup, setShowManualLookup] = useState(false);
-  const [showEventMenu, setShowEventMenu] = useState(false);
+  const [manualReasonMember, setManualReasonMember] = useState(null);
+  const [manualReason, setManualReason] = useState("");
+  const [showManualReasonModal, setShowManualReasonModal] = useState(false);
+  const [submittingManual, setSubmittingManual] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [flashSupported, setFlashSupported] = useState(false);
@@ -419,7 +424,7 @@ export default function QRScanner({
   }, [isScanning, events, selectedEventId, user]);
 
   const handleDetectedCode = useCallback(
-    async (rawValue) => {
+    async (rawValue, recordOptions = {}) => {
       let memberId = rawValue?.toString().trim();
       let qrPayload = null;
 
@@ -492,6 +497,7 @@ export default function QRScanner({
           activeEvent.eventId,
           new Date().toISOString(),
           scannedBy,
+          recordOptions,
         );
 
         const attendance = result?.attendance || {
@@ -560,6 +566,10 @@ export default function QRScanner({
     [onScanSuccess, playScanSound, refreshStats, triggerScanFeedback],
   );
 
+  // Manually adding a member (no camera involved) always requires a typed
+  // reason and is recorded with entrySource: 'manual' — the server's
+  // existing audit logging on every recordAttendance call then captures it
+  // with this operator's name, timestamp, and reason.
   const handleManualMemberAdd = useCallback(
     (member) => {
       const memberId = member?.memberId;
@@ -569,10 +579,27 @@ export default function QRScanner({
         return;
       }
 
-      handleDetectedCode(memberId);
+      setManualReasonMember(member);
+      setManualReason("");
+      setShowManualReasonModal(true);
     },
-    [handleDetectedCode, playScanSound],
+    [playScanSound],
   );
+
+  const confirmManualAttendance = useCallback(async () => {
+    const memberId = manualReasonMember?.memberId;
+    if (!memberId || !manualReason.trim()) return;
+
+    setSubmittingManual(true);
+    await handleDetectedCode(memberId, {
+      entrySource: "manual",
+      justification: manualReason.trim(),
+    });
+    setSubmittingManual(false);
+    setShowManualReasonModal(false);
+    setManualReasonMember(null);
+    setManualReason("");
+  }, [manualReasonMember, manualReason, handleDetectedCode]);
 
   const scanLoop = () => {
     // Schedule next frame immediately
@@ -852,59 +879,6 @@ export default function QRScanner({
                 </p>
               )}
             </div>
-          </div>
-
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowEventMenu((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 hover:border-coop-green hover:text-coop-green transition-colors"
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              Change Event
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform ${showEventMenu ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {showEventMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowEventMenu(false)}
-                />
-                <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-64 overflow-y-auto">
-                  {events.length > 0 ? (
-                    events.map((event) => (
-                      <button
-                        key={event.eventId}
-                        type="button"
-                        onClick={() => {
-                          setSelectedEventId(event.eventId);
-                          setShowEventMenu(false);
-                          setError("");
-                          setStatusMessage("Ready to scan");
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                          event.eventId === selectedEventId
-                            ? "bg-green-50 text-coop-green font-semibold"
-                            : "text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        {event.eventName}
-                        {event.eventDate
-                          ? ` • ${formatDate(event.eventDate)}`
-                          : ""}
-                      </button>
-                    ))
-                  ) : (
-                    <p className="px-3 py-2 text-xs text-slate-400">
-                      No active events
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -1429,6 +1403,82 @@ export default function QRScanner({
           </CardContent>
         )}
       </Card>
+
+      {/* Manual add requires a reason before it's recorded — kept out of
+          the main flow so camera scanning stays the fast, default path. */}
+      <Modal
+        isOpen={showManualReasonModal}
+        onClose={() => !submittingManual && setShowManualReasonModal(false)}
+        title="Confirm Manual Attendance"
+        className="max-w-sm"
+      >
+        {manualReasonMember && (
+          <div className="mb-5 p-4 bg-slate-50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-coop-green rounded-full flex items-center justify-center shrink-0">
+                <span className="text-base font-bold text-white">
+                  {manualReasonMember.name?.charAt(0) || "?"}
+                </span>
+              </div>
+              <div>
+                <p className="text-base font-bold text-slate-900">
+                  {manualReasonMember.name}
+                </p>
+                <p className="text-sm text-slate-500">
+                  ID: {manualReasonMember.memberId}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={manualReason}
+              onChange={(e) => setManualReason(e.target.value)}
+              placeholder="Why can't this member be scanned? (e.g., QR won't scan, phone unavailable, damaged code)"
+              rows={3}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
+              required
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              This reason will be logged for audit purposes, along with your
+              name and the time.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submittingManual}
+              onClick={() => setShowManualReasonModal(false)}
+              className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!manualReason.trim() || submittingManual}
+              onClick={confirmManualAttendance}
+              className="flex-1 bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submittingManual ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 inline animate-spin" />
+                  Recording...
+                </>
+              ) : (
+                "Confirm Attendance"
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <canvas ref={canvasRef} className="hidden" />
     </div>

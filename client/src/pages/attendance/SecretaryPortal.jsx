@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  UserCheck,
   BarChart3,
   Activity,
 } from "lucide-react";
@@ -24,7 +23,6 @@ import {
   EventManagement,
   AttendanceReports,
   MemberDirectory,
-  ManualAttendance,
 } from "../../components/attendance/secretary";
 import { LiveAttendanceList } from "../../components/attendance/shared";
 
@@ -109,7 +107,7 @@ export default function AttendanceSecretaryPortal({
     refreshAllAttendance();
   }, [refreshAllAttendance]);
 
-  const [activeTab, setActiveTab] = useUrlState('tab', 'home', ['home', 'events', 'reports', 'live', 'manual', 'directory']);
+  const [activeTab, setActiveTab] = useUrlState('tab', 'home', ['home', 'events', 'reports', 'live', 'directory']);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("secretarySidebarCollapsed") === "true";
@@ -158,7 +156,6 @@ export default function AttendanceSecretaryPortal({
     { id: "events", label: "Event Management", icon: Calendar },
     { id: "reports", label: "Reports", icon: BarChart3 },
     { id: "live", label: "Live Attendance", icon: Activity },
-    { id: "manual", label: "Manual Attendance", icon: UserCheck },
     { id: "directory", label: "Member Directory", icon: Users },
   ];
 
@@ -179,15 +176,6 @@ export default function AttendanceSecretaryPortal({
             user={currentUser}
             attendanceLogs={attendanceLogs}
             events={events}
-          />
-        );
-
-      case "manual":
-        return (
-          <ManualAttendance
-            user={currentUser}
-            events={events}
-            onAttendanceRecorded={refreshAllAttendance}
           />
         );
 

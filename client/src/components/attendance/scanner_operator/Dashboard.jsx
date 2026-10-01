@@ -1,7 +1,9 @@
 import {
+  Activity,
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  History,
   QrCode,
   Zap,
 } from "lucide-react";
@@ -88,6 +90,45 @@ export default function Dashboard({
         />
       </div>
 
+      {/* Quick links to the fuller attendance views */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => setActiveTab("live")}
+          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-coop-green/40 hover:bg-green-50/40"
+        >
+          <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+            <Activity className="w-5 h-5 text-coop-green" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-900">
+              Attendance Summary
+            </p>
+            <p className="text-xs text-slate-400 truncate">
+              See everyone checked in to the active event
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("myscans")}
+          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-coop-green/40 hover:bg-green-50/40"
+        >
+          <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+            <History className="w-5 h-5 text-coop-green" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-900">My Scans</p>
+            <p className="text-xs text-slate-400 truncate">
+              Everything you've personally scanned in
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+        </button>
+      </div>
+
       {/* Recent Attendance */}
       <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
         <CardHeader className="border-b border-slate-100 p-5">
@@ -100,9 +141,19 @@ export default function Dashboard({
                 Latest records from this session
               </p>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-coop-green border border-green-200">
-              {scanCount} record{scanCount === 1 ? "" : "s"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-coop-green border border-green-200">
+                {scanCount} record{scanCount === 1 ? "" : "s"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveTab("myscans")}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-coop-green hover:text-coop-darkGreen transition-colors"
+              >
+                View All
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">

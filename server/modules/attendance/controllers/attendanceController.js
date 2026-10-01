@@ -266,12 +266,18 @@ const generateReport = async (req, res) => {
 const getAllAttendance = async (req, res) => {
   try {
     const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
+    const { scannedBy } = req.query;
+
+    // Scanner Operator's "My Scans" view narrows this down to just the
+    // records that operator personally scanned in (matches the scannedBy
+    // value attendanceAPI.recordAttendance stores for each scan).
+    const filter = scannedBy ? { scannedBy } : {};
 
     // Get total count for pagination
-    const total = await Attendance.countDocuments();
+    const total = await Attendance.countDocuments(filter);
 
     // Get paginated attendance
-    const attendance = await Attendance.find()
+    const attendance = await Attendance.find(filter)
       .sort({ scanTime: -1 })
       .skip(skip)
       .limit(limit);

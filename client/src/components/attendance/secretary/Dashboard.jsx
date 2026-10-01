@@ -3,7 +3,7 @@ import {
   Calendar,
   Users,
   BarChart3,
-  UserCheck,
+  Activity,
   Plus,
   Clock,
   CheckCircle2,
@@ -446,10 +446,10 @@ export default function SecretaryDashboard({
             accent
           />
           <QuickActionTile
-            icon={UserCheck}
-            label="Manual Attendance"
-            subtitle="Mark present"
-            onClick={() => setActiveTab("manual")}
+            icon={Activity}
+            label="Live Attendance"
+            subtitle="Who's checked in"
+            onClick={() => setActiveTab("live")}
           />
           <QuickActionTile
             icon={BarChart3}

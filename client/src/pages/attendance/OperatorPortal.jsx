@@ -10,12 +10,14 @@ import {
   ChevronRight,
   LogOut,
   Activity,
+  History,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.jsx";
 import { useAttendance } from "../../hooks/useAttendance";
 import {
   Dashboard,
   QRScanner,
+  MyScans,
 } from "../../components/attendance/scanner_operator";
 import { LiveAttendanceList } from "../../components/attendance/shared";
 
@@ -74,7 +76,7 @@ export default function AttendanceOperatorPortal({
   }, [currentUser, onBack]);
 
   const { attendanceLogs, events, refreshData, loadError, loading, hasLoaded } = useAttendance();
-  const [activeTab, setActiveTab] = useUrlState('tab', 'home', ['home', 'scanner', 'live']);
+  const [activeTab, setActiveTab] = useUrlState('tab', 'home', ['home', 'scanner', 'live', 'myscans']);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("operatorSidebarCollapsed") === "true";
@@ -103,6 +105,7 @@ export default function AttendanceOperatorPortal({
     { id: "home", label: "Dashboard", icon: LayoutGrid },
     { id: "scanner", label: "Scan Attendance", icon: QrCode },
     { id: "live", label: "Live Attendance", icon: Activity },
+    { id: "myscans", label: "My Scans", icon: History },
   ];
 
   const handleScanSuccess = (scanData) => {
@@ -128,6 +131,8 @@ export default function AttendanceOperatorPortal({
             onRefresh={refreshData}
           />
         );
+      case "myscans":
+        return <MyScans user={currentUser} />;
       default:
         return (
           <Dashboard

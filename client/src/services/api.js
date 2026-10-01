@@ -411,16 +411,18 @@ export const attendanceAPI = {
     }
   },
 
-  getAllAttendance: async () => {
+  // params supports { page, limit, scannedBy } — same paginated-list shape
+  // as getAttendanceByEvent, capped at 100 rows per page server-side.
+  getAllAttendance: async (params = {}) => {
     try {
-      const response = await api.get('/attendance');
+      const response = await api.get('/attendance', { params });
       return normalizeAttendanceResponse(response.data);
     } catch (error) {
       if (error.response?.status !== 404) {
         throw error;
       }
 
-      const response = await api.get('/attendance/attendance');
+      const response = await api.get('/attendance/attendance', { params });
       return normalizeAttendanceResponse(response.data);
     }
   },
