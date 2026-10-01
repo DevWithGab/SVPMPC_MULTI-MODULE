@@ -308,10 +308,11 @@ const Dashboard = ({
 
   const claimCounts = adminData?.claims || {};
   const recentClaimActivities = adminData?.recentClaimActivities || [];
-  const needsAttention = recentClaimActivities.filter(
-    (a) =>
-      a.status === "pending_requirements" || a.status === "pending_deduction",
-  );
+  // By each claim's current status (server-filtered), not by scanning the
+  // historical activity log above — a claim that's since moved on (or been
+  // released) still has old "pending" entries in that log, which made
+  // already-resolved claims keep showing up in the notification bell.
+  const needsAttention = adminData?.claimsNeedingAttention || [];
   const needsAttentionCount =
     (claimCounts.pending_requirements || 0) +
     (claimCounts.pending_deduction || 0);

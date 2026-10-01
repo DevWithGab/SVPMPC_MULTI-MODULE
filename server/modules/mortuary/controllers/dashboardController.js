@@ -245,6 +245,19 @@ const getAdminDashboard = async (req, res) => {
       .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))
       .slice(0, 10);
 
+    // Claims that actually need attention right now — by current status,
+    // not by scanning history. recentClaimActivities above is a flattened
+    // statusHistory log, so a claim already approved/released still has old
+    // "pending_requirements"/"pending_deduction" entries in it; filtering
+    // that log for the notification bell made already-resolved claims keep
+    // showing up as still needing attention.
+    const claimsNeedingAttention = await Claim.find({
+      status: { $in: ['pending_requirements', 'pending_deduction'] },
+    })
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .select('claimId memberName beneficiaryName status updatedAt');
+
     res.status(200).json({
       success: true,
       data: {
@@ -265,6 +278,7 @@ const getAdminDashboard = async (req, res) => {
           netClaimsBalance,
         },
         recentClaimActivities,
+        claimsNeedingAttention,
       },
     });
   } catch (error) {
