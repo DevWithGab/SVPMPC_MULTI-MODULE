@@ -2,6 +2,18 @@ const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 
+// noticeBodyTemplate/finalNoticeBodyTemplate now hold HTML straight from the
+// admin's in-app document editor — the client already strips dangerous
+// content before sending, but the server shouldn't trust that alone. A
+// regex pass is enough here (not a full sanitizer) since this only needs to
+// catch script injection, not produce clean markup.
+const sanitizeNoticeHtml = (html) =>
+  String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+    .replace(/(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, '$1=$2#$2');
+
 // Defaults matching the hardcoded values the balance-notice letter used
 // before this settings collection existed (client/src/utils/balanceNotice.js).
 // noticeBodyTemplate/finalNoticeBodyTemplate hold the ENTIRE letter — title,
@@ -125,8 +137,8 @@ const updateThresholds = async (req, res) => {
     const newSetting = new NoticeThresholdSetting({
       settingId: uuidv4(),
       ...parsed,
-      noticeBodyTemplate: noticeBodyTemplate.trim(),
-      finalNoticeBodyTemplate: finalNoticeBodyTemplate.trim(),
+      noticeBodyTemplate: sanitizeNoticeHtml(noticeBodyTemplate.trim()),
+      finalNoticeBodyTemplate: sanitizeNoticeHtml(finalNoticeBodyTemplate.trim()),
       effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
       status: 'active',
       description,

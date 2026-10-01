@@ -33,12 +33,9 @@ export default function DeductionSettings({ user }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Deduction Settings</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          The standard deduction amount charged to active members during month-end claim processing.
-        </p>
-      </div>
+      <p className="text-slate-500 text-sm">
+        The standard deduction amount charged to active members during month-end claim processing.
+      </p>
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-slate-400">

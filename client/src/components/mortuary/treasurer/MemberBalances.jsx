@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer } from 'lucide-react';
+import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer, Download, Loader2 } from 'lucide-react';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import StatCard from '../shared/StatCard';
 import { getBarangay } from '../../../utils/helpers';
-import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
+import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -32,6 +32,7 @@ const MemberBalances = ({
   const [sortOrder, setSortOrder] = useState('asc');
   const [statusFilter, setStatusFilter] = useState('all');
   const [printingLevel, setPrintingLevel] = useState(null);
+  const [downloadingLevel, setDownloadingLevel] = useState(null);
 
   const targetBalance = noticeThresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance;
   const lowBalanceMembers = members.filter(m => m.balance < targetBalance);
@@ -66,6 +67,24 @@ const MemberBalances = ({
       }
     } finally {
       setPrintingLevel(null);
+    }
+  };
+
+  const handleBulkDownload = async (level) => {
+    const count = noticeLevelCounts[level];
+    if (count === 0) return;
+    if (!window.confirm(`Download ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'} as one PDF?`)) {
+      return;
+    }
+    setDownloadingLevel(level);
+    try {
+      const downloaded = await downloadBalanceNoticesBulkPDF(members, level, user?.name, noticeThresholds);
+      showToast?.(`Downloaded ${downloaded} ${NOTICE_LEVEL_LABELS[level]} letter${downloaded === 1 ? '' : 's'} as a PDF.`, 'success');
+    } catch (error) {
+      console.error('Error downloading notices PDF:', error);
+      showToast?.('Unable to generate the notices PDF. Please try again.', 'error');
+    } finally {
+      setDownloadingLevel(null);
     }
   };
 
@@ -210,34 +229,43 @@ const MemberBalances = ({
         </div>
       </div>
 
-      {/* Bulk Notice Printing — prints every member at a given threshold as
-          one combined job (one letter per page) instead of opening each
-          member's ledger and printing them one at a time. */}
+      {/* Bulk Notice Printing — prints or downloads every member at a given
+          threshold as one combined job (one letter per page) instead of
+          opening each member's ledger and handling them one at a time. */}
       <div className="bg-white border border-slate-200 rounded-xl p-4">
         <div className="flex items-center gap-2 mb-3">
           <Printer className="w-4 h-4 text-slate-400" />
-          <p className="text-sm font-semibold text-slate-900">Print notices by threshold</p>
+          <p className="text-sm font-semibold text-slate-900">Print or download notices by threshold</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3].map((level) => {
             const count = noticeLevelCounts[level];
             const isFinal = level === 3;
+            const busy = printingLevel !== null || downloadingLevel !== null;
+            const colorClass = isFinal
+              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+              : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100';
             return (
-              <button
-                key={level}
-                onClick={() => handleBulkPrint(level)}
-                disabled={count === 0 || printingLevel !== null}
-                title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}` : undefined}
-                className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                  isFinal
-                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                }`}
-              >
-                <Printer className="w-3.5 h-3.5" />
-                Print {NOTICE_LEVEL_LABELS[level]}
-                <span className="px-1.5 py-0.5 text-xs rounded-full bg-white/70">{count}</span>
-              </button>
+              <div key={level} className="inline-flex rounded-lg border border-transparent" role="group">
+                <button
+                  onClick={() => handleBulkPrint(level)}
+                  disabled={count === 0 || busy}
+                  title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}` : undefined}
+                  className={`inline-flex items-center gap-2 pl-4 pr-3 py-2 text-sm font-semibold rounded-l-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass}`}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print {NOTICE_LEVEL_LABELS[level]}
+                  <span className="px-1.5 py-0.5 text-xs rounded-full bg-white/70">{count}</span>
+                </button>
+                <button
+                  onClick={() => handleBulkDownload(level)}
+                  disabled={count === 0 || busy}
+                  title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}` : `Download ${NOTICE_LEVEL_LABELS[level]} as PDF`}
+                  className={`inline-flex items-center px-3 py-2 rounded-r-lg border border-l-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass}`}
+                >
+                  {downloadingLevel === level ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                </button>
+              </div>
             );
           })}
         </div>

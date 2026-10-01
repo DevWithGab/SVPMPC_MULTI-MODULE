@@ -1,3 +1,6 @@
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+
 // Balance-threshold notices — shared between the per-member "Print Notice"
 // action on the Member Ledger and the bulk "print all by threshold" action
 // on Member Balances, so both stay on the same thresholds and letter
@@ -56,7 +59,7 @@ const esc = (value) =>
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   })[c]);
 
-const NOTICE_STYLES = `
+export const NOTICE_STYLES = `
   @page { margin: 20mm; }
   * { box-sizing: border-box; }
   body { font-family: 'Times New Roman', Times, serif; font-size: 13pt; color: #111; padding: 24px; }
@@ -67,40 +70,49 @@ const NOTICE_STYLES = `
   .letterhead .org-title { margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.02em; text-align: center; }
   .letterhead .org-sub { margin: 2px 0 0; font-size: 10.5pt; color: #444; text-align: center; }
   .letterhead-rule { border: none; border-top: 2px solid #111; margin: 10px 0 24px; }
-  .body-text { line-height: 1.7; text-align: justify; margin: 0 0 14px; white-space: pre-wrap; }
+  .notice-body { line-height: 1.7; text-align: justify; }
+  .notice-body p, .notice-body div { margin: 0 0 12px; }
 `;
 
-// Splits the admin-edited template into paragraphs (blank line = paragraph
-// break), escapes the admin's own text for HTML safety, then substitutes
-// every placeholder. {balance}/{amountNeeded} are always bolded wherever
-// they appear; the rest substitute as plain text.
-const renderNoticeTemplate = (template, values) => {
-  const paragraphs = String(template || '')
+// The admin now edits the letter as a real document (Mortuary Admin →
+// Notice Thresholds → Edit Document), so noticeBodyTemplate/
+// finalNoticeBodyTemplate store HTML straight from that editor, not escaped
+// plain text. Older rows saved before that editor existed still hold plain
+// text (paragraphs separated by a blank line) — this detects that case by
+// checking for a block tag and converts it once so it displays correctly
+// both in the editor and when printed.
+export const legacyPlainTextToHtml = (value) => {
+  const text = String(value || '');
+  if (/<(p|div|br)[\s/>]/i.test(text)) return text;
+  return text
     .split(/\n\s*\n/)
     .map((p) => p.trim())
-    .filter(Boolean);
-
-  return paragraphs
-    .map((paragraph) => {
-      const escaped = esc(paragraph)
-        .replace(/\{noticeLabel\}/g, esc(values.noticeLabel))
-        .replace(/\{name\}/g, esc(values.name))
-        .replace(/\{address\}/g, esc(values.address))
-        .replace(/\{passbook\}/g, esc(values.passbook))
-        .replace(/\{balance\}/g, `<strong>${esc(values.balanceText)}</strong>`)
-        .replace(/\{amountNeeded\}/g, `<strong>${esc(values.amountNeeded)}</strong>`)
-        .replace(/\{targetBalance\}/g, esc(values.targetBalanceText))
-        .replace(/\{managerName\}/g, esc(values.managerName));
-      return `<p class="body-text">${escaped}</p>`;
-    })
-    .join('\n');
+    .filter(Boolean)
+    .map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`)
+    .join('');
 };
+
+// Substitutes placeholders directly into admin-authored HTML (trusted —
+// written via the in-app editor and sanitized on save). Only the data
+// VALUES being interpolated are escaped, since those come from member
+// records, not the admin. {balance}/{amountNeeded} are always bolded
+// wherever they appear in the template.
+export const substitutePlaceholders = (templateHtml, values) =>
+  String(templateHtml || '')
+    .replace(/\{noticeLabel\}/g, esc(values.noticeLabel))
+    .replace(/\{name\}/g, esc(values.name))
+    .replace(/\{address\}/g, esc(values.address))
+    .replace(/\{passbook\}/g, esc(values.passbook))
+    .replace(/\{balance\}/g, `<strong>${esc(values.balanceText)}</strong>`)
+    .replace(/\{amountNeeded\}/g, `<strong>${esc(values.amountNeeded)}</strong>`)
+    .replace(/\{targetBalance\}/g, esc(values.targetBalanceText))
+    .replace(/\{managerName\}/g, esc(values.managerName));
 
 // Builds just one member's letter (no outer <html>/<head>) so it can be
 // dropped into either a single-notice print window or a batch one with
 // several members concatenated as separate pages. Everything below the
 // letterhead — title, fields, body, signatures — is the admin's own
-// template; only the letterhead (branding) is fixed.
+// document; only the letterhead (branding) is fixed.
 const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
   const level = getNoticeLevel(member.balance, thresholds);
   if (!level) return '';
@@ -110,7 +122,7 @@ const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
     ? (thresholds?.finalNoticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.finalNoticeBodyTemplate)
     : (thresholds?.noticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.noticeBodyTemplate);
 
-  const bodyHtml = renderNoticeTemplate(template, {
+  const bodyHtml = substitutePlaceholders(legacyPlainTextToHtml(template), {
     noticeLabel: NOTICE_LEVEL_LABELS[level].toUpperCase(),
     name: member.name,
     address: member.address,
@@ -132,7 +144,7 @@ const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
       </div>
       <hr class="letterhead-rule" />
 
-      ${bodyHtml}
+      <div class="notice-body">${bodyHtml}</div>
     </div>
   `;
 };
@@ -194,5 +206,105 @@ export const printBalanceNoticesBulk = (members, level, managerName, thresholds 
     </html>
   `);
   printWindow.document.close();
+  return targets.length;
+};
+
+// ── PDF downloads ──────────────────────────────────────────────────────
+// Renders one notice's markup off-screen, rasterizes it with html2canvas,
+// and returns the canvas. Used by both the single-member and bulk download
+// functions below so each notice becomes one PDF page sized exactly to its
+// own content (no fixed page size to overflow or leave half-empty).
+let stylesInjected = false;
+const ensureNoticeStylesInjected = () => {
+  if (stylesInjected) return;
+  const styleEl = document.createElement('style');
+  styleEl.textContent = NOTICE_STYLES;
+  document.head.appendChild(styleEl);
+  stylesInjected = true;
+};
+
+const PAGE_CONTENT_WIDTH_PX = 794; // ~A4 width at 96dpi
+
+const captureNoticeCanvas = async (markup) => {
+  ensureNoticeStylesInjected();
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-10000px';
+  container.style.top = '0';
+  container.style.width = `${PAGE_CONTENT_WIDTH_PX}px`;
+  container.style.background = '#ffffff';
+  container.style.fontFamily = "'Times New Roman', Times, serif";
+  container.style.fontSize = '13pt';
+  container.style.color = '#111';
+  container.style.padding = '48px';
+  container.style.boxSizing = 'border-box';
+  container.innerHTML = markup;
+  document.body.appendChild(container);
+
+  // The letterhead logo loads asynchronously — without this, a fast
+  // capture can rasterize it as blank.
+  const img = container.querySelector('img');
+  if (img && !img.complete) {
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }
+
+  try {
+    return await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+  } finally {
+    document.body.removeChild(container);
+  }
+};
+
+const addCanvasAsPdfPage = (pdf, canvas, isFirstPage) => {
+  if (!isFirstPage) {
+    pdf.addPage([canvas.width, canvas.height]);
+  }
+  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+};
+
+const filenameSafe = (value) => String(value || '').trim().replace(/[^\w\- ]+/g, '').replace(/\s+/g, '-');
+
+// Downloads one member's notice as a PDF instead of (or in addition to)
+// printing it — same letter content, same thresholds/template, just saved
+// to disk rather than sent to a printer. Returns false if the member
+// doesn't currently need a notice.
+export const downloadBalanceNoticePDF = async (member, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
+  const level = getNoticeLevel(member.balance, thresholds);
+  if (!level) return false;
+
+  const logoUrl = `${window.location.origin}/SVPMPC-LOGO(MAIN).png`;
+  const markup = buildNoticeMarkup(member, managerName, logoUrl, thresholds);
+  const canvas = await captureNoticeCanvas(markup);
+
+  const pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+  addCanvasAsPdfPage(pdf, canvas, true);
+  pdf.save(`${filenameSafe(NOTICE_LEVEL_LABELS[level])}-${filenameSafe(member.name)}.pdf`);
+  return true;
+};
+
+// Downloads every member at the given notice level as one combined PDF —
+// one letter per page — mirroring printBalanceNoticesBulk but saved to
+// disk. Returns how many notices were included.
+export const downloadBalanceNoticesBulkPDF = async (members, level, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
+  const targets = members.filter((m) => getNoticeLevel(m.balance, thresholds) === level);
+  if (targets.length === 0) return 0;
+
+  const logoUrl = `${window.location.origin}/SVPMPC-LOGO(MAIN).png`;
+  let pdf = null;
+
+  for (let i = 0; i < targets.length; i += 1) {
+    const markup = buildNoticeMarkup(targets[i], managerName, logoUrl, thresholds);
+    const canvas = await captureNoticeCanvas(markup);
+    if (!pdf) {
+      pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
+    }
+    addCanvasAsPdfPage(pdf, canvas, i === 0);
+  }
+
+  pdf.save(`${filenameSafe(NOTICE_LEVEL_LABELS[level])}-Batch-${targets.length}.pdf`);
   return targets.length;
 };

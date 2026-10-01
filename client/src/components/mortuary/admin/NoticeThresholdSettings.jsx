@@ -33,13 +33,10 @@ export default function NoticeThresholdSettings({ user }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Notice Thresholds</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          The balance ranges that trigger Notice 1, Notice 2, and the Final Notice printed from the Treasurer's
-          Member Ledger.
-        </p>
-      </div>
+      <p className="text-slate-500 text-sm">
+        The balance ranges that trigger Notice 1, Notice 2, and the Final Notice printed from the Treasurer's
+        Member Ledger.
+      </p>
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-slate-400">
@@ -89,17 +86,6 @@ export default function NoticeThresholdSettings({ user }) {
                 <p className="text-sm font-semibold text-slate-900 mt-1">
                   Below ₱{current?.notice2Min?.toLocaleString() ?? '—'}
                 </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Notice 1 &amp; 2 full letter</p>
-                <p className="text-sm text-slate-700 whitespace-pre-line line-clamp-4 font-mono">{current?.noticeBodyTemplate || '—'}</p>
-              </div>
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Final Notice full letter</p>
-                <p className="text-sm text-slate-700 whitespace-pre-line line-clamp-4 font-mono">{current?.finalNoticeBodyTemplate || '—'}</p>
               </div>
             </div>
           </div>

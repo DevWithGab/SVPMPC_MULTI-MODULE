@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Search, ArrowLeft, Printer, Upload, X, Loader, Download } from 'lucide-react';
+import { Search, ArrowLeft, Printer, Upload, X, Loader, Loader2, Download } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
 import { getBarangay } from '../../../utils/helpers';
-import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
+import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -132,6 +132,19 @@ const MemberLedger = ({
   const [transactionFilter, setTransactionFilter] = useState('all');
   const [datePreset, setDatePreset] = useState('all'); // 'all' | 'thisMonth' | 'lastMonth' | 'thisYear'
   const [sortOrder, setSortOrder] = useState('desc');
+  const [downloadingNotice, setDownloadingNotice] = useState(false);
+
+  const handleDownloadNotice = async (member) => {
+    setDownloadingNotice(true);
+    try {
+      await downloadBalanceNoticePDF(member, user?.name, noticeThresholds);
+    } catch (error) {
+      console.error('Error downloading notice PDF:', error);
+      showToast?.('Unable to generate the notice PDF. Please try again.', 'error');
+    } finally {
+      setDownloadingNotice(false);
+    }
+  };
 
   const handleCSVUpload = (event) => {
     const file = event.target.files?.[0];
@@ -324,6 +337,21 @@ const MemberLedger = ({
                 >
                   <Printer className="w-4 h-4" />
                   {noticeLevel ? `Print ${NOTICE_LEVEL_LABELS[noticeLevel]}` : 'Print Notice'}
+                </button>
+              );
+            })()}
+            {(() => {
+              const noticeLevel = getNoticeLevel(currentMember.balance, noticeThresholds);
+              if (!noticeLevel) return null;
+              return (
+                <button
+                  onClick={() => handleDownloadNotice(currentMember)}
+                  disabled={downloadingNotice}
+                  title={`Download ${NOTICE_LEVEL_LABELS[noticeLevel]} as PDF`}
+                  className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {downloadingNotice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download PDF
                 </button>
               );
             })()}
