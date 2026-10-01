@@ -27,6 +27,7 @@ import { Toast } from '../../components/ui/toast';
 import Button from '../../components/shared/ui/Button';
 import Input from '../../components/shared/ui/Input';
 import api from '../../services/api';
+import { DEFAULT_NOTICE_THRESHOLDS } from '../../utils/balanceNotice';
 
 const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate }) => (
   <button
@@ -116,6 +117,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       deceased: 0
     }
   });
+  const [noticeThresholds, setNoticeThresholds] = useState(DEFAULT_NOTICE_THRESHOLDS);
   const [ledgerSnapshot, setLedgerSnapshot] = useState({ memberId: null, entries: [] });
   const [loadingMemberLedger, setLoadingMemberLedger] = useState(false);
   const [claimsCounts, setClaimsCounts] = useState({ pendingDeduction: 0, awaitingRelease: 0 });
@@ -184,6 +186,21 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       markFailed('members', 'member balances');
     }
   }, [markLoaded, markFailed]);
+
+  // Admin-configured balance notice thresholds (Notice 1/2/Final) — read-only
+  // here, so Member Ledger / Member Balances classify members the same way
+  // the Admin set in Mortuary Admin → Notice Thresholds. Falls back to
+  // DEFAULT_NOTICE_THRESHOLDS if this fails, so the screens stay usable.
+  const fetchNoticeThresholds = useCallback(async () => {
+    try {
+      const response = await api.get('/mortuary/treasurer/notice-thresholds');
+      if (response.data?.success && response.data?.data) {
+        setNoticeThresholds(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching notice thresholds:', error);
+    }
+  }, []);
 
   const fetchLedgerMembers = useCallback(async (page = currentPage, search = searchQuery, barangay = barangayFilter) => {
     const request = ++ledgerListRequestRef.current;
@@ -397,11 +414,12 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         fetchMembers(),
         fetchContributions(),
         fetchDashboardStats(),
-        fetchClaimsCounts()
+        fetchClaimsCounts(),
+        fetchNoticeThresholds()
       ]);
       setInitialLoading(false);
     })();
-  }, [fetchMembers, fetchContributions, fetchDashboardStats, fetchClaimsCounts]);
+  }, [fetchMembers, fetchContributions, fetchDashboardStats, fetchClaimsCounts, fetchNoticeThresholds]);
 
   // `members` is otherwise only fetched once on mount, so a member added by
   // the Super Admin (or elsewhere) after this portal loaded would silently
@@ -468,6 +486,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <MemberBalances
             members={members}
             user={user}
+            noticeThresholds={noticeThresholds}
             showToast={showToast}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -511,6 +530,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <MemberLedger
             user={user}
             members={members}
+            noticeThresholds={noticeThresholds}
             ledgerMembers={ledgerMembers}
             memberLedgerEntries={selectedMemberLedger}
             loadingMemberLedger={loadingMemberLedger || (!!selectedMemberId && ledgerSnapshot.memberId !== selectedMemberId && !loadErrors.ledger)}

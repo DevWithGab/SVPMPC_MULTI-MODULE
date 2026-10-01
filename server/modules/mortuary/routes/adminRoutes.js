@@ -13,6 +13,7 @@ const payoutController = require('../controllers/payoutController');
 const claimController = require('../controllers/claimController');
 const beneficiaryController = require('../controllers/beneficiaryController');
 const deductionSettingController = require('../controllers/deductionSettingController');
+const noticeThresholdSettingController = require('../controllers/noticeThresholdSettingController');
 const backupController = require('../controllers/backupController');
 
 const router = express.Router();
@@ -64,6 +65,11 @@ router.put('/beneficiaries/:memberId', authenticateToken, authorizeAdminOnly, be
 router.get('/deduction-settings/current', authenticateToken, authorizeAdminOnly, deductionSettingController.getCurrentRate);
 router.get('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.getRateHistory);
 router.post('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.updateRate);
+
+// Balance notice threshold routes
+router.get('/notice-thresholds/current', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getCurrentThresholds);
+router.get('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getThresholdHistory);
+router.post('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.updateThresholds);
 
 // Database backup/restore — restore is a bulk write over live data, so it
 // gets the same explicit auth as the other consequential routes above.

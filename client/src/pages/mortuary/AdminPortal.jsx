@@ -15,6 +15,7 @@ import {
   Banknote,
   ClipboardCheck,
   Shield,
+  Bell,
 } from "lucide-react";
 import {
   Dashboard,
@@ -23,6 +24,7 @@ import {
   Claims,
   Beneficiaries,
   DeductionSettings,
+  NoticeThresholdSettings,
   AuditLogs,
   DatabaseBackup,
 } from "../../components/mortuary/admin";
@@ -75,7 +77,7 @@ const AdminPortal = ({ onBack, user }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'deductionSettings', 'reports', 'auditlogs', 'backup']);
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'deductionSettings', 'noticeThresholds', 'reports', 'auditlogs', 'backup']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -173,6 +175,7 @@ const AdminPortal = ({ onBack, user }) => {
     { id: "claims", label: "Claims", icon: ClipboardCheck },
     { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
     { id: "deductionSettings", label: "Deduction Settings", icon: Banknote },
+    { id: "noticeThresholds", label: "Notice Thresholds", icon: Bell },
     { id: "reports", label: "Reports", icon: BarChart3 },
     { id: "auditlogs", label: "Audit Logs", icon: Shield },
     { id: "backup", label: "Backup & Restore", icon: FileText },
@@ -207,6 +210,8 @@ const AdminPortal = ({ onBack, user }) => {
         return <Beneficiaries user={user} />;
       case "deductionSettings":
         return <DeductionSettings user={user} />;
+      case "noticeThresholds":
+        return <NoticeThresholdSettings user={user} />;
       case "reports":
         return (
           <Reports

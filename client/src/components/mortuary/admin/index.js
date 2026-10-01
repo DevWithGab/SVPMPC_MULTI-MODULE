@@ -6,6 +6,7 @@ export { default as ClaimDetails } from './ClaimDetails';
 export { default as Beneficiaries } from './Beneficiaries';
 export { default as BeneficiaryHistory } from './BeneficiaryHistory';
 export { default as DeductionSettings } from './DeductionSettings';
+export { default as NoticeThresholdSettings } from './NoticeThresholdSettings';
 export { default as Payouts } from './Payouts';
 export { default as ProfileUpdates } from './ProfileUpdates';
 export { default as Settings } from './Settings';

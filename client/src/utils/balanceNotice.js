@@ -3,17 +3,38 @@
 // on Member Balances, so both stay on the same thresholds and letter
 // template instead of drifting apart.
 //
-// The minimum sustaining balance for the Mortuary Aid Fund is ₱1,000. A
-// member below that gets one of three escalating paper notices depending
-// on how far below it they are.
-export const NOTICE_TARGET_BALANCE = 1000;
+// Thresholds are admin-configurable (Mortuary Admin → Notice Thresholds,
+// backed by NoticeThresholdSetting on the server) rather than fixed in code.
+// Every function here takes the current thresholds as a parameter instead of
+// reading a hardcoded constant; DEFAULT_NOTICE_THRESHOLDS is only the
+// fallback shown before the real settings have loaded, and matches the
+// server's own auto-seeded defaults.
+export const DEFAULT_NOTICE_THRESHOLDS = {
+  targetBalance: 1000,
+  notice1Min: 700,
+  notice1Max: 900,
+  notice2Min: 300,
+  notice2Max: 699,
+  // The ENTIRE letter body (title through signatures) is one admin-editable
+  // block of plain text, paragraphs separated by a blank line. Available
+  // placeholders: {noticeLabel} {name} {address} {passbook} {balance}
+  // {amountNeeded} {targetBalance} {managerName}. {balance} and
+  // {amountNeeded} are always bolded wherever they appear; everything else
+  // substitutes as plain text. The letterhead (logo + org name) is rendered
+  // separately and is not part of this template.
+  noticeBodyTemplate:
+    '{noticeLabel} — MORTUARY AID FUND PROGRAM\n\nName: {name}\nAddress: {address}\nPassbook No.: {passbook}\n\nSir/Madam:\n\nThis is to inform you that your deposit under the Mortuary Aid Fund Program has only a balance of {balance}. Please make an additional deposit of {amountNeeded} immediately to make your current balance of {targetBalance} from receipt of this notice to enjoy the benefit of this program.\n\nThank you and God Bless!\n\nReceived by: _______________________\nDate received: _______________________\n\nVery truly yours,\n\n_______________________\n{managerName}',
+  finalNoticeBodyTemplate:
+    '{noticeLabel} — MORTUARY AID FUND PROGRAM\n\nName: {name}\nAddress: {address}\nPassbook No: {passbook}\n\nSir/Madam:\n\nThis is to inform you that you have {balance} deposits in the Mortuary Aid Fund Program. Kindly replenish or deposit {amountNeeded} in your mortuary fund within (30) days to maintain your membership in the said program.\n\nFailure to do so will automatically drop you from the program.\n\nPlease be guided and updated accordingly.\n\nReceived by: _______________________\nDate received: _______________________\n\nVery truly yours,\n\n_______________________\n{managerName}',
+};
 
-export const getNoticeLevel = (balance) => {
+export const getNoticeLevel = (balance, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
   const value = balance ?? 0;
-  if (value >= 700 && value <= 900) return 1;
-  if (value >= 300 && value <= 699) return 2;
-  if (value <= 299) return 3; // covers negative balances too
-  return null; // above ₱900 — no notice needed
+  const t = thresholds || DEFAULT_NOTICE_THRESHOLDS;
+  if (value >= t.notice1Min && value <= t.notice1Max) return 1;
+  if (value >= t.notice2Min && value <= t.notice2Max) return 2;
+  if (value < t.notice2Min) return 3;
+  return null; // above notice1Max — no notice needed
 };
 
 export const NOTICE_LEVEL_LABELS = {
@@ -46,50 +67,59 @@ const NOTICE_STYLES = `
   .letterhead .org-title { margin: 0; font-size: 16pt; font-weight: bold; letter-spacing: 0.02em; text-align: center; }
   .letterhead .org-sub { margin: 2px 0 0; font-size: 10.5pt; color: #444; text-align: center; }
   .letterhead-rule { border: none; border-top: 2px solid #111; margin: 10px 0 24px; }
-  .notice-title { text-align: center; font-weight: bold; text-decoration: underline; letter-spacing: 0.05em; margin-bottom: 28px; }
-  .field-row { margin-bottom: 6px; }
-  .field-row .label { font-weight: bold; }
-  .field-row .line { display: inline-block; min-width: 260px; border-bottom: 1px solid #111; padding-left: 6px; }
-  .salutation { margin-top: 24px; margin-bottom: 4px; }
-  .body-text { line-height: 1.7; text-align: justify; margin: 0 0 4px; }
-  .signatures { display: flex; justify-content: space-between; margin-top: 56px; }
-  .sig-left, .sig-right { width: 46%; }
-  .sig-line { border-bottom: 1px solid #111; min-height: 20px; margin-top: 26px; margin-bottom: 4px; }
-  .sig-caption { font-size: 11pt; }
+  .body-text { line-height: 1.7; text-align: justify; margin: 0 0 14px; white-space: pre-wrap; }
 `;
+
+// Splits the admin-edited template into paragraphs (blank line = paragraph
+// break), escapes the admin's own text for HTML safety, then substitutes
+// every placeholder. {balance}/{amountNeeded} are always bolded wherever
+// they appear; the rest substitute as plain text.
+const renderNoticeTemplate = (template, values) => {
+  const paragraphs = String(template || '')
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return paragraphs
+    .map((paragraph) => {
+      const escaped = esc(paragraph)
+        .replace(/\{noticeLabel\}/g, esc(values.noticeLabel))
+        .replace(/\{name\}/g, esc(values.name))
+        .replace(/\{address\}/g, esc(values.address))
+        .replace(/\{passbook\}/g, esc(values.passbook))
+        .replace(/\{balance\}/g, `<strong>${esc(values.balanceText)}</strong>`)
+        .replace(/\{amountNeeded\}/g, `<strong>${esc(values.amountNeeded)}</strong>`)
+        .replace(/\{targetBalance\}/g, esc(values.targetBalanceText))
+        .replace(/\{managerName\}/g, esc(values.managerName));
+      return `<p class="body-text">${escaped}</p>`;
+    })
+    .join('\n');
+};
 
 // Builds just one member's letter (no outer <html>/<head>) so it can be
 // dropped into either a single-notice print window or a batch one with
-// several members concatenated as separate pages.
-const buildNoticeMarkup = (member, managerName, logoUrl) => {
-  const level = getNoticeLevel(member.balance);
+// several members concatenated as separate pages. Everything below the
+// letterhead — title, fields, body, signatures — is the admin's own
+// template; only the letterhead (branding) is fixed.
+const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
+  const level = getNoticeLevel(member.balance, thresholds);
   if (!level) return '';
 
-  const balanceText = formatPeso(member.balance);
-  const amountNeeded = formatPeso(Math.max(NOTICE_TARGET_BALANCE - (member.balance || 0), 0));
-  const passbookNo = `#${member.id?.toString().padStart(6, '0') || ''}`;
+  const targetBalance = thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance;
+  const template = level === 3
+    ? (thresholds?.finalNoticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.finalNoticeBodyTemplate)
+    : (thresholds?.noticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.noticeBodyTemplate);
 
-  const bodyHtml = level === 3
-    ? `
-      <p class="salutation">Sir/Madam:</p>
-      <p class="body-text">
-        &emsp;&emsp;This is to inform you that you have <strong>${esc(balanceText)}</strong> deposits in the
-        Mortuary Aid Fund Program. Kindly replenish or deposit <strong>${esc(amountNeeded)}</strong> in your
-        mortuary fund within (30) days to maintain your membership in the said program.
-      </p>
-      <p class="body-text">&emsp;&emsp;Failure to do so will automatically drop you from the program.</p>
-      <p class="body-text">&emsp;&emsp;Please be guided and updated accordingly.</p>
-    `
-    : `
-      <p class="salutation">Sir/Madam:</p>
-      <p class="body-text">
-        &emsp;&emsp;This is to inform you that your deposit under the Mortuary Aid Fund Program has only a
-        balance of <strong>${esc(balanceText)}</strong>. Please make an additional deposit of
-        <strong>${esc(amountNeeded)}</strong> immediately to make your current balance of P 1,000.00 from
-        receipt of this notice to enjoy the benefit of this program.
-      </p>
-      <p class="body-text">Thank you and God Bless!</p>
-    `;
+  const bodyHtml = renderNoticeTemplate(template, {
+    noticeLabel: NOTICE_LEVEL_LABELS[level].toUpperCase(),
+    name: member.name,
+    address: member.address,
+    passbook: `#${member.id?.toString().padStart(6, '0') || ''}`,
+    balanceText: formatPeso(member.balance),
+    amountNeeded: formatPeso(Math.max(targetBalance - (member.balance || 0), 0)),
+    targetBalanceText: formatPeso(targetBalance),
+    managerName: managerName || 'Name of Manager',
+  });
 
   return `
     <div class="notice-page">
@@ -102,35 +132,15 @@ const buildNoticeMarkup = (member, managerName, logoUrl) => {
       </div>
       <hr class="letterhead-rule" />
 
-      <p class="notice-title">${esc(NOTICE_LEVEL_LABELS[level].toUpperCase())} — MORTUARY AID FUND PROGRAM</p>
-
-      <div class="field-row"><span class="label">Name:</span> <span class="line">${esc(member.name)}</span></div>
-      <div class="field-row"><span class="label">Address:</span> <span class="line">${esc(member.address)}</span></div>
-      <div class="field-row"><span class="label">Passbook No${level === 3 ? '.' : ''}:</span> <span class="line">${esc(passbookNo)}</span></div>
-
       ${bodyHtml}
-
-      <div class="signatures">
-        <div class="sig-left">
-          <p class="sig-caption">Received by:</p>
-          <div class="sig-line"></div>
-          <p class="sig-caption">Date received:</p>
-          <div class="sig-line"></div>
-        </div>
-        <div class="sig-right">
-          <p class="sig-caption">Very truly yours,</p>
-          <div class="sig-line"></div>
-          <p class="sig-caption">${esc(managerName || 'Name of Manager')}</p>
-        </div>
-      </div>
     </div>
   `;
 };
 
 // Same window.open + document.write pattern used elsewhere in the app for
 // printable output (e.g. claim disbursement receipts, QR cards).
-export const printBalanceNotice = (member, managerName) => {
-  const level = getNoticeLevel(member.balance);
+export const printBalanceNotice = (member, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
+  const level = getNoticeLevel(member.balance, thresholds);
   if (!level) return;
 
   const printWindow = window.open('', '_blank');
@@ -139,7 +149,7 @@ export const printBalanceNotice = (member, managerName) => {
   // Absolute URL — a print window's about:blank document can't reliably
   // resolve a root-relative asset path against the app's origin.
   const logoUrl = `${window.location.origin}/SVPMPC-LOGO(MAIN).png`;
-  const markup = buildNoticeMarkup(member, managerName, logoUrl);
+  const markup = buildNoticeMarkup(member, managerName, logoUrl, thresholds);
 
   printWindow.document.write(`
     <html>
@@ -161,15 +171,15 @@ export const printBalanceNotice = (member, managerName) => {
 // individually, which doesn't scale once there are dozens of members below
 // the sustaining balance. Returns how many notices were queued so the
 // caller can confirm/report the batch size.
-export const printBalanceNoticesBulk = (members, level, managerName) => {
-  const targets = members.filter((m) => getNoticeLevel(m.balance) === level);
+export const printBalanceNoticesBulk = (members, level, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
+  const targets = members.filter((m) => getNoticeLevel(m.balance, thresholds) === level);
   if (targets.length === 0) return 0;
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) return 0;
 
   const logoUrl = `${window.location.origin}/SVPMPC-LOGO(MAIN).png`;
-  const pages = targets.map((m) => buildNoticeMarkup(m, managerName, logoUrl)).join('\n');
+  const pages = targets.map((m) => buildNoticeMarkup(m, managerName, logoUrl, thresholds)).join('\n');
 
   printWindow.document.write(`
     <html>

@@ -4,7 +4,7 @@ import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import StatCard from '../shared/StatCard';
 import { getBarangay } from '../../../utils/helpers';
-import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk } from '../../../utils/balanceNotice';
+import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -16,6 +16,7 @@ const getInitials = (name) => {
 const MemberBalances = ({
   members,
   user,
+  noticeThresholds,
   showToast,
   searchQuery,
   setSearchQuery,
@@ -32,7 +33,8 @@ const MemberBalances = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [printingLevel, setPrintingLevel] = useState(null);
 
-  const lowBalanceMembers = members.filter(m => m.balance < 1000);
+  const targetBalance = noticeThresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance;
+  const lowBalanceMembers = members.filter(m => m.balance < targetBalance);
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
   const lowBalancePercent = members.length > 0 ? (lowBalanceMembers.length / members.length) * 100 : 0;
 
@@ -42,11 +44,11 @@ const MemberBalances = ({
   const noticeLevelCounts = useMemo(() => {
     const counts = { 1: 0, 2: 0, 3: 0 };
     members.forEach((m) => {
-      const level = getNoticeLevel(m.balance);
+      const level = getNoticeLevel(m.balance, noticeThresholds);
       if (level) counts[level] += 1;
     });
     return counts;
-  }, [members]);
+  }, [members, noticeThresholds]);
 
   const handleBulkPrint = (level) => {
     const count = noticeLevelCounts[level];
@@ -56,7 +58,7 @@ const MemberBalances = ({
     }
     setPrintingLevel(level);
     try {
-      const printed = printBalanceNoticesBulk(members, level, user?.name);
+      const printed = printBalanceNoticesBulk(members, level, user?.name, noticeThresholds);
       if (printed === 0) {
         showToast?.('Your browser blocked the print window. Please allow pop-ups and try again.', 'error');
       } else {
@@ -68,7 +70,7 @@ const MemberBalances = ({
   };
 
   const filteredMembers = members
-    .filter(m => (memberFilter === 'low' ? m.balance < 1000 : true))
+    .filter(m => (memberFilter === 'low' ? m.balance < targetBalance : true))
     .filter(m => (barangayFilter === 'All' ? true : getBarangay(m) === barangayFilter))
     .filter(m => (statusFilter === 'all' ? true : m.status === statusFilter))
     .filter(m => (m.name?.toLowerCase().includes(searchQuery.toLowerCase()) || m.id?.toString().includes(searchQuery)))
@@ -111,7 +113,7 @@ const MemberBalances = ({
         <StatCard
           title="Low balance"
           value={<>{lowBalanceMembers.length} <span className="text-base font-normal text-slate-500">members</span></>}
-          subtitle={memberFilter === 'low' ? 'Showing this filter — click to clear' : 'Below ₱1,000 — click to filter'}
+          subtitle={memberFilter === 'low' ? 'Showing this filter — click to clear' : `Below ₱${targetBalance.toLocaleString()} — click to filter`}
           icon={Clock}
           color="amber"
           active={memberFilter === 'low'}
@@ -297,7 +299,7 @@ const MemberBalances = ({
                 </td>
                 <td className="px-6 py-4 text-right">
                   <span
-                    className={`text-sm font-bold tabular-nums ${m.balance < 1000 ? 'text-red-500' : 'text-slate-900'}`}
+                    className={`text-sm font-bold tabular-nums ${m.balance < targetBalance ? 'text-red-500' : 'text-slate-900'}`}
                   >
                     ₱{m.balance?.toLocaleString()}
                   </span>

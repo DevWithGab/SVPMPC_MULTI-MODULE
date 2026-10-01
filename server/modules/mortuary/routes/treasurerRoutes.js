@@ -49,6 +49,7 @@ const {
 } = require('../controllers/treasurerClaimController');
 
 const { getCurrentRate } = require('../controllers/deductionSettingController');
+const { getCurrentThresholds } = require('../controllers/noticeThresholdSettingController');
 
 const router = express.Router();
 
@@ -69,6 +70,12 @@ router.get('/contributions', getAllContributions);
 // (POST lives on the admin router) — the Treasurer just needs to see the amount
 // its Process Deduction screen is about to charge.
 router.get('/deduction-rate', getCurrentRate);
+
+// Read-only view of the Admin-set balance notice thresholds. Only the Admin
+// can change them (POST lives on the admin router) — the Treasurer's Member
+// Ledger / Member Balances screens just need to know where Notice 1/2/Final
+// currently kick in so they classify members the same way the Admin set.
+router.get('/notice-thresholds', getCurrentThresholds);
 
 router.get('/balances/all', getAllMemberBalances);
 router.post('/balances/automatic-deduction', processAutomaticDeduction);

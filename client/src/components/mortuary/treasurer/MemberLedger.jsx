@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, X, Loader, Download } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
 import { getBarangay } from '../../../utils/helpers';
-import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice } from '../../../utils/balanceNotice';
+import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -11,15 +11,19 @@ const getInitials = (name) => {
   return parts[0][0].toUpperCase();
 };
 
-// Always two decimals, statement-style. `signed` prefixes +/- instead of
-// relying on color alone to carry the direction (accessibility).
+// Always two decimals, statement-style. A negative amount always keeps its
+// minus sign (a negative balance must never read as positive); `signed`
+// additionally prefixes a `+` on positive amounts instead of relying on
+// color alone to carry the direction (accessibility) — used for deltas
+// like "Received"/"Withdrawn", not for balances.
 const formatPeso = (amount, { signed = false } = {}) => {
   const value = amount || 0;
   const formatted = Math.abs(value).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return signed ? `${value < 0 ? '-' : '+'}₱${formatted}` : `₱${formatted}`;
+  const sign = value < 0 ? '-' : signed ? '+' : '';
+  return `${sign}₱${formatted}`;
 };
 
 const formatLedgerDate = (dateStr) => {
@@ -103,6 +107,7 @@ const groupEntriesByMonth = (entries, sortOrder) => {
 const MemberLedger = ({
   user,
   members,
+  noticeThresholds,
   ledgerMembers = [],
   memberLedgerEntries = [],
   loadingMemberLedger = false,
@@ -303,12 +308,12 @@ const MemberLedger = ({
               <Printer className="w-4 h-4" /> Print
             </button>
             {(() => {
-              const noticeLevel = getNoticeLevel(currentMember.balance);
+              const noticeLevel = getNoticeLevel(currentMember.balance, noticeThresholds);
               return (
                 <button
-                  onClick={() => printBalanceNotice(currentMember, user?.name)}
+                  onClick={() => printBalanceNotice(currentMember, user?.name, noticeThresholds)}
                   disabled={!noticeLevel}
-                  title={noticeLevel ? undefined : 'Balance is at or above ₱1,000 — no notice needed'}
+                  title={noticeLevel ? undefined : `Balance is above ₱${(noticeThresholds?.notice1Max ?? DEFAULT_NOTICE_THRESHOLDS.notice1Max).toLocaleString()} — no notice needed`}
                   className={`inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${
                     noticeLevel === 3
                       ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white focus-visible:ring-red-500'
@@ -430,9 +435,11 @@ const MemberLedger = ({
               </div>
               <div className="text-right">
                 <p className="text-xs text-slate-400">Current Balance</p>
-                <p className="text-xl font-mono font-bold text-slate-900">{formatPeso(currentMember.balance)}</p>
+                <p className={`text-xl font-mono font-bold ${currentMember.balance < 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                  {formatPeso(currentMember.balance)}
+                </p>
                 {(() => {
-                  const level = getNoticeLevel(currentMember.balance);
+                  const level = getNoticeLevel(currentMember.balance, noticeThresholds);
                   if (!level) return null;
                   return (
                     <span

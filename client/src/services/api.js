@@ -532,6 +532,26 @@ export const deductionSettingAPI = {
 };
 
 // ============================================
+// MORTUARY - NOTICE THRESHOLD SETTINGS API (Admin)
+// ============================================
+export const noticeThresholdSettingAPI = {
+  getCurrentThresholds: async () => {
+    const response = await api.get('/mortuary/admin/notice-thresholds/current');
+    return response.data;
+  },
+
+  getThresholdHistory: async (params = {}) => {
+    const response = await api.get('/mortuary/admin/notice-thresholds', { params });
+    return response.data;
+  },
+
+  updateThresholds: async (thresholdData) => {
+    const response = await api.post('/mortuary/admin/notice-thresholds', thresholdData);
+    return response.data;
+  },
+};
+
+// ============================================
 // MORTUARY - CONTRIBUTIONS API
 // ============================================
 export const contributionAPI = {
@@ -789,6 +809,14 @@ export const treasurerAPI = {
   // Process Deduction screen can display the rate it is about to charge.
   getDeductionRate: async () => {
     const response = await api.get('/mortuary/treasurer/deduction-rate');
+    return response.data;
+  },
+
+  // The active Admin-set balance notice thresholds, read-only — lets Member
+  // Ledger / Member Balances classify members (Notice 1/2/Final) the same
+  // way the Admin configured, without being able to change them here.
+  getNoticeThresholds: async () => {
+    const response = await api.get('/mortuary/treasurer/notice-thresholds');
     return response.data;
   },
 
