@@ -11,11 +11,7 @@ const getInitials = (name) => {
   return parts[0][0].toUpperCase();
 };
 
-// Always two decimals, statement-style. A negative amount always keeps its
-// minus sign (a negative balance must never read as positive); `signed`
-// additionally prefixes a `+` on positive amounts instead of relying on
-// color alone to carry the direction (accessibility) — used for deltas
-// like "Received"/"Withdrawn", not for balances.
+
 const formatPeso = (amount, { signed = false } = {}) => {
   const value = amount || 0;
   const formatted = Math.abs(value).toLocaleString('en-PH', {
@@ -35,11 +31,7 @@ const formatLedgerDate = (dateStr) => {
 
 const monthKeyOf = (dateStr) => (dateStr ? dateStr.slice(0, 7) : 'unknown');
 
-// Quick date-range presets for the ledger filter, replacing manual From/To
-// pickers — the table is already grouped by month, so "pick two exact
-// dates" was more friction than the common cases actually need. Returned as
-// YYYY-MM-DD strings so they compare the same way entry.date already does
-// (both parsed via `new Date(...)`, so no timezone drift between the two).
+
 const pad2 = (n) => String(n).padStart(2, '0');
 const isoDate = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
 const getPresetDateRange = (preset) => {
@@ -67,17 +59,13 @@ const monthLabelOf = (dateStr) => {
   return parsed.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
 };
 
-// Some entries (e.g. system-generated deductions) carry a raw UUID as their
-// reference instead of a short human-assigned code — shorten those in the
-// table while keeping the full value available on hover.
+
 const shortenRef = (ref) => {
   if (!ref) return '—';
   return ref.length > 20 ? `${ref.slice(0, 8)}…${ref.slice(-6)}` : ref;
 };
 
-// Groups already-sorted entries by month for statement-style section headers.
-// "Closing balance" is always the balance as of the chronologically last
-// entry in that month, regardless of which way the table is currently sorted.
+
 const groupEntriesByMonth = (entries, sortOrder) => {
   const buckets = new Map();
   entries.forEach((entry) => {
@@ -257,9 +245,7 @@ const MemberLedger = ({
   if (selectedLedgerMember) {
     const currentMember = members.find(m => m.id === selectedLedgerMember.id) || selectedLedgerMember;
 
-    // memberLedgerEntries is already scoped to this member (fetched via the
-    // dedicated per-member endpoint, paged through in full) — no client-side
-    // filtering by member_id needed.
+
     let mEntries = [...memberLedgerEntries];
     if (transactionFilter === 'deposits') mEntries = mEntries.filter(e => e.received > 0);
     if (transactionFilter === 'withdrawals') mEntries = mEntries.filter(e => e.withdrawn > 0);
@@ -271,10 +257,7 @@ const MemberLedger = ({
       const dateB = b.date ? new Date(b.date).getTime() : 0;
       const dateDiff = sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
       if (dateDiff !== 0) return dateDiff;
-      // `date` is day-only, so same-day entries tie above — break the tie by
-      // when each entry was actually posted (createdAt) so the one just
-      // recorded lands first under "Newest first" instead of being ordered
-      // by transaction amount.
+
       const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return sortOrder === 'asc' ? createdA - createdB : createdB - createdA;
@@ -318,7 +301,7 @@ const MemberLedger = ({
               onClick={() => window.print()}
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
             >
-              <Printer className="w-4 h-4" /> Print
+              <Printer className="w-4 h-4" /> Print Ledger
             </button>
             {(() => {
               const noticeLevel = getNoticeLevel(currentMember.balance, noticeThresholds);
