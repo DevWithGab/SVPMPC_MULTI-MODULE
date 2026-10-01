@@ -1,5 +1,5 @@
 import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 
 // Balance-threshold notices — shared between the per-member "Print Notice"
 // action on the Member Ledger and the bulk "print all by threshold" action
@@ -259,11 +259,18 @@ const captureNoticeCanvas = async (markup) => {
   }
 };
 
-const addCanvasAsPdfPage = (pdf, canvas, isFirstPage) => {
-  if (!isFirstPage) {
-    pdf.addPage([canvas.width, canvas.height]);
+export const addCanvasAsPdfPage = (pdf, canvas) => {
+  // jsPDF otherwise defaults to portrait and swaps custom dimensions for
+  // short letters, leaving the image wider than the page and clipping its side.
+  const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+  const format = [canvas.width, canvas.height];
+  if (pdf) {
+    pdf.addPage(format, orientation);
+  } else {
+    pdf = new jsPDF({ unit: 'px', format, orientation });
   }
   pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, canvas.width, canvas.height);
+  return pdf;
 };
 
 const filenameSafe = (value) => String(value || '').trim().replace(/[^\w\- ]+/g, '').replace(/\s+/g, '-');
@@ -280,8 +287,7 @@ export const downloadBalanceNoticePDF = async (member, managerName, thresholds =
   const markup = buildNoticeMarkup(member, managerName, logoUrl, thresholds);
   const canvas = await captureNoticeCanvas(markup);
 
-  const pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
-  addCanvasAsPdfPage(pdf, canvas, true);
+  const pdf = addCanvasAsPdfPage(null, canvas);
   pdf.save(`${filenameSafe(NOTICE_LEVEL_LABELS[level])}-${filenameSafe(member.name)}.pdf`);
   return true;
 };
@@ -299,10 +305,7 @@ export const downloadBalanceNoticesBulkPDF = async (members, level, managerName,
   for (let i = 0; i < targets.length; i += 1) {
     const markup = buildNoticeMarkup(targets[i], managerName, logoUrl, thresholds);
     const canvas = await captureNoticeCanvas(markup);
-    if (!pdf) {
-      pdf = new jsPDF({ unit: 'px', format: [canvas.width, canvas.height] });
-    }
-    addCanvasAsPdfPage(pdf, canvas, i === 0);
+    pdf = addCanvasAsPdfPage(pdf, canvas);
   }
 
   pdf.save(`${filenameSafe(NOTICE_LEVEL_LABELS[level])}-Batch-${targets.length}.pdf`);
