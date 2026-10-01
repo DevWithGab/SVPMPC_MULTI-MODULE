@@ -167,7 +167,9 @@ const RecentActivities = ({ contributions, payouts, onViewAll }) => {
       type: "payout",
       title: "Benefit Disbursement",
       desc: `Payout of ₱${formatAmount(p.amount)} to ${p.beneficiary || "Beneficiary"}`,
-      time: p.created_at || p.date,
+      // payoutAPI returns `payout_date`, not `created_at`/`date` — reading
+      // the wrong field produced an Invalid Date here and in the sort below.
+      time: p.payout_date || p.created_at || p.date,
       status: p.status || "Released",
     })),
   ].sort((a, b) => new Date(b.time) - new Date(a.time));
@@ -339,7 +341,11 @@ const Dashboard = ({
     });
 
     (payouts || []).forEach((p) => {
-      const date = new Date(p.created_at || p.date);
+      // payoutAPI returns `payout_date`, not `created_at`/`date` — reading
+      // the wrong field made every payout parse as an Invalid Date, so it
+      // always fell outside the `currentYear` check and the chart's "Paid
+      // Out" bars stayed at zero no matter how much was actually released.
+      const date = new Date(p.payout_date || p.created_at || p.date);
       if (date.getFullYear() === currentYear)
         data[date.getMonth()].paidOut += toAmount(p.amount);
     });

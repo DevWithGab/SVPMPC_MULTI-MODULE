@@ -1,4 +1,5 @@
 const { Member, User } = require('../models');
+const Beneficiary = require('../../modules/mortuary/models/Beneficiary');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { sendCredentials, sendBulkCredentials, sendPasswordResetNotification } = require('../services/notificationService');
@@ -8,6 +9,38 @@ const { sendCredentials, sendBulkCredentials, sendPasswordResetNotification } = 
 // client-side check alone isn't real enforcement since this endpoint can be
 // called directly.
 const PH_PHONE_REGEX = /^09\d{9}$/;
+
+// Auto-registers a structured Beneficiary record at member-creation time.
+// The Beneficiary model requires a contact number that member-creation forms
+// didn't previously collect, so this only fires when one is actually
+// supplied — otherwise the member still gets the free-text
+// beneficiaries/beneficiaryRelationship fields as before, and shows "Not
+// Registered" in the admin Beneficiaries screen until completed manually
+// there. Never throws: a beneficiary-registration problem must not roll
+// back an otherwise-successful member creation.
+const maybeRegisterBeneficiary = async ({ memberId, memberName, beneficiaryName, relationship, contactNumber, address }) => {
+  if (!beneficiaryName || !relationship || !contactNumber) return null;
+  const trimmedContact = String(contactNumber).trim();
+  if (!PH_PHONE_REGEX.test(trimmedContact)) return null;
+
+  try {
+    const beneficiary = new Beneficiary({
+      beneficiaryId: uuidv4(),
+      memberId,
+      memberName,
+      beneficiaryName: String(beneficiaryName).trim(),
+      relationship: String(relationship).trim(),
+      contactNumber: trimmedContact,
+      address,
+      updatedBy: 'system (auto-registered at member creation)',
+    });
+    await beneficiary.save();
+    return beneficiary;
+  } catch (error) {
+    console.error(`Error auto-registering beneficiary for ${memberId}:`, error.message);
+    return null;
+  }
+};
 
 // Generate a random password
 const generatePassword = () => {
@@ -31,6 +64,7 @@ const createMemberWithAccount = async (req, res) => {
       address,
       beneficiaries,
       beneficiaryRelationship,
+      beneficiaryContactNumber,
       dateOfBirth,
       gender,
       emergencyContact,
@@ -75,6 +109,15 @@ const createMemberWithAccount = async (req, res) => {
     });
 
     await member.save();
+
+    await maybeRegisterBeneficiary({
+      memberId,
+      memberName,
+      beneficiaryName: beneficiaries,
+      relationship: beneficiaryRelationship,
+      contactNumber: beneficiaryContactNumber,
+      address,
+    });
 
     // Generate temporary password
     const temporaryPassword = generatePassword();
@@ -191,6 +234,7 @@ const bulkCreateMembers = async (req, res) => {
           barangay: memberData.barangay,
           address: memberData.address,
           beneficiaries: memberData.beneficiaries || '',
+          beneficiaryRelationship: memberData.beneficiaryRelationship || '',
           dateOfBirth: memberData.dateOfBirth,
           gender: memberData.gender,
           modules: memberData.modules || ['attendance', 'mortuary'],
@@ -199,6 +243,15 @@ const bulkCreateMembers = async (req, res) => {
 
         await member.save();
         console.log(`✅ Member saved: ${member.memberId}`);
+
+        await maybeRegisterBeneficiary({
+          memberId,
+          memberName: memberData.memberName,
+          beneficiaryName: memberData.beneficiaries,
+          relationship: memberData.beneficiaryRelationship,
+          contactNumber: memberData.beneficiaryContactNumber,
+          address: memberData.address,
+        });
 
         // Generate temporary password
         const temporaryPassword = generatePassword();

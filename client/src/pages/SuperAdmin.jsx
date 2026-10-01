@@ -38,6 +38,13 @@ const validateMemberField = (name, rawValue) => {
     case 'address':
       if (!value) return 'Address is required.';
       return '';
+    case 'beneficiaryContactNumber':
+      // Optional — only validated when something was actually entered. If
+      // provided (along with a beneficiary name and relationship), it's
+      // enough to auto-register a proper Beneficiary record instead of
+      // leaving it as free text for the admin to complete later.
+      if (!value) return '';
+      return validatePhPhone(value);
     default:
       return '';
   }
@@ -106,6 +113,7 @@ const SuperAdmin = () => {
     address: '',
     beneficiaries: '',
     beneficiaryRelationship: '',
+    beneficiaryContactNumber: '',
     dateOfBirth: '',
     gender: 'male',
     modules: ['attendance', 'mortuary']
@@ -129,6 +137,7 @@ const SuperAdmin = () => {
     address: '',
     beneficiaries: '',
     beneficiaryRelationship: '',
+    beneficiaryContactNumber: '',
     dateOfBirth: '',
     gender: 'male',
     modules: ['attendance', 'mortuary']
@@ -140,7 +149,7 @@ const SuperAdmin = () => {
   );
 
   const isCreateFormDirty = () =>
-    REQUIRED_MEMBER_FIELDS.concat('beneficiaries', 'beneficiaryRelationship').some(
+    REQUIRED_MEMBER_FIELDS.concat('beneficiaries', 'beneficiaryRelationship', 'beneficiaryContactNumber').some(
       (field) => (newMember[field] || '').trim() !== ''
     );
 
@@ -148,7 +157,7 @@ const SuperAdmin = () => {
     // Prevention over correction: strip anything non-numeric and stop
     // accepting keystrokes past 11 digits, instead of only flagging it
     // with an error message after the fact.
-    const value = name === 'phoneNumber' ? sanitizePhoneInput(rawValue) : rawValue;
+    const value = (name === 'phoneNumber' || name === 'beneficiaryContactNumber') ? sanitizePhoneInput(rawValue) : rawValue;
     setNewMember((prev) => ({ ...prev, [name]: value }));
     if (memberTouched[name]) {
       setMemberErrors((prev) => ({ ...prev, [name]: validateMemberField(name, value) }));
@@ -391,6 +400,8 @@ const SuperAdmin = () => {
               barangay: values[headers.indexOf('barangay')],
               address: values[headers.indexOf('address')],
               beneficiaries: values[headers.indexOf('beneficiaries')] || '',
+              beneficiaryRelationship: values[headers.indexOf('beneficiaryRelationship')] || '',
+              beneficiaryContactNumber: values[headers.indexOf('beneficiaryContactNumber')] || '',
               dateOfBirth: values[headers.indexOf('dateOfBirth')] || '',
               gender: values[headers.indexOf('gender')] || 'male',
               modules: ['attendance', 'mortuary']
@@ -863,6 +874,22 @@ const SuperAdmin = () => {
               />
             </div>
 
+            <div>
+              <FormField
+                label="Beneficiary Contact Number"
+                name="beneficiaryContactNumber"
+                value={newMember.beneficiaryContactNumber}
+                onChange={(value) => handleMemberFieldChange('beneficiaryContactNumber', value)}
+                onBlur={() => handleMemberFieldBlur('beneficiaryContactNumber')}
+                error={memberTouched.beneficiaryContactNumber ? memberErrors.beneficiaryContactNumber : ''}
+                hint="Optional — if provided along with a beneficiary name above, they're registered automatically instead of showing as 'Not Registered' in Beneficiaries."
+                placeholder="09171234567"
+                maxLength={11}
+                inputMode="numeric"
+                ref={(el) => (memberFieldRefs.current.beneficiaryContactNumber = el)}
+              />
+            </div>
+
             <div className="flex gap-4 pt-4">
               <Button
                 type="button"
@@ -913,7 +940,9 @@ const SuperAdmin = () => {
                   <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                   <p className="text-sm font-bold text-slate-700 mb-2">Upload CSV File</p>
                   <p className="text-xs text-slate-500 mb-4">
-                    Format: memberName, email, phoneNumber, barangay, address, beneficiaries
+                    Format: memberName, email, phoneNumber, barangay, address, beneficiaries,
+                    beneficiaryRelationship, beneficiaryContactNumber (optional — add a beneficiary
+                    contact number to auto-register them instead of leaving them as "Not Registered")
                   </p>
                   <input
                     type="file"

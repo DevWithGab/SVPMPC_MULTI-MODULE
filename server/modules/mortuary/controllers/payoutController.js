@@ -3,25 +3,32 @@ const { Ledger } = require('../models');
 const { getLatestBalance } = require('../utils/ledgerBalance');
 
 const payoutController = {
-  // Get all payouts
+  // Get all payouts — both the legacy manual "Record Payout" ledger entries
+  // (transactionType 'payout') and the ones created when a death claim is
+  // actually released (transactionType 'claim_payout'). The Admin Dashboard's
+  // Fund Overview/Fund Summary total this list, so excluding claim_payout
+  // entries silently hid every real disbursement from those figures.
   getAllPayouts: async (req, res) => {
     try {
-      const payouts = await Ledger.find({ 
-        transactionType: 'payout' 
+      const payouts = await Ledger.find({
+        transactionType: { $in: ['payout', 'claim_payout'] },
       }).sort({ transactionDate: -1 });
 
       const formattedPayouts = [];
 
       for (const payout of payouts) {
         const member = await Member.findOne({ memberId: payout.memberId });
-        
+
         formattedPayouts.push({
           id: payout._id,
           payout_date: payout.transactionDate.toISOString().split('T')[0],
           member_name: member?.memberName || 'Unknown',
           member_id: payout.memberId,
           beneficiary: payout.beneficiary || 'Not specified',
-          amount: Math.abs(payout.debit), // Payouts are debit amounts
+          // claim_payout rows are recorded credit-in/debit-out on the same
+          // row (see treasurerClaimController.releaseClaim) so the member's
+          // own balance is untouched — debit is still the released amount.
+          amount: Math.abs(payout.debit),
           payment_method: payout.paymentMethod || 'Cash',
           description: payout.description
         });
