@@ -51,6 +51,7 @@ const {
 
 const { getCurrentRate } = require('../controllers/deductionSettingController');
 const { getCurrentThresholds } = require('../controllers/noticeThresholdSettingController');
+const { startNoticeBatch, getNoticeBatchStatus } = require('../controllers/noticeBatchController');
 
 const router = express.Router();
 
@@ -82,6 +83,11 @@ router.get('/balances/all', getAllMemberBalances);
 router.post('/balances/automatic-deduction', processAutomaticDeduction);
 router.get('/balances/low-balance-check', checkLowBalanceMembers);
 router.post('/balances/send-low-balance-notifications', sendLowBalanceNotifications);
+
+// Background PDF generation for notice batches too large to comfortably
+// build in the browser (see LARGE_BATCH_THRESHOLD in MemberBalances.jsx).
+router.post('/notices/:level/batch', startNoticeBatch);
+router.get('/notices/batch/:jobId', getNoticeBatchStatus);
 
 // Ledger management routes
 router.get('/ledger', getAllLedger);

@@ -1,10 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer, Download, Loader2 } from 'lucide-react';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
 import StatCard from '../shared/StatCard';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
+import { treasurerAPI, resolveQrAssetUrl } from '../../../services/api';
+
+// Above this, generating the batch PDF is handed off to a background server
+// job instead of built instantly in the browser — native text rendering is
+// fast enough that smaller batches still feel instant client-side (see
+// balanceNotice.js), but a very large run (hundreds to 1,000+) shouldn't tie
+// up the Treasurer's tab or risk a request timeout regardless of how fast
+// the per-page work is.
+const LARGE_BATCH_THRESHOLD = 100;
+const BATCH_POLL_INTERVAL_MS = 4000;
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -33,6 +43,11 @@ const MemberBalances = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [printingLevel, setPrintingLevel] = useState(null);
   const [downloadingLevel, setDownloadingLevel] = useState(null);
+  // { jobId, level } while a background batch is generating server-side;
+  // null otherwise. Distinct from downloadingLevel, which is only for the
+  // instant client-side path below the large-batch threshold.
+  const [batchJob, setBatchJob] = useState(null);
+  const batchPollRef = useRef(null);
 
   const targetBalance = noticeThresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance;
   const lowBalanceMembers = members.filter(m => m.balance < targetBalance);
@@ -70,12 +85,34 @@ const MemberBalances = ({
     }
   };
 
+  // Starts the server-side background job for a batch too large to build
+  // instantly in the browser. Polling (below) picks up the result.
+  const handleBulkDownloadBackground = async (level, count) => {
+    try {
+      const response = await treasurerAPI.startNoticeBatch(level);
+      setBatchJob({ jobId: response.jobId, level });
+      showToast?.(
+        `Preparing ${count} ${NOTICE_LEVEL_LABELS[level]} letters in the background — this may take a moment. We'll let you know when it's ready.`,
+        'success'
+      );
+    } catch (error) {
+      console.error('Error starting notice batch job:', error);
+      showToast?.('Unable to start generating the notices. Please try again.', 'error');
+    }
+  };
+
   const handleBulkDownload = async (level) => {
     const count = noticeLevelCounts[level];
-    if (count === 0) return;
+    if (count === 0 || batchJob) return;
     if (!window.confirm(`Download ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'} as one PDF?`)) {
       return;
     }
+
+    if (count >= LARGE_BATCH_THRESHOLD) {
+      handleBulkDownloadBackground(level, count);
+      return;
+    }
+
     setDownloadingLevel(level);
     try {
       const downloaded = await downloadBalanceNoticesBulkPDF(members, level, user?.name, noticeThresholds);
@@ -87,6 +124,39 @@ const MemberBalances = ({
       setDownloadingLevel(null);
     }
   };
+
+  // Polls the background job's status while one is running, downloading the
+  // finished PDF and clearing the job once it's ready (or reporting failure).
+  useEffect(() => {
+    if (!batchJob) return undefined;
+
+    const poll = async () => {
+      try {
+        const status = await treasurerAPI.getNoticeBatchStatus(batchJob.jobId);
+        if (status.status === 'completed') {
+          clearInterval(batchPollRef.current);
+          const url = resolveQrAssetUrl(status.downloadUrl);
+          if (url) window.open(url, '_blank');
+          showToast?.(
+            `${status.totalMembers} ${NOTICE_LEVEL_LABELS[batchJob.level]} letter${status.totalMembers === 1 ? '' : 's'} ready — download started.`,
+            'success'
+          );
+          setBatchJob(null);
+        } else if (status.status === 'failed') {
+          clearInterval(batchPollRef.current);
+          showToast?.('Generating the notices failed. Please try again.', 'error');
+          setBatchJob(null);
+        }
+      } catch (error) {
+        console.error('Error polling notice batch status:', error);
+      }
+    };
+
+    poll();
+    batchPollRef.current = setInterval(poll, BATCH_POLL_INTERVAL_MS);
+    return () => clearInterval(batchPollRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchJob?.jobId]);
 
   const filteredMembers = members
     .filter(m => (memberFilter === 'low' ? m.balance < targetBalance : true))
@@ -119,8 +189,8 @@ const MemberBalances = ({
         </p>
       </div>
 
-      {/* Stats — the two risk-related cards double as quick filters (click to
-          jump straight to that segment of the table, click again to clear it) */}
+      {/* Stats are informational only — the "All / At risk" tabs below are
+          the actual filter control. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           title="Total capital"
@@ -132,20 +202,16 @@ const MemberBalances = ({
         <StatCard
           title="Low balance"
           value={<>{lowBalanceMembers.length} <span className="text-base font-normal text-slate-500">members</span></>}
-          subtitle={memberFilter === 'low' ? 'Showing this filter — click to clear' : `Below ₱${targetBalance.toLocaleString()} — click to filter`}
+          subtitle={`Below ₱${targetBalance.toLocaleString()}`}
           icon={Clock}
           color="amber"
-          active={memberFilter === 'low'}
-          onClick={() => setMemberFilter(memberFilter === 'low' ? 'all' : 'low')}
         />
         <StatCard
           title="At risk"
           value={`${lowBalancePercent.toFixed(1)}%`}
-          subtitle={memberFilter === 'low' ? 'Showing this filter — click to clear' : 'Requires follow-up — click to filter'}
+          subtitle="Share of members with a low balance"
           icon={AlertTriangle}
           color="rose"
-          active={memberFilter === 'low'}
-          onClick={() => setMemberFilter(memberFilter === 'low' ? 'all' : 'low')}
         />
       </div>
 
@@ -241,7 +307,8 @@ const MemberBalances = ({
           {[1, 2, 3].map((level) => {
             const count = noticeLevelCounts[level];
             const isFinal = level === 3;
-            const busy = printingLevel !== null || downloadingLevel !== null;
+            const busy = printingLevel !== null || downloadingLevel !== null || batchJob !== null;
+            const isPreparingInBackground = batchJob?.level === level;
             const colorClass = isFinal
               ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
               : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100';
@@ -260,10 +327,21 @@ const MemberBalances = ({
                 <button
                   onClick={() => handleBulkDownload(level)}
                   disabled={count === 0 || busy}
-                  title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}` : `Download ${NOTICE_LEVEL_LABELS[level]} as PDF`}
-                  className={`inline-flex items-center px-3 py-2 rounded-r-lg border border-l-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass}`}
+                  title={
+                    count === 0
+                      ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}`
+                      : isPreparingInBackground
+                        ? 'Generating in the background — this may take a moment'
+                        : `Download ${NOTICE_LEVEL_LABELS[level]} as PDF`
+                  }
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-r-lg border border-l-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass}`}
                 >
-                  {downloadingLevel === level ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  {downloadingLevel === level || isPreparingInBackground ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
+                  {isPreparingInBackground && <span className="text-xs font-semibold">Preparing…</span>}
                 </button>
               </div>
             );

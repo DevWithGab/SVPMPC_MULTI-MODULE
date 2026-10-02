@@ -838,6 +838,19 @@ export const treasurerAPI = {
     return response.data;
   },
 
+  // Background PDF generation for a notice batch too large to comfortably
+  // build in the browser — starts the job (server responds immediately) and
+  // a separate status poll to check when the file is ready to download.
+  startNoticeBatch: async (level) => {
+    const response = await api.post(`/mortuary/treasurer/notices/${level}/batch`);
+    return response.data;
+  },
+
+  getNoticeBatchStatus: async (jobId) => {
+    const response = await api.get(`/mortuary/treasurer/notices/batch/${jobId}`);
+    return response.data;
+  },
+
   releaseClaim: async (claimId, data = {}) => {
     const response = await api.post(`/mortuary/treasurer/claims/${claimId}/release`, data);
     return response.data;
