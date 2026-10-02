@@ -562,6 +562,31 @@ export const noticeThresholdSettingAPI = {
 };
 
 // ============================================
+// MORTUARY - CLAIM REQUIREMENT SETTINGS API (Admin)
+// ============================================
+export const claimRequirementAPI = {
+  getAll: async () => {
+    const response = await api.get('/mortuary/admin/claim-requirements');
+    return response.data;
+  },
+
+  create: async (label) => {
+    const response = await api.post('/mortuary/admin/claim-requirements', { label });
+    return response.data;
+  },
+
+  update: async (id, label) => {
+    const response = await api.put(`/mortuary/admin/claim-requirements/${id}`, { label });
+    return response.data;
+  },
+
+  remove: async (id) => {
+    const response = await api.delete(`/mortuary/admin/claim-requirements/${id}`);
+    return response.data;
+  },
+};
+
+// ============================================
 // MORTUARY - CONTRIBUTIONS API
 // ============================================
 export const contributionAPI = {

@@ -11,19 +11,22 @@ import {
   History,
 } from "lucide-react";
 import Button from "../../shared/ui/Button";
-import { claimAPI } from "../../../services/api";
-import {
-  getClaimStatusMeta,
-  REQUIREMENT_LABELS,
-  REQUIREMENT_KEYS,
-  isClaimFullySubmitted,
-} from "../shared/claimMeta";
+import { claimAPI, claimRequirementAPI } from "../../../services/api";
+import { getClaimStatusMeta, isClaimFullySubmitted } from "../shared/claimMeta";
 import ApproveRejectClaimModal from "./modals/ApproveRejectClaimModal";
 
 // One checkbox column, but the underlying data still has separate
 // `submitted`/`verified` booleans on the schema (no combined field exists) —
 // so toggling it flips both together instead of pointing at a fictional key.
 const COMBINED_COLUMN = { label: "Submitted & Verified" };
+
+// Requirement labels are admin-configurable (Fund Settings → Claim
+// Requirements) rather than fixed — if a claim has a key whose definition
+// was since renamed or deleted, fall back to a readable label generated
+// from the key itself (same conversion AuditLogs.jsx uses for the same
+// reason) instead of showing the raw camelCase key or nothing at all.
+const fallbackLabel = (key) =>
+  key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
 
 export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
   const [data, setData] = useState(null);
@@ -37,6 +40,20 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
   });
   const [savingVerification, setSavingVerification] = useState(false);
   const [approveRejectMode, setApproveRejectMode] = useState(null); // 'approve' | 'reject' | null
+  const [requirementLabels, setRequirementLabels] = useState({});
+
+  useEffect(() => {
+    claimRequirementAPI
+      .getAll()
+      .then((res) => {
+        const labels = {};
+        (res?.data || []).forEach((r) => {
+          labels[r.key] = r.label;
+        });
+        setRequirementLabels(labels);
+      })
+      .catch(() => {}); // Falls back to fallbackLabel(key) per row below.
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -284,7 +301,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {REQUIREMENT_KEYS.map((reqKey) => {
+                  {Object.keys(claim.requirements || {}).map((reqKey) => {
                     const checked = Boolean(
                       claim.requirements?.[reqKey]?.submitted,
                     );
@@ -292,7 +309,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                     return (
                       <tr key={reqKey}>
                         <td className="px-5 py-3 font-medium text-slate-700">
-                          {REQUIREMENT_LABELS[reqKey]}
+                          {requirementLabels[reqKey] || fallbackLabel(reqKey)}
                         </td>
                         <td className="px-3 py-3 text-center">
                           <input

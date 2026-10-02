@@ -1,18 +1,12 @@
 const Claim = require('../models/Claim');
 const Beneficiary = require('../models/Beneficiary');
+const { getOrSeedRequirements } = require('./claimRequirementController');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const REQUIREMENT_KEYS = [
-  'claimApplicationForm',
-  'deathCertificate',
-  'memberCooperativeId',
-  'beneficiaryValidId',
-];
 
 // Register New Claim
 const createClaim = async (req, res) => {
@@ -40,6 +34,14 @@ const createClaim = async (req, res) => {
       });
     }
 
+    // Snapshot whichever requirement types are currently configured (Fund
+    // Settings → Claim Requirements) onto this claim — same reasoning as
+    // the memberName/beneficiaryName snapshots below, so a requirement
+    // renamed or removed later doesn't retroactively change what this claim
+    // is tracked against.
+    const activeRequirements = await getOrSeedRequirements();
+    const requirements = new Map(activeRequirements.map((r) => [r.key, {}]));
+
     const claim = new Claim({
       claimId: uuidv4(),
       memberId,
@@ -53,6 +55,7 @@ const createClaim = async (req, res) => {
       causeOfDeath,
       remarks,
       status: 'pending_requirements',
+      requirements,
       statusHistory: [
         {
           status: 'pending_requirements',
@@ -187,12 +190,15 @@ const updateRequirements = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Claim not found' });
     }
 
-    REQUIREMENT_KEYS.forEach((key) => {
-      if (requirements[key] && typeof requirements[key] === 'object') {
-        claim.requirements[key] = {
-          ...claim.requirements[key].toObject(),
+    // Only keys this claim already snapshotted at filing time can be
+    // updated — a requirement can't be retroactively added to a claim that
+    // was filed before it existed.
+    Object.keys(requirements).forEach((key) => {
+      if (claim.requirements.has(key) && requirements[key] && typeof requirements[key] === 'object') {
+        claim.requirements.set(key, {
+          ...claim.requirements.get(key).toObject(),
           ...requirements[key],
-        };
+        });
       }
     });
 
@@ -268,7 +274,9 @@ const approveClaim = async (req, res) => {
       });
     }
 
-    const missing = REQUIREMENT_KEYS.filter((key) => !claim.requirements[key]?.submitted);
+    const missing = Array.from(claim.requirements.keys()).filter(
+      (key) => !claim.requirements.get(key)?.submitted
+    );
     if (missing.length > 0) {
       return res.status(400).json({
         success: false,
@@ -382,7 +390,6 @@ const rejectClaim = async (req, res) => {
 };
 
 module.exports = {
-  REQUIREMENT_KEYS,
   createClaim,
   getAllClaims,
   getClaimById,

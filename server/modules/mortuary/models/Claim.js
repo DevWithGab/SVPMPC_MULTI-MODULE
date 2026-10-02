@@ -72,11 +72,15 @@ const claimSchema = new mongoose.Schema(
       ],
       default: 'pending_requirements',
     },
+    // Admin-configurable (see ClaimRequirement model) — each claim snapshots
+    // whichever requirement types exist at filing time, same philosophy as
+    // the memberName/beneficiaryName snapshots below: a requirement
+    // definition can be renamed or removed later without touching claims
+    // that already captured it. Keyed by ClaimRequirement.key.
     requirements: {
-      claimApplicationForm: { type: requirementItemSchema, default: () => ({}) },
-      deathCertificate: { type: requirementItemSchema, default: () => ({}) },
-      memberCooperativeId: { type: requirementItemSchema, default: () => ({}) },
-      beneficiaryValidId: { type: requirementItemSchema, default: () => ({}) },
+      type: Map,
+      of: requirementItemSchema,
+      default: () => new Map(),
     },
     verification: {
       verifiedBy: { type: String },

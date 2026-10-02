@@ -86,14 +86,10 @@ export const getClaimAction = (status) =>
 export const getClaimStatusMeta = (status) =>
   CLAIM_STATUS_META[status] || CLAIM_STATUS_META.pending_requirements;
 
-export const REQUIREMENT_LABELS = {
-  claimApplicationForm: 'Claim Application Form',
-  deathCertificate: 'Death Certificate',
-  memberCooperativeId: "Member's Cooperative ID",
-  beneficiaryValidId: "Beneficiary's Valid ID",
-};
-
-export const REQUIREMENT_KEYS = Object.keys(REQUIREMENT_LABELS);
-
+// Requirement labels/keys are admin-configurable now (Fund Settings → Claim
+// Requirements, backed by claimRequirementAPI) rather than a fixed list
+// here — this just checks whatever keys a given claim actually snapshotted
+// at filing time, so a claim with zero requirements configured correctly
+// counts as fully submitted (nothing outstanding).
 export const isClaimFullySubmitted = (requirements) =>
-  REQUIREMENT_KEYS.every((key) => requirements?.[key]?.submitted);
+  Object.values(requirements || {}).every((r) => r?.submitted);

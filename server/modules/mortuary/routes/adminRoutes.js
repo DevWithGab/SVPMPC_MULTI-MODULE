@@ -14,6 +14,7 @@ const claimController = require('../controllers/claimController');
 const beneficiaryController = require('../controllers/beneficiaryController');
 const deductionSettingController = require('../controllers/deductionSettingController');
 const noticeThresholdSettingController = require('../controllers/noticeThresholdSettingController');
+const claimRequirementController = require('../controllers/claimRequirementController');
 const backupController = require('../controllers/backupController');
 
 const router = express.Router();
@@ -70,6 +71,14 @@ router.post('/deduction-settings', authenticateToken, authorizeAdminOnly, deduct
 router.get('/notice-thresholds/current', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getCurrentThresholds);
 router.get('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getThresholdHistory);
 router.post('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.updateThresholds);
+
+// Physical requirements checklist — the admin-configurable list of document
+// types a claim must collect before it can be approved (Fund Settings →
+// Claim Requirements tab).
+router.get('/claim-requirements', authenticateToken, authorizeAdminOnly, claimRequirementController.getAllRequirements);
+router.post('/claim-requirements', authenticateToken, authorizeAdminOnly, claimRequirementController.createRequirement);
+router.put('/claim-requirements/:id', authenticateToken, authorizeAdminOnly, claimRequirementController.updateRequirement);
+router.delete('/claim-requirements/:id', authenticateToken, authorizeAdminOnly, claimRequirementController.deleteRequirement);
 
 // Database backup/restore — restore is a bulk write over live data, so it
 // gets the same explicit auth as the other consequential routes above.
