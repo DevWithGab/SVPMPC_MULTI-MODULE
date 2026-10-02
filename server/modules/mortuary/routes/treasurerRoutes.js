@@ -51,6 +51,7 @@ const {
 
 const { getCurrentRate } = require('../controllers/deductionSettingController');
 const { getCurrentThresholds } = require('../controllers/noticeThresholdSettingController');
+const { getCurrentCap } = require('../controllers/benefitCapSettingController');
 const { startNoticeBatch, getNoticeBatchStatus } = require('../controllers/noticeBatchController');
 
 const router = express.Router();
@@ -72,6 +73,12 @@ router.get('/contributions', getAllContributions);
 // (POST lives on the admin router) — the Treasurer just needs to see the amount
 // its Process Deduction screen is about to charge.
 router.get('/deduction-rate', getCurrentRate);
+
+// Read-only view of the Admin-set death benefit cap. Only the Admin can
+// change it (POST lives on the admin router) — the Treasurer's Claims
+// Awaiting Release / Income Report screens display it alongside the
+// resolved payout, which the claim routes below already echo per-response.
+router.get('/benefit-cap', getCurrentCap);
 
 // Read-only view of the Admin-set balance notice thresholds. Only the Admin
 // can change them (POST lives on the admin router) — the Treasurer's Member

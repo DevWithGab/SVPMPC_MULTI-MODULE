@@ -10,12 +10,14 @@
 //     DeductionSetting rate and tagging every ledger row with the claimId.
 //   - Flow B (payout): the pool Flow A just collected — the sum of what was
 //     deducted from every other member's ledger for this claim — is paid out
-//     to the deceased member's beneficiary, capped at MAX_BENEFIT_AMOUNT. Any
-//     surplus above the cap is the cooperative's income. The deceased member's
-//     OWN ledger balance is deliberately not the payout figure: it is their
-//     personal contribution balance, not the death benefit.
+//     to the deceased member's beneficiary, capped at the Admin-configured
+//     BenefitCapSetting. Any surplus above the cap is the cooperative's
+//     income. The deceased member's OWN ledger balance is deliberately not
+//     the payout figure: it is their personal contribution balance, not the
+//     death benefit.
 const Claim = require('../models/Claim');
 const DeductionSetting = require('../models/DeductionSetting');
+const BenefitCapSetting = require('../models/BenefitCapSetting');
 const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
@@ -26,7 +28,7 @@ const { checkAndNotify } = require('../services/thresholdNotificationService');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { getLatestBalance } = require('../utils/ledgerBalance');
 const {
-  MAX_BENEFIT_AMOUNT,
+  DEFAULT_MAX_BENEFIT_AMOUNT,
   benefitPayoutFor,
   benefitSurplusFor,
 } = require('../config/claimBenefit');
@@ -49,11 +51,22 @@ const resolveDeductionRate = async () => {
   };
 };
 
+// The benefit cap is set by the Admin in Fund Settings → Benefit Cap and is
+// not the Treasurer's to choose, so every payout calculation resolves it
+// here rather than trusting anything off the request — same pattern as
+// resolveDeductionRate above.
+const resolveBenefitCap = async () => {
+  const setting = await BenefitCapSetting.findOne({ status: 'active' });
+  return setting?.amount ?? DEFAULT_MAX_BENEFIT_AMOUNT;
+};
+
 // Both the Awaiting Release list and releaseClaim resolve the payout here so
 // the figure previewed is the figure actually released. totalCollected is
-// recorded on the claim at deduction time; the cap and the split live in
-// config/claimBenefit so the dashboards report against the same rule.
-const resolvePayoutAmount = (claim) => benefitPayoutFor(claim?.deduction?.totalCollected ?? 0);
+// recorded on the claim at deduction time; the split formula lives in
+// config/claimBenefit so the dashboards report against the same rule — cap
+// is resolved once per request (see call sites) and passed in rather than
+// re-queried per claim.
+const resolvePayoutAmount = (claim, cap) => benefitPayoutFor(claim?.deduction?.totalCollected ?? 0, cap);
 
 // Every claim regardless of status — backs the Reports screen's Claims
 // Report and Deductions & Payouts tabs, which need the full list rather
@@ -125,13 +138,14 @@ const listAwaitingRelease = async (req, res) => {
     // The payout is derived from what was collected for the claim — the
     // Treasurer does not get to choose it — so send the resolved split along
     // explicitly for the disbursement form to display read-only.
+    const cap = await resolveBenefitCap();
     const withPayout = claims.map((claim) => {
-      const payoutAmount = resolvePayoutAmount(claim);
+      const payoutAmount = resolvePayoutAmount(claim, cap);
       return {
         ...claim,
         payoutAmount,
         retainedAmount: Math.round(((claim.deduction?.totalCollected ?? 0) - payoutAmount) * 100) / 100,
-        maxBenefitAmount: MAX_BENEFIT_AMOUNT,
+        maxBenefitAmount: cap,
       };
     });
 
@@ -207,6 +221,7 @@ const listClaimFinancials = async (req, res) => {
       .limit(limit)
       .lean();
 
+    const cap = await resolveBenefitCap();
     const round = (n) => Math.round((n || 0) * 100) / 100;
     const rows = claims.map((claim) => {
       const collected = claim.deduction?.totalCollected ?? 0;
@@ -229,10 +244,10 @@ const listClaimFinancials = async (req, res) => {
         // claim WILL release and retain, shown greyed out so a forecast is
         // never mistaken for money that has already moved.
         netIncome: settled ? round(collected - released) : 0,
-        projectedRelease: benefitPayoutFor(collected),
-        projectedIncome: benefitSurplusFor(collected),
+        projectedRelease: benefitPayoutFor(collected, cap),
+        projectedIncome: benefitSurplusFor(collected, cap),
         settled,
-        capApplied: collected > MAX_BENEFIT_AMOUNT,
+        capApplied: collected > cap,
         processedAt: claim.deduction?.processedAt ?? null,
         releasedAt: claim.payout?.releasedAt ?? null,
         dvNumber: claim.payout?.dvNumber ?? null,
@@ -246,7 +261,7 @@ const listClaimFinancials = async (req, res) => {
     res.status(200).json({
       ...buildPaginatedResponse(rows, total, page, limit),
       totals,
-      maxBenefitAmount: MAX_BENEFIT_AMOUNT,
+      maxBenefitAmount: cap,
     });
   } catch (error) {
     console.error('Error fetching claim income report:', error);
@@ -475,15 +490,16 @@ const releaseClaim = async (req, res) => {
     }
 
     // The death benefit is the pool collected from the other members for this
-    // claim, capped at MAX_BENEFIT_AMOUNT — it is not a figure the Treasurer
-    // (or anything on the request) gets to set, so any amount sent by a client
-    // is deliberately ignored.
+    // claim, capped at the Admin-configured benefit cap — it is not a figure
+    // the Treasurer (or anything on the request) gets to set, so any amount
+    // sent by a client is deliberately ignored.
+    const cap = await resolveBenefitCap();
     const totalCollected = claim.deduction?.totalCollected ?? 0;
-    const payoutAmount = resolvePayoutAmount(claim);
+    const payoutAmount = resolvePayoutAmount(claim, cap);
     // Surplus above the cap is the cooperative's income. Never written to a
     // member ledger — it belongs to no member. getClaimFinancialTotals derives
     // the same figure per claim to report Net Claims Income.
-    const retainedAmount = benefitSurplusFor(totalCollected);
+    const retainedAmount = benefitSurplusFor(totalCollected, cap);
 
     if (isNaN(payoutAmount) || payoutAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid payout amount' });

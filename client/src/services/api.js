@@ -542,6 +542,26 @@ export const deductionSettingAPI = {
 };
 
 // ============================================
+// MORTUARY - BENEFIT CAP SETTINGS API (Admin)
+// ============================================
+export const benefitCapSettingAPI = {
+  getCurrentCap: async () => {
+    const response = await api.get('/mortuary/admin/benefit-cap/current');
+    return response.data;
+  },
+
+  getCapHistory: async (params = {}) => {
+    const response = await api.get('/mortuary/admin/benefit-cap', { params });
+    return response.data;
+  },
+
+  updateCap: async (capData) => {
+    const response = await api.post('/mortuary/admin/benefit-cap', capData);
+    return response.data;
+  },
+};
+
+// ============================================
 // MORTUARY - NOTICE THRESHOLD SETTINGS API (Admin)
 // ============================================
 export const noticeThresholdSettingAPI = {
@@ -852,6 +872,13 @@ export const treasurerAPI = {
   // Process Deduction screen can display the rate it is about to charge.
   getDeductionRate: async () => {
     const response = await api.get('/mortuary/treasurer/deduction-rate');
+    return response.data;
+  },
+
+  // The active Admin-set death benefit cap, read-only — same underlying
+  // setting the Admin edits in Fund Settings → Benefit Cap.
+  getBenefitCap: async () => {
+    const response = await api.get('/mortuary/treasurer/benefit-cap');
     return response.data;
   },
 

@@ -15,6 +15,7 @@ const beneficiaryController = require('../controllers/beneficiaryController');
 const deductionSettingController = require('../controllers/deductionSettingController');
 const noticeThresholdSettingController = require('../controllers/noticeThresholdSettingController');
 const claimRequirementController = require('../controllers/claimRequirementController');
+const benefitCapSettingController = require('../controllers/benefitCapSettingController');
 const backupController = require('../controllers/backupController');
 
 const router = express.Router();
@@ -71,6 +72,12 @@ router.post('/deduction-settings', authenticateToken, authorizeAdminOnly, deduct
 router.get('/notice-thresholds/current', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getCurrentThresholds);
 router.get('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getThresholdHistory);
 router.post('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.updateThresholds);
+
+// Death benefit cap — the maximum payout released per claim (anything
+// collected above it is retained as cooperative income).
+router.get('/benefit-cap/current', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCurrentCap);
+router.get('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCapHistory);
+router.post('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.updateCap);
 
 // Physical requirements checklist — the admin-configurable list of document
 // types a claim must collect before it can be approved (Fund Settings →
