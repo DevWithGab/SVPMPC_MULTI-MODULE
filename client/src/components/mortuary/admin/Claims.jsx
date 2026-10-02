@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle, ChevronRight } from 'lucide-react';
 import StatCard from '../shared/StatCard';
 import { claimAPI, mortuaryMemberAPI, mortuaryDashboardAPI } from '../../../services/api';
-import { getClaimStatusMeta, getClaimAction, CLAIM_STATUS_ORDER } from './claimMeta';
+import { getClaimStatusMeta, getClaimAction, CLAIM_STATUS_ORDER } from '../shared/claimMeta';
 import ClaimDetails from './ClaimDetails';
 import RegisterClaimModal from './modals/RegisterClaimModal';
 

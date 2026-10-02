@@ -217,7 +217,17 @@ const updateEvent = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    if (!['draft', 'pending_approval', 'rejected'].includes(originalEvent.status)) {
+    // The Secretary can only edit an event before it's been acted on
+    // (draft/pending/rejected) — once it's approved or closed, it's the
+    // Admin's to manage. The Admin isn't bound by that lifecycle: this same
+    // controller backs both the Secretary's and the Admin's update route,
+    // and only the latter authenticates as 'admin', so that's the signal
+    // to allow editing regardless of status (including a closed, i.e.
+    // time-exceeded, event).
+    if (
+      !['draft', 'pending_approval', 'rejected'].includes(originalEvent.status) &&
+      req.user?.role !== 'admin'
+    ) {
       return res.status(400).json({ message: 'Only draft, pending, or rejected events can be edited' });
     }
 

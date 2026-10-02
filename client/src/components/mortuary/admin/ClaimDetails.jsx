@@ -17,7 +17,7 @@ import {
   REQUIREMENT_LABELS,
   REQUIREMENT_KEYS,
   isClaimFullySubmitted,
-} from "./claimMeta";
+} from "../shared/claimMeta";
 import ApproveRejectClaimModal from "./modals/ApproveRejectClaimModal";
 
 // One checkbox column, but the underlying data still has separate

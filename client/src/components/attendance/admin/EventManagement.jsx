@@ -4,6 +4,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Edit3,
   Eye,
   Loader2,
   MapPin,
@@ -97,6 +98,16 @@ const EventManagement = ({ events = [], setEvents }) => {
   });
   const [reopening, setReopening] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    date: "",
+    startTime: "",
+    endTime: "",
+    location: "",
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const pendingEvents = useMemo(
     () =>
@@ -210,6 +221,93 @@ const EventManagement = ({ events = [], setEvents }) => {
       });
     } finally {
       setReopening(false);
+    }
+  };
+
+  const normalizeTimeValue = (time) => {
+    if (!time) return "";
+    const trimmed = time.toString().trim();
+
+    if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+      const [hours, minutes] = trimmed.split(":");
+      return `${hours.padStart(2, "0")}:${minutes}`;
+    }
+
+    const match12Hour = /^([0-1]?\d|2[0-3]):([0-5]\d)\s*(AM|PM)$/i.exec(trimmed);
+    if (match12Hour) {
+      let [, hour, minute, period] = match12Hour;
+      hour = parseInt(hour, 10);
+      if (/pm/i.test(period) && hour !== 12) hour += 12;
+      if (/am/i.test(period) && hour === 12) hour = 0;
+      return `${hour.toString().padStart(2, "0")}:${minute}`;
+    }
+
+    const matchSeconds = /^([0-1]?\d|2[0-3]):([0-5]\d):([0-5]\d)$/.exec(trimmed);
+    if (matchSeconds) {
+      const [, hour, minute] = matchSeconds;
+      return `${hour.padStart(2, "0")}:${minute}`;
+    }
+
+    return "";
+  };
+
+  // Admin can edit any approved or closed event — including a closed
+  // (time-exceeded) one, which it couldn't touch at all before. Date/time
+  // stay off-limits for a closed event here: the status-refresh timer only
+  // watches upcoming/active events, so editing a closed event's schedule
+  // through this form wouldn't bring it back out of 'closed' — that's what
+  // the dedicated Reopen flow is for.
+  const openEditModal = (event) => {
+    const parsedDate = new Date(event.eventDate || event.date);
+    setEditingEvent(event);
+    setEditForm({
+      name: getEventName(event),
+      description: event.description || "",
+      date: new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Manila",
+      }).format(parsedDate),
+      startTime: normalizeTimeValue(event.startTime || event.eventTime || ""),
+      endTime: normalizeTimeValue(event.endTime || ""),
+      location: event.location || "",
+    });
+  };
+
+  const submitEditEvent = async () => {
+    if (!editingEvent || savingEdit) return;
+    if (!editForm.name.trim() || !editForm.location.trim()) return;
+
+    setSavingEdit(true);
+    try {
+      const isClosed = editingEvent.status === "closed";
+      const payload = {
+        eventName: editForm.name.trim(),
+        description: editForm.description,
+        location: editForm.location.trim(),
+      };
+
+      if (!isClosed) {
+        const startTime = normalizeTimeValue(editForm.startTime);
+        const endTime = normalizeTimeValue(editForm.endTime);
+        payload.eventDate = editForm.date;
+        payload.eventTime = startTime;
+        payload.startTime = startTime;
+        payload.endTime = endTime;
+      }
+
+      const response = await eventAPI.updateEventAsAdmin(
+        getEventKey(editingEvent),
+        payload,
+      );
+      updateEventInList(response.event);
+      setNotice({ type: "success", message: "Event updated successfully." });
+      setEditingEvent(null);
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.response?.data?.message || "Unable to update event.",
+      });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -452,16 +550,28 @@ const EventManagement = ({ events = [], setEvents }) => {
                       </div>
                     </TableCell>
                     <TableCell className="py-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setViewedEvent(event)}
-                        title="View event details"
-                        aria-label={`View details for ${eventDisplayName(event)}`}
-                        className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setViewedEvent(event)}
+                          title="View event details"
+                          aria-label={`View details for ${eventDisplayName(event)}`}
+                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(event)}
+                          title="Edit event"
+                          aria-label={`Edit ${eventDisplayName(event)}`}
+                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -526,6 +636,16 @@ const EventManagement = ({ events = [], setEvents }) => {
                     </TableCell>
                     <TableCell className="py-3">
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(event)}
+                          title="Edit event details"
+                          aria-label={`Edit ${eventDisplayName(event)}`}
+                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -681,6 +801,146 @@ const EventManagement = ({ events = [], setEvents }) => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit Event Modal */}
+      <Modal
+        isOpen={Boolean(editingEvent)}
+        onClose={() => !savingEdit && setEditingEvent(null)}
+        title="Edit Event"
+        className="max-w-lg"
+      >
+        {editingEvent && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Event Name
+              </label>
+              <Input
+                type="text"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value })
+                }
+                required
+                className="border-slate-200 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Description
+              </label>
+              <textarea
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, description: e.target.value })
+                }
+                rows={3}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
+              />
+            </div>
+
+            {editingEvent.status === "closed" ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+                This event's time has already passed, so its date and time
+                aren't editable here. Use <strong>Reopen</strong> instead to
+                give it a new schedule.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={editForm.date}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, date: e.target.value })
+                    }
+                    required
+                    className="border-slate-200 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Start Time
+                  </label>
+                  <Input
+                    type="time"
+                    value={editForm.startTime}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, startTime: e.target.value })
+                    }
+                    required
+                    className="border-slate-200 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    End Time
+                  </label>
+                  <Input
+                    type="time"
+                    value={editForm.endTime}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, endTime: e.target.value })
+                    }
+                    required
+                    className="border-slate-200 rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Location
+              </label>
+              <Input
+                type="text"
+                value={editForm.location}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, location: e.target.value })
+                }
+                required
+                className="border-slate-200 rounded-lg"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={savingEdit}
+                onClick={() => setEditingEvent(null)}
+                className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={submitEditEvent}
+                disabled={
+                  savingEdit || !editForm.name.trim() || !editForm.location.trim()
+                }
+                className="flex-1 bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg font-semibold disabled:opacity-50"
+              >
+                {savingEdit ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="w-4 h-4 mr-2 inline" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Delete Event Modal */}

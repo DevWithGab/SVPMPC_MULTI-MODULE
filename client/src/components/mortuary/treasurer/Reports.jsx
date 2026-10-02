@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Download, TrendingUp, Users, PhilippinePeso, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
-import { claimAPI } from '../../../services/api';
-import { getClaimStatusMeta } from './claimMeta';
+import { treasurerAPI } from '../../../services/api';
+import { getClaimStatusMeta } from '../shared/claimMeta';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -36,14 +36,33 @@ const STANDING_BADGE_STYLES = {
   'At Risk': 'bg-red-50 text-red-700 border-red-200',
 };
 
+// 'YYYY-MM' for monthly, 'YYYY' for annually — sorts correctly as plain
+// strings, which is why month is zero-padded.
+const getPeriodKey = (dateValue, granularity) => {
+  const d = new Date(dateValue);
+  if (Number.isNaN(d.getTime())) return null;
+  if (granularity === 'annually') return String(d.getFullYear());
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const formatPeriodLabel = (key, granularity) => {
+  if (granularity === 'annually') return key;
+  const [year, month] = key.split('-');
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
 const Reports = ({ contributions = [], stats = {}, members = [] }) => {
   const [reportType, setReportType] = useState('summary');
+  const [summaryPeriod, setSummaryPeriod] = useState('monthly'); // 'monthly' | 'annually'
   const { page, limit, setPage } = usePagination(1, 10);
   const [claims, setClaims] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
-    claimAPI
+    treasurerAPI
       .getAllClaims({ limit: 100 })
       .then((res) => {
         if (!cancelled) setClaims(Array.isArray(res?.data) ? res.data : []);
@@ -79,9 +98,49 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       memberName: c.memberName,
       status: c.status,
       deductionCollected: c.deduction?.totalCollected || 0,
+      deductionDate: c.deduction?.processedAt || null,
       payoutAmount: c.payout?.amount || 0,
+      payoutDate: c.payout?.releasedAt || null,
     }));
   }, [claims]);
+
+  // Financial Summary's Monthly/Annually breakdown — each period bucket
+  // sums contributions by payment date, deductions by when they were
+  // processed, and payouts by when they were released (each can land in a
+  // different period than when the claim itself was filed).
+  const periodBreakdown = useMemo(() => {
+    const buckets = new Map();
+    const ensure = (key) => {
+      if (!buckets.has(key)) {
+        buckets.set(key, { period: key, contributions: 0, deductionsCollected: 0, payoutsReleased: 0 });
+      }
+      return buckets.get(key);
+    };
+
+    contributions.forEach((c) => {
+      const key = getPeriodKey(c.payment_date || c.created_at, summaryPeriod);
+      if (key) ensure(key).contributions += c.amount || 0;
+    });
+
+    deductionsData.forEach((c) => {
+      if (c.deductionCollected) {
+        const key = getPeriodKey(c.deductionDate, summaryPeriod);
+        if (key) ensure(key).deductionsCollected += c.deductionCollected;
+      }
+      if (c.payoutAmount) {
+        const key = getPeriodKey(c.payoutDate, summaryPeriod);
+        if (key) ensure(key).payoutsReleased += c.payoutAmount;
+      }
+    });
+
+    return Array.from(buckets.values())
+      .sort((a, b) => (a.period < b.period ? 1 : -1))
+      .map((row) => ({
+        ...row,
+        label: formatPeriodLabel(row.period, summaryPeriod),
+        net: row.contributions + row.deductionsCollected - row.payoutsReleased,
+      }));
+  }, [contributions, deductionsData, summaryPeriod]);
 
   const metrics = useMemo(() => {
     const totalContributions = contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
@@ -143,11 +202,6 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
           ['Total Contributions Collected', `P${metrics.totalContributions}`],
           ['Total Deductions Collected', `P${metrics.totalDeductionsCollected}`],
           ['Total Payouts Released', `P${metrics.totalPayoutsReleased}`],
-          ['', ''],
-          ['Total Members', metrics.totalMembers.toString()],
-          ['Active Members', metrics.activeMembers.toString()],
-          ['Inactive Members', metrics.inactiveMembers.toString()],
-          ['Deceased Members', metrics.deceasedMembers.toString()],
         ];
         autoTable(doc, {
           startY: startY + 5,
@@ -157,6 +211,27 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
           headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 10, fontStyle: 'bold' },
           styles: { fontSize: 9 },
           columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 }, 1: { halign: 'right', cellWidth: 80 } },
+        });
+
+        const breakdownStartY = doc.lastAutoTable.finalY + 12;
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${summaryPeriod === 'monthly' ? 'Monthly' : 'Annual'} Breakdown`, 14, breakdownStartY);
+        const breakdownData = periodBreakdown.map((row) => [
+          row.label,
+          `P${row.contributions.toLocaleString()}`,
+          `P${row.deductionsCollected.toLocaleString()}`,
+          `P${row.payoutsReleased.toLocaleString()}`,
+          `P${row.net.toLocaleString()}`,
+        ]);
+        autoTable(doc, {
+          startY: breakdownStartY + 5,
+          head: [[summaryPeriod === 'monthly' ? 'Month' : 'Year', 'Contributions', 'Deductions', 'Payouts', 'Net']],
+          body: breakdownData,
+          theme: 'striped',
+          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
+          styles: { fontSize: 8 },
+          columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
         });
       } else if (reportType === 'contributions') {
         doc.setFontSize(14);
@@ -276,10 +351,11 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       csvContent += `"Total Contributions","₱${metrics.totalContributions.toLocaleString()}"\n`;
       csvContent += `"Total Deductions Collected","₱${metrics.totalDeductionsCollected.toLocaleString()}"\n`;
       csvContent += `"Total Payouts Released","₱${metrics.totalPayoutsReleased.toLocaleString()}"\n`;
-      csvContent += `"Total Members","${metrics.totalMembers}"\n`;
-      csvContent += `"Active Members","${metrics.activeMembers}"\n`;
-      csvContent += `"Inactive Members","${metrics.inactiveMembers}"\n`;
-      csvContent += `"Deceased Members","${metrics.deceasedMembers}"\n`;
+      csvContent += '\n';
+      csvContent += `"${summaryPeriod === 'monthly' ? 'Month' : 'Year'}","Contributions","Deductions Collected","Payouts Released","Net"\n`;
+      periodBreakdown.forEach((row) => {
+        csvContent += `"${row.label}","₱${row.contributions.toLocaleString()}","₱${row.deductionsCollected.toLocaleString()}","₱${row.payoutsReleased.toLocaleString()}","₱${row.net.toLocaleString()}"\n`;
+      });
     } else if (reportType === 'contributions') {
       filename = `contributions-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'Date,Member ID,Member Name,Amount,Status\n';
@@ -312,7 +388,11 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       });
     }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Without a BOM, Excel guesses the file's encoding from the system
+    // codepage instead of reading it as UTF-8 — the multi-byte ₱ (U+20B1)
+    // then gets misread as unrelated CJK characters. Same fix already used
+    // by the backup CSV exports.
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -405,8 +485,8 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
           </div>
           <div className="overflow-y-auto flex-1">
             {reportType === 'summary' && (
-              <div className="p-5 grid grid-cols-2 gap-6">
-                <div className="space-y-1">
+              <div className="p-5">
+                <div className="space-y-1 max-w-md">
                   <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Financial Metrics</p>
                   <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
                     <span className="text-slate-500">Total Fund Balance</span>
@@ -425,20 +505,63 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
                     <span className="font-semibold text-rose-600">₱{metrics.totalPayoutsReleased.toLocaleString()}</span>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Member Statistics</p>
-                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
-                    <span className="text-slate-500">Total</span><span className="font-semibold text-slate-900">{metrics.totalMembers}</span>
+              </div>
+            )}
+
+            {reportType === 'summary' && (
+              <div className="px-5 pb-5">
+                <div className="flex items-center justify-between gap-3 mb-3 pt-2 border-t border-slate-100">
+                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Breakdown</p>
+                  <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
+                    {['monthly', 'annually'].map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        onClick={() => setSummaryPeriod(period)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md capitalize transition-colors ${
+                          summaryPeriod === period ? 'bg-white text-coop-green shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {period}
+                      </button>
+                    ))}
                   </div>
-                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
-                    <span className="text-slate-500">Active</span><span className="font-semibold text-coop-green">{metrics.activeMembers}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
-                    <span className="text-slate-500">Inactive</span><span className="font-semibold text-amber-600">{metrics.inactiveMembers}</span>
-                  </div>
-                  <div className="flex justify-between py-2 text-sm">
-                    <span className="text-slate-500">Deceased</span><span className="font-semibold text-rose-600">{metrics.deceasedMembers}</span>
-                  </div>
+                </div>
+
+                <div className="border border-slate-100 rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
+                          {summaryPeriod === 'monthly' ? 'Month' : 'Year'}
+                        </th>
+                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Contributions</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deductions Collected</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Payouts Released</th>
+                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Net</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {periodBreakdown.map((row) => (
+                        <tr key={row.period}>
+                          <td className="px-4 py-2.5 text-xs font-semibold text-slate-900">{row.label}</td>
+                          <td className="px-4 py-2.5 text-xs text-right text-coop-green font-semibold">₱{row.contributions.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-xs text-right text-slate-700">₱{row.deductionsCollected.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-xs text-right text-rose-600">₱{row.payoutsReleased.toLocaleString()}</td>
+                          <td className={`px-4 py-2.5 text-xs text-right font-semibold ${row.net >= 0 ? 'text-coop-green' : 'text-rose-600'}`}>
+                            ₱{row.net.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                      {periodBreakdown.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-sm text-slate-400">
+                            No dated records to break down yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

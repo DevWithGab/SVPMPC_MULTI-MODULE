@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 // Login
 const login = async (req, res) => {
   try {
-    const { username, password, expectedRole } = req.body;
+    const { username, password, expectedRole, module } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ message: 'Username and password required' });
@@ -55,6 +55,16 @@ const login = async (req, res) => {
           message: `This account cannot sign in as ${expectedRole.replace('_', ' ')}.`,
         });
       }
+    }
+
+    // Module gate: the login screen's module choice (Attendance vs Mortuary)
+    // was previously never checked against the account, so e.g. an
+    // Attendance-only admin could sign in through the Mortuary admin login
+    // too. super_admin manages both modules by design and skips this check.
+    if (module && user.role !== 'super_admin' && !user.modules?.includes(module)) {
+      return res.status(403).json({
+        message: `This account isn't registered for the ${module} system.`,
+      });
     }
 
     // Update last login

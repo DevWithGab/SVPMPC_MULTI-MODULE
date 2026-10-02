@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Users,
   FileText,
-  BarChart3,
   LayoutGrid,
   Menu,
   LogOut,
@@ -19,7 +18,6 @@ import {
 import {
   Dashboard,
   MemberManagement,
-  Reports,
   Claims,
   Beneficiaries,
   FundSettings,
@@ -75,7 +73,7 @@ const AdminPortal = ({ onBack, user }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'fundSettings', 'reports', 'auditlogs', 'backup']);
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'fundSettings', 'auditlogs', 'backup']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -173,7 +171,6 @@ const AdminPortal = ({ onBack, user }) => {
     { id: "claims", label: "Claims", icon: ClipboardCheck },
     { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
     { id: "fundSettings", label: "Fund Settings", icon: Banknote },
-    { id: "reports", label: "Reports", icon: BarChart3 },
     { id: "auditlogs", label: "Audit Logs", icon: Shield },
     { id: "backup", label: "Backup & Restore", icon: FileText },
   ];
@@ -207,14 +204,6 @@ const AdminPortal = ({ onBack, user }) => {
         return <Beneficiaries user={user} />;
       case "fundSettings":
         return <FundSettings user={user} />;
-      case "reports":
-        return (
-          <Reports
-            contributions={contributions}
-            stats={stats}
-            members={members}
-          />
-        );
       case "auditlogs":
         return <AuditLogs />;
       case "backup":

@@ -270,8 +270,8 @@ export default function DatabaseBackup({
         <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">
           Backup
         </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-green-50 rounded-xl shrink-0">
                 <Users className="w-6 h-6 text-coop-green" />
@@ -299,14 +299,14 @@ export default function DatabaseBackup({
             </div>
             <button
               onClick={downloadMembersCSV}
-              className="w-full h-11 px-4 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 mt-auto bg-white border-2 border-coop-green text-coop-green hover:bg-green-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-4 h-4" />
-              Download Members CSV
+              Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-blue-50 rounded-xl shrink-0">
                 <Calendar className="w-6 h-6 text-blue-700" />
@@ -334,14 +334,14 @@ export default function DatabaseBackup({
             </div>
             <button
               onClick={downloadEventsCSV}
-              className="w-full h-11 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 mt-auto bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-4 h-4" />
-              Download Events CSV
+              Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
             <div className="flex items-center gap-4 mb-6">
               <div className="p-3 bg-purple-50 rounded-xl shrink-0">
                 <Activity className="w-6 h-6 text-purple-700" />
@@ -369,24 +369,24 @@ export default function DatabaseBackup({
             </div>
             <button
               onClick={downloadAttendanceCSV}
-              className="w-full h-11 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 mt-auto bg-white border-2 border-purple-600 text-purple-700 hover:bg-purple-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-4 h-4" />
-              Download Attendance CSV
+              Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
+          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-amber-50 rounded-xl shrink-0">
-                <Database className="w-6 h-6 text-amber-700" />
+              <div className="p-3 bg-green-50 rounded-xl shrink-0">
+                <Database className="w-6 h-6 text-coop-green" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-slate-900">
-                  Complete System Backup
+                  Complete Backup
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
-                  Full database export in JSON format — restorable from below
+                  Full export in JSON — restorable from below
                 </p>
               </div>
             </div>
@@ -410,9 +410,13 @@ export default function DatabaseBackup({
                 </span>
               </div>
             </div>
+            <p className="text-xs text-slate-400 text-center mt-auto mb-2">
+              Don't open or edit this file — just save it somewhere safe and
+              upload it below if you ever need to restore.
+            </p>
             <button
               onClick={downloadFullBackup}
-              className="w-full h-11 px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-4 h-4" />
               Download JSON Backup

@@ -277,6 +277,14 @@ export const eventAPI = {
     return response.data;
   },
 
+  // Admin-only, and unlike updateEvent above works regardless of the
+  // event's status (including closed/time-exceeded) — the server allows
+  // this specifically for requests authenticated as 'admin' via this route.
+  updateEventAsAdmin: async (eventId, eventData) => {
+    const response = await api.put(`/attendance/admin/events/${eventId}`, eventData);
+    return response.data;
+  },
+
   // Admin-only, and only once an event is Closed — the server enforces both
   // (auth + status), this just targets the authenticated admin route rather
   // than the unauthenticated legacy one.
@@ -774,6 +782,14 @@ export const treasurerAPI = {
 
   // Notifications (Removed - Now Automated via Threshold System)
   // Manual notification methods removed
+
+  // Every claim regardless of status — used by the Reports screen (Claims
+  // Report / Deductions & Payouts), which needs the full list rather than
+  // one lifecycle stage at a time like the methods below.
+  getAllClaims: async (params = {}) => {
+    const response = await api.get('/mortuary/treasurer/claims', { params });
+    return response.data;
+  },
 
   // Claims processing — a claim sitting in "pending_deduction" is itself
   // the notification (no separate notification model exists).

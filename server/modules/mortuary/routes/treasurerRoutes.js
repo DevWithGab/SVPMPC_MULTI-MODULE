@@ -38,6 +38,7 @@ const {
 } = require('../controllers/smsNotificationController');
 
 const {
+  listAllClaims,
   listPendingDeduction,
   listAwaitingRelease,
   listReleasedClaims,
@@ -97,6 +98,7 @@ router.get('/notifications/stats', getNotificationStats);
 
 // Claims processing routes — a claim sitting in "pending_deduction" is the
 // Treasurer's notification (live query, no separate notification model).
+router.get('/claims', listAllClaims);
 router.get('/claims/pending-deduction', listPendingDeduction);
 router.get('/claims/awaiting-release', listAwaitingRelease);
 // Literal paths above must stay ahead of the '/claims/:claimId' param route

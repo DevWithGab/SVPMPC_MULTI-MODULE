@@ -472,10 +472,14 @@ export default function DatabaseBackup({
                 </span>
               </div>
             </div>
+            <p className="text-xs text-slate-400 text-center mt-auto mb-2">
+              Don't open or edit this file — just save it somewhere safe and
+              upload it below if you ever need to restore.
+            </p>
             <button
               onClick={downloadFullBackup}
               disabled={loadingLedgers}
-              className="w-full h-11 px-4 mt-auto bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-11 px-4 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText className="w-4 h-4" />
               Download JSON Backup

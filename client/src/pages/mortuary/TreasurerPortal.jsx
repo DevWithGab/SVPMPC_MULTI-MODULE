@@ -3,7 +3,7 @@ import LoadError from '../../components/shared/common/LoadError';
 import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Users, CreditCard, FileText, LayoutGrid,
+  Users, CreditCard, FileText, LayoutGrid, BarChart3,
   LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,8 @@ import {
   ClaimsPendingDeduction,
   ClaimsAwaitingRelease,
   ClaimDisbursementReport,
-  ClaimIncomeReport
+  ClaimIncomeReport,
+  Reports
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
@@ -95,9 +96,16 @@ const PortalSkeleton = () => (
 
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
-  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'ledger', 'contributions']);
+  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'ledger', 'contributions', 'reports']);
   const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'awaiting-release', 'disbursement-report', 'income-report']); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
   const [members, setMembers] = useState([]);
+  // Separate from `members` above (which the balances aggregation scopes to
+  // active members only — exactly what Member Balances/Ledger need). Reports
+  // needs every status so Deceased/Inactive counts and the Deceased Members
+  // report aren't silently empty, so it gets its own full-roster fetch
+  // instead of widening `members` and risking those other screens.
+  const [reportMembers, setReportMembers] = useState([]);
+  const [loadingReportMembers, setLoadingReportMembers] = useState(false);
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState({
     fundBalance: 0,
@@ -184,6 +192,28 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     } catch (error) {
       console.error('Error fetching members:', error);
       markFailed('members', 'member balances');
+    }
+  }, [markLoaded, markFailed]);
+
+  // Full member roster (every status) for Reports — fetched lazily, only
+  // once the Reports tab is actually opened, since it's the one screen that
+  // needs more than the active-only balances list above.
+  const fetchReportMembers = useCallback(async () => {
+    setLoadingReportMembers(true);
+    try {
+      const response = await api.get('/mortuary/treasurer/balances/all', { params: { status: 'all' } });
+      if (!response.data.success) throw new Error(response.data.message || 'Request failed');
+      const normalized = (response.data.data.members || []).map((m) => ({
+        ...m,
+        currentBalance: m.balance ?? 0,
+      }));
+      setReportMembers(normalized);
+      markLoaded('reportMembers');
+    } catch (error) {
+      console.error('Error fetching report members:', error);
+      markFailed('reportMembers', 'the member roster for reports');
+    } finally {
+      setLoadingReportMembers(false);
     }
   }, [markLoaded, markFailed]);
 
@@ -421,6 +451,13 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     })();
   }, [fetchMembers, fetchContributions, fetchDashboardStats, fetchClaimsCounts, fetchNoticeThresholds]);
 
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchReportMembers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   // `members` is otherwise only fetched once on mount, so a member added by
   // the Super Admin (or elsewhere) after this portal loaded would silently
   // be missing from the Record Contribution modal until a full page
@@ -464,6 +501,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     dashboard: ['stats', 'contributions'], members: ['members'],
     contributions: ['contributions'], claims: ['claims'],
     ledger: selectedMemberId ? ['members', 'ledger'] : ['ledgerList'],
+    reports: ['reportMembers'],
   }[activeTab] || [];
   const hasInitialFailure = relevantKeys.some(key => loadErrors[key] && !loaded[key]);
   const retryLoads = async () => {
@@ -524,6 +562,14 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             paymentSearchQuery={paymentSearchQuery}
             setPaymentSearchQuery={setPaymentSearchQuery}
             setIsAddContributionOpen={openAddContribution}
+          />
+        );
+      case 'reports':
+        return (
+          <Reports
+            contributions={contributions}
+            stats={stats}
+            members={reportMembers}
           />
         );
       case 'ledger':
@@ -607,6 +653,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="reports" icon={BarChart3} label="Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
         </nav>
 
         {/* Footer */}

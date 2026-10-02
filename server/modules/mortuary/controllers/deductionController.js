@@ -10,8 +10,12 @@ const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter }) => {
-  const match = { status: 'active' };
+const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter, includeAllStatuses }) => {
+  // Every caller except the Treasurer's Reports screen wants only active
+  // members (that's what "balance management" means day to day) — Reports
+  // needs every status to report on deceased/inactive members too, so it
+  // opts out of this default instead of this helper growing a status enum.
+  const match = includeAllStatuses ? {} : { status: 'active' };
   const andConditions = [];
 
   if (Array.isArray(memberIds) && memberIds.length > 0) {
@@ -65,10 +69,11 @@ const getMemberBalanceSnapshots = async ({
   page = 1,
   limit = 10,
   skip = 0,
+  includeAllStatuses = false,
 } = {}) => {
   const pipeline = [
     // Stage 1: Match active members with filters (uses indexes)
-    { $match: buildBalanceMatch({ memberIds, searchTerm, barangayFilter }) },
+    { $match: buildBalanceMatch({ memberIds, searchTerm, barangayFilter, includeAllStatuses }) },
     
     // Stage 2: Lookup latest ledger entry (optimized with sorted pipeline)
     {
@@ -222,6 +227,7 @@ const getAllMemberBalances = async (req, res) => {
     const { page, limit, skip } = getPaginationParams(req.query);
     const searchTerm = (req.query.search || '').trim().toLowerCase();
     const barangayFilter = (req.query.barangay || '').trim();
+    const includeAllStatuses = req.query.status === 'all';
     const { members, summary, pagination } = await getMemberBalanceSnapshots({
       searchTerm,
       barangayFilter,
@@ -229,6 +235,7 @@ const getAllMemberBalances = async (req, res) => {
       page,
       limit,
       skip,
+      includeAllStatuses,
     });
 
     const responseData = {

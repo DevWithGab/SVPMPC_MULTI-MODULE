@@ -55,6 +55,43 @@ const resolveDeductionRate = async () => {
 // config/claimBenefit so the dashboards report against the same rule.
 const resolvePayoutAmount = (claim) => benefitPayoutFor(claim?.deduction?.totalCollected ?? 0);
 
+// Every claim regardless of status — backs the Reports screen's Claims
+// Report and Deductions & Payouts tabs, which need the full list rather
+// than one lifecycle stage at a time like the methods below. Mirrors
+// claimController.getAllClaims (the Admin equivalent), scoped to the
+// Treasurer's own authenticated route instead.
+const listAllClaims = async (req, res) => {
+  try {
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const { status, search } = req.query;
+
+    const query = {};
+    if (status) {
+      query.status = status;
+    }
+    if (search) {
+      const regex = new RegExp(escapeRegex(search.trim()), 'i');
+      query.$or = [
+        { claimId: regex },
+        { memberName: regex },
+        { beneficiaryName: regex },
+      ];
+    }
+
+    const total = await Claim.countDocuments(query);
+    const claims = await Claim.find(query).sort({ dateFiled: -1 }).skip(skip).limit(limit);
+
+    res.status(200).json(buildPaginatedResponse(claims, total, page, limit));
+  } catch (error) {
+    console.error('Error fetching all claims:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching claims',
+      error: error.message,
+    });
+  }
+};
+
 // A claim sitting in "pending_deduction" IS the notification to the
 // Treasurer — this codebase has no generic in-app notification system
 // (only SMS, mostly stubbed), so a live query is the pragmatic mechanism.
@@ -534,6 +571,7 @@ const releaseClaim = async (req, res) => {
 };
 
 module.exports = {
+  listAllClaims,
   listPendingDeduction,
   listAwaitingRelease,
   listReleasedClaims,

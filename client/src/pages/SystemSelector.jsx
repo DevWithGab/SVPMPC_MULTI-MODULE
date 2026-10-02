@@ -149,6 +149,7 @@ export default function SystemSelector({ onModuleSelect }) {
           username: adminLoginData.email,
           password: adminLoginData.password,
           expectedRole: selectedRole || "admin",
+          module: selectedSystem,
         }),
       });
 
@@ -199,6 +200,7 @@ export default function SystemSelector({ onModuleSelect }) {
           username: secretaryLoginData.email,
           password: secretaryLoginData.password,
           expectedRole: "secretary",
+          module: selectedSystem,
         }),
       });
 
@@ -244,6 +246,7 @@ export default function SystemSelector({ onModuleSelect }) {
           username: operatorLoginData.email,
           password: operatorLoginData.password,
           expectedRole: "scanner_operator",
+          module: selectedSystem,
         }),
       });
 
@@ -291,6 +294,7 @@ export default function SystemSelector({ onModuleSelect }) {
           username: treasurerLoginData.email,
           password: treasurerLoginData.password,
           expectedRole: "treasurer",
+          module: selectedSystem,
         }),
       });
 

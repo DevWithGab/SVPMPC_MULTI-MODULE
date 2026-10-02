@@ -6,7 +6,6 @@ import {
   Download,
   Bell,
   FilePlus2,
-  BarChart3,
   Clock,
   Banknote,
   ClipboardCheck,
@@ -30,7 +29,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { mortuaryDashboardAPI } from "../../../services/api";
-import { getClaimStatusMeta } from "./claimMeta";
+import { getClaimStatusMeta } from "../shared/claimMeta";
 import StatCard from "../shared/StatCard";
 
 // ---- Local presentational pieces -------------------------------------
@@ -180,12 +179,14 @@ const RecentActivities = ({ contributions, payouts, onViewAll }) => {
         <CardTitle className="text-sm font-bold text-slate-900">
           Recent Fund Activity
         </CardTitle>
-        <button
-          onClick={onViewAll}
-          className="text-xs font-semibold text-coop-green hover:text-coop-darkGreen transition-colors"
-        >
-          View All
-        </button>
+        {onViewAll && (
+          <button
+            onClick={onViewAll}
+            className="text-xs font-semibold text-coop-green hover:text-coop-darkGreen transition-colors"
+          >
+            View All
+          </button>
+        )}
       </CardHeader>
       <CardContent className="p-5 space-y-5">
         {activities.length > 0 ? (
@@ -427,12 +428,6 @@ const Dashboard = ({
       desc: "Manage claim beneficiaries",
       tab: "beneficiaries",
     },
-    {
-      icon: BarChart3,
-      label: "Generate Reports",
-      desc: "View and export reports",
-      tab: "reports",
-    },
   ];
 
   const firstName = user?.name?.split(" ")[0] || "Admin";
@@ -610,7 +605,6 @@ const Dashboard = ({
             <RecentActivities
               contributions={contributions}
               payouts={payouts}
-              onViewAll={() => setActiveTab("reports")}
             />
             <RecentClaimActivities
               activities={recentClaimActivities}
