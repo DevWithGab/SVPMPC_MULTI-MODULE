@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Banknote, CalendarDays, Archive, Upload } from 'lucide-react';
 import StatCard from '../shared/StatCard';
 import BulkPaymentUpload from './BulkPaymentUpload';
+import { Button } from '../../ui/button';
 
 const Contributions = ({
   contributions,
@@ -72,19 +73,20 @@ const Contributions = ({
               className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
             />
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => setBulkUploadOpen(true)}
-            className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium border border-green-700 text-green-800 hover:bg-green-50 transition-colors"
+            className="gap-1.5 shrink-0 whitespace-nowrap bg-coop-green text-white hover:bg-coop-darkGreen"
           >
-            <Upload className="h-4 w-4" /> Bulk Upload CSV
-          </button>
-          <button
+            <Upload className="h-4 w-4" aria-hidden="true" /> Bulk Upload CSV
+          </Button>
+          <Button
+            type="button"
             onClick={() => setIsAddContributionOpen(true)}
-            className="inline-flex items-center gap-1.5 h-10 px-5 text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+            className="shrink-0 whitespace-nowrap bg-coop-green text-white hover:bg-coop-darkGreen"
           >
             Record Payment
-          </button>
+          </Button>
         </div>
       </div>
 
