@@ -161,7 +161,7 @@ const AuditLogs = () => {
   const [filters, setFilters] = useState({
     action: "",
     userRole: "",
-    module: "",
+    module: "attendance",
     entityType: "",
     startDate: "",
     endDate: "",
@@ -187,7 +187,10 @@ const AuditLogs = () => {
         setRefreshing(true);
       }
       try {
-        const response = await auditAPI.getLogs(filters);
+        const response = await auditAPI.getLogs({
+          ...filters,
+          module: "attendance",
+        });
         setLogs(response.logs || []);
         setPagination(response.pagination || {});
         setLastUpdated(new Date());
@@ -208,6 +211,7 @@ const AuditLogs = () => {
         const response = await auditAPI.getStats(
           filters.startDate,
           filters.endDate,
+          "attendance",
         );
         setStats(response.summary);
       }

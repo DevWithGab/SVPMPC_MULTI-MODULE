@@ -451,19 +451,6 @@ const MemberManagement = () => {
   const getMemberDisplayName = (member) =>
     String(member?.memberName || member?.name || "Unknown Member");
 
-  const getMemberInitials = (member) => {
-    const displayName = getMemberDisplayName(member).trim();
-    return (
-      displayName
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase() || "?"
-    );
-  };
-
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file && file.type === "text/csv") {
@@ -681,12 +668,6 @@ const MemberManagement = () => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3"
-                            style={{ backgroundColor: "#2D7A3E" }}
-                          >
-                            {getMemberInitials(member)}
-                          </div>
                           <div>
                             <div className="text-sm font-medium text-slate-900">
                               {getMemberDisplayName(member)}
@@ -757,12 +738,6 @@ const MemberManagement = () => {
                 className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 hover:border-green-200 transition-all"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
-                    style={{ backgroundColor: "#2D7A3E" }}
-                  >
-                    {getMemberInitials(member)}
-                  </div>
                   <div className="flex flex-col items-end gap-1.5">
                     <MemberStatusBadge member={member} />
                     <QRStatusBadge member={member} />

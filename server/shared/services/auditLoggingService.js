@@ -361,9 +361,10 @@ const getEntityAuditTrail = async (entityType, entityId, limit = 20) => {
  * Get audit logs summary statistics
  * @param {Date} startDate - Start date
  * @param {Date} endDate - End date
+ * @param {string} module - Optional module filter
  * @returns {Promise<Object>} Summary statistics
  */
-const getAuditLogsSummary = async (startDate, endDate) => {
+const getAuditLogsSummary = async (startDate, endDate, module) => {
   try {
     const filter = {
       timestamp: {
@@ -371,6 +372,7 @@ const getAuditLogsSummary = async (startDate, endDate) => {
         $lte: new Date(endDate),
       },
     };
+    if (module) filter.module = module;
 
     const [totalActions, actionsByType, actionsByRole, actionsByStatus] =
       await Promise.all([

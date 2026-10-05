@@ -4,13 +4,6 @@ import { formatDate, formatTime } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
 
-const getInitials = (name) => {
-  if (!name) return "?";
-  const parts = String(name).split(" ").filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return parts[0][0].toUpperCase();
-};
-
 // Shows who actually showed up to an event vs. who didn't — rendered as the
 // body of its own page (not a modal, not a cramped scroll box inside a
 // card). "Absent" is every active member without a present log for this
@@ -149,12 +142,6 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
             const isPresent = presentList.some((p) => p.memberId === m.memberId);
             return (
               <div key={m.memberId} className="px-6 py-3.5 flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
-                  style={{ backgroundColor: isPresent ? "#2D7A3E" : "#94a3b8" }}
-                >
-                  {getInitials(m.memberName)}
-                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{m.memberName}</p>
                   <p className="text-xs text-slate-400 truncate">

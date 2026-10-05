@@ -397,23 +397,12 @@ export default function LiveAttendanceList({
                         className="hover:bg-slate-50 transition-colors"
                       >
                         <td className="px-4 py-3 font-semibold text-slate-900">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-coop-green text-xs font-bold text-white shrink-0">
-                              {row.memberName
-                                .split(" ")
-                                .filter(Boolean)
-                                .map((part) => part[0])
-                                .join("")
-                                .slice(0, 2)
-                                .toUpperCase() || "?"}
+                          <div>
+                            <div className="font-semibold text-slate-900">
+                              {row.memberName}
                             </div>
-                            <div>
-                              <div className="font-semibold text-slate-900">
-                                {row.memberName}
-                              </div>
-                              <div className="text-xs text-slate-400">
-                                ID: {row.memberId || row.memberKey || "N/A"}
-                              </div>
+                            <div className="text-xs text-slate-400">
+                              ID: {row.memberId || row.memberKey || "N/A"}
                             </div>
                           </div>
                         </td>

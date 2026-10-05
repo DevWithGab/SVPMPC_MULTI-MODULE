@@ -16,13 +16,6 @@ import { treasurerAPI, resolveQrAssetUrl } from '../../../services/api';
 const LARGE_BATCH_THRESHOLD = 100;
 const BATCH_POLL_INTERVAL_MS = 4000;
 
-const getInitials = (name) => {
-  if (!name) return '?';
-  const parts = name.split(' ').filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return parts[0][0].toUpperCase();
-};
-
 const MemberBalances = ({
   members,
   user,
@@ -387,9 +380,6 @@ const MemberBalances = ({
               >
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-sm font-bold text-green-700 shrink-0">
-                      {getInitials(m.name)}
-                    </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-900">
                         {m.name}

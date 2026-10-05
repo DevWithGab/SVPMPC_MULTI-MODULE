@@ -538,11 +538,6 @@ export default function MemberDirectory({ user }) {
                     >
                       <TableCell className="py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-coop-green rounded-full flex items-center justify-center shrink-0">
-                            <span className="text-sm font-bold text-white">
-                              {member.name.charAt(0)}
-                            </span>
-                          </div>
                           <div>
                             <p className="text-sm font-semibold text-slate-900">
                               {member.name}
@@ -661,11 +656,6 @@ export default function MemberDirectory({ user }) {
                 >
                   <CardContent className="p-5">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-11 h-11 bg-coop-green rounded-full flex items-center justify-center shrink-0">
-                        <span className="text-base font-bold text-white">
-                          {member.name.charAt(0)}
-                        </span>
-                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">
                           {member.name}
