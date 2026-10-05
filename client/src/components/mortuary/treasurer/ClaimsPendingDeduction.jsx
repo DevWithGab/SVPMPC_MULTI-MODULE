@@ -16,6 +16,7 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
   const [submitting, setSubmitting] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [jvNumber, setJvNumber] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +48,7 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
     setTarget(claim);
     setConfirmStep(false);
     setPreview(null);
+    setJvNumber('');
   };
 
   const closeModal = () => {
@@ -54,6 +56,7 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
     setTarget(null);
     setConfirmStep(false);
     setPreview(null);
+    setJvNumber('');
   };
 
   const handleReview = async (e) => {
@@ -78,6 +81,7 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
     try {
       const res = await treasurerAPI.processClaimDeduction(target.claimId, {
         processedBy: user?.name || user?.username,
+        jvNumber: jvNumber.trim(),
       });
       showToast?.(res?.message || 'Deduction processed.', 'success');
       setTarget(null);
@@ -169,11 +173,28 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
                 {rate?.effectiveDate ? ` • effective ${new Date(rate.effectiveDate).toLocaleDateString()}` : ''}.
               </p>
             </div>
+            <div>
+              <label htmlFor="jv-number" className="text-sm font-semibold text-slate-700 mb-1 block">
+                JV (Journal Disbursement) Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="jv-number"
+                type="text"
+                value={jvNumber}
+                onChange={(e) => setJvNumber(e.target.value)}
+                placeholder="Enter JV number"
+                required
+                className="w-full h-12 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
+              />
+              <p className="text-xs text-slate-500 mt-1.5">
+                Required before the deduction can be processed.
+              </p>
+            </div>
             <div className="flex gap-3 pt-1">
               <Button type="button" variant="ghost" onClick={closeModal} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm">
+              <Button type="submit" disabled={!jvNumber.trim()} className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm">
                 Review Deduction
               </Button>
             </div>

@@ -350,6 +350,14 @@ const processClaimDeduction = async (req, res) => {
   try {
     const { claimId } = req.params;
     const processedBy = req.body.processedBy || req.user?.username || 'treasurer';
+    const jvNumber = String(req.body.jvNumber || '').trim();
+
+    if (!jvNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'JV (Journal Disbursement) number is required before processing the deduction',
+      });
+    }
 
     const claim = await Claim.findOne({ claimId });
     if (!claim) {
@@ -386,7 +394,7 @@ const processClaimDeduction = async (req, res) => {
           debit: deductionAmount,
           credit: 0,
           balance: newBalance,
-          referenceId: claimId,
+          referenceId: `JV# ${jvNumber}`,
           transactionDate: new Date(),
           recordedBy: processedBy,
         });
@@ -418,6 +426,7 @@ const processClaimDeduction = async (req, res) => {
     claim.status = 'deduction_processed';
     claim.deduction = {
       deductionSettingId,
+      jvNumber,
       amountPerMember: deductionAmount,
       membersCharged,
       totalCollected,
@@ -428,7 +437,7 @@ const processClaimDeduction = async (req, res) => {
       status: 'deduction_processed',
       changedBy: processedBy,
       changedAt: now,
-      notes: `Charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total)`,
+      notes: `JV ${jvNumber}: charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total)`,
     });
 
     await claim.save();
@@ -442,7 +451,7 @@ const processClaimDeduction = async (req, res) => {
       entityType: 'claim',
       entityId: claim.claimId,
       entityName: claim.memberName,
-      description: `Charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total) for claim ${claim.claimId}`,
+      description: `JV ${jvNumber}: charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total) for claim ${claim.claimId}`,
       changes: { before, after: claim.toObject() },
       status: 'success',
       ipAddress: req.ip,

@@ -98,6 +98,7 @@ const claimSchema = new mongoose.Schema(
     },
     deduction: {
       deductionSettingId: { type: String },
+      jvNumber: { type: String, trim: true },
       amountPerMember: { type: Number },
       membersCharged: { type: Number },
       totalCollected: { type: Number },
