@@ -45,7 +45,7 @@ const validateRegister = [
 
 // Mortuary validation rules
 const validateContribution = [
-  body('memberId').notEmpty().withMessage('Member ID is required'),
+  body('memberId').notEmpty().withMessage('Passbook number is required'),
   body('amount').isNumeric().withMessage('Amount must be a number'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
   body('paymentMethod').isIn(['cash', 'check', 'bank_transfer', 'gcash']).withMessage('Invalid payment method'),
@@ -53,7 +53,7 @@ const validateContribution = [
 ];
 
 const validateClaim = [
-  body('memberId').notEmpty().withMessage('Member ID is required'),
+  body('memberId').notEmpty().withMessage('Passbook number is required'),
   body('amount').isNumeric().withMessage('Amount must be a number'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Amount must be greater than 0'),
   body('reason').notEmpty().withMessage('Claim reason is required'),
@@ -71,7 +71,7 @@ const validateEvent = [
 
 const validateAttendance = [
   body('eventId').isMongoId().withMessage('Valid event ID is required'),
-  body('memberId').notEmpty().withMessage('Member ID is required'),
+  body('memberId').notEmpty().withMessage('Passbook number is required'),
   handleValidationErrors
 ];
 

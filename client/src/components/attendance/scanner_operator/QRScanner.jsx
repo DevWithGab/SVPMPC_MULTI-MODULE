@@ -574,7 +574,7 @@ export default function QRScanner({
     (member) => {
       const memberId = member?.memberId;
       if (!memberId) {
-        setError("Selected member does not have a member ID.");
+        setError("Selected member does not have a passbook number.");
         playScanSound("invalid");
         return;
       }
@@ -1186,7 +1186,7 @@ export default function QRScanner({
                           </p>
                           <p className="text-xs text-slate-400 mt-0.5 truncate">
                             {scan.memberId
-                              ? `Member ID: ${scan.memberId}`
+                              ? `Passbook Number: ${scan.memberId}`
                               : scan.barangay}
                           </p>
                         </div>

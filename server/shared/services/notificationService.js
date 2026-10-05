@@ -72,7 +72,7 @@ const sendCredentialsEmail = async (memberData) => {
               
               <div class="credentials">
                 <div class="credential-item">
-                  <span class="credential-label">Member ID:</span>
+                  <span class="credential-label">Passbook Number:</span>
                   <span class="credential-value">${memberData.memberId}</span>
                 </div>
                 <div class="credential-item">
@@ -126,7 +126,7 @@ Dear ${memberData.memberName},
 Your member account has been created successfully.
 
 Login Credentials:
-- Member ID: ${memberData.memberId}
+- Passbook Number: ${memberData.memberId}
 - Username: ${memberData.username}
 - Temporary Password: ${memberData.temporaryPassword}
 

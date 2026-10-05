@@ -513,7 +513,7 @@ const MemberManagement = () => {
 
   const exportToCSV = () => {
     const headers = [
-      "Member ID",
+      "Passbook Number",
       "Name",
       "Email",
       "Phone",

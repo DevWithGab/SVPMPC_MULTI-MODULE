@@ -77,7 +77,7 @@ const INTERNAL_FIELDS = new Set([
 
 const FIELD_LABELS = {
   memberName: "Deceased Member",
-  memberId: "Member ID",
+  memberId: "Passbook Number",
   beneficiaryName: "Beneficiary",
   beneficiaryRelationship: "Relationship",
   beneficiaryContact: "Beneficiary Contact",

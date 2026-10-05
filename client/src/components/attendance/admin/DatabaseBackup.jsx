@@ -103,7 +103,7 @@ export default function DatabaseBackup({
   const downloadAttendanceCSV = () => {
     const csv = toCSV([
       [
-        "Member ID",
+        "Passbook Number",
         "Member Name",
         "Event ID",
         "Event Name",

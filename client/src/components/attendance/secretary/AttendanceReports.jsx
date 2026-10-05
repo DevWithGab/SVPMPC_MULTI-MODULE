@@ -381,7 +381,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       };
 
       const rows = [
-        ["Member ID", "Member Name", "Barangay", "Scan Time"],
+        ["Passbook Number", "Member Name", "Barangay", "Scan Time"],
         ...eventAttendance.map((log) => [
           log.memberId || "",
           log.memberName || "",

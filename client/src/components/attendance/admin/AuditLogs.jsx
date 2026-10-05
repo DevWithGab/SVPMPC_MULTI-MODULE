@@ -76,7 +76,7 @@ const FIELD_LABELS = {
   rejectionReason: "Rejection Reason",
   createdBy: "Created By",
   memberName: "Member Name",
-  memberId: "Member ID",
+  memberId: "Passbook Number",
   phoneNumber: "Phone Number",
   barangay: "Barangay",
   scanTime: "Scan Time",

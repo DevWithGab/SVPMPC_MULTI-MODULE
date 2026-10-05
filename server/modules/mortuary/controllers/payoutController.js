@@ -62,7 +62,7 @@ const payoutController = {
       if (!member_id || !amount || !beneficiary) {
         return res.status(400).json({
           success: false,
-          message: 'Member ID, amount, and beneficiary are required'
+          message: 'Passbook number, amount, and beneficiary are required'
         });
       }
 

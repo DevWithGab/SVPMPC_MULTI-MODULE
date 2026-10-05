@@ -358,7 +358,7 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       });
     } else if (reportType === 'contributions') {
       filename = `contributions-${new Date().toISOString().split('T')[0]}.csv`;
-      csvContent = 'Date,Member ID,Member Name,Amount,Status\n';
+      csvContent = 'Date,Passbook Number,Member Name,Amount,Status\n';
       contributions.forEach(c => {
         csvContent += `"${new Date(c.payment_date || c.created_at).toLocaleDateString()}","${c.member_id}","${c.member_name || ''}","${c.amount}","${c.status}"\n`;
       });

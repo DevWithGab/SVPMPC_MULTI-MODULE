@@ -290,7 +290,7 @@ class PDFReportGenerator {
     // Configure table
     autoTable(doc, {
       startY: yPosition,
-      head: [['Date', 'Time', 'Member ID', 'Member Name', 'Event', 'Barangay', 'Status']],
+      head: [['Date', 'Time', 'Passbook Number', 'Member Name', 'Event', 'Barangay', 'Status']],
       body: tableData,
       theme: 'grid',
       styles: {
@@ -312,7 +312,7 @@ class PDFReportGenerator {
       columnStyles: {
         0: { cellWidth: 20 }, // Date
         1: { cellWidth: 20 }, // Time
-        2: { cellWidth: 25 }, // Member ID
+        2: { cellWidth: 25 }, // Passbook Number
         3: { cellWidth: 35 }, // Member Name
         4: { cellWidth: 35 }, // Event
         5: { cellWidth: 25 }, // Barangay
@@ -424,7 +424,7 @@ class PDFReportGenerator {
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Member Name', 'Member ID', 'Barangay', 'Check-in Time', 'Status']],
+      head: [['Member Name', 'Passbook Number', 'Barangay', 'Check-in Time', 'Status']],
       body: tableData,
       theme: 'grid',
       styles: {
@@ -462,7 +462,7 @@ class PDFReportGenerator {
     yPosition += 8;
 
     const details = [
-      ['Member ID:', memberData.memberId || 'N/A'],
+      ['Passbook Number:', memberData.memberId || 'N/A'],
       ['Name:', memberData.memberName || 'N/A'],
       ['Barangay:', memberData.barangay || 'N/A'],
       ['Contact:', memberData.contactNumber || 'N/A'],

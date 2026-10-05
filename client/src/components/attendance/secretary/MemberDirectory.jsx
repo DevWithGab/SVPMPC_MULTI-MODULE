@@ -340,7 +340,7 @@ export default function MemberDirectory({ user }) {
               </div>
               <div class="body">
                 <h1>${esc(member.name)}</h1>
-                <p class="member-id">Member ID &middot; <span>${esc(member.memberId)}</span></p>
+                <p class="member-id">Passbook Number &middot; <span>${esc(member.memberId)}</span></p>
                 <div class="qr-box">${qrMarkup}</div>
                 <p class="qr-caption">Scan to verify membership</p>
               </div>
@@ -375,7 +375,7 @@ export default function MemberDirectory({ user }) {
     const csvContent = [
       [
         "Name",
-        "Member ID",
+        "Passbook Number",
         "Email",
         "Phone",
         "Status",
@@ -795,7 +795,7 @@ export default function MemberDirectory({ user }) {
               <div className="bg-white px-5 pt-5 pb-4 text-center">
                 <p className="text-lg font-bold text-slate-900">{selectedMember.name}</p>
                 <p className="text-[11px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5 mb-4">
-                  Member ID &middot;{" "}
+                  Passbook Number &middot;{" "}
                   <span className="font-mono normal-case">{selectedMember.memberId}</span>
                 </p>
 

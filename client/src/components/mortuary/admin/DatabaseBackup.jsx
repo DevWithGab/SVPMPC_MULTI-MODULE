@@ -124,7 +124,7 @@ export default function DatabaseBackup({
     const csv = toCSV([
       [
         "ID",
-        "Member ID",
+        "Passbook Number",
         "Amount",
         "Payment Date",
         "Due Date",
@@ -152,7 +152,7 @@ export default function DatabaseBackup({
     const csv = toCSV([
       [
         "Ledger ID",
-        "Member ID",
+        "Passbook Number",
         "Transaction Type",
         "Description",
         "Credit",
