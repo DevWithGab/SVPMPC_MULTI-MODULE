@@ -571,6 +571,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             contributions={contributions}
             stats={stats}
             members={reportMembers}
+            membersLoading={loadingReportMembers}
+            membersError={loadErrors.reportMembers}
           />
         );
       case 'ledger':

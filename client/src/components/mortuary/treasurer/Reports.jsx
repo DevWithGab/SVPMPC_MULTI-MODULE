@@ -4,16 +4,16 @@ import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
 import { getClaimStatusMeta } from '../shared/claimMeta';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, reportAmount } from '../../../utils/mortuaryReportPdf';
+import { loadAllPages } from '../../../utils/loadAllPages';
 
-const COOP_GREEN_RGB = [45, 122, 62];
 
 const REPORT_TYPES = [
   { id: 'summary', label: 'Financial Summary', icon: FileText },
   { id: 'contributions', label: 'Contributions', icon: TrendingUp },
   { id: 'claims', label: 'Claims Report', icon: ClipboardCheck },
   { id: 'deceasedMembers', label: 'Deceased Members', icon: Heart },
+  { id: 'negativeBalances', label: 'Negative Balances', icon: AlertTriangle },
   { id: 'memberStanding', label: 'Member Standing', icon: AlertTriangle },
   { id: 'deductions', label: 'Deductions & Payouts', icon: Receipt },
 ];
@@ -54,24 +54,33 @@ const formatPeriodLabel = (key, granularity) => {
   });
 };
 
-const Reports = ({ contributions = [], stats = {}, members = [] }) => {
+const Reports = ({ contributions = [], stats = {}, members = [], membersLoading = false, membersError = null }) => {
   const [reportType, setReportType] = useState('summary');
   const [summaryPeriod, setSummaryPeriod] = useState('monthly'); // 'monthly' | 'annually'
   const { page, limit, setPage } = usePagination(1, 10);
   const [claims, setClaims] = useState([]);
+  const [claimsLoading, setClaimsLoading] = useState(true);
+  const [claimsError, setClaimsError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    treasurerAPI
-      .getAllClaims({ limit: 100 })
-      .then((res) => {
-        if (!cancelled) setClaims(Array.isArray(res?.data) ? res.data : []);
-      })
-      .catch(() => {});
+    loadAllPages(page => treasurerAPI.getAllClaims({ page, limit: 100 }))
+      .then(records => { if (!cancelled) setClaims(records); })
+      .catch(() => { if (!cancelled) setClaimsError('Unable to load all claims. Reload the Reports page before exporting.'); })
+      .finally(() => { if (!cancelled) setClaimsLoading(false); });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const negativeMembers = useMemo(() => negativeBalanceMembers(members), [members]);
+  const totalShortfall = useMemo(() => Math.round(negativeMembers.reduce((sum, member) => sum - member.balance, 0) * 100) / 100, [negativeMembers]);
+  const needsClaims = ['summary', 'claims', 'deductions'].includes(reportType);
+  const reportLoading = membersLoading || (needsClaims && claimsLoading);
+  const reportError = membersError || (needsClaims ? claimsError : '');
+  const exportDisabled = exporting || reportLoading || !!reportError;
 
   const deceasedMembers = useMemo(() => members.filter((m) => m.status === 'deceased'), [members]);
 
@@ -163,6 +172,7 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
     else if (reportType === 'claims') data = claims;
     else if (reportType === 'deceasedMembers') data = deceasedMembers;
     else if (reportType === 'memberStanding') data = memberStandingList;
+    else if (reportType === 'negativeBalances') data = negativeMembers;
     else if (reportType === 'deductions') data = deductionsData;
 
     const total = data.length;
@@ -176,171 +186,76 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       hasNextPage: endIndex < total,
       hasPrevPage: page > 1
     };
-  }, [reportType, contributions, claims, deceasedMembers, memberStandingList, deductionsData, page, limit]);
+  }, [reportType, contributions, claims, deceasedMembers, memberStandingList, negativeMembers, deductionsData, page, limit]);
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
+    if (exportDisabled) return;
+    setExporting(true);
+    setExportError('');
     try {
-      const doc = new jsPDF();
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text('SVPMPC Mortuary Fund Report', 14, 20);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-      doc.text(`Report Type: ${REPORT_TYPES.find(t => t.id === reportType)?.label || reportType}`, 14, 34);
-      doc.setTextColor(0);
-
-      const startY = 45;
-
+      const date = value => value && !Number.isNaN(new Date(value).getTime())
+        ? new Date(value).toLocaleDateString('en-GB', { timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+      let sections = [];
+      let scope = 'All recorded transactions.';
       if (reportType === 'summary') {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Financial Summary', 14, startY);
-        const summaryData = [
-          ['Total Fund Balance', `P${stats?.fundBalance || 0}`],
-          ['Total Contributions Collected', `P${metrics.totalContributions}`],
-          ['Total Deductions Collected', `P${metrics.totalDeductionsCollected}`],
-          ['Total Payouts Released', `P${metrics.totalPayoutsReleased}`],
+        sections = [
+          { title: 'Financial position', head: ['Particulars', 'Amount (PHP)'], widths: [125, 51], numberColumns: [1],
+            body: [['Total fund balance', reportAmount(stats?.fundBalance)],
+              ['Contributions collected', reportAmount(metrics.totalContributions)],
+              ['Deductions collected', reportAmount(metrics.totalDeductionsCollected)],
+              ['Payouts released', reportAmount(metrics.totalPayoutsReleased)]] },
+          { title: summaryPeriod === 'monthly' ? 'Monthly breakdown' : 'Annual breakdown',
+            head: [summaryPeriod === 'monthly' ? 'Month' : 'Year', 'Contributions', 'Deductions', 'Payouts', 'Net'],
+            widths: [38, 35, 35, 34, 34], numberColumns: [1, 2, 3, 4],
+            body: periodBreakdown.map(row => [row.label, reportAmount(row.contributions), reportAmount(row.deductionsCollected), reportAmount(row.payoutsReleased), reportAmount(row.net)]) },
         ];
-        autoTable(doc, {
-          startY: startY + 5,
-          head: [['Metric', 'Value']],
-          body: summaryData,
-          theme: 'grid',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 10, fontStyle: 'bold' },
-          styles: { fontSize: 9 },
-          columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 }, 1: { halign: 'right', cellWidth: 80 } },
-        });
-
-        const breakdownStartY = doc.lastAutoTable.finalY + 12;
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${summaryPeriod === 'monthly' ? 'Monthly' : 'Annual'} Breakdown`, 14, breakdownStartY);
-        const breakdownData = periodBreakdown.map((row) => [
-          row.label,
-          `P${row.contributions.toLocaleString()}`,
-          `P${row.deductionsCollected.toLocaleString()}`,
-          `P${row.payoutsReleased.toLocaleString()}`,
-          `P${row.net.toLocaleString()}`,
-        ]);
-        autoTable(doc, {
-          startY: breakdownStartY + 5,
-          head: [[summaryPeriod === 'monthly' ? 'Month' : 'Year', 'Contributions', 'Deductions', 'Payouts', 'Net']],
-          body: breakdownData,
-          theme: 'striped',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
-          styles: { fontSize: 8 },
-          columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
-        });
       } else if (reportType === 'contributions') {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Contributions Report', 14, startY);
-        const contribData = contributions.slice(0, 200).map(c => [
-          new Date(c.payment_date || c.created_at).toLocaleDateString(),
-          c.member_name || `Member #${c.member_id}`,
-          `P${c.amount || 0}`,
-          c.status || 'Paid',
-        ]);
-        autoTable(doc, {
-          startY: startY + 5,
-          head: [['Date', 'Member', 'Amount', 'Status']],
-          body: contribData,
-          theme: 'striped',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
-          styles: { fontSize: 8 },
-          columnStyles: { 2: { halign: 'right' } },
-        });
+        sections = [{ head: ['Payment date', 'Member ID', 'Member name', 'Amount (PHP)', 'Status'],
+          widths: [28, 30, 62, 32, 24], numberColumns: [3],
+          body: contributions.map(c => [date(c.payment_date || c.created_at), c.member_id, c.member_name || '-', reportAmount(c.amount), c.status || 'Paid']) }];
       } else if (reportType === 'claims') {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Claims Report', 14, startY);
-        const claimData = claims.slice(0, 200).map(c => [
-          c.claimId.slice(0, 8),
-          c.memberName,
-          c.beneficiaryName,
-          new Date(c.dateFiled).toLocaleDateString(),
-          getClaimStatusMeta(c.status).label,
-        ]);
-        autoTable(doc, {
-          startY: startY + 5,
-          head: [['Claim ID', 'Member', 'Beneficiary', 'Date Filed', 'Status']],
-          body: claimData,
-          theme: 'striped',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
-          styles: { fontSize: 8 },
-        });
+        sections = [{ head: ['Claim ID', 'Member', 'Beneficiary', 'Date filed', 'Status'],
+          widths: [31, 42, 42, 28, 33],
+          body: claims.map(c => [c.claimId, c.memberName, c.beneficiaryName, date(c.dateFiled), getClaimStatusMeta(c.status).label]) }];
       } else if (reportType === 'deceasedMembers') {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Deceased Members Report', 14, startY);
-        const data = deceasedMembers.slice(0, 200).map(m => [
-          m.id || m.memberId, m.name || m.memberName, m.barangay || 'N/A', m.join_date || 'N/A',
-        ]);
-        autoTable(doc, {
-          startY: startY + 5,
-          head: [['ID', 'Name', 'Barangay', 'Join Date']],
-          body: data,
-          theme: 'striped',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
-          styles: { fontSize: 8 },
-        });
+        scope = 'Current member roster. Deceased members only.';
+        sections = [{ head: ['Member ID', 'Member name', 'Barangay', 'Join date'], widths: [31, 66, 49, 30],
+          body: deceasedMembers.map(m => [m.id || m.memberId, m.name || m.memberName, m.barangay || '-', date(m.join_date || m.joinDate)]) }];
       } else if (reportType === 'memberStanding') {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Member Standing Report', 14, startY);
-        const data = memberStandingList.slice(0, 200).map(m => [
-          m.id, m.name, m.barangay, `P${m.balance}`, m.standing,
-        ]);
-        autoTable(doc, {
-          startY: startY + 5,
-          head: [['ID', 'Name', 'Barangay', 'Balance', 'Standing']],
-          body: data,
-          theme: 'striped',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
-          styles: { fontSize: 8 },
-          columnStyles: { 3: { halign: 'right' } },
-        });
+        scope = 'Current posted balances. Active members only; lowest balance first.';
+        sections = [{ head: ['Member ID', 'Member name', 'Barangay', 'Balance (PHP)', 'Standing'],
+          widths: [28, 53, 37, 33, 25], numberColumns: [3],
+          body: memberStandingList.map(m => [m.id, m.name, m.barangay, reportAmount(m.balance), m.standing]) }];
+      } else if (reportType === 'negativeBalances') {
+        scope = 'Current posted balances below zero, across all member statuses. Largest shortfall first.';
+        sections = [
+          { title: 'Balance overview', head: ['Particulars', 'Value'], widths: [125, 51], numberColumns: [1],
+            body: [['Members with negative balances', String(negativeMembers.length)], ['Total shortfall to zero (PHP)', reportAmount(totalShortfall)]] },
+          { title: 'Members with negative balances', head: ['Member ID', 'Member name', 'Barangay', 'Status', 'Balance (PHP)'],
+            widths: [28, 55, 37, 23, 33], numberColumns: [4],
+            body: negativeMembers.map(m => [m.id, m.name, m.barangay, m.status, reportAmount(m.balance)]),
+            emptyMessage: 'No members have a negative balance.',
+            total: ['Total balance', '', '', '', reportAmount(-totalShortfall)] },
+        ];
       } else if (reportType === 'deductions') {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Deductions & Payouts Report', 14, startY);
-        const data = deductionsData.slice(0, 200).map(c => [
-          c.claimId.slice(0, 8),
-          c.memberName,
-          getClaimStatusMeta(c.status).label,
-          `P${c.deductionCollected}`,
-          `P${c.payoutAmount}`,
-        ]);
-        autoTable(doc, {
-          startY: startY + 5,
-          head: [['Claim ID', 'Member', 'Status', 'Deducted', 'Released']],
-          body: data,
-          theme: 'striped',
-          headStyles: { fillColor: COOP_GREEN_RGB, fontSize: 9, fontStyle: 'bold' },
-          styles: { fontSize: 8 },
-          columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' } },
-        });
+        sections = [{ head: ['Claim ID', 'Member name', 'Status', 'Deducted (PHP)', 'Released (PHP)'],
+          widths: [31, 48, 31, 33, 33], numberColumns: [3, 4],
+          body: deductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected), reportAmount(c.payoutAmount)]) }];
       }
-
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-        doc.text('SVPMPC Mortuary Fund Management System', 14, doc.internal.pageSize.height - 10);
-      }
-
-      doc.save(`mortuary-${reportType}-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      const logo = await loadReportLogo();
+      const title = REPORT_TYPES.find(type => type.id === reportType)?.label || 'Mortuary Fund Report';
+      const doc = createMortuaryReportPdf({ title, scope, sections, logo });
+      doc.save('mortuary-' + reportType + '-report-' + new Date().toISOString().slice(0, 10) + '.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the console for details.');
+      setExportError(error.message || 'Unable to generate this report. Please retry.');
+    } finally {
+      setExporting(false);
     }
   };
 
   const exportToCSV = () => {
+    if (exportDisabled) return;
     let csvContent = '';
     let filename = '';
 
@@ -380,6 +295,11 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
       memberStandingList.forEach(m => {
         csvContent += `"${m.id}","${m.name}","${m.barangay}","${m.balance}","${m.standing}"\n`;
       });
+    } else if (reportType === 'negativeBalances') {
+      filename = 'negative-balances-' + new Date().toISOString().slice(0, 10) + '.csv';
+      const rows = [['Member ID', 'Member Name', 'Barangay', 'Status', 'Balance (PHP)', 'Shortfall to Zero (PHP)'],
+        ...negativeMembers.map(m => [m.id, m.name, m.barangay, m.status, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
+      csvContent = rows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
     } else if (reportType === 'deductions') {
       filename = `deductions-payouts-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'Claim ID,Member,Status,Deducted,Released\n';
@@ -440,6 +360,8 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
         </div>
       </div>
 
+      {reportLoading && <p role="status" className="text-sm text-slate-500">Loading complete report data...</p>}
+      {(reportError || exportError) && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{reportError || exportError}</p>}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-1 bg-white border border-slate-200 rounded-xl h-fit overflow-hidden">
           <div className="bg-slate-50 border-b border-slate-100 p-4">
@@ -464,13 +386,15 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
             <div className="pt-4 space-y-2">
               <button
                 onClick={generatePDF}
-                className="w-full inline-flex items-center justify-center gap-2 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-xs py-3 rounded-lg transition-colors"
+                disabled={exportDisabled}
+                className="w-full inline-flex items-center justify-center gap-2 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-xs py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Download className="w-4 h-4" /> Export PDF
+                <Download className="w-4 h-4" /> {exporting ? 'Preparing PDF...' : 'Export PDF'}
               </button>
               <button
                 onClick={exportToCSV}
-                className="w-full inline-flex items-center justify-center gap-2 border border-slate-200 hover:border-coop-green hover:text-coop-green text-slate-600 font-semibold text-xs py-3 rounded-lg transition-colors"
+                disabled={exportDisabled}
+                className="w-full inline-flex items-center justify-center gap-2 border border-slate-200 hover:border-coop-green hover:text-coop-green text-slate-600 font-semibold text-xs py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download className="w-4 h-4" /> Export CSV
               </button>
@@ -646,6 +570,34 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
               </table>
             )}
 
+            {reportType === 'negativeBalances' && !reportLoading && !reportError && (
+              <div>
+                <div className="border-b border-slate-200 p-5">
+                  <p className="text-sm text-slate-600">Current balances below zero across all member statuses, sorted by largest shortfall.</p>
+                  <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+                    <p><span className="text-slate-500">Members: </span><strong>{negativeMembers.length}</strong></p>
+                    <p><span className="text-slate-500">Total shortfall to zero: </span><strong className="text-rose-700">PHP {reportAmount(totalShortfall)}</strong></p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
+                      <tr>{['Member ID', 'Name', 'Barangay', 'Status', 'Balance (PHP)'].map((label, index) => <th key={label} className={index === 4 ? 'px-4 py-3 text-right font-medium' : 'px-4 py-3 text-left font-medium'}>{label}</th>)}</tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedData.data.map(member => <tr key={member.id}>
+                        <td className="px-4 py-3 text-slate-500">{member.id}</td>
+                        <td className="px-4 py-3 font-medium text-slate-900">{member.name}</td>
+                        <td className="px-4 py-3 text-slate-600">{member.barangay}</td>
+                        <td className="px-4 py-3 capitalize text-slate-600">{member.status}</td>
+                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-rose-700">{reportAmount(member.balance)}</td>
+                      </tr>)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {reportType === 'memberStanding' && (
               <table className="w-full">
                 <thead>
@@ -707,8 +659,8 @@ const Reports = ({ contributions = [], stats = {}, members = [] }) => {
               </table>
             )}
 
-            {paginatedData.total === 0 && reportType !== 'summary' && (
-              <div className="py-16 text-center text-sm text-slate-400">No records to display.</div>
+            {paginatedData.total === 0 && reportType !== 'summary' && !reportLoading && !reportError && (
+              <div className="py-16 text-center text-sm text-slate-400">{reportType === 'negativeBalances' ? 'No members have a negative balance.' : 'No records to display.'}</div>
             )}
           </div>
 
