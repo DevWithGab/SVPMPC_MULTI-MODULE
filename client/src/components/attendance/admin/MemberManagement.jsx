@@ -33,18 +33,18 @@ const qrState = (member) => {
 };
 
 const QR_STATE_META = {
-  none: { label: "Not Generated", className: "bg-slate-100 text-slate-700" },
-  active: { label: "Active", className: "bg-green-100 text-green-800" },
-  inactive: { label: "Inactive", className: "bg-amber-100 text-amber-800" },
+  none: { label: "QR Not Generated", className: "bg-slate-100 text-slate-700" },
+  active: { label: "QR Active", className: "bg-green-100 text-green-800" },
+  inactive: { label: "QR Inactive", className: "bg-amber-100 text-amber-800" },
 };
 
 // Member.status is shared with the Mortuary module — filing a death claim
 // there flips a member to 'deceased', which this screen needs to surface
 // (and gate QR issuance on) instead of treating every member as active.
 const MEMBER_STATUS_META = {
-  active: { label: "Active", className: "bg-green-100 text-green-800" },
-  deceased: { label: "Deceased", className: "bg-rose-100 text-rose-700" },
-  inactive: { label: "Inactive", className: "bg-slate-100 text-slate-600" },
+  active: { label: "Member Active", className: "bg-green-100 text-green-800" },
+  deceased: { label: "Member Deceased", className: "bg-rose-100 text-rose-700" },
+  inactive: { label: "Member Inactive", className: "bg-slate-100 text-slate-600" },
   staff: { label: "Staff", className: "bg-blue-100 text-blue-700" },
 };
 
