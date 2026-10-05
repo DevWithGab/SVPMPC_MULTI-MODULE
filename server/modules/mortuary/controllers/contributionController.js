@@ -5,13 +5,15 @@ const { v4: uuidv4 } = require('uuid');
 const { checkAndNotify } = require('../services/thresholdNotificationService');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { getLatestBalance } = require('../utils/ledgerBalance');
+const { withMemberPaymentLock } = require('../utils/paymentLock');
 
 // Record contribution (admin)
-const recordContribution = async (req, res) => {
+const recordContribution = async (req, res) => withMemberPaymentLock(String(req.body.memberId || req.body.member_id || ''), async () => {
   try {
     console.log('📦 Full request body:', req.body);
     
-    const { memberId: memberIdParam, member_id, amount, paymentDate, payment_date, dueDate, due_date, paymentMethod, payment_method, referenceNumber, notes } = req.body;
+    const { memberId: memberIdParam, member_id, amount: rawAmount, paymentDate, payment_date, dueDate, due_date, paymentMethod, payment_method, referenceNumber, notes } = req.body;
+    const amount = Number(rawAmount);
     
     // Accept both naming conventions
     const memberId = memberIdParam || member_id;
@@ -21,7 +23,7 @@ const recordContribution = async (req, res) => {
 
     console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
 
-    if (!memberId || !amount) {
+    if (!memberId || !Number.isFinite(amount) || amount <= 0) {
       console.log('❌ Missing required fields:', { memberId, amount });
       return res.status(400).json({ message: 'Missing required fields: memberId and amount' });
     }
@@ -35,11 +37,11 @@ const recordContribution = async (req, res) => {
     // Posting order — see utils/ledgerBalance for why transactionDate must not
     // decide this. Shared by every balance lookup in the module.
     const currentBalance = await getLatestBalance(memberId);
-    const newBalance = currentBalance + amount;
+    const newBalance = Math.round((currentBalance + amount) * 100) / 100;
 
     // Create contribution record
     const contribution = new Contribution({
-      contributionId: `CONTRIB-${Date.now()}`,
+      contributionId: `CONTRIB-${uuidv4()}`,
       memberId,
       amount,
       paymentDate: finalPaymentDate || new Date(),
@@ -103,7 +105,7 @@ const recordContribution = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Error recording contribution', error: error.message });
   }
-};
+});
 
 // Get contribution history
 const getContributionHistory = async (req, res) => {

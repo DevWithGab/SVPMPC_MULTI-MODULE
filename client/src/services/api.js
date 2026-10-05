@@ -825,6 +825,11 @@ export const treasurerAPI = {
     return response.data;
   },
 
+  bulkUploadPayments: async (csv, action = 'preview') => {
+    const response = await api.post('/mortuary/treasurer/contributions/bulk-upload', { csv, action });
+    return response.data;
+  },
+
   // Notifications (Removed - Now Automated via Threshold System)
   // Manual notification methods removed
 

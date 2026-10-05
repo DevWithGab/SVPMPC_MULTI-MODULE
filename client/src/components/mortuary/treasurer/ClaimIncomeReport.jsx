@@ -1,19 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, FileText, TrendingUp, TrendingDown, Wallet, Download } from 'lucide-react';
+import { Search, FileText, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import Input from '../../shared/ui/Input';
 import { treasurerAPI } from '../../../services/api';
 
-// A per-claim breakdown of the three figures the dashboards report as totals:
-// what each claim collected from the members, what went to the beneficiary,
-// and what the cooperative retained. The dashboard answers "how much"; this
-// answers "from which claims".
-//
-// A claim appears here as soon as its deduction is processed, so the money it
-// is holding is visible before it goes out. Until the disbursement is recorded
-// the Released and Net Income columns show greyed-out projections of what the
-// claim WILL pay and retain; only on release do they become real and feed the
-// totals. That mirrors getClaimFinancialTotals, which recognises income on
-// release — see the comment there for why the three tiles reconcile.
+// Per-claim collections, benefits, and retained income. Unreleased claims
+// show projected released amounts and income; totals recognise them on release.
 
 const peso = (value) =>
   `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -118,7 +109,7 @@ export default function ClaimIncomeReport() {
 
       {/* Totals span every claim matching the current search, not just the rows
           on screen, so these agree with the dashboard tiles when unfiltered. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <SummaryTile
           label="Total Deductions Collected"
           value={peso(totals?.totalDeductionsCollected)}
@@ -132,13 +123,6 @@ export default function ClaimIncomeReport() {
           hint={maxBenefit ? `Benefits paid out (max ${peso(maxBenefit)}/claim)` : 'Benefits paid out'}
           icon={TrendingDown}
           tone="bg-rose-50 border-rose-100 text-rose-900"
-        />
-        <SummaryTile
-          label="Net Claims Income"
-          value={peso(totals?.netClaimsBalance)}
-          hint="Surplus retained by the cooperative"
-          icon={Wallet}
-          tone="bg-green-50 border-green-100 text-green-900"
         />
       </div>
 

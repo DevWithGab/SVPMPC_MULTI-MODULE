@@ -55,6 +55,7 @@ const { getCurrentCap } = require('../controllers/benefitCapSettingController');
 const { startNoticeBatch, getNoticeBatchStatus } = require('../controllers/noticeBatchController');
 
 const router = express.Router();
+const { bulkUploadPayments } = require('../controllers/paymentImportController');
 
 // Apply authentication and authorization middleware to all routes
 router.use(authenticateToken);
@@ -65,6 +66,7 @@ router.get('/dashboard', getTreasurerDashboard);
 
 // Contribution management routes (Treasurer can manage all contributions)
 router.post('/contributions/record', recordContribution);
+router.post('/contributions/bulk-upload', bulkUploadPayments);
 router.get('/contributions/:memberId', getContributionHistory);
 router.get('/contributions', getAllContributions);
 

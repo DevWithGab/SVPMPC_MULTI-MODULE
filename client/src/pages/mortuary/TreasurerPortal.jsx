@@ -562,6 +562,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             paymentSearchQuery={paymentSearchQuery}
             setPaymentSearchQuery={setPaymentSearchQuery}
             setIsAddContributionOpen={openAddContribution}
+            onPaymentsImported={refreshAllData}
           />
         );
       case 'reports':

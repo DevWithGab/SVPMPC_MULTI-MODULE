@@ -1,13 +1,16 @@
-import React from 'react';
-import { Search, Banknote, CalendarDays, Archive } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Banknote, CalendarDays, Archive, Upload } from 'lucide-react';
 import StatCard from '../shared/StatCard';
+import BulkPaymentUpload from './BulkPaymentUpload';
 
 const Contributions = ({
   contributions,
   paymentSearchQuery,
   setPaymentSearchQuery,
-  setIsAddContributionOpen
+  setIsAddContributionOpen,
+  onPaymentsImported
 }) => {
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const today = new Date().toISOString().split('T')[0];
   const currentMonth = new Date().toISOString().slice(0, 7);
   const contributionsToday = contributions.filter(c => c.payment_date === today);
@@ -70,6 +73,13 @@ const Contributions = ({
             />
           </div>
           <button
+            type="button"
+            onClick={() => setBulkUploadOpen(true)}
+            className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium border border-green-700 text-green-800 hover:bg-green-50 transition-colors"
+          >
+            <Upload className="h-4 w-4" /> Bulk Upload CSV
+          </button>
+          <button
             onClick={() => setIsAddContributionOpen(true)}
             className="inline-flex items-center gap-1.5 h-10 px-5 text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
           >
@@ -77,6 +87,8 @@ const Contributions = ({
           </button>
         </div>
       </div>
+
+      {bulkUploadOpen && <BulkPaymentUpload onClose={() => setBulkUploadOpen(false)} onImported={onPaymentsImported} />}
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
