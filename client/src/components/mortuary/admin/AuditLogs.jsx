@@ -93,10 +93,6 @@ const FIELD_LABELS = {
   deduction: "Deduction",
   payout: "Payout",
   createdBy: "Created By",
-  claimApplicationForm: "Claim Application Form",
-  deathCertificate: "Death Certificate",
-  memberCooperativeId: "Member Cooperative ID",
-  beneficiaryValidId: "Beneficiary Valid ID",
   deductionSettingId: "Deduction Rate Used",
   amountPerMember: "Amount Per Member",
   membersCharged: "Members Charged",
@@ -125,8 +121,8 @@ const friendlyLabel = (key) =>
     .replace(/^./, (c) => c.toUpperCase())
     .trim();
 
-// A claim's requirements checklist (claimApplicationForm, deathCertificate,
-// ...) is itself {submitted, received, verified} — summarized as one plain
+// A claim's requirements checklist is itself {submitted, received, verified}
+// — summarized as one plain
 // status instead of "submitted: true, received: false, verified: false".
 const requirementStatus = (item) => {
   if (!item || typeof item !== "object") return "Not submitted";
@@ -139,7 +135,7 @@ const requirementStatus = (item) => {
 // Nested objects (deduction, payout, approval, requirements, ...) get
 // flattened into a readable line instead of rendering as "[object Object]"
 // or, worse, raw JSON — recurses so a nested object inside a nested object
-// (e.g. requirements.deathCertificate) never falls through to JSON.stringify.
+// (e.g. requirements.someDocument) never falls through to JSON.stringify.
 // Timestamp-shaped keys (processedAt, releasedAt, verificationDate, ...)
 // otherwise render as a raw ISO string — this catches any of them by name
 // pattern rather than needing every one listed individually.

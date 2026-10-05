@@ -480,6 +480,11 @@ export const claimAPI = {
     return response.data;
   },
 
+  addRequirement: async (claimId, label) => {
+    const response = await api.post(`/mortuary/admin/claims/${claimId}/requirements`, { label });
+    return response.data;
+  },
+
   updateRequirements: async (claimId, requirements) => {
     const response = await api.put(`/mortuary/admin/claims/${claimId}/requirements`, { requirements });
     return response.data;
@@ -577,31 +582,6 @@ export const noticeThresholdSettingAPI = {
 
   updateThresholds: async (thresholdData) => {
     const response = await api.post('/mortuary/admin/notice-thresholds', thresholdData);
-    return response.data;
-  },
-};
-
-// ============================================
-// MORTUARY - CLAIM REQUIREMENT SETTINGS API (Admin)
-// ============================================
-export const claimRequirementAPI = {
-  getAll: async () => {
-    const response = await api.get('/mortuary/admin/claim-requirements');
-    return response.data;
-  },
-
-  create: async (label) => {
-    const response = await api.post('/mortuary/admin/claim-requirements', { label });
-    return response.data;
-  },
-
-  update: async (id, label) => {
-    const response = await api.put(`/mortuary/admin/claim-requirements/${id}`, { label });
-    return response.data;
-  },
-
-  remove: async (id) => {
-    const response = await api.delete(`/mortuary/admin/claim-requirements/${id}`);
     return response.data;
   },
 };

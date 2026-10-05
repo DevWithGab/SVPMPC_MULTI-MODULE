@@ -1,6 +1,5 @@
 const Claim = require('../models/Claim');
 const Beneficiary = require('../models/Beneficiary');
-const { getOrSeedRequirements } = require('./claimRequirementController');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
@@ -34,14 +33,6 @@ const createClaim = async (req, res) => {
       });
     }
 
-    // Snapshot whichever requirement types are currently configured (Fund
-    // Settings → Claim Requirements) onto this claim — same reasoning as
-    // the memberName/beneficiaryName snapshots below, so a requirement
-    // renamed or removed later doesn't retroactively change what this claim
-    // is tracked against.
-    const activeRequirements = await getOrSeedRequirements();
-    const requirements = new Map(activeRequirements.map((r) => [r.key, {}]));
-
     const claim = new Claim({
       claimId: uuidv4(),
       memberId,
@@ -55,7 +46,8 @@ const createClaim = async (req, res) => {
       causeOfDeath,
       remarks,
       status: 'pending_requirements',
-      requirements,
+      // Requirements are entered for this individual claim during review.
+      requirements: new Map(),
       statusHistory: [
         {
           status: 'pending_requirements',
@@ -153,7 +145,6 @@ const getClaimById = async (req, res) => {
     if (!claim) {
       return res.status(404).json({ success: false, message: 'Claim not found' });
     }
-
     const [member, beneficiary] = await Promise.all([
       Member.findOne({ memberId: claim.memberId }),
       Beneficiary.findOne({ beneficiaryId: claim.beneficiaryId }),
@@ -189,10 +180,10 @@ const updateRequirements = async (req, res) => {
     if (!claim) {
       return res.status(404).json({ success: false, message: 'Claim not found' });
     }
+    if (claim.status !== 'pending_requirements') {
+      return res.status(400).json({ success: false, message: 'Requirements can only be changed while the claim is pending requirements' });
+    }
 
-    // Only keys this claim already snapshotted at filing time can be
-    // updated — a requirement can't be retroactively added to a claim that
-    // was filed before it existed.
     Object.keys(requirements).forEach((key) => {
       if (claim.requirements.has(key) && requirements[key] && typeof requirements[key] === 'object') {
         claim.requirements.set(key, {
@@ -214,6 +205,56 @@ const updateRequirements = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating requirements checklist',
+      error: error.message,
+    });
+  }
+};
+
+// Add a physical requirement that applies only to this claim.
+const addRequirement = async (req, res) => {
+  try {
+    const { claimId } = req.params;
+    const label = String(req.body.label || '').trim();
+    if (!label) {
+      return res.status(400).json({ success: false, message: 'A requirement label is required' });
+    }
+
+    const claim = await Claim.findOne({ claimId });
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found' });
+    }
+    if (claim.status !== 'pending_requirements') {
+      return res.status(400).json({ success: false, message: 'Requirements can only be added while the claim is pending requirements' });
+    }
+
+    const baseKey = label
+      .replace(/[^a-zA-Z0-9]+(.)?/g, (_, next) => next ? next.toUpperCase() : '')
+      .replace(/[^a-zA-Z0-9]/g, '');
+    if (!baseKey) {
+      return res.status(400).json({ success: false, message: 'Label must contain at least one letter or number' });
+    }
+
+    let key = baseKey.charAt(0).toLowerCase() + baseKey.slice(1);
+    let suffix = 2;
+    while (claim.requirements.has(key)) {
+      key = `${baseKey}${suffix}`;
+      suffix += 1;
+    }
+
+    claim.requirements.set(key, { label });
+    claim.markModified('requirements');
+    await claim.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Requirement added to this claim',
+      data: claim,
+    });
+  } catch (error) {
+    console.error('Error adding claim requirement:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding claim requirement',
       error: error.message,
     });
   }
@@ -277,10 +318,12 @@ const approveClaim = async (req, res) => {
     const missing = Array.from(claim.requirements.keys()).filter(
       (key) => !claim.requirements.get(key)?.submitted
     );
-    if (missing.length > 0) {
+    if (claim.requirements.size === 0 || missing.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'All requirement items must be submitted before a claim can be approved',
+        message: claim.requirements.size === 0
+          ? 'Add at least one requirement before approving this claim'
+          : 'All requirement items must be submitted before a claim can be approved',
         missingRequirements: missing,
       });
     }
@@ -394,6 +437,7 @@ module.exports = {
   getAllClaims,
   getClaimById,
   updateRequirements,
+  addRequirement,
   updateVerification,
   approveClaim,
   rejectClaim,

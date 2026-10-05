@@ -5,6 +5,10 @@ const requirementItemSchema = new mongoose.Schema(
     submitted: { type: Boolean, default: false },
     received: { type: Boolean, default: false },
     verified: { type: Boolean, default: false },
+    // Requirements are added to each claim because physical requirements may
+    // differ between individuals. The label is stored with the claim so it
+    // remains readable without a global settings record.
+    label: { type: String },
   },
   { _id: false }
 );
@@ -72,11 +76,7 @@ const claimSchema = new mongoose.Schema(
       ],
       default: 'pending_requirements',
     },
-    // Admin-configurable (see ClaimRequirement model) — each claim snapshots
-    // whichever requirement types exist at filing time, same philosophy as
-    // the memberName/beneficiaryName snapshots below: a requirement
-    // definition can be renamed or removed later without touching claims
-    // that already captured it. Keyed by ClaimRequirement.key.
+    // Each claim stores its own requirement labels and checklist state.
     requirements: {
       type: Map,
       of: requirementItemSchema,

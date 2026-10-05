@@ -9,9 +9,10 @@ import {
   FileText,
   ClipboardCheck,
   History,
+  Plus,
 } from "lucide-react";
 import Button from "../../shared/ui/Button";
-import { claimAPI, claimRequirementAPI } from "../../../services/api";
+import { claimAPI } from "../../../services/api";
 import { getClaimStatusMeta, isClaimFullySubmitted } from "../shared/claimMeta";
 import ApproveRejectClaimModal from "./modals/ApproveRejectClaimModal";
 
@@ -20,11 +21,8 @@ import ApproveRejectClaimModal from "./modals/ApproveRejectClaimModal";
 // so toggling it flips both together instead of pointing at a fictional key.
 const COMBINED_COLUMN = { label: "Submitted & Verified" };
 
-// Requirement labels are admin-configurable (Fund Settings → Claim
-// Requirements) rather than fixed — if a claim has a key whose definition
-// was since renamed or deleted, fall back to a readable label generated
-// from the key itself (same conversion AuditLogs.jsx uses for the same
-// reason) instead of showing the raw camelCase key or nothing at all.
+// Older claims may contain keys from the former global checklist. Keep those
+// readable while new claim-specific requirements use their stored label.
 const fallbackLabel = (key) =>
   key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
 
@@ -40,20 +38,8 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
   });
   const [savingVerification, setSavingVerification] = useState(false);
   const [approveRejectMode, setApproveRejectMode] = useState(null); // 'approve' | 'reject' | null
-  const [requirementLabels, setRequirementLabels] = useState({});
-
-  useEffect(() => {
-    claimRequirementAPI
-      .getAll()
-      .then((res) => {
-        const labels = {};
-        (res?.data || []).forEach((r) => {
-          labels[r.key] = r.label;
-        });
-        setRequirementLabels(labels);
-      })
-      .catch(() => {}); // Falls back to fallbackLabel(key) per row below.
-  }, []);
+  const [newRequirement, setNewRequirement] = useState("");
+  const [addingRequirement, setAddingRequirement] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,6 +88,23 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
       );
     } finally {
       setSavingRequirement("");
+    }
+  };
+
+  const addRequirement = async (e) => {
+    e.preventDefault();
+    const label = newRequirement.trim();
+    if (!label || !claim) return;
+    setAddingRequirement(true);
+    setError("");
+    try {
+      const res = await claimAPI.addRequirement(claim.claimId, label);
+      setData((prev) => ({ ...prev, claim: res?.data || prev.claim }));
+      setNewRequirement("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to add this requirement.");
+    } finally {
+      setAddingRequirement(false);
     }
   };
 
@@ -283,9 +286,22 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   Physical Requirements Checklist
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Documents are submitted in person at the cooperative office —
-                  this only tracks status.
+                  Add the physical documents required for this individual claim, then track their status.
                 </p>
+                {canDecide && (
+                  <form onSubmit={addRequirement} className="flex gap-2 mt-3">
+                    <input
+                      value={newRequirement}
+                      onChange={(e) => setNewRequirement(e.target.value)}
+                      placeholder="e.g. Barangay Certificate"
+                      className="flex-1 min-w-0 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
+                    />
+                    <Button type="submit" size="sm" disabled={addingRequirement || !newRequirement.trim()}>
+                      {addingRequirement ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                      Add
+                    </Button>
+                  </form>
+                )}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -309,7 +325,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                     return (
                       <tr key={reqKey}>
                         <td className="px-5 py-3 font-medium text-slate-700">
-                          {requirementLabels[reqKey] || fallbackLabel(reqKey)}
+                          {claim.requirements?.[reqKey]?.label || fallbackLabel(reqKey)}
                         </td>
                         <td className="px-3 py-3 text-center">
                           <input
@@ -325,6 +341,13 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                       </tr>
                     );
                   })}
+                  {Object.keys(claim.requirements || {}).length === 0 && (
+                    <tr>
+                      <td colSpan={2} className="px-5 py-5 text-sm text-slate-400 text-center">
+                        No requirements added yet. Add at least one requirement before approval.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

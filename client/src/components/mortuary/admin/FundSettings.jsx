@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
-import { Banknote, Bell, FileText, ClipboardCheck, ShieldCheck } from 'lucide-react';
+import { Banknote, Bell, FileText, ShieldCheck } from 'lucide-react';
 import DeductionSettings from './DeductionSettings';
 import NoticeThresholdSettings from './NoticeThresholdSettings';
 import NoticeContentSettings from './NoticeContentSettings';
-import ClaimRequirementSettings from './ClaimRequirementSettings';
 import BenefitCapSettings from './BenefitCapSettings';
 
-// All five deal with settings the admin tunes over time rather than
+// These deal with settings the admin tunes over time rather than
 // day-to-day transactions (the deduction rate, the death benefit cap, the
 // balance thresholds that trigger notices, the letter text those notices
-// print, and the documents a claim must collect) — grouped under one page
+// print) — grouped under one page
 // with a tab switcher instead of separate sidebar entries, since none is
 // used often enough to deserve its own top-level section. Thresholds and
 // letter content are split into separate tabs (rather than one combined
 // "Notices" tab) since editing a document is a materially different,
 // heavier task than tweaking a few numbers.
 export default function FundSettings({ user }) {
-  const [tab, setTab] = useState('deduction'); // 'deduction' | 'benefitCap' | 'notices' | 'noticeContent' | 'claimRequirements'
+  const [tab, setTab] = useState('deduction'); // 'deduction' | 'benefitCap' | 'notices' | 'noticeContent'
 
   return (
     <div className="space-y-6 pb-12">
@@ -60,21 +59,12 @@ export default function FundSettings({ user }) {
         >
           <FileText className="w-4 h-4" /> Notice Content
         </button>
-        <button
-          onClick={() => setTab('claimRequirements')}
-          className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-            tab === 'claimRequirements' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <ClipboardCheck className="w-4 h-4" /> Claim Requirements
-        </button>
       </div>
 
       {tab === 'deduction' && <DeductionSettings user={user} />}
       {tab === 'benefitCap' && <BenefitCapSettings user={user} />}
       {tab === 'notices' && <NoticeThresholdSettings user={user} />}
       {tab === 'noticeContent' && <NoticeContentSettings user={user} />}
-      {tab === 'claimRequirements' && <ClaimRequirementSettings user={user} />}
     </div>
   );
 }

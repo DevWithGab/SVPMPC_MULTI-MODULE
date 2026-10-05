@@ -14,7 +14,6 @@ const claimController = require('../controllers/claimController');
 const beneficiaryController = require('../controllers/beneficiaryController');
 const deductionSettingController = require('../controllers/deductionSettingController');
 const noticeThresholdSettingController = require('../controllers/noticeThresholdSettingController');
-const claimRequirementController = require('../controllers/claimRequirementController');
 const benefitCapSettingController = require('../controllers/benefitCapSettingController');
 const backupController = require('../controllers/backupController');
 
@@ -53,6 +52,7 @@ router.get('/ledger/:memberId', ledgerController.getMemberLedger);
 router.post('/claims', authenticateToken, authorizeAdminOnly, claimController.createClaim);
 router.get('/claims', authenticateToken, authorizeAdminOnly, claimController.getAllClaims);
 router.get('/claims/:claimId', authenticateToken, authorizeAdminOnly, claimController.getClaimById);
+router.post('/claims/:claimId/requirements', authenticateToken, authorizeAdminOnly, claimController.addRequirement);
 router.put('/claims/:claimId/requirements', authenticateToken, authorizeAdminOnly, claimController.updateRequirements);
 router.put('/claims/:claimId/verification', authenticateToken, authorizeAdminOnly, claimController.updateVerification);
 router.put('/claims/:claimId/approve', authenticateToken, authorizeAdminOnly, claimController.approveClaim);
@@ -78,14 +78,6 @@ router.post('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeT
 router.get('/benefit-cap/current', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCurrentCap);
 router.get('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCapHistory);
 router.post('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.updateCap);
-
-// Physical requirements checklist — the admin-configurable list of document
-// types a claim must collect before it can be approved (Fund Settings →
-// Claim Requirements tab).
-router.get('/claim-requirements', authenticateToken, authorizeAdminOnly, claimRequirementController.getAllRequirements);
-router.post('/claim-requirements', authenticateToken, authorizeAdminOnly, claimRequirementController.createRequirement);
-router.put('/claim-requirements/:id', authenticateToken, authorizeAdminOnly, claimRequirementController.updateRequirement);
-router.delete('/claim-requirements/:id', authenticateToken, authorizeAdminOnly, claimRequirementController.deleteRequirement);
 
 // Database backup/restore — restore is a bulk write over live data, so it
 // gets the same explicit auth as the other consequential routes above.

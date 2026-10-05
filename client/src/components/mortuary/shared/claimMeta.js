@@ -86,10 +86,9 @@ export const getClaimAction = (status) =>
 export const getClaimStatusMeta = (status) =>
   CLAIM_STATUS_META[status] || CLAIM_STATUS_META.pending_requirements;
 
-// Requirement labels/keys are admin-configurable now (Fund Settings → Claim
-// Requirements, backed by claimRequirementAPI) rather than a fixed list
-// here — this just checks whatever keys a given claim actually snapshotted
-// at filing time, so a claim with zero requirements configured correctly
-// counts as fully submitted (nothing outstanding).
+// Requirements are entered on each claim because physical requirements may
+// differ between individuals. An empty checklist is intentionally incomplete
+// and the server also requires at least one item before approval.
 export const isClaimFullySubmitted = (requirements) =>
+  Object.keys(requirements || {}).length > 0 &&
   Object.values(requirements || {}).every((r) => r?.submitted);
