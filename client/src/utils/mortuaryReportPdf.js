@@ -1,10 +1,9 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 
-const ink = [32, 38, 35];
-const muted = [100, 108, 103];
-const green = [45, 92, 57];
-const line = [210, 216, 212];
+const ink = [30, 30, 30];
+const muted = [100, 100, 100];
+const line = [210, 210, 210];
 const margin = 17;
 
 export const reportAmount = value => Number(value || 0).toLocaleString('en-PH', {
@@ -46,12 +45,21 @@ export function createMortuaryReportPdf({ title, scope, sections, logo, generate
     timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
   }).format(generatedAt);
-  let y = 82;
+  // Measure the front matter so longer titles and scope notes cannot collide
+  // with the first table. Continuation pages use a compact letterhead.
+  doc.setFont('times', 'bold'); doc.setFontSize(23);
+  const titleLines = doc.splitTextToSize(title, right - margin);
+  const titleBottom = 49 + (titleLines.length - 1) * 9;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  const scopeLines = doc.splitTextToSize(scope || 'All recorded transactions.', right - margin);
+  const scopeY = titleBottom + 9;
+  const metaY = scopeY + scopeLines.length * 4.5 + 7;
+  let y = metaY + 17;
 
   for (const section of sections) {
-    if (y > height - 55) { doc.addPage(); y = 42; }
+    if (y > height - 60) { doc.addPage(); y = 42; }
     if (section.title) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...ink);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...ink);
       doc.text(section.title, margin, y);
       y += 5;
     }
@@ -64,8 +72,8 @@ export function createMortuaryReportPdf({ title, scope, sections, logo, generate
       foot: section.total ? [section.total] : undefined,
       showFoot: 'lastPage', theme: 'plain', rowPageBreak: 'avoid',
       styles: { font: 'helvetica', fontSize: 8.5, textColor: ink, cellPadding: { top: 3.2, bottom: 3.2, left: 2.5, right: 2.5 }, overflow: 'linebreak', lineColor: line, lineWidth: { bottom: 0.15 }, valign: 'middle' },
-      headStyles: { fillColor: [239, 242, 239], textColor: ink, fontStyle: 'bold', fontSize: 8, lineWidth: { top: 0.3, bottom: 0.3 } },
-      footStyles: { fillColor: [246, 248, 246], textColor: ink, fontStyle: 'bold', lineWidth: { top: 0.3, bottom: 0.3 } },
+      headStyles: { fillColor: [240, 240, 240], textColor: ink, fontStyle: 'bold', fontSize: 8, lineWidth: { top: 0.3, bottom: 0.3 } },
+      footStyles: { fillColor: [247, 247, 247], textColor: ink, fontStyle: 'bold', lineWidth: { top: 0.4, bottom: 0.3 } },
       columnStyles: columns,
       didParseCell: data => {
         if ((section.numberColumns || []).includes(data.column.index)) data.cell.styles.halign = 'right';
@@ -78,29 +86,36 @@ export function createMortuaryReportPdf({ title, scope, sections, logo, generate
   for (let page = 1; page <= pageCount; page++) {
     doc.setPage(page);
     const first = page === 1;
-    const size = first ? 20 : 11;
-    doc.addImage(logo, 'PNG', margin, first ? 13 : 12, size, size, 'svpmpc-logo', 'FAST');
+    const size = first ? 21 : 11;
+    const image = doc.getImageProperties(logo);
+    const scale = Math.min(size / image.width, size / image.height);
+    doc.addImage(logo, 'PNG', margin + (size - image.width * scale) / 2, first ? 12 : 12,
+      image.width * scale, image.height * scale, 'svpmpc-logo', 'FAST');
     const x = margin + size + 5;
     doc.setFont('times', 'bold'); doc.setFontSize(first ? 14 : 11); doc.setTextColor(...ink);
     doc.text('St. Vincent Parish Multi-Purpose Cooperative', x, first ? 20 : 16);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...muted);
     doc.text('Mortuary Aid Fund Program', x, first ? 26 : 21);
-    doc.setDrawColor(...green); doc.setLineWidth(0.5);
-    doc.line(margin, first ? 38 : 32, right, first ? 38 : 32);
+    doc.setDrawColor(...ink); doc.setLineWidth(0.4);
+    doc.line(margin, first ? 36 : 32, right, first ? 36 : 32);
     if (first) {
-      doc.setTextColor(...ink); doc.setFont('times', 'bold'); doc.setFontSize(22);
-      doc.text(title, margin, 51);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...muted);
-      doc.text(`Prepared ${date} PHT`, margin, 59);
-      doc.text(doc.splitTextToSize(scope, width - margin * 2), margin, 65);
-      doc.setFontSize(8); doc.text('Amounts in Philippine pesos (PHP).', margin, 75);
+      doc.setTextColor(...ink); doc.setFont('times', 'bold'); doc.setFontSize(23);
+      doc.text(titleLines, margin, 49, { lineHeightFactor: 1.11 });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...muted);
+      doc.text(scopeLines, margin, scopeY, { lineHeightFactor: 1.4 });
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text('GENERATED', margin, metaY);
+      doc.text('CURRENCY', right, metaY, { align: 'right' });
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...ink);
+      doc.text(`${date} PHT`, margin, metaY + 5);
+      doc.text('Philippine pesos (PHP)', right, metaY + 5, { align: 'right' });
     } else {
       doc.setFontSize(8); doc.text(`${title} / continued`, margin, 28);
     }
     doc.setDrawColor(...line); doc.setLineWidth(0.2);
     doc.line(margin, height - 18, right, height - 18);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
-    doc.text('SVPMPC | Mortuary Fund', margin, height - 12);
+    doc.text('SVPMPC  |  Mortuary Aid Fund Program', margin, height - 12);
     doc.text(`Page ${page} of ${pageCount}`, right, height - 12, { align: 'right' });
   }
   return doc;

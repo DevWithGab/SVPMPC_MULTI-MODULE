@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, TrendingUp, Users, PhilippinePeso, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt } from 'lucide-react';
+import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
 import { getClaimStatusMeta } from '../shared/claimMeta';
 import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, reportAmount } from '../../../utils/mortuaryReportPdf';
 import { loadAllPages } from '../../../utils/loadAllPages';
+import './Reports.css';
 
 
 const REPORT_TYPES = [
@@ -14,7 +15,7 @@ const REPORT_TYPES = [
   { id: 'claims', label: 'Claims Report', icon: ClipboardCheck },
   { id: 'deceasedMembers', label: 'Deceased Members', icon: Heart },
   { id: 'negativeBalances', label: 'Negative Balances', icon: AlertTriangle },
-  { id: 'memberStanding', label: 'Member Standing', icon: AlertTriangle },
+  { id: 'memberStanding', label: 'Member Standing', icon: Users },
   { id: 'deductions', label: 'Deductions & Payouts', icon: Receipt },
 ];
 
@@ -378,95 +379,55 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
+  const scope = {
+    summary: 'All recorded contributions, deductions and released payouts.',
+    contributions: 'All recorded member contributions and payment statuses.',
+    claims: 'All filed claims, beneficiaries and processing statuses.',
+    deductions: 'Collections and released benefits for each claim.',
+    deceasedMembers: 'Deceased members in the current roster.',
+    negativeBalances: 'All member statuses. Largest shortfall first.',
+    memberStanding: 'Active members only. Lowest posted balance first.',
+  }[reportType];
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Financial Reports</h1>
-        <p className="text-slate-500 text-sm mt-1">Comprehensive mortuary fund and claims analytics.</p>
+    <div className="financial-reports pb-12">
+      <div className="reports-page-heading">
+        <div><p className="reports-eyebrow">Mortuary fund / Treasurer</p><h1>Financial Reports</h1>
+          <p className="mt-2 text-sm text-slate-600">Review fund activity, member balances and benefit releases.</p></div>
+        <p className="text-xs text-slate-500">Reporting currency <strong className="ml-1 text-slate-700">PHP</strong></p>
       </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide truncate">Total Contributions</p>
-            <p className="text-xl font-bold text-slate-900 mt-1 truncate">₱{metrics.totalContributions.toLocaleString()}</p>
-          </div>
-          <div className="p-3 bg-green-50 rounded-lg shrink-0 ml-3">
-            <TrendingUp className="w-5 h-5 text-coop-green" />
-          </div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide truncate">Fund Balance</p>
-            <p className="text-xl font-bold text-slate-900 mt-1 truncate">₱{(stats?.fundBalance || 0).toLocaleString()}</p>
-          </div>
-          <div className="p-3 bg-blue-50 rounded-lg shrink-0 ml-3">
-            <PhilippinePeso className="w-5 h-5 text-blue-600" />
-          </div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide truncate">Active Members</p>
-            <p className="text-xl font-bold text-slate-900 mt-1 truncate">{metrics.activeMembers}</p>
-          </div>
-          <div className="p-3 bg-purple-50 rounded-lg shrink-0 ml-3">
-            <Users className="w-5 h-5 text-purple-600" />
-          </div>
-        </div>
-      </div>
-
-      {reportLoading && <p role="status" className="text-sm text-slate-500">Loading complete report data...</p>}
-      {(reportError || exportError) && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{reportError || exportError}</p>}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1 bg-white border border-slate-200 rounded-xl h-fit overflow-hidden">
-          <div className="bg-slate-50 border-b border-slate-100 p-4">
-            <p className="text-sm font-bold text-slate-900">Report Type</p>
-          </div>
-          <div className="p-4 space-y-2">
-            {REPORT_TYPES.map((type) => (
-              <button
-                key={type.id}
-                onClick={() => { setReportType(type.id); setPage(1); }}
-                className={`w-full flex items-center p-3 rounded-lg border transition-all ${
-                  reportType === type.id
-                    ? 'bg-green-50 border-green-200 text-coop-green'
-                    : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <type.icon className={`w-4 h-4 mr-3 shrink-0 ${reportType === type.id ? 'text-coop-green' : 'text-slate-400'}`} />
-                <span className="text-xs font-semibold text-left">{type.label}</span>
-              </button>
-            ))}
-
-            <div className="pt-4 space-y-2">
-              <button
-                onClick={generatePDF}
-                disabled={exportDisabled}
-                className="w-full inline-flex items-center justify-center gap-2 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-xs py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download className="w-4 h-4" /> {exporting ? 'Preparing PDF...' : 'Export PDF'}
-              </button>
-              <button
-                onClick={exportToCSV}
-                disabled={exportDisabled}
-                className="w-full inline-flex items-center justify-center gap-2 border border-slate-200 hover:border-coop-green hover:text-coop-green text-slate-600 font-semibold text-xs py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download className="w-4 h-4" /> Export CSV
-              </button>
+      <div className="reports-workspace">
+        <nav className="reports-navigation" aria-label="Financial report selection">
+          {[
+            { label: 'Fund activity', ids: ['summary', 'contributions', 'claims', 'deductions'] },
+            { label: 'Member records', ids: ['memberStanding', 'negativeBalances', 'deceasedMembers'] },
+          ].map(group => <div key={group.label} className="reports-nav-group">
+            <p className="reports-eyebrow">{group.label}</p>
+            {group.ids.map(id => {
+              const type = REPORT_TYPES.find(item => item.id === id);
+              return <button key={id} type="button" aria-current={reportType === id ? 'page' : undefined}
+                onClick={() => { setReportType(id); setPage(1); setExportError(''); }}>
+                <type.icon size={16} aria-hidden="true" /><span>{type.label}</span>
+              </button>;
+            })}
+          </div>)}
+          <p className="reports-nav-note">Exports include the complete selected report, across all pages.</p>
+        </nav>
+        <section className="reports-document" aria-labelledby="report-title" aria-busy={reportLoading}>
+          <div className="reports-document-heading">
+            <div><h2 id="report-title">{REPORT_TYPES.find(type => type.id === reportType).label}</h2>
+              <p className="mt-1 text-sm text-slate-600">{scope}</p></div>
+            <div className="reports-export-actions">
+              <button type="button" onClick={exportToCSV} disabled={exportDisabled} className="reports-button">Export CSV</button>
+              <button type="button" onClick={generatePDF} disabled={exportDisabled} className="reports-button reports-button-primary">
+                <Download size={15} aria-hidden="true" />{exporting ? 'Preparing PDF...' : 'Export PDF'}</button>
             </div>
           </div>
-        </div>
-
-        <div className="lg:col-span-3 bg-white border border-slate-200 rounded-xl max-h-[600px] flex flex-col overflow-hidden">
-          <div className="bg-slate-50 border-b border-slate-100 p-4 shrink-0 flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="text-sm font-bold text-slate-900">{REPORT_TYPES.find(t => t.id === reportType)?.label}</p>
-              {reportType !== 'summary' && (
-                <p className="text-xs text-slate-400 mt-0.5">{paginatedData.total} record{paginatedData.total === 1 ? '' : 's'}</p>
-              )}
-            </div>
+          <div className="reports-scope-bar flex-wrap items-center">
+            <span>{['memberStanding', 'negativeBalances', 'deceasedMembers'].includes(reportType) ? 'Current member records' : 'All recorded activity'}</span>
+            <span>{reportLoading ? 'Loading records...' : reportError ? 'Data unavailable' : reportType === 'summary' ? periodBreakdown.length + ' reporting periods' : paginatedData.total.toLocaleString() + ' records'}</span>
             {reportType !== 'summary' && (
               <select
                 value={barangayFilter}
@@ -481,52 +442,46 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               </select>
             )}
           </div>
-          <div className="overflow-y-auto flex-1">
+          {(reportError || exportError) && <p role="alert" className="m-5 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{reportError || exportError}</p>}
+          {reportLoading ? <div role="status" className="p-12 text-center text-sm text-slate-600">Loading complete report data...</div> : reportError ? <div className="p-10 text-center text-sm text-slate-600">Reload this page to retrieve the complete report.</div> : <div className="reports-content" data-report={reportType}>
             {reportType === 'summary' && (
-              <div className="p-5">
-                <div className="space-y-1 max-w-md">
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Financial Metrics</p>
-                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
-                    <span className="text-slate-500">Total Fund Balance</span>
-                    <span className="font-semibold text-slate-900">₱{(stats?.fundBalance || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
-                    <span className="text-slate-500">Total Contributions</span>
-                    <span className="font-semibold text-coop-green">₱{metrics.totalContributions.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-slate-100 text-sm">
-                    <span className="text-slate-500">Total Deductions Collected</span>
-                    <span className="font-semibold text-slate-900">₱{metrics.totalDeductionsCollected.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between py-2 text-sm">
-                    <span className="text-slate-500">Total Payouts Released</span>
-                    <span className="font-semibold text-rose-600">₱{metrics.totalPayoutsReleased.toLocaleString()}</span>
-                  </div>
+              <div className="reports-overview">
+                <div className="reports-fund-balance">
+                  <p className="text-sm text-slate-600">Total fund balance</p>
+                  <p className="reports-balance-amount">{'₱'}{reportAmount(stats?.fundBalance)}</p>
+                  <p className="mt-2 text-xs text-slate-500">Current fund position</p>
                 </div>
+                <dl className="reports-financial-lines">
+                  {[
+                    ['Contributions collected', metrics.totalContributions],
+                    ['Deductions collected', metrics.totalDeductionsCollected],
+                    ['Payouts released', metrics.totalPayoutsReleased],
+                  ].map(([label, amount]) => <div key={label}><dt>{label}</dt><dd>{'₱'}{reportAmount(amount)}</dd></div>)}
+                </dl>
               </div>
             )}
-
             {reportType === 'summary' && (
               <div className="px-5 pb-5">
                 <div className="flex items-center justify-between gap-3 mb-3 pt-2 border-t border-slate-100">
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Breakdown</p>
+                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Activity by period</p>
                   <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
                     {['monthly', 'annually'].map((period) => (
                       <button
                         key={period}
                         type="button"
                         onClick={() => setSummaryPeriod(period)}
+                        aria-pressed={summaryPeriod === period}
                         className={`px-3 py-1 text-xs font-semibold rounded-md capitalize transition-colors ${
                           summaryPeriod === period ? 'bg-white text-coop-green shadow-sm' : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
-                        {period}
+                        {period === 'monthly' ? 'Monthly' : 'Annual'}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="border border-slate-100 rounded-lg overflow-hidden">
+                <div className="border border-slate-200 rounded overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50">
@@ -542,9 +497,9 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                       {periodBreakdown.map((row) => (
                         <tr key={row.period}>
                           <td className="px-4 py-2.5 text-xs font-semibold text-slate-900">{row.label}</td>
-                          <td className="px-4 py-2.5 text-xs text-right text-coop-green font-semibold">₱{row.contributions.toLocaleString()}</td>
-                          <td className="px-4 py-2.5 text-xs text-right text-slate-700">₱{row.deductionsCollected.toLocaleString()}</td>
-                          <td className="px-4 py-2.5 text-xs text-right text-rose-600">₱{row.payoutsReleased.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-xs text-right text-coop-green font-semibold">₱{reportAmount(row.contributions)}</td>
+                          <td className="px-4 py-2.5 text-xs text-right text-slate-700">₱{reportAmount(row.deductionsCollected)}</td>
+                          <td className="px-4 py-2.5 text-xs text-right text-rose-600">₱{reportAmount(row.payoutsReleased)}</td>
                         </tr>
                       ))}
                       {periodBreakdown.length === 0 && (
@@ -575,7 +530,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                     <tr key={idx}>
                       <td className="px-5 py-2.5 text-xs text-slate-500">{new Date(c.payment_date || c.created_at).toLocaleDateString()}</td>
                       <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">{c.member_name || `Member #${c.member_id}`}</td>
-                      <td className="px-5 py-2.5 text-xs font-semibold text-coop-green">₱{(c.amount || 0).toLocaleString()}</td>
+                      <td className="px-5 py-2.5 text-xs font-semibold text-coop-green">₱{reportAmount((c.amount || 0))}</td>
                       <td className="px-5 py-2.5">
                         <span className="text-xs font-semibold bg-green-50 text-coop-green px-2 py-0.5 rounded-full">{c.status || 'Paid'}</span>
                       </td>
@@ -685,7 +640,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                       <td className="px-5 py-2.5 text-xs text-slate-500">#{m.id}</td>
                       <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">{m.name}</td>
                       <td className="px-5 py-2.5 text-xs text-slate-500">{m.barangay}</td>
-                      <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{m.balance.toLocaleString()}</td>
+                      <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{reportAmount(m.balance)}</td>
                       <td className="px-5 py-2.5">
                         <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border ${STANDING_BADGE_STYLES[m.standing]}`}>
                           {m.standing}
@@ -720,8 +675,8 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                             {meta.label}
                           </span>
                         </td>
-                        <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{c.deductionCollected.toLocaleString()}</td>
-                        <td className="px-5 py-2.5 text-xs font-semibold text-rose-600">₱{c.payoutAmount.toLocaleString()}</td>
+                        <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{reportAmount(c.deductionCollected)}</td>
+                        <td className="px-5 py-2.5 text-xs font-semibold text-rose-600">₱{reportAmount(c.payoutAmount)}</td>
                       </tr>
                     );
                   })}
@@ -732,10 +687,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             {paginatedData.total === 0 && reportType !== 'summary' && !reportLoading && !reportError && (
               <div className="py-16 text-center text-sm text-slate-400">{reportType === 'negativeBalances' ? 'No members have a negative balance.' : 'No records to display.'}</div>
             )}
-          </div>
+          </div>}
 
-          {reportType !== 'summary' && paginatedData.total > 0 && (
-            <div className="p-4 border-t border-slate-100 flex items-center justify-between shrink-0">
+          {reportType !== 'summary' && !reportLoading && !reportError && paginatedData.total > 0 && (
+            <div className="p-4 border-t border-slate-200 flex flex-wrap gap-3 items-center justify-between">
               <PaginationInfo currentPage={page} limit={limit} total={paginatedData.total} />
               <Pagination
                 currentPage={page}
@@ -746,7 +701,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               />
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );
