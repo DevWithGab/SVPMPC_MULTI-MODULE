@@ -12,6 +12,7 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Toast } from '../components/ui/toast';
 import { Modal } from '../components/ui/modal';
+import { UploadFilePicker, UploadTemplateCard } from '../components/mortuary/shared/BulkUploadDialog';
 import { validatePhPhone, sanitizePhoneInput } from '../utils/validation';
 
 const REQUIRED_MEMBER_FIELDS = ['memberName', 'email', 'phoneNumber', 'barangay', 'address'];
@@ -307,6 +308,21 @@ const SuperAdmin = () => {
     }
   };
 
+  const downloadMemberTemplate = () => {
+    const csv = [
+      'memberName,email,phoneNumber,barangay,address,beneficiaries,beneficiaryRelationship,beneficiaryContactNumber,dateOfBirth,gender,memberId',
+      'Juan Dela Cruz,juan.delacruz@example.com,09123456789,Sample Barangay,"123 Sample Street, Sample Barangay",Maria Dela Cruz,Spouse,09987654321,1990-01-15,male,',
+    ].join('\r\n') + '\r\n';
+    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'members-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const handleCSVUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -353,81 +369,77 @@ const SuperAdmin = () => {
   };
 
   const handleBulkUpload = async () => {
-    if (!csvFile) return;
+    if (!csvFile || loading) return;
     
     setLoading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const text = event.target.result;
-        const lines = text.split('\n').filter(line => line.trim());
+      const text = await csvFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      // Parse CSV properly handling quoted fields
+      const parseCSVLine = (line) => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
         
-        // Parse CSV properly handling quoted fields
-        const parseCSVLine = (line) => {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
           
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              result.push(current.trim());
-              current = '';
-            } else {
-              current += char;
-            }
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
           }
-          result.push(current.trim());
-          return result;
-        };
-        
-        const headers = parseCSVLine(lines[0]);
-        console.log('CSV Headers:', headers);
-        
-        const members = lines.slice(1)
-          .filter(line => line.trim())
-          .map((line, index) => {
-            const values = parseCSVLine(line);
-            console.log(`Row ${index + 1} values:`, values);
-            
-            const memberData = {
-              memberName: values[headers.indexOf('memberName')],
-              email: values[headers.indexOf('email')],
-              phoneNumber: values[headers.indexOf('phoneNumber')],
-              barangay: values[headers.indexOf('barangay')],
-              address: values[headers.indexOf('address')],
-              beneficiaries: values[headers.indexOf('beneficiaries')] || '',
-              beneficiaryRelationship: values[headers.indexOf('beneficiaryRelationship')] || '',
-              beneficiaryContactNumber: values[headers.indexOf('beneficiaryContactNumber')] || '',
-              dateOfBirth: values[headers.indexOf('dateOfBirth')] || '',
-              gender: values[headers.indexOf('gender')] || 'male',
-              modules: ['attendance', 'mortuary']
-            };
-            
-            // Include memberId if provided in CSV
-            const memberIdIndex = headers.indexOf('memberId');
-            if (memberIdIndex !== -1 && values[memberIdIndex]) {
-              memberData.memberId = values[memberIdIndex];
-            }
-            
-            console.log(`Parsed member ${index + 1}:`, memberData);
-            return memberData;
-          });
-
-        console.log('Sending members to API:', members);
-        const response = await adminAPI.bulkCreateMembers(members);
-        console.log('API Response:', response);
-        
-        showToast(`Bulk upload complete! ${response.summary.successful} successful, ${response.summary.failed} failed`, 'success');
-        setShowBulkModal(false);
-        setCsvFile(null);
-        setCsvPreview([]);
-        fetchMembers();
+        }
+        result.push(current.trim());
+        return result;
       };
-      reader.readAsText(csvFile);
+      
+      const headers = parseCSVLine(lines[0]);
+      console.log('CSV Headers:', headers);
+      
+      const members = lines.slice(1)
+        .filter(line => line.trim())
+        .map((line, index) => {
+          const values = parseCSVLine(line);
+          console.log(`Row ${index + 1} values:`, values);
+          
+          const memberData = {
+            memberName: values[headers.indexOf('memberName')],
+            email: values[headers.indexOf('email')],
+            phoneNumber: values[headers.indexOf('phoneNumber')],
+            barangay: values[headers.indexOf('barangay')],
+            address: values[headers.indexOf('address')],
+            beneficiaries: values[headers.indexOf('beneficiaries')] || '',
+            beneficiaryRelationship: values[headers.indexOf('beneficiaryRelationship')] || '',
+            beneficiaryContactNumber: values[headers.indexOf('beneficiaryContactNumber')] || '',
+            dateOfBirth: values[headers.indexOf('dateOfBirth')] || '',
+            gender: values[headers.indexOf('gender')] || 'male',
+            modules: ['attendance', 'mortuary']
+          };
+          
+          // Include memberId if provided in CSV
+          const memberIdIndex = headers.indexOf('memberId');
+          if (memberIdIndex !== -1 && values[memberIdIndex]) {
+            memberData.memberId = values[memberIdIndex];
+          }
+          
+          console.log(`Parsed member ${index + 1}:`, memberData);
+          return memberData;
+        });
+
+      console.log('Sending members to API:', members);
+      const response = await adminAPI.bulkCreateMembers(members);
+      console.log('API Response:', response);
+      
+      showToast(`Bulk upload complete! ${response.summary.successful} successful, ${response.summary.failed} failed`, 'success');
+      setShowBulkModal(false);
+      setCsvFile(null);
+      setCsvPreview([]);
+      fetchMembers();
     } catch (error) {
       console.error('Upload error:', error);
       showToast('Error uploading CSV', 'error');
@@ -925,6 +937,8 @@ const SuperAdmin = () => {
               <div className="p-6 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
                 <h3 className="text-xl font-black text-slate-900">Bulk Upload Members</h3>
                 <button
+                  disabled={loading}
+                  aria-label="Close bulk member upload"
                   onClick={() => {
                     setShowBulkModal(false);
                     setCsvFile(null);
@@ -936,34 +950,15 @@ const SuperAdmin = () => {
                 </button>
               </div>
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center">
-                  <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-sm font-bold text-slate-700 mb-2">Upload CSV File</p>
-                  <p className="text-xs text-slate-500 mb-4">
-                    Format: memberName, email, phoneNumber, barangay, address, beneficiaries,
-                    beneficiaryRelationship, beneficiaryContactNumber (optional — add a beneficiary
-                    contact number to auto-register them instead of leaving them as "Not Registered")
-                  </p>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCSVUpload}
-                    className="hidden"
-                    id="csv-upload"
-                  />
-                  <label
-                    htmlFor="csv-upload"
-                    className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer transition-colors"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Choose File
-                  </label>
-                  {csvFile && (
-                    <p className="text-sm text-emerald-600 mt-4 font-bold">
-                      {csvFile.name} selected
-                    </p>
-                  )}
-                </div>
+                <UploadTemplateCard onDownload={downloadMemberTemplate} disabled={loading}>
+                  <p>Replace the sample row with your members. Keep the column headers and save as CSV UTF-8.</p>
+                  <p><strong>Required:</strong> memberName, email, phoneNumber, barangay, address. Use a unique email for each member.</p>
+                  <p><strong>Optional:</strong> beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, memberId. Leave memberId blank to generate it automatically, or enter a unique existing passbook ID.</p>
+                  <p>Use YYYY-MM-DD for dates and male, female, or other for gender. Blank gender defaults to male.</p>
+                  <p>Format phone columns as Text in your spreadsheet to keep the leading zero (for example, 09123456789). Enclose addresses containing commas in double quotes.</p>
+                  <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>
+                </UploadTemplateCard>
+                <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading} hint="Upload your completed member CSV, then review the first five rows below." />
                 {csvPreview.length > 0 && (
                   <div>
                     <p className="text-sm font-bold text-slate-700 mb-2">Preview (first 5 rows):</p>
@@ -994,6 +989,7 @@ const SuperAdmin = () => {
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={loading}
                   onClick={() => {
                     setShowBulkModal(false);
                     setCsvFile(null);
