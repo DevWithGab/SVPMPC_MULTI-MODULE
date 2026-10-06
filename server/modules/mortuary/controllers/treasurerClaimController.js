@@ -112,6 +112,10 @@ const listPendingDeduction = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     const query = { status: 'pending_deduction' };
+    if (req.query.search?.trim()) {
+      const regex = new RegExp(escapeRegex(req.query.search.trim()), 'i');
+      query.$or = [{ claimId: regex }, { memberName: regex }, { beneficiaryName: regex }];
+    }
 
     const total = await Claim.countDocuments(query);
     const claims = await Claim.find(query).sort({ dateFiled: 1 }).skip(skip).limit(limit);
@@ -131,6 +135,10 @@ const listAwaitingRelease = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
     const query = { status: 'deduction_processed' };
+    if (req.query.search?.trim()) {
+      const regex = new RegExp(escapeRegex(req.query.search.trim()), 'i');
+      query.$or = [{ claimId: regex }, { memberName: regex }, { beneficiaryName: regex }];
+    }
 
     const total = await Claim.countDocuments(query);
     const claims = await Claim.find(query).sort({ dateFiled: 1 }).skip(skip).limit(limit).lean();

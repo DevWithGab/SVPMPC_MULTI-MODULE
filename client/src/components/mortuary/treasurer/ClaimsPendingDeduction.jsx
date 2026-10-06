@@ -1,255 +1,75 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Banknote, Loader2, AlertTriangle, FileText, Lock } from 'lucide-react';
-import Modal from '../shared/Modal';
-import Button from '../../shared/ui/Button';
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
+import { Action, ClaimDialog, ClaimIdentity, ClaimQueue, Detail } from './ClaimWorkflow';
+import { fieldClass, peso, shortDate, useClaimQueue } from './claimWorkflowUtils';
 
 export default function ClaimsPendingDeduction({ user, showToast, onProcessed }) {
-  const [claims, setClaims] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [target, setTarget] = useState(null); // claim being processed
-  // The per-member amount is set by the Admin in Deduction Settings and is only
-  // displayed here — the Treasurer can't change it, and the server resolves it
-  // again on its own, so nothing about the amount is sent from this screen.
+  const queue = useClaimQueue(treasurerAPI.getPendingDeductionClaims);
   const [rate, setRate] = useState(null);
-  const [confirmStep, setConfirmStep] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [preview, setPreview] = useState(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [rateLoading, setRateLoading] = useState(true);
+  const [target, setTarget] = useState(null);
   const [jvNumber, setJvNumber] = useState('');
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await treasurerAPI.getPendingDeductionClaims({ limit: 50 });
-      setClaims(Array.isArray(res?.data) ? res.data : []);
-    } catch {
-      setClaims([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadRate = useCallback(async () => {
-    try {
-      const res = await treasurerAPI.getDeductionRate();
-      setRate(res?.data || null);
-    } catch {
-      setRate(null);
-    }
-  }, []);
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+  const inFlight = useRef(false);
 
   useEffect(() => {
-    load();
-    loadRate();
-  }, [load, loadRate]);
+    let active = true;
+    treasurerAPI.getDeductionRate().then((res) => { if (active) setRate(res.data); })
+      .catch(() => {}).finally(() => { if (active) setRateLoading(false); });
+    return () => { active = false; };
+  }, []);
 
-  const openModal = (claim) => {
-    setTarget(claim);
-    setConfirmStep(false);
-    setPreview(null);
-    setJvNumber('');
+  const open = (claim) => {
+    setTarget(claim); setJvNumber(''); setPreview(null); setDone(false); setError('');
   };
-
-  const closeModal = () => {
-    if (submitting) return;
-    setTarget(null);
-    setConfirmStep(false);
-    setPreview(null);
-    setJvNumber('');
-  };
-
-  const handleReview = async (e) => {
-    e.preventDefault();
-    setConfirmStep(true);
-    setPreviewLoading(true);
-    setPreview(null);
+  const close = () => { if (!inFlight.current) setTarget(null); };
+  const review = async (event) => {
+    event.preventDefault();
+    if (!jvNumber.trim() || inFlight.current) return;
+    inFlight.current = true; setBusy(true); setError('');
     try {
       const res = await treasurerAPI.previewClaimDeduction(target.claimId);
-      setPreview(res?.data || null);
-    } catch (err) {
-      showToast?.(err.response?.data?.message || 'Unable to preview this deduction.', 'error');
-      setConfirmStep(false);
-    } finally {
-      setPreviewLoading(false);
-    }
+      if (!res.data || !Number.isFinite(Number(res.data.amountPerMember)) || !Number.isFinite(Number(res.data.totalCollected))) throw new Error('Preview unavailable');
+      setPreview(res.data);
+    } catch (err) { setError(err.response?.data?.message || 'Unable to calculate this deduction. Please try again.'); }
+    finally { inFlight.current = false; setBusy(false); }
   };
-
-  const handleProcess = async () => {
-    if (!target || submitting) return;
-    setSubmitting(true);
+  const process = async () => {
+    if (!preview || inFlight.current) return;
+    inFlight.current = true; setBusy(true); setError('');
     try {
-      const res = await treasurerAPI.processClaimDeduction(target.claimId, {
-        processedBy: user?.name || user?.username,
-        jvNumber: jvNumber.trim(),
-      });
-      showToast?.(res?.message || 'Deduction processed.', 'success');
-      setTarget(null);
-      setConfirmStep(false);
-      load();
-      onProcessed?.();
-    } catch (err) {
-      showToast?.(err.response?.data?.message || 'Unable to process the deduction.', 'error');
-    } finally {
-      setSubmitting(false);
-    }
+      await treasurerAPI.processClaimDeduction(target.claimId, { processedBy: user?.name || user?.username, jvNumber: jvNumber.trim() });
+      setDone(true);
+      showToast?.('Deduction processed. Claim is now awaiting release.', 'success');
+      queue.refresh(); onProcessed?.();
+    } catch (err) { setError(err.response?.data?.message || 'Unable to process this deduction. Please try again.'); }
+    finally { inFlight.current = false; setBusy(false); }
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Pending Deduction</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Claims approved by Admin, ready for the death-fund assessment.
-        </p>
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Member</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Beneficiary</th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Approved</th>
-              <th className="text-right px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
-              <tr><td colSpan={4} className="px-6 py-16 text-center text-sm text-slate-400">Loading...</td></tr>
-            ) : claims.length > 0 ? (
-              claims.map((claim) => (
-                <tr key={claim.claimId} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-3.5 text-sm font-semibold text-slate-900">{claim.memberName}</td>
-                  <td className="px-6 py-3.5 text-sm text-slate-500 hidden sm:table-cell">{claim.beneficiaryName}</td>
-                  <td className="px-6 py-3.5 text-sm text-slate-500 hidden md:table-cell">
-                    {claim.approval?.approvedAt ? new Date(claim.approval.approvedAt).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="px-6 py-3.5 text-right">
-                    <button
-                      onClick={() => openModal(claim)}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold bg-coop-green hover:bg-coop-darkGreen text-white px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      <Banknote className="w-3.5 h-3.5" /> Process Deduction
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="px-6 py-16 text-center text-sm text-slate-400">
-                  <div className="flex flex-col items-center gap-2">
-                    <FileText className="w-8 h-8 text-slate-300" />
-                    No claims pending deduction.
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <Modal isOpen={Boolean(target)} onClose={closeModal} title={confirmStep ? 'Confirm Deduction' : 'Process Deduction'}>
-        {!confirmStep ? (
-          <form onSubmit={handleReview} className="space-y-5">
-            <p className="text-sm text-slate-600">
-              Charge every other active member for the death of{' '}
-              <span className="font-bold text-slate-800">{target?.memberName}</span>.
-            </p>
-            {/* Read-only by design: the rate is the Admin's to set, not the
-                Treasurer's to adjust per claim. */}
-            <div>
-              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount per member</label>
-              <div className="h-12 px-4 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50">
-                <span className="text-lg font-bold text-slate-900">
-                  {rate?.amount != null ? `₱${Number(rate.amount).toLocaleString()}` : '—'}
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                  <Lock className="w-3.5 h-3.5" /> Fixed rate
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1.5">
-                Set by the Admin in Deduction Settings
-                {rate?.effectiveDate ? ` • effective ${new Date(rate.effectiveDate).toLocaleDateString()}` : ''}.
-              </p>
-            </div>
-            <div>
-              <label htmlFor="jv-number" className="text-sm font-semibold text-slate-700 mb-1 block">
-                JV (Journal Disbursement) Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="jv-number"
-                type="text"
-                value={jvNumber}
-                onChange={(e) => setJvNumber(e.target.value)}
-                placeholder="Enter JV number"
-                required
-                className="w-full h-12 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
-              />
-              <p className="text-xs text-slate-500 mt-1.5">
-                Required before the deduction can be processed.
-              </p>
-            </div>
-            <div className="flex gap-3 pt-1">
-              <Button type="button" variant="ghost" onClick={closeModal} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!jvNumber.trim()} className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm">
-                Review Deduction
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3 p-4 border border-rose-200 bg-rose-50 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-rose-800">
-                This will immediately deduct{' '}
-                <span className="font-bold">₱{Number(preview?.amountPerMember ?? rate?.amount ?? 0).toLocaleString()}</span> from
-                every active member and cannot be undone.
-              </p>
-            </div>
-
-            {/* Deduction preview — a dry run of exactly what will happen,
-                so the Treasurer isn't confirming blind. */}
-            {previewLoading ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500 p-4 border border-slate-200 rounded-lg">
-                <Loader2 className="w-4 h-4 animate-spin" /> Calculating preview...
-              </div>
-            ) : preview ? (
-              <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-slate-500">Active members to be charged</span>
-                  <span className="font-bold text-slate-900">{preview.membersCharged}</span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-slate-500">Amount per member</span>
-                  <span className="font-bold text-slate-900">₱{preview.amountPerMember?.toLocaleString?.() ?? preview.amountPerMember}</span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-2.5 text-sm bg-slate-50">
-                  <span className="font-semibold text-slate-700">Total to be collected</span>
-                  <span className="font-bold text-coop-green">₱{preview.totalCollected?.toLocaleString?.() ?? preview.totalCollected}</span>
-                </div>
-                {preview.membersGoingNegative > 0 && (
-                  <div className="flex items-center justify-between px-4 py-2.5 text-sm bg-amber-50">
-                    <span className="text-amber-700">Members whose balance will go negative</span>
-                    <span className="font-bold text-amber-700">{preview.membersGoingNegative}</span>
-                  </div>
-                )}
-              </div>
-            ) : null}
-
-            <div className="flex gap-3 pt-1">
-              <Button type="button" variant="ghost" disabled={submitting} onClick={() => setConfirmStep(false)} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
-                Go back
-              </Button>
-              <Button type="button" onClick={handleProcess} disabled={submitting || previewLoading} className="flex-1 h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm disabled:opacity-50">
-                {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : 'Yes, process now'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-    </div>
-  );
+  return <div className="space-y-5">
+    <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div><h2 className="text-2xl font-semibold tracking-tight text-slate-900">Pending deduction</h2><p className="mt-1.5 text-sm text-slate-500">Review approved claims, record a JV number, and confirm the member assessment.</p></div>
+      <div className="shrink-0 border-l-2 border-slate-200 pl-4"><p className="text-xs text-slate-500">Current deduction / member</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{rateLoading ? 'Loading…' : rate ? peso(rate.amount) : 'Unavailable'}</p><p className="mt-0.5 text-xs text-slate-500">Set by Admin{rate?.effectiveDate ? ` · ${shortDate(rate.effectiveDate)}` : ''}</p></div>
+    </header>
+    <ClaimQueue queue={queue} onSelect={open} />
+    {target && <ClaimDialog title={done ? 'Deduction recorded' : preview ? 'Confirm deduction' : 'Review deduction'} step={done ? 'Completed' : preview ? 'Step 2 of 2 · Confirm assessment' : 'Step 1 of 2 · Claim details'} busy={busy} onClose={close} footer={done ? <Action primary onClick={close}>Done</Action> : <>
+      <Action disabled={busy} onClick={() => { if (preview) { setPreview(null); setError(''); } else close(); }}>{preview ? 'Back to details' : 'Cancel'}</Action>
+      {preview ? <Action primary disabled={busy} onClick={process}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Processing deduction…' : 'Confirm deduction'}</Action> : <Action primary type="submit" form="deduction-details" disabled={busy || !jvNumber.trim()}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Calculating impact…' : 'Review impact'}</Action>}
+    </>}>
+      <ClaimIdentity claim={target} />
+      {done ? <div role="status" className="flex gap-3 text-sm leading-6 text-slate-700"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-coop-green" /><p>The assessment has been recorded under <strong>{jvNumber.trim()}</strong>. This claim is now in <strong>Awaiting Release</strong>.</p></div> : preview ? <>
+        <dl><Detail label="JV number">{jvNumber.trim()}</Detail><Detail label="Active members to be charged">{Number(preview.membersCharged).toLocaleString()}</Detail><Detail label="Deduction per member">{peso(preview.amountPerMember)}</Detail><Detail label="Total assessment" strong>{peso(preview.totalCollected)}</Detail></dl>
+        {preview.membersGoingNegative > 0 && <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900"><strong>{preview.membersGoingNegative.toLocaleString()} members</strong> will have a negative balance after this assessment.</div>}
+        <div className="flex gap-2 text-sm leading-6 text-slate-600"><AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-amber-600" /><p>Confirming deducts the amount from the eligible members’ balances immediately. This action cannot be undone from this screen.</p></div>
+      </> : <form id="deduction-details" onSubmit={review} className="space-y-5">
+        <div className="rounded-md bg-slate-50 px-4 py-3"><p className="text-xs text-slate-500">Admin-set rate per member</p><p className="mt-1 text-xl font-semibold tabular-nums">{peso(rate?.amount)}</p><p className="mt-1 text-xs leading-5 text-slate-500">The next step calculates the current rate, member count, and balance impact before anything is deducted.</p></div>
+        <div><label htmlFor="deduction-jv" className="mb-1.5 block text-sm font-medium">JV (Journal Disbursement) number <span className="text-slate-500">(required)</span></label><input id="deduction-jv" required autoComplete="off" disabled={busy} value={jvNumber} onChange={(e) => setJvNumber(e.target.value)} placeholder="Enter the JV number" aria-describedby="jv-help" className={fieldClass} /><p id="jv-help" className="mt-2 text-xs text-slate-500">Use the reference number from the supporting journal document.</p></div>
+      </form>}
+      {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+    </ClaimDialog>}
+  </div>;
 }
