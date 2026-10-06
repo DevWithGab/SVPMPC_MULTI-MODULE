@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer, Download, Loader2 } from 'lucide-react';
-import Button from '../../shared/ui/Button';
-import Input from '../../shared/ui/Input';
+import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer, Download, Loader2, FileText } from 'lucide-react';
 import StatCard from '../shared/StatCard';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
@@ -36,6 +34,8 @@ const MemberBalances = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [printingLevel, setPrintingLevel] = useState(null);
   const [downloadingLevel, setDownloadingLevel] = useState(null);
+  const [noticeBarangay, setNoticeBarangay] = useState('All');
+  const [readyDownload, setReadyDownload] = useState(null);
   // { jobId, level } while a background batch is generating server-side;
   // null otherwise. Distinct from downloadingLevel, which is only for the
   // instant client-side path below the large-batch threshold.
@@ -47,15 +47,20 @@ const MemberBalances = ({
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
   const lowBalancePercent = members.length > 0 ? (lowBalanceMembers.length / members.length) * 100 : 0;
 
-  // Scoped to the barangay currently selected in the Filter Bar below (same
-  // filter the table uses) — "All barangays" means every member, same as
-  // before. This lets the Treasurer print/download just one barangay's
-  // notices in one job instead of always generating every barangay at once.
+  // Notice scope is independent of the member table's filters and pagination.
   const noticeTargetMembers = useMemo(
-    () => (barangayFilter === 'All' ? members : members.filter((m) => getBarangay(m) === barangayFilter)),
-    [members, barangayFilter]
+    () => (noticeBarangay === 'All' ? members : members.filter((m) => getBarangay(m) === noticeBarangay)),
+    [members, noticeBarangay]
   );
-  const barangayLabel = barangayFilter === 'All' ? '' : ` in ${barangayFilter}`;
+  const barangayLabel = noticeBarangay === 'All' ? '' : ` in ${noticeBarangay}`;
+  const noticeBusy = printingLevel !== null || downloadingLevel !== null || batchJob !== null;
+  const thresholds = noticeThresholds || DEFAULT_NOTICE_THRESHOLDS;
+  const peso = (value) => `₱${value.toLocaleString('en-PH')}`;
+  const noticeRanges = {
+    1: `${peso(thresholds.notice1Min)} – ${peso(thresholds.notice1Max)}`,
+    2: `${peso(thresholds.notice2Min)} – ${peso(thresholds.notice2Max)}`,
+    3: `Below ${peso(thresholds.notice2Min)}`,
+  };
 
   // Counted across every matching member (not just the current
   // filtered/paginated table view) so the bulk-print buttons below always
@@ -71,7 +76,7 @@ const MemberBalances = ({
 
   const handleBulkPrint = (level) => {
     const count = noticeLevelCounts[level];
-    if (count === 0) return;
+    if (count === 0 || noticeBusy) return;
     if (!window.confirm(`Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel}? Each will print as a separate page in one job.`)) {
       return;
     }
@@ -91,8 +96,9 @@ const MemberBalances = ({
   // Starts the server-side background job for a batch too large to build
   // instantly in the browser. Polling (below) picks up the result.
   const handleBulkDownloadBackground = async (level, count) => {
+    setDownloadingLevel(level);
     try {
-      const response = await treasurerAPI.startNoticeBatch(level, barangayFilter === 'All' ? undefined : barangayFilter);
+      const response = await treasurerAPI.startNoticeBatch(level, noticeBarangay === 'All' ? undefined : noticeBarangay);
       setBatchJob({ jobId: response.jobId, level });
       showToast?.(
         `Preparing ${count} ${NOTICE_LEVEL_LABELS[level]} letters${barangayLabel} in the background — this may take a moment. We'll let you know when it's ready.`,
@@ -101,12 +107,14 @@ const MemberBalances = ({
     } catch (error) {
       console.error('Error starting notice batch job:', error);
       showToast?.('Unable to start generating the notices. Please try again.', 'error');
+    } finally {
+      setDownloadingLevel(null);
     }
   };
 
   const handleBulkDownload = async (level) => {
     const count = noticeLevelCounts[level];
-    if (count === 0 || batchJob) return;
+    if (count === 0 || noticeBusy) return;
     if (!window.confirm(`Download ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel} as one PDF?`)) {
       return;
     }
@@ -139,9 +147,14 @@ const MemberBalances = ({
         if (status.status === 'completed') {
           clearInterval(batchPollRef.current);
           const url = resolveQrAssetUrl(status.downloadUrl);
-          if (url) window.open(url, '_blank');
+          if (!url) {
+            showToast?.('The PDF download link is unavailable. Please try again.', 'error');
+            setBatchJob(null);
+            return;
+          }
+          setReadyDownload({ url, level: batchJob.level, count: status.totalMembers, barangay: status.barangay });
           showToast?.(
-            `${status.totalMembers} ${NOTICE_LEVEL_LABELS[batchJob.level]} letter${status.totalMembers === 1 ? '' : 's'}${status.barangay ? ` in ${status.barangay}` : ''} ready — download started.`,
+            `${status.totalMembers} ${NOTICE_LEVEL_LABELS[batchJob.level]} letters ready. Select Download ready PDF in the notice panel.`,
             'success'
           );
           setBatchJob(null);
@@ -217,6 +230,63 @@ const MemberBalances = ({
           color="rose"
         />
       </div>
+
+      <section aria-labelledby="notice-panel-title" className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700"><FileText className="w-5 h-5" aria-hidden="true" /></div>
+            <div>
+              <h3 id="notice-panel-title" className="text-base font-semibold text-slate-900">Member notices</h3>
+              <p className="text-sm text-slate-500 mt-1">Download one PDF per notice level, or print a letter for each member.</p>
+            </div>
+          </div>
+          <div className="w-full lg:w-56 shrink-0">
+            <label htmlFor="notice-barangay" className="block text-xs font-semibold text-slate-600 mb-1.5">Barangay for notices</label>
+            <select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help" className="w-full h-11 px-3 text-sm rounded-lg border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60">
+              {uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="p-5">
+          <p id="notice-scope-help" className="text-xs text-slate-500 mb-4">Includes all eligible members in {noticeBarangay === 'All' ? 'all barangays' : noticeBarangay}. Table filters below do not change these downloads.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[1, 2, 3].map(level => {
+              const count = noticeLevelCounts[level];
+              const preparing = downloadingLevel === level || batchJob?.level === level;
+              const tone = level === 3 ? 'bg-red-50 text-red-700 border-red-100' : level === 2 ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-amber-50 text-amber-700 border-amber-100';
+              return (
+                <div key={level} role="group" aria-labelledby={'notice-level-' + level} className="rounded-xl border border-slate-200 p-4 flex flex-col">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h4 id={'notice-level-' + level} className={'rounded-md border px-2 py-1 text-xs font-bold ' + tone}>{NOTICE_LEVEL_LABELS[level]}</h4>
+                    <span className="text-xs font-medium text-slate-500 tabular-nums">{count} {count === 1 ? 'member' : 'members'}</span>
+                  </div>
+                  <p className="text-lg font-semibold text-slate-900 mt-4 tabular-nums">{noticeRanges[level]}</p>
+                  <p className="text-xs text-slate-500 mt-1 mb-4">{count === 0 ? 'No members need this notice.' : 'Current member balance'}</p>
+                  <div className="flex flex-wrap gap-2 mt-auto">
+                    <button onClick={() => handleBulkDownload(level)} disabled={count === 0 || noticeBusy} aria-label={'Download ' + NOTICE_LEVEL_LABELS[level] + ' PDF for ' + count + ' members'} className="flex-1 inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                      {preparing ? <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" /> : <Download className="w-4 h-4 shrink-0" aria-hidden="true" />}
+                      {preparing ? 'Preparing...' : 'Download PDF'}
+                    </button>
+                    <button onClick={() => handleBulkPrint(level)} disabled={count === 0 || noticeBusy} aria-label={'Print ' + NOTICE_LEVEL_LABELS[level] + ' for ' + count + ' members'} className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                      <Printer className="w-4 h-4" aria-hidden="true" /> Print
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div role="status" aria-live="polite" aria-atomic="true">
+            {noticeBusy && <p className="flex items-center gap-2 mt-4 text-sm text-emerald-700"><Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />Preparing {NOTICE_LEVEL_LABELS[batchJob?.level || downloadingLevel || printingLevel]}. {batchJob ? 'Large batches may take a few moments. Keep this page open.' : 'Please wait...'}</p>}
+            {!noticeBusy && readyDownload && <p className="sr-only">Your notice PDF is ready. Use the Download ready PDF link.</p>}
+          </div>
+          {readyDownload && (
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-sm text-emerald-900">{NOTICE_LEVEL_LABELS[readyDownload.level]} is ready &middot; {readyDownload.count} members &middot; {readyDownload.barangay || 'All barangays'}</p>
+              <a href={readyDownload.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 shrink-0"><Download className="w-4 h-4" aria-hidden="true" />Download ready PDF</a>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Filter Bar */}
       <div className="bg-white border border-slate-200 rounded-xl p-4">
@@ -295,68 +365,6 @@ const MemberBalances = ({
               Clear filters
             </button>
           )}
-        </div>
-      </div>
-
-      {/* Bulk Notice Printing — prints or downloads every member at a given
-          threshold as one combined job (one letter per page) instead of
-          opening each member's ledger and handling them one at a time.
-          Scoped by the barangay filter above, same as the table. */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Printer className="w-4 h-4 text-slate-400" />
-            <p className="text-sm font-semibold text-slate-900">Print or download notices by threshold</p>
-          </div>
-          {barangayFilter !== 'All' && (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Scoped to {barangayFilter}
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[1, 2, 3].map((level) => {
-            const count = noticeLevelCounts[level];
-            const isFinal = level === 3;
-            const busy = printingLevel !== null || downloadingLevel !== null || batchJob !== null;
-            const isPreparingInBackground = batchJob?.level === level;
-            const colorClass = isFinal
-              ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-              : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100';
-            return (
-              <div key={level} className="inline-flex rounded-lg border border-transparent" role="group">
-                <button
-                  onClick={() => handleBulkPrint(level)}
-                  disabled={count === 0 || busy}
-                  title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}${barangayLabel}` : undefined}
-                  className={`inline-flex items-center gap-2 pl-4 pr-3 py-2 text-sm font-semibold rounded-l-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass}`}
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Print {NOTICE_LEVEL_LABELS[level]}
-                  <span className="px-1.5 py-0.5 text-xs rounded-full bg-white/70">{count}</span>
-                </button>
-                <button
-                  onClick={() => handleBulkDownload(level)}
-                  disabled={count === 0 || busy}
-                  title={
-                    count === 0
-                      ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}${barangayLabel}`
-                      : isPreparingInBackground
-                        ? 'Generating in the background — this may take a moment'
-                        : `Download ${NOTICE_LEVEL_LABELS[level]} as PDF`
-                  }
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-r-lg border border-l-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass}`}
-                >
-                  {downloadingLevel === level || isPreparingInBackground ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Download className="w-3.5 h-3.5" />
-                  )}
-                  {isPreparingInBackground && <span className="text-xs font-semibold">Preparing…</span>}
-                </button>
-              </div>
-            );
-          })}
         </div>
       </div>
 
