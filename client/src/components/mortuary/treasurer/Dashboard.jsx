@@ -1,11 +1,12 @@
 import { contributionTrend, memberBalanceCoverage, contributionGrowth } from '../../../utils/dashboardMetrics';
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { AreaChart, Area, Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
 import StatCard from '../shared/StatCard';
 
-const Dashboard = ({ stats, contributions = [], claimsCounts, claimsError }) => {
+const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError }) => {
+  const firstName = user?.name?.split(' ')[0] || 'Treasurer';
   const healthyRatio = memberBalanceCoverage(stats);
 
   const memberStandingData = [
@@ -76,9 +77,21 @@ const Dashboard = ({ stats, contributions = [], claimsCounts, claimsError }) => 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h2>
-        <p className="text-sm text-slate-500 mt-1">Financial overview and member insights</p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Welcome back, {firstName} — here's the fund's financial overview and member insights.
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 h-10 px-4 rounded-lg border border-slate-200 text-sm font-medium text-slate-500 shrink-0">
+          <Calendar className="w-4 h-4 text-slate-400" />
+          {new Date().toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+        </div>
       </div>
 
       {/* Stats Grid */}

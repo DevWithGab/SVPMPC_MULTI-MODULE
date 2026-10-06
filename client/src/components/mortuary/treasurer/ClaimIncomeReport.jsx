@@ -58,11 +58,11 @@ export default function ClaimIncomeReport() {
     if (!rows.length) return;
     const header = [
       'Claim ID', 'Deceased Member', 'Beneficiary', 'Status', 'Members Charged', 'Per Member',
-      'Total Collected', 'Released', 'Net Income', 'Processed', 'Released On', 'DV Number',
+      'Total Collected', 'Released', 'Processed', 'Released On', 'DV Number',
     ];
     const body = rows.map((r) => [
       r.claimId, r.memberName, r.beneficiaryName, r.status, r.membersCharged, r.amountPerMember,
-      r.totalCollected, r.amountReleased ?? '', r.netIncome,
+      r.totalCollected, r.amountReleased ?? '',
       r.processedAt ? new Date(r.processedAt).toISOString().split('T')[0] : '',
       r.releasedAt ? new Date(r.releasedAt).toISOString().split('T')[0] : '',
       r.dvNumber ?? '',
@@ -82,7 +82,7 @@ export default function ClaimIncomeReport() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Claims Income Report</h2>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Claims Summary</h2>
           <p className="text-sm text-slate-500 mt-1">
             Where every claim's money went — collected from members, released to the beneficiary, retained by the cooperative.
           </p>
@@ -135,13 +135,12 @@ export default function ClaimIncomeReport() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden lg:table-cell">Assessment</th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Collected</th>
                 <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Released</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Net Income</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">Loading...</td></tr>
+                <tr><td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">Loading...</td></tr>
               ) : rows.length > 0 ? (
                 rows.map((r) => {
                   const badge = STATUS_LABEL[r.status] || { text: r.status, className: 'bg-slate-100 text-slate-600' };
@@ -155,18 +154,8 @@ export default function ClaimIncomeReport() {
                       <td className="px-5 py-3.5 text-sm text-slate-500 hidden lg:table-cell tabular-nums">
                         {r.membersCharged.toLocaleString()} × {peso(r.amountPerMember)}
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-right tabular-nums">
-                        {/* Held money drains to 0 on release, matching the tile
-                            above; the gross stays visible underneath so the row
-                            still shows what the assessment brought in. */}
-                        <span className={pending ? 'font-semibold text-slate-700' : 'text-slate-400'}>
-                          {peso(pending ? r.totalCollected : 0)}
-                        </span>
-                        {!pending && (
-                          <span className="block text-[10px] text-slate-400 mt-0.5">
-                            {peso(r.totalCollected)} disbursed
-                          </span>
-                        )}
+                      <td className="px-5 py-3.5 text-sm text-right font-semibold text-slate-700 tabular-nums">
+                        {peso(r.totalCollected)}
                       </td>
                       <td className="px-5 py-3.5 text-sm text-right tabular-nums">
                         {pending ? (
@@ -175,20 +164,6 @@ export default function ClaimIncomeReport() {
                           <span className="text-slate-400 italic">{peso(r.projectedRelease)} pending</span>
                         ) : (
                           <span className="font-semibold text-rose-600">{peso(r.amountReleased)}</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-sm text-right font-bold tabular-nums">
-                        {pending ? (
-                          <span className="text-slate-400 italic font-normal">{peso(r.projectedIncome)} pending</span>
-                        ) : (
-                          <span className={r.netIncome < 0 ? 'text-rose-600' : 'text-coop-green'}>
-                            {peso(r.netIncome)}
-                          </span>
-                        )}
-                        {r.capApplied && (
-                          <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">
-                            cap applied
-                          </span>
                         )}
                       </td>
                       <td className="px-5 py-3.5 hidden sm:table-cell">
@@ -201,7 +176,7 @@ export default function ClaimIncomeReport() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">
+                  <td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">
                     <div className="flex flex-col items-center gap-2">
                       <FileText className="w-8 h-8 text-slate-300" />
                       No claim has been assessed yet — process a deduction and it will appear here.

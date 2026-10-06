@@ -26,6 +26,26 @@ import { pdfReportGenerator } from "../../../utils/pdfReportGenerator";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDate, formatTime } from "../../../utils/date";
 
+// GET /attendance is paginated server-side (default 10, capped at 100 per
+// page) — fetching once with no params silently truncated this screen's
+// counts, CSV and PDF exports to just the 10 most-recently-scanned records
+// system-wide, so most events' attendance (and their scan times) never made
+// it into the export. Page through everything instead, same loop
+// LiveAttendanceList's fetchEventAttendance already uses for this reason.
+const ATTENDANCE_FETCH_PAGE_SIZE = 100;
+
+// Excel auto-detects a date/time-looking CSV cell and reformats it as a date
+// serial, which keeps the column at its narrow default width regardless of
+// the text's actual length — showing "####" until the viewer manually
+// widens it. Wrapping the value as an Excel text-formula ("="...") makes
+// Excel display it as plain text instead, at a width that fits the content.
+const excelText = (value) => `="${String(value ?? "").replace(/"/g, '""')}"`;
+
+// Standard CSV field quoting (RFC 4180) — wraps every field in double quotes
+// and escapes internal ones, so values containing commas (like "Oct 2, 2026")
+// don't get misread as extra columns.
+const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
 export default function AttendanceReports({ attendanceLogs, events }) {
   const [selectedEvent, setSelectedEvent] = useState("all");
   const [selectedBarangay, setSelectedBarangay] = useState("all");
@@ -111,14 +131,20 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     const loadAttendance = async () => {
       setLoadingAttendance(true);
       try {
-        const response = await attendanceAPI.getAllAttendance();
-        const attendanceList = Array.isArray(response?.attendance)
-          ? response.attendance
-          : Array.isArray(response)
-            ? response
-            : Array.isArray(response?.data?.attendance)
-              ? response.data.attendance
-              : [];
+        let page = 1;
+        let totalPages = 1;
+        let attendanceList = [];
+        do {
+          const response = await attendanceAPI.getAllAttendance({
+            page,
+            limit: ATTENDANCE_FETCH_PAGE_SIZE,
+          });
+          attendanceList = attendanceList.concat(
+            Array.isArray(response?.attendance) ? response.attendance : [],
+          );
+          totalPages = response?.pagination?.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
 
         if (isMounted) {
           setLocalAttendanceLogs(attendanceList);
@@ -279,11 +305,11 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       ...filteredLogs.map((log) => [
         log.memberName,
         log.eventName,
-        formatDate(log.scanTime),
-        formatTime(log.scanTime),
+        excelText(formatDate(log.scanTime)),
+        excelText(formatTime(log.scanTime)),
       ]),
     ]
-      .map((row) => row.join(","))
+      .map((row) => row.map(csvCell).join(","))
       .join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -375,22 +401,17 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         return;
       }
 
-      const escape = (v) => {
-        if (v == null) return "";
-        return `"${String(v).replace(/"/g, '""')}"`;
-      };
-
       const rows = [
         ["Passbook Number", "Member Name", "Barangay", "Scan Time"],
         ...eventAttendance.map((log) => [
           log.memberId || "",
           log.memberName || "",
           log.barangay || "",
-          `${formatDate(log.scanTime)} ${formatTime(log.scanTime)}`,
+          excelText(`${formatDate(log.scanTime)} ${formatTime(log.scanTime)}`),
         ]),
       ];
 
-      const csvContent = rows.map((r) => r.map(escape).join(",")).join("\n");
+      const csvContent = rows.map((r) => r.map(csvCell).join(",")).join("\n");
       const blob = new Blob([csvContent], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");

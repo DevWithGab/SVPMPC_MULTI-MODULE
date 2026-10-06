@@ -401,7 +401,7 @@ const processClaimDeduction = async (req, res) => {
           debit: deductionAmount,
           credit: 0,
           balance: newBalance,
-          referenceId: `JV# ${jvNumber}`,
+          referenceId: jvNumber,
           transactionDate: new Date(),
           recordedBy: processedBy,
         });
@@ -493,20 +493,33 @@ const releaseClaim = async (req, res) => {
     }
 
     // The death benefit is the pool collected from the other members for this
-    // claim, capped at the Admin-configured benefit cap — it is not a figure
-    // the Treasurer (or anything on the request) gets to set, so any amount
-    // sent by a client is deliberately ignored.
+    // claim, capped at the Admin-configured benefit cap. The Treasurer may
+    // type a lower amount to release (e.g. a partial disbursement), but
+    // never more than that cap-bound ceiling — maxPayout is resolved
+    // server-side so the request can only ever request LESS, never more.
     const cap = await resolveBenefitCap();
     const totalCollected = claim.deduction?.totalCollected ?? 0;
-    const payoutAmount = resolvePayoutAmount(claim, cap);
-    // Surplus above the cap is the cooperative's income. Never written to a
-    // member ledger — it belongs to no member. getClaimFinancialTotals derives
-    // the same figure per claim to report Net Claims Income.
-    const retainedAmount = benefitSurplusFor(totalCollected, cap);
+    const maxPayout = resolvePayoutAmount(claim, cap);
 
-    if (isNaN(payoutAmount) || payoutAmount <= 0) {
+    const hasRequestedAmount = req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '';
+    const requestedAmount = hasRequestedAmount ? Number(req.body.amount) : maxPayout;
+
+    if (isNaN(requestedAmount) || requestedAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid payout amount' });
     }
+    if (requestedAmount > maxPayout) {
+      return res.status(400).json({
+        success: false,
+        message: `Amount to release cannot exceed ₱${maxPayout.toLocaleString('en-PH')} (the benefit cap applied to this claim).`,
+      });
+    }
+
+    const payoutAmount = Math.round(requestedAmount * 100) / 100;
+    // Surplus never released — whether withheld by the cap or by the
+    // Treasurer releasing less than the ceiling — is the cooperative's
+    // income. getClaimFinancialTotals reads claim.payout.amount directly, so
+    // it already agrees with whatever amount actually gets released here.
+    const retainedAmount = Math.round((totalCollected - payoutAmount) * 100) / 100;
 
     const parsedReleaseDate = releaseDate ? new Date(releaseDate) : new Date();
     const effectiveReleaseDate = isNaN(parsedReleaseDate.getTime()) ? new Date() : parsedReleaseDate;

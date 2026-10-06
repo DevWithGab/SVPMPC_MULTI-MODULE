@@ -26,6 +26,17 @@ const COMBINED_COLUMN = { label: "Submitted & Verified" };
 const fallbackLabel = (key) =>
   key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
 
+// Quick-add suggestions for the most commonly required documents, so the
+// Admin isn't retyping the same handful of labels on every claim.
+const COMMON_REQUIREMENTS = [
+  "Claim Application Form",
+  "Death Certificate",
+  "Member's Cooperative ID",
+  "Beneficiary's Valid ID",
+  "Barangay Certificate",
+  "Burial Permit",
+];
+
 export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -91,9 +102,9 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
     }
   };
 
-  const addRequirement = async (e) => {
-    e.preventDefault();
-    const label = newRequirement.trim();
+  const addRequirement = async (e, labelOverride) => {
+    e?.preventDefault();
+    const label = (labelOverride ?? newRequirement).trim();
     if (!label || !claim) return;
     setAddingRequirement(true);
     setError("");
@@ -107,6 +118,12 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
       setAddingRequirement(false);
     }
   };
+
+  const existingRequirementLabels = new Set(
+    Object.keys(claim?.requirements || {}).map((key) =>
+      (claim.requirements[key]?.label || fallbackLabel(key)).trim().toLowerCase(),
+    ),
+  );
 
   const saveVerification = async () => {
     if (!claim) return;
@@ -301,6 +318,23 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                       Add
                     </Button>
                   </form>
+                )}
+                {canDecide && (
+                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                    {COMMON_REQUIREMENTS.filter(
+                      (label) => !existingRequirementLabels.has(label.toLowerCase()),
+                    ).map((label) => (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={addingRequirement}
+                        onClick={() => addRequirement(null, label)}
+                        className="px-2.5 py-1 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:border-coop-green hover:text-coop-green hover:bg-coop-green/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        + {label}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

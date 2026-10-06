@@ -58,7 +58,7 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
       { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
       { id: 'awaiting-release', label: 'Awaiting Release', count: counts?.awaitingRelease ?? 0 },
       { id: 'disbursement-report', label: 'Disbursement Report', count: 0 },
-      { id: 'income-report', label: 'Income Report', count: 0 },
+      { id: 'income-report', label: 'Claims Summary', count: 0 },
     ].map((opt) => (
       <button
         key={opt.id}
@@ -515,6 +515,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       case 'dashboard':
         return (
           <Dashboard
+            user={user}
             stats={stats}
             contributions={contributions}
             claimsCounts={loaded.claims ? claimsCounts : null}
