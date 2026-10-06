@@ -282,7 +282,7 @@ const MemberLedger = ({
       <div className="space-y-5 print:space-y-0">
         {/* Header */}
         <div className="print:hidden">
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Member Ledger</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Member Ledger</h2>
           <p className="text-sm text-slate-500 mt-1">Transaction history for {currentMember.name}</p>
         </div>
 
@@ -599,7 +599,7 @@ const MemberLedger = ({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Member Ledger</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Member Ledger</h2>
         <p className="text-sm text-slate-500 mt-1">Search and view individual member transaction history</p>
       </div>
 

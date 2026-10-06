@@ -57,12 +57,17 @@ const formatPeriodLabel = (key, granularity) => {
 const Reports = ({ contributions = [], stats = {}, members = [], membersLoading = false, membersError = null }) => {
   const [reportType, setReportType] = useState('summary');
   const [summaryPeriod, setSummaryPeriod] = useState('monthly'); // 'monthly' | 'annually'
+  const [barangayFilter, setBarangayFilter] = useState('all');
   const { page, limit, setPage } = usePagination(1, 10);
   const [claims, setClaims] = useState([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [claimsError, setClaimsError] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
+
+  useEffect(() => {
+    setPage(1);
+  }, [barangayFilter, reportType, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,11 +81,30 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   }, []);
 
   const negativeMembers = useMemo(() => negativeBalanceMembers(members), [members]);
-  const totalShortfall = useMemo(() => Math.round(negativeMembers.reduce((sum, member) => sum - member.balance, 0) * 100) / 100, [negativeMembers]);
   const needsClaims = ['summary', 'claims', 'deductions'].includes(reportType);
   const reportLoading = membersLoading || (needsClaims && claimsLoading);
   const reportError = membersError || (needsClaims ? claimsError : '');
   const exportDisabled = exporting || reportLoading || !!reportError;
+
+  // Contributions and claims don't carry a barangay of their own — only the
+  // member record does — so every other report type (everything except
+  // Financial Summary, which is a fund-wide total and deliberately stays
+  // unscoped) resolves it through this memberId -> barangay lookup.
+  const barangayByMemberId = useMemo(() => {
+    const map = new Map();
+    members.forEach((m) => {
+      const id = m.id || m.memberId;
+      if (id) map.set(String(id), m.barangay || '');
+    });
+    return map;
+  }, [members]);
+
+  const barangayOptions = useMemo(
+    () => [...new Set(members.map((m) => m.barangay).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [members],
+  );
+
+  const matchesBarangay = (barangay) => barangayFilter === 'all' || barangay === barangayFilter;
 
   const deceasedMembers = useMemo(() => members.filter((m) => m.status === 'deceased'), [members]);
 
@@ -104,6 +128,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   const deductionsData = useMemo(() => {
     return claims.map((c) => ({
       claimId: c.claimId,
+      memberId: c.memberId,
       memberName: c.memberName,
       status: c.status,
       deductionCollected: c.deduction?.totalCollected || 0,
@@ -112,6 +137,39 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       payoutDate: c.payout?.releasedAt || null,
     }));
   }, [claims]);
+
+  // Filtered-by-barangay versions of every non-summary report's data.
+  // Financial Summary intentionally keeps reading the unfiltered arrays
+  // above (contributions, claims, deductionsData, members) everywhere else
+  // in this file.
+  const filteredContributions = useMemo(
+    () => (barangayFilter === 'all' ? contributions : contributions.filter((c) => matchesBarangay(barangayByMemberId.get(String(c.member_id))))),
+    [contributions, barangayFilter, barangayByMemberId],
+  );
+  const filteredClaims = useMemo(
+    () => (barangayFilter === 'all' ? claims : claims.filter((c) => matchesBarangay(barangayByMemberId.get(String(c.memberId))))),
+    [claims, barangayFilter, barangayByMemberId],
+  );
+  const filteredDeceasedMembers = useMemo(
+    () => (barangayFilter === 'all' ? deceasedMembers : deceasedMembers.filter((m) => matchesBarangay(m.barangay))),
+    [deceasedMembers, barangayFilter],
+  );
+  const filteredMemberStandingList = useMemo(
+    () => (barangayFilter === 'all' ? memberStandingList : memberStandingList.filter((m) => matchesBarangay(m.barangay))),
+    [memberStandingList, barangayFilter],
+  );
+  const filteredNegativeMembers = useMemo(
+    () => (barangayFilter === 'all' ? negativeMembers : negativeMembers.filter((m) => matchesBarangay(m.barangay))),
+    [negativeMembers, barangayFilter],
+  );
+  const filteredTotalShortfall = useMemo(
+    () => Math.round(filteredNegativeMembers.reduce((sum, member) => sum - member.balance, 0) * 100) / 100,
+    [filteredNegativeMembers],
+  );
+  const filteredDeductionsData = useMemo(
+    () => (barangayFilter === 'all' ? deductionsData : deductionsData.filter((c) => matchesBarangay(barangayByMemberId.get(String(c.memberId))))),
+    [deductionsData, barangayFilter, barangayByMemberId],
+  );
 
   // Financial Summary's Monthly/Annually breakdown — each period bucket
   // sums contributions by payment date, deductions by when they were
@@ -147,7 +205,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       .map((row) => ({
         ...row,
         label: formatPeriodLabel(row.period, summaryPeriod),
-        net: row.contributions + row.deductionsCollected - row.payoutsReleased,
       }));
   }, [contributions, deductionsData, summaryPeriod]);
 
@@ -168,12 +225,12 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
 
   const paginatedData = useMemo(() => {
     let data = [];
-    if (reportType === 'contributions') data = contributions;
-    else if (reportType === 'claims') data = claims;
-    else if (reportType === 'deceasedMembers') data = deceasedMembers;
-    else if (reportType === 'memberStanding') data = memberStandingList;
-    else if (reportType === 'negativeBalances') data = negativeMembers;
-    else if (reportType === 'deductions') data = deductionsData;
+    if (reportType === 'contributions') data = filteredContributions;
+    else if (reportType === 'claims') data = filteredClaims;
+    else if (reportType === 'deceasedMembers') data = filteredDeceasedMembers;
+    else if (reportType === 'memberStanding') data = filteredMemberStandingList;
+    else if (reportType === 'negativeBalances') data = filteredNegativeMembers;
+    else if (reportType === 'deductions') data = filteredDeductionsData;
 
     const total = data.length;
     const startIndex = (page - 1) * limit;
@@ -186,7 +243,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       hasNextPage: endIndex < total,
       hasPrevPage: page > 1
     };
-  }, [reportType, contributions, claims, deceasedMembers, memberStandingList, negativeMembers, deductionsData, page, limit]);
+  }, [reportType, filteredContributions, filteredClaims, filteredDeceasedMembers, filteredMemberStandingList, filteredNegativeMembers, filteredDeductionsData, page, limit]);
 
   const generatePDF = async () => {
     if (exportDisabled) return;
@@ -205,42 +262,42 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               ['Deductions collected', reportAmount(metrics.totalDeductionsCollected)],
               ['Payouts released', reportAmount(metrics.totalPayoutsReleased)]] },
           { title: summaryPeriod === 'monthly' ? 'Monthly breakdown' : 'Annual breakdown',
-            head: [summaryPeriod === 'monthly' ? 'Month' : 'Year', 'Contributions', 'Deductions', 'Payouts', 'Net'],
-            widths: [38, 35, 35, 34, 34], numberColumns: [1, 2, 3, 4],
-            body: periodBreakdown.map(row => [row.label, reportAmount(row.contributions), reportAmount(row.deductionsCollected), reportAmount(row.payoutsReleased), reportAmount(row.net)]) },
+            head: [summaryPeriod === 'monthly' ? 'Month' : 'Year', 'Contributions', 'Deductions', 'Payouts'],
+            widths: [44, 44, 44, 44], numberColumns: [1, 2, 3],
+            body: periodBreakdown.map(row => [row.label, reportAmount(row.contributions), reportAmount(row.deductionsCollected), reportAmount(row.payoutsReleased)]) },
         ];
       } else if (reportType === 'contributions') {
         sections = [{ head: ['Payment date', 'Member ID', 'Member name', 'Amount (PHP)', 'Status'],
           widths: [28, 30, 62, 32, 24], numberColumns: [3],
-          body: contributions.map(c => [date(c.payment_date || c.created_at), c.member_id, c.member_name || '-', reportAmount(c.amount), c.status || 'Paid']) }];
+          body: filteredContributions.map(c => [date(c.payment_date || c.created_at), c.member_id, c.member_name || '-', reportAmount(c.amount), c.status || 'Paid']) }];
       } else if (reportType === 'claims') {
         sections = [{ head: ['Claim ID', 'Member', 'Beneficiary', 'Date filed', 'Status'],
           widths: [31, 42, 42, 28, 33],
-          body: claims.map(c => [c.claimId, c.memberName, c.beneficiaryName, date(c.dateFiled), getClaimStatusMeta(c.status).label]) }];
+          body: filteredClaims.map(c => [c.claimId, c.memberName, c.beneficiaryName, date(c.dateFiled), getClaimStatusMeta(c.status).label]) }];
       } else if (reportType === 'deceasedMembers') {
         scope = 'Current member roster. Deceased members only.';
         sections = [{ head: ['Member ID', 'Member name', 'Barangay', 'Join date'], widths: [31, 66, 49, 30],
-          body: deceasedMembers.map(m => [m.id || m.memberId, m.name || m.memberName, m.barangay || '-', date(m.join_date || m.joinDate)]) }];
+          body: filteredDeceasedMembers.map(m => [m.id || m.memberId, m.name || m.memberName, m.barangay || '-', date(m.join_date || m.joinDate)]) }];
       } else if (reportType === 'memberStanding') {
         scope = 'Current posted balances. Active members only; lowest balance first.';
         sections = [{ head: ['Member ID', 'Member name', 'Barangay', 'Balance (PHP)', 'Standing'],
           widths: [28, 53, 37, 33, 25], numberColumns: [3],
-          body: memberStandingList.map(m => [m.id, m.name, m.barangay, reportAmount(m.balance), m.standing]) }];
+          body: filteredMemberStandingList.map(m => [m.id, m.name, m.barangay, reportAmount(m.balance), m.standing]) }];
       } else if (reportType === 'negativeBalances') {
         scope = 'Current posted balances below zero, across all member statuses. Largest shortfall first.';
         sections = [
           { title: 'Balance overview', head: ['Particulars', 'Value'], widths: [125, 51], numberColumns: [1],
-            body: [['Members with negative balances', String(negativeMembers.length)], ['Total shortfall to zero (PHP)', reportAmount(totalShortfall)]] },
+            body: [['Members with negative balances', String(filteredNegativeMembers.length)], ['Total shortfall to zero (PHP)', reportAmount(filteredTotalShortfall)]] },
           { title: 'Members with negative balances', head: ['Member ID', 'Member name', 'Barangay', 'Status', 'Balance (PHP)'],
             widths: [28, 55, 37, 23, 33], numberColumns: [4],
-            body: negativeMembers.map(m => [m.id, m.name, m.barangay, m.status, reportAmount(m.balance)]),
+            body: filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, reportAmount(m.balance)]),
             emptyMessage: 'No members have a negative balance.',
-            total: ['Total balance', '', '', '', reportAmount(-totalShortfall)] },
+            total: ['Total balance', '', '', '', reportAmount(-filteredTotalShortfall)] },
         ];
       } else if (reportType === 'deductions') {
         sections = [{ head: ['Claim ID', 'Member name', 'Status', 'Deducted (PHP)', 'Released (PHP)'],
           widths: [31, 48, 31, 33, 33], numberColumns: [3, 4],
-          body: deductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected), reportAmount(c.payoutAmount)]) }];
+          body: filteredDeductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected), reportAmount(c.payoutAmount)]) }];
       }
       const logo = await loadReportLogo();
       const title = REPORT_TYPES.find(type => type.id === reportType)?.label || 'Mortuary Fund Report';
@@ -267,43 +324,43 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       csvContent += `"Total Deductions Collected","₱${metrics.totalDeductionsCollected.toLocaleString()}"\n`;
       csvContent += `"Total Payouts Released","₱${metrics.totalPayoutsReleased.toLocaleString()}"\n`;
       csvContent += '\n';
-      csvContent += `"${summaryPeriod === 'monthly' ? 'Month' : 'Year'}","Contributions","Deductions Collected","Payouts Released","Net"\n`;
+      csvContent += `"${summaryPeriod === 'monthly' ? 'Month' : 'Year'}","Contributions","Deductions Collected","Payouts Released"\n`;
       periodBreakdown.forEach((row) => {
-        csvContent += `"${row.label}","₱${row.contributions.toLocaleString()}","₱${row.deductionsCollected.toLocaleString()}","₱${row.payoutsReleased.toLocaleString()}","₱${row.net.toLocaleString()}"\n`;
+        csvContent += `"${row.label}","₱${row.contributions.toLocaleString()}","₱${row.deductionsCollected.toLocaleString()}","₱${row.payoutsReleased.toLocaleString()}"\n`;
       });
     } else if (reportType === 'contributions') {
       filename = `contributions-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'Date,Passbook Number,Member Name,Amount,Status\n';
-      contributions.forEach(c => {
+      filteredContributions.forEach(c => {
         csvContent += `"${new Date(c.payment_date || c.created_at).toLocaleDateString()}","${c.member_id}","${c.member_name || ''}","${c.amount}","${c.status}"\n`;
       });
     } else if (reportType === 'claims') {
       filename = `claims-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'Claim ID,Member,Beneficiary,Date Filed,Status\n';
-      claims.forEach(c => {
+      filteredClaims.forEach(c => {
         csvContent += `"${c.claimId}","${c.memberName}","${c.beneficiaryName}","${new Date(c.dateFiled).toLocaleDateString()}","${getClaimStatusMeta(c.status).label}"\n`;
       });
     } else if (reportType === 'deceasedMembers') {
       filename = `deceased-members-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'ID,Name,Barangay,Join Date\n';
-      deceasedMembers.forEach(m => {
+      filteredDeceasedMembers.forEach(m => {
         csvContent += `"${m.id || m.memberId}","${m.name || m.memberName}","${m.barangay || ''}","${m.join_date || ''}"\n`;
       });
     } else if (reportType === 'memberStanding') {
       filename = `member-standing-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'ID,Name,Barangay,Balance,Standing\n';
-      memberStandingList.forEach(m => {
+      filteredMemberStandingList.forEach(m => {
         csvContent += `"${m.id}","${m.name}","${m.barangay}","${m.balance}","${m.standing}"\n`;
       });
     } else if (reportType === 'negativeBalances') {
       filename = 'negative-balances-' + new Date().toISOString().slice(0, 10) + '.csv';
       const rows = [['Member ID', 'Member Name', 'Barangay', 'Status', 'Balance (PHP)', 'Shortfall to Zero (PHP)'],
-        ...negativeMembers.map(m => [m.id, m.name, m.barangay, m.status, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
+        ...filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
       csvContent = rows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
     } else if (reportType === 'deductions') {
       filename = `deductions-payouts-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'Claim ID,Member,Status,Deducted,Released\n';
-      deductionsData.forEach(c => {
+      filteredDeductionsData.forEach(c => {
         csvContent += `"${c.claimId}","${c.memberName}","${getClaimStatusMeta(c.status).label}","${c.deductionCollected}","${c.payoutAmount}"\n`;
       });
     }
@@ -403,9 +460,26 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
         </div>
 
         <div className="lg:col-span-3 bg-white border border-slate-200 rounded-xl max-h-[600px] flex flex-col overflow-hidden">
-          <div className="bg-slate-50 border-b border-slate-100 p-4 shrink-0">
-            <p className="text-sm font-bold text-slate-900">{REPORT_TYPES.find(t => t.id === reportType)?.label}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{paginatedData.total} record{paginatedData.total === 1 ? '' : 's'}</p>
+          <div className="bg-slate-50 border-b border-slate-100 p-4 shrink-0 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-bold text-slate-900">{REPORT_TYPES.find(t => t.id === reportType)?.label}</p>
+              {reportType !== 'summary' && (
+                <p className="text-xs text-slate-400 mt-0.5">{paginatedData.total} record{paginatedData.total === 1 ? '' : 's'}</p>
+              )}
+            </div>
+            {reportType !== 'summary' && (
+              <select
+                value={barangayFilter}
+                onChange={(e) => setBarangayFilter(e.target.value)}
+                aria-label="Filter by barangay"
+                className="h-9 px-3 text-xs font-medium border border-slate-200 rounded-lg bg-white text-slate-600 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none"
+              >
+                <option value="all">All barangays</option>
+                {barangayOptions.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="overflow-y-auto flex-1">
             {reportType === 'summary' && (
@@ -462,7 +536,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                         <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Contributions</th>
                         <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deductions Collected</th>
                         <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Payouts Released</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Net</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -472,14 +545,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                           <td className="px-4 py-2.5 text-xs text-right text-coop-green font-semibold">₱{row.contributions.toLocaleString()}</td>
                           <td className="px-4 py-2.5 text-xs text-right text-slate-700">₱{row.deductionsCollected.toLocaleString()}</td>
                           <td className="px-4 py-2.5 text-xs text-right text-rose-600">₱{row.payoutsReleased.toLocaleString()}</td>
-                          <td className={`px-4 py-2.5 text-xs text-right font-semibold ${row.net >= 0 ? 'text-coop-green' : 'text-rose-600'}`}>
-                            ₱{row.net.toLocaleString()}
-                          </td>
                         </tr>
                       ))}
                       {periodBreakdown.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="py-10 text-center text-sm text-slate-400">
+                          <td colSpan={4} className="py-10 text-center text-sm text-slate-400">
                             No dated records to break down yet.
                           </td>
                         </tr>
@@ -575,8 +645,8 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                 <div className="border-b border-slate-200 p-5">
                   <p className="text-sm text-slate-600">Current balances below zero across all member statuses, sorted by largest shortfall.</p>
                   <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm">
-                    <p><span className="text-slate-500">Members: </span><strong>{negativeMembers.length}</strong></p>
-                    <p><span className="text-slate-500">Total shortfall to zero: </span><strong className="text-rose-700">PHP {reportAmount(totalShortfall)}</strong></p>
+                    <p><span className="text-slate-500">Members: </span><strong>{filteredNegativeMembers.length}</strong></p>
+                    <p><span className="text-slate-500">Total shortfall to zero: </span><strong className="text-rose-700">PHP {reportAmount(filteredTotalShortfall)}</strong></p>
                   </div>
                 </div>
                 <div className="overflow-x-auto">

@@ -82,7 +82,7 @@ export default function ClaimIncomeReport() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Claims Summary</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Claims Summary</h2>
           <p className="text-sm text-slate-500 mt-1">
             Where every claim's money went — collected from members, released to the beneficiary, retained by the cooperative.
           </p>

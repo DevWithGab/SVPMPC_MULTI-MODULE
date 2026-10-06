@@ -52,7 +52,7 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
 
   return <div className="space-y-5">
     <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-      <div><h2 className="text-2xl font-semibold tracking-tight text-slate-900">Pending deduction</h2><p className="mt-1.5 text-sm text-slate-500">Review approved claims, record a JV number, and confirm the member assessment.</p></div>
+      <div><h2 className="text-2xl font-bold text-slate-900 tracking-tight">Pending deduction</h2><p className="mt-1.5 text-sm text-slate-500">Review approved claims, record a JV number, and confirm the member assessment.</p></div>
       <div className="shrink-0 border-l-2 border-slate-200 pl-4"><p className="text-xs text-slate-500">Current deduction / member</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{rateLoading ? 'Loading…' : rate ? peso(rate.amount) : 'Unavailable'}</p><p className="mt-0.5 text-xs text-slate-500">Set by Admin{rate?.effectiveDate ? ` · ${shortDate(rate.effectiveDate)}` : ''}</p></div>
     </header>
     <ClaimQueue queue={queue} onSelect={open} />

@@ -30,7 +30,7 @@ const Contributions = ({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Record Payments</h2>
+        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Record Payments</h2>
         <p className="text-sm text-slate-500 mt-1">Track and manage member contributions</p>
       </div>
 

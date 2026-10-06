@@ -157,7 +157,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     member_id: '',
     amount: '',
     payment_date: new Date().toISOString().split('T')[0],
-    status: 'paid'
+    status: 'paid',
+    referenceNumber: ''
   });
   // Set when "Add Deposit" is opened from a specific member's ledger page —
   // the Member field then shows this member locked/read-only instead of a
@@ -406,6 +407,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     e.preventDefault();
     if (!newContribution.member_id) return showToast('Please select a member.', 'error');
     if (!newContribution.amount || parseFloat(newContribution.amount) <= 0) return showToast('Please enter a valid amount.', 'error');
+    if (!newContribution.referenceNumber?.trim()) return showToast('Please enter a reference number.', 'error');
     if (isSubmittingContribution) return;
 
     setIsSubmittingContribution(true);
@@ -419,7 +421,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         const contributedMemberId = newContribution.member_id;
         
         closeAddContributionModal();
-        setNewContribution({ member_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'paid' });
+        setNewContribution({ member_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'paid', referenceNumber: '' });
         
         // A refresh failure must not tell the user that a successful payment failed.
         await Promise.all([
@@ -788,6 +790,20 @@ const TreasurerPortal = ({ user, onBack, token }) => {
                 className="h-11 text-sm"
               />
             </div>
+          </div>
+
+          {/* Reference Number — OR number, GCash/bank ref, etc. Required: it
+              becomes this transaction's Reference in the member's ledger. */}
+          <div>
+            <label className="text-sm font-semibold text-slate-700 mb-1 block">Reference Number</label>
+            <Input
+              type="text"
+              placeholder="OR/CDV number"
+              value={newContribution.referenceNumber}
+              onChange={e => setNewContribution({ ...newContribution, referenceNumber: e.target.value })}
+              required
+              className="h-11 text-sm"
+            />
           </div>
 
           {/* Actions */}

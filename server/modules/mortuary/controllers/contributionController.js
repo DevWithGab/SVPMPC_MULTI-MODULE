@@ -22,9 +22,9 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
 
     console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
 
-    if (!memberId || !Number.isFinite(amount) || amount <= 0) {
-      console.log('❌ Missing required fields:', { memberId, amount });
-      return res.status(400).json({ message: 'Missing required fields: memberId and amount' });
+    if (!memberId || !Number.isFinite(amount) || amount <= 0 || !referenceNumber?.trim()) {
+      console.log('❌ Missing required fields:', { memberId, amount, referenceNumber });
+      return res.status(400).json({ message: 'Missing required fields: memberId, amount, and reference number' });
     }
 
     // Verify member exists
@@ -47,7 +47,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
       dueDate: finalDueDate,
       status: 'paid',
       paymentMethod: finalPaymentMethod,
-      referenceNumber,
+      referenceNumber: referenceNumber.trim(),
       notes,
     });
 
@@ -61,7 +61,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
       description: `Contribution payment - ${finalPaymentMethod}`,
       credit: amount,
       balance: newBalance,
-      referenceId: contribution.contributionId,
+      referenceId: contribution.referenceNumber,
       recordedBy: 'admin',
       paymentMethod: finalPaymentMethod,
       // Always stamp the actual posting time (matches recordPayout,
