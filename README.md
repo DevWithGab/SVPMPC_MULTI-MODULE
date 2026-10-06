@@ -67,7 +67,7 @@ Approval adds an `approved` history entry and moves the claim to `pending_deduct
 
 | Role | Main responsibilities in the current application |
 | --- | --- |
-| Super Admin (`super_admin`) | Central member/account administration and bulk member import through the Super Admin area. |
+| Super Admin (`super_admin`) | Central member record administration and bulk member import through the Super Admin area. |
 | Administrator (`admin`) | Attendance administration and approvals; mortuary records, claim approvals, beneficiary maintenance, deduction settings, reports, and audit tools. |
 | Secretary (`secretary`) | Attendance event preparation, member directory, manual attendance, and reports. |
 | Scanner Operator (`scanner_operator`) | Attendance scanner portal and QR-based attendance recording. |
@@ -80,7 +80,7 @@ The database also supports a `member` user role, but `client/src/App.jsx` curren
 ### Shared records
 
 - **Member** holds cooperative identity, contact details, barangay/address, QR information, beneficiary details, module membership, and status.
-- **User** holds login credentials, role, module information, and account status. Staff accounts use `staffId`; member accounts use `memberId`.
+- **User** holds staff login credentials, role, module information, and account status. Staff accounts use `staffId`. Historical member accounts remain stored but cannot sign in; member registration no longer creates User records.
 - **AuditLog**, **CredentialLog**, and **ImportOperation** support activity tracking, credential delivery records, and imports.
 - Member status can be `active`, `inactive`, `deceased`, or `staff`. QR availability uses the separate `qrCodeActive` field. Disabling a QR code must not change a member's mortuary eligibility by changing their shared status.
 
@@ -94,7 +94,7 @@ The database also supports a `member` user role, but `client/src/App.jsx` curren
 - The beneficiary's benefit is based on the amount assessed for the claim, capped at **PHP 50,000**. It is not the deceased member's personal ledger balance.
 - Amounts above the benefit cap are treated as cooperative income. The shared calculation is in [claimBenefit.js](server/modules/mortuary/config/claimBenefit.js).
 - Releasing a claim records the payout without subtracting it from the deceased member's personal contribution balance.
-- Automatic threshold notifications check for balances crossing below **PHP 300**, **PHP 100**, and **PHP 0**. The threshold SMS service currently simulates delivery; a recorded success there does not establish delivery by a real SMS provider.
+- SMS delivery has been retired. Use the Treasurer's printed/PDF member notices for balance reminders. Historical notification records remain available for reference.
 
 For example, a claim assessed at PHP 60,000 results in a PHP 50,000 benefit and PHP 10,000 retained income. A claim assessed at PHP 20,000 results in a PHP 20,000 benefit and no retained income.
 
@@ -109,7 +109,7 @@ For example, a claim assessed at PHP 60,000 results in a PHP 50,000 benefit and 
 | Backend | Node.js, Express 5, CommonJS modules |
 | Database | MongoDB with Mongoose 9 |
 | Authentication | JWT bearer tokens and bcrypt password hashing |
-| Imports and messaging | Multer, CSV parsing, Nodemailer, notification services |
+| Imports | Multer, CSV parsing |
 
 ```text
 React pages and components
@@ -181,7 +181,7 @@ JWT_EXPIRE=7d
 NODE_ENV=development
 ```
 
-Additional email and SMS settings are listed in [server/.env.example](server/.env.example). Delivery behavior depends on the specific notification service; configuring an SMS key alone does not implement the simulated threshold sender.
+Members are staff-managed records without login accounts or credential delivery. Optional email and phone numbers are contact information only. Staff authentication remains available.
 
 Start the API from `server/`:
 

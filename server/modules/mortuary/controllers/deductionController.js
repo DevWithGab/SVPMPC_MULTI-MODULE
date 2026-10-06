@@ -1,7 +1,6 @@
 const Member = require('../../../shared/models/Member');
 const Ledger = require('../models/Ledger');
 const { v4: uuidv4 } = require('uuid');
-const { checkAndNotify } = require('../services/thresholdNotificationService');
 const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
 
 // Constants
@@ -311,21 +310,6 @@ const processAutomaticDeduction = async (req, res) => {
         
         await ledgerEntry.save();
         
-        // Check thresholds and send notifications if needed
-        try {
-          await checkAndNotify(
-            member.memberId,
-            member.memberName,
-            member.phoneNumber,
-            currentBalance,
-            newBalance,
-            'deduction',
-            ledgerEntry.ledgerId
-          );
-        } catch (notificationError) {
-          // Log but don't fail the deduction if notification fails
-          console.error(`Error sending threshold notification for ${member.memberId}:`, notificationError);
-        }
         
         const result = {
           memberId: member.memberId,
@@ -412,58 +396,10 @@ const checkLowBalanceMembers = async (req, res) => {
   }
 };
 
-// Send SMS notifications to members with low balance
-const sendLowBalanceNotifications = async (req, res) => {
-  try {
-    const { memberIds } = req.body; // Optional: specific member IDs, otherwise send to all low balance members
-    
-    const { members } = await getMemberBalanceSnapshots({ memberIds });
-
-    const targetMembers = members
-      .filter((member) => (member.balance || 0) < MINIMUM_BALANCE)
-      .map((member) => ({
-        ...member,
-        balance: member.balance || 0,
-        deficit: MINIMUM_BALANCE - (member.balance || 0),
-      }));
-    
-    // TODO: Integrate with SMS service
-    // For now, we'll just return the members who should receive notifications
-    const notifications = targetMembers.map(member => ({
-      memberId: member.memberId,
-      memberName: member.memberName,
-      phoneNumber: member.phoneNumber,
-      balance: member.balance,
-      deficit: member.deficit,
-      message: `Dear ${member.memberName}, your mortuary fund balance is ₱${member.balance.toLocaleString()}, which is below the minimum required balance of ₱${MINIMUM_BALANCE.toLocaleString()}. Please make a contribution of at least ₱${member.deficit.toLocaleString()} to maintain your account in good standing.`,
-      status: 'pending' // Would be 'sent' when SMS service is integrated
-    }));
-    
-    res.status(200).json({
-      success: true,
-      message: `Low balance notifications prepared for ${notifications.length} members`,
-      data: {
-        notifications: notifications,
-        count: notifications.length,
-        minimumBalance: MINIMUM_BALANCE
-      }
-    });
-    
-  } catch (error) {
-    console.error('Error sending low balance notifications:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error sending low balance notifications', 
-      error: error.message 
-    });
-  }
-};
-
 module.exports = {
   getAllMemberBalances,
   processAutomaticDeduction,
   checkLowBalanceMembers,
-  sendLowBalanceNotifications,
   // Exported so the per-claim deduction flow (treasurerClaimController.js)
   // can reuse the same "active member balance snapshot" logic instead of
   // duplicating it.

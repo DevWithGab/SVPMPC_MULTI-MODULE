@@ -24,6 +24,10 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
+    if (user.role === 'member') {
+      return res.status(403).json({ success: false, message: 'Member self-service access is no longer available.' });
+    }
+
     req.user = user;
     next();
   } catch (error) {
@@ -68,7 +72,7 @@ const authorizeModule = (module) => {
 
     // Check if user has access to the specific module
     const moduleAccess = {
-      'mortuary': ['member', 'admin', 'treasurer'],
+      'mortuary': ['admin', 'treasurer'],
       // Members no longer have self-service access to the attendance system —
       // their QR codes are issued and used physically instead.
       'attendance': ['admin', 'secretary', 'scanner_operator']
@@ -86,7 +90,7 @@ const authorizeModule = (module) => {
 };
 
 // Middleware for specific role combinations
-const authorizeMortuaryRoles = authorizeRoles('member', 'admin', 'treasurer');
+const authorizeMortuaryRoles = authorizeRoles('admin', 'treasurer');
 // Members no longer have self-service access to the attendance system —
 // their QR codes are issued and used physically instead.
 const authorizeAttendanceRoles = authorizeRoles('admin', 'secretary', 'scanner_operator');

@@ -24,7 +24,6 @@ const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { getMemberBalanceSnapshots } = require('./deductionController');
 const { getClaimFinancialTotals } = require('./dashboardController');
-const { checkAndNotify } = require('../services/thresholdNotificationService');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { getLatestBalance } = require('../utils/ledgerBalance');
 const {
@@ -107,7 +106,7 @@ const listAllClaims = async (req, res) => {
 
 // A claim sitting in "pending_deduction" IS the notification to the
 // Treasurer — this codebase has no generic in-app notification system
-// (only SMS, mostly stubbed), so a live query is the pragmatic mechanism.
+// for claims, so a live query is the pragmatic mechanism.
 const listPendingDeduction = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -411,19 +410,6 @@ const processClaimDeduction = async (req, res) => {
         totalCollected += deductionAmount;
         membersCharged += 1;
 
-        try {
-          await checkAndNotify(
-            member.memberId,
-            member.memberName,
-            member.phoneNumber,
-            currentBalance,
-            newBalance,
-            'deduction',
-            ledgerEntry.ledgerId,
-          );
-        } catch (notificationError) {
-          console.error(`Error sending threshold notification for ${member.memberId}:`, notificationError);
-        }
       } catch (memberError) {
         console.error(`Error processing deduction for member ${member.memberId}:`, memberError);
       }

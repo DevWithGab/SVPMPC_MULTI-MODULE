@@ -45,7 +45,7 @@ export default function BulkMemberImport() {
     setMessage('');
 
     try {
-      await bulkImportAPI.confirmImport(preview.operationId, ['email', 'sms']);
+      await bulkImportAPI.confirmImport(preview.operationId);
       setMessage('Import started! Check history for progress.');
       setFile(null);
       setPreview(null);

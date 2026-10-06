@@ -94,10 +94,9 @@ export const bulkImportAPI = {
     return response.data;
   },
 
-  confirmImport: async (operationId, sendVia = ['email', 'sms']) => {
+  confirmImport: async (operationId) => {
     const response = await api.post('/auth/bulk-import/confirm', {
       operationId,
-      sendVia,
     });
     return response.data;
   },
@@ -709,11 +708,6 @@ export const adminAPI = {
     return response.data;
   },
 
-  resetMemberPassword: async (memberId) => {
-    const response = await api.post(`/admin/members/${memberId}/reset-password`);
-    return response.data;
-  },
-
   toggleMemberStatus: async (memberId) => {
     const response = await api.post(`/admin/members/${memberId}/toggle-status`);
     return response.data;
@@ -763,11 +757,6 @@ export const treasurerAPI = {
 
   checkLowBalanceMembers: async () => {
     const response = await api.get('/mortuary/treasurer/balances/low-balance-check');
-    return response.data;
-  },
-
-  sendLowBalanceNotifications: async (memberIds = []) => {
-    const response = await api.post('/mortuary/treasurer/balances/send-low-balance-notifications', { memberIds });
     return response.data;
   },
 

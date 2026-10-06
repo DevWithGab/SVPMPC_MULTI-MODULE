@@ -1,46 +1,23 @@
-const { User, Member, ImportOperation, CredentialLog } = require('../models');
-const { v4: uuidv4 } = require('uuid');
-const { sendCredentialEmail, sendCredentialSMS } = require('./credentialNotificationService');
-
-// Generate temporary password
-const generateTempPassword = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-};
-
-// Generate username from member name
-const generateUsername = (memberName, memberId) => {
-  const namePart = memberName
-    .toLowerCase()
-    .replace(/\s+/g, '.')
-    .substring(0, 15);
-  return `${namePart}.${memberId}`;
-};
-
+const { Member, ImportOperation } = require('../models');
 // Check for duplicates
 const checkDuplicates = async (memberId, email, phoneNumber) => {
   const duplicates = {
     memberId: await Member.findOne({ memberId }),
-    email: await Member.findOne({ email }),
-    phoneNumber: await Member.findOne({ phoneNumber }),
+    email: email ? await Member.findOne({ email }) : null,
+    phoneNumber: phoneNumber ? await Member.findOne({ phoneNumber }) : null,
   };
 
   return duplicates;
 };
 
 // Process single row
-const processRow = async (rowData, rowNumber, operationId) => {
+const processRow = async (rowData, rowNumber) => {
   const result = {
     rowNumber,
     memberId: rowData.memberId,
     status: 'pending',
     error: null,
-    user: null,
-    credentialsSentVia: [],
+    member: null,
   };
 
   try {
@@ -69,76 +46,7 @@ const processRow = async (rowData, rowNumber, operationId) => {
 
     await member.save();
 
-    // Generate credentials
-    const tempPassword = generateTempPassword();
-    const username = generateUsername(rowData.memberName, rowData.memberId);
-
-    // Create User
-    const user = new User({
-      userId: uuidv4(),
-      memberId: rowData.memberId,
-      username,
-      email: rowData.email,
-      phoneNumber: rowData.phoneNumber,
-      passwordHash: tempPassword,
-      isTemporaryPassword: true,
-      status: 'active',
-    });
-
-    await user.save();
-
-    result.user = {
-      userId: user.userId,
-      memberId: user.memberId,
-      username: user.username,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      tempPassword: tempPassword,
-    };
-
-    // Send credentials
-    const sendVia = rowData.sendVia || ['email', 'sms'];
-
-    if (sendVia.includes('email')) {
-      const emailResult = await sendCredentialEmail(
-        rowData.email,
-        rowData.memberName,
-        username,
-        tempPassword
-      );
-
-      if (emailResult.success) {
-        result.credentialsSentVia.push('email');
-      }
-    }
-
-    if (sendVia.includes('sms')) {
-      const smsResult = await sendCredentialSMS(
-        rowData.phoneNumber,
-        rowData.memberName,
-        username,
-        tempPassword
-      );
-
-      if (smsResult.success) {
-        result.credentialsSentVia.push('sms');
-      }
-    }
-
-    // Log credential generation
-    const credentialLog = new CredentialLog({
-      logId: uuidv4(),
-      userId: user.userId,
-      memberId: rowData.memberId,
-      action: 'generated',
-      sentMethod: result.credentialsSentVia,
-      status: result.credentialsSentVia.length > 0 ? 'success' : 'failed',
-      operationId: operationId,
-      attemptNumber: 1,
-    });
-
-    await credentialLog.save();
-
+    result.member = { memberId: member.memberId, memberName: member.memberName, email: member.email, phoneNumber: member.phoneNumber };
     result.status = 'success';
   } catch (error) {
     result.status = 'error';
@@ -149,7 +57,7 @@ const processRow = async (rowData, rowNumber, operationId) => {
 };
 
 // Process bulk import
-const processBulkImport = async (operationId, rowsData, createdBy) => {
+const processBulkImport = async (operationId, rowsData) => {
   try {
     const operation = await ImportOperation.findOne({ operationId });
     if (!operation) {
@@ -165,33 +73,18 @@ const processBulkImport = async (operationId, rowsData, createdBy) => {
       successCount: 0,
       failureCount: 0,
       duplicateCount: 0,
-      emailsSent: 0,
-      emailsFailed: 0,
-      smsSent: 0,
-      smsFailed: 0,
-      createdUsers: [],
+      createdMembers: [],
       rowErrors: [],
     };
 
     // Process each row
     for (let i = 0; i < rowsData.length; i++) {
-      const rowResult = await processRow(rowsData[i], i + 2, operationId); // +2 because row 1 is header
+      const rowResult = await processRow(rowsData[i], i + 2); // +2 because row 1 is header
 
       if (rowResult.status === 'success') {
         results.successCount++;
-        results.createdUsers.push(rowResult.user);
+        results.createdMembers.push(rowResult.member);
 
-        if (rowResult.credentialsSentVia.includes('email')) {
-          results.emailsSent++;
-        } else {
-          results.emailsFailed++;
-        }
-
-        if (rowResult.credentialsSentVia.includes('sms')) {
-          results.smsSent++;
-        } else {
-          results.smsFailed++;
-        }
       } else if (rowResult.status === 'duplicate') {
         results.duplicateCount++;
         results.rowErrors.push({
@@ -216,11 +109,7 @@ const processBulkImport = async (operationId, rowsData, createdBy) => {
     operation.successCount = results.successCount;
     operation.failureCount = results.failureCount;
     operation.duplicateCount = results.duplicateCount;
-    operation.emailsSent = results.emailsSent;
-    operation.emailsFailed = results.emailsFailed;
-    operation.smsSent = results.smsSent;
-    operation.smsFailed = results.smsFailed;
-    operation.createdUsers = results.createdUsers;
+    operation.createdMembers = results.createdMembers;
     operation.rowErrors = results.rowErrors;
     operation.completedAt = new Date();
 
@@ -234,12 +123,8 @@ const processBulkImport = async (operationId, rowsData, createdBy) => {
         successCount: results.successCount,
         failureCount: results.failureCount,
         duplicateCount: results.duplicateCount,
-        emailsSent: results.emailsSent,
-        emailsFailed: results.emailsFailed,
-        smsSent: results.smsSent,
-        smsFailed: results.smsFailed,
       },
-      createdUsers: results.createdUsers,
+      createdMembers: results.createdMembers,
       errors: results.rowErrors.length > 0 ? results.rowErrors : undefined,
     };
   } catch (error) {
@@ -255,8 +140,6 @@ const processBulkImport = async (operationId, rowsData, createdBy) => {
 };
 
 module.exports = {
-  generateTempPassword,
-  generateUsername,
   checkDuplicates,
   processRow,
   processBulkImport,

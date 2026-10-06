@@ -39,7 +39,6 @@ const contributions = await mortuaryAPI.member.contributions.getContributions();
 
 // Mortuary treasurer
 const claims = await mortuaryAPI.treasurer.claims.getClaims();
-const smsResult = await mortuaryAPI.treasurer.notifications.sendSMSNotification(data);
 
 // Attendance secretary
 const events = await attendanceAPI.secretary.events.getEvents();
@@ -74,7 +73,6 @@ const eventData = await attendanceSecretaryAPI.events.createEvent(eventData);
 - Dashboard: `getDashboardData()`, `getFundBalance()`
 - Contributions: `getContributions()`, `recordContribution(data)`
 - Claims: `getClaims()`, `processClaim(id, data)`
-- Notifications: `sendSMSNotification(data)`, `sendContributionReminder(message)`
 - Reports: `generateFinancialSummary()`, `generateContributionReport()`
 
 **Admin** (`mortuaryAPI.admin`)

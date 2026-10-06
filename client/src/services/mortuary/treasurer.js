@@ -252,30 +252,12 @@ export const claimAPI = {
   }
 };
 
-// SMS Notification APIs
+// Historical notification APIs
 export const notificationAPI = {
-  // Send SMS notification
-  sendSMSNotification: async (notificationData) => {
-    try {
-      const response = await api.post('/notifications/sms', notificationData);
-      return {
-        success: true,
-        data: response.data.data,
-        message: response.data.message
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to send SMS notification',
-        error: error.response?.data
-      };
-    }
-  },
-
   // Get notification history
   getNotificationHistory: async (params = {}) => {
     try {
-      const response = await api.get('/notifications/history', { params });
+      const response = await api.get('/notifications/all', { params });
       return {
         success: true,
         data: response.data.data
@@ -289,40 +271,6 @@ export const notificationAPI = {
     }
   },
 
-  // Get available recipients
-  getAvailableRecipients: async () => {
-    try {
-      const response = await api.get('/notifications/recipients');
-      return {
-        success: true,
-        data: response.data.data
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to get available recipients',
-        error: error.response?.data
-      };
-    }
-  },
-
-  // Send contribution reminder
-  sendContributionReminder: async (customMessage) => {
-    try {
-      const response = await api.post('/notifications/contribution-reminder', { customMessage });
-      return {
-        success: true,
-        data: response.data.data,
-        message: response.data.message
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.response?.data?.message || 'Failed to send contribution reminder',
-        error: error.response?.data
-      };
-    }
-  }
 };
 
 // Report Generation APIs

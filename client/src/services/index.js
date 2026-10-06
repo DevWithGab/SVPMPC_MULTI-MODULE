@@ -28,7 +28,6 @@ import { mortuaryAPI, attendanceAPI } from '@/services';
 
 // Treasurer operations
 const claims = await mortuaryAPI.treasurer.claims.getClaims();
-const notifications = await mortuaryAPI.treasurer.notifications.sendSMSNotification(data);
 
 // Secretary operations
 const events = await attendanceAPI.secretary.events.getEvents();

@@ -13,11 +13,11 @@ const memberSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
+      trim: true,
     },
     phoneNumber: {
       type: String,
-      required: true,
+      trim: true,
     },
     barangay: {
       type: String,

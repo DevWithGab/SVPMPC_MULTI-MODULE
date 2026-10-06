@@ -1,14 +1,19 @@
-const { Member, User } = require('../models');
+const { Member } = require('../models');
 const Beneficiary = require('../../modules/mortuary/models/Beneficiary');
-const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { sendCredentials, sendBulkCredentials, sendPasswordResetNotification } = require('../services/notificationService');
 
 // PH mobile numbers: 11 digits, starting with 09 (e.g. 09171234567). Mirrors
 // the client's utils/validation.js and beneficiaryController.js — the
 // client-side check alone isn't real enforcement since this endpoint can be
 // called directly.
 const PH_PHONE_REGEX = /^09\d{9}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const normalizeContact = value => typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim();
+const contactError = (email, phoneNumber) => {
+  if (email && !EMAIL_REGEX.test(email)) return 'Enter a valid email address.';
+  if (phoneNumber && !PH_PHONE_REGEX.test(phoneNumber)) return 'Phone number must be an 11-digit PH mobile number starting with 09 (e.g. 09171234567)';
+  return '';
+};
 
 // Auto-registers a structured Beneficiary record at member-creation time.
 // The Beneficiary model requires a contact number that member-creation forms
@@ -42,24 +47,13 @@ const maybeRegisterBeneficiary = async ({ memberId, memberName, beneficiaryName,
   }
 };
 
-// Generate a random password
-const generatePassword = () => {
-  const length = 12;
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-};
-
-// Create a new member with account
-const createMemberWithAccount = async (req, res) => {
+// Create a member record for staff-managed attendance and mortuary services.
+const createMember = async (req, res) => {
   try {
     const {
       memberName,
-      email,
-      phoneNumber,
+      email: rawEmail,
+      phoneNumber: rawPhoneNumber,
       barangay,
       address,
       beneficiaries,
@@ -71,19 +65,18 @@ const createMemberWithAccount = async (req, res) => {
       modules = ['attendance', 'mortuary'],
     } = req.body;
 
-    // Validate required fields
-    if (!memberName || !email || !phoneNumber || !barangay || !address) {
+    const email = normalizeContact(rawEmail);
+    const phoneNumber = normalizeContact(rawPhoneNumber);
+    // Contact details are optional; validate them only when supplied.
+    if (!memberName || !barangay || !address) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    if (!PH_PHONE_REGEX.test(String(phoneNumber).trim())) {
-      return res.status(400).json({
-        message: 'Phone number must be an 11-digit PH mobile number starting with 09 (e.g. 09171234567)',
-      });
-    }
+    const invalidContact = contactError(email, phoneNumber);
+    if (invalidContact) return res.status(400).json({ message: invalidContact });
 
     // Check if email already exists
-    const existingMember = await Member.findOne({ email });
+    const existingMember = email ? await Member.findOne({ email }) : null;
     if (existingMember) {
       return res.status(400).json({ message: 'Email already exists' });
     }
@@ -119,45 +112,8 @@ const createMemberWithAccount = async (req, res) => {
       address,
     });
 
-    // Generate temporary password
-    const temporaryPassword = generatePassword();
-
-    // Create user account
-    const userId = uuidv4();
-    const username = email.split('@')[0] + memberId.slice(-4); // Create username from email + last 4 digits of memberId
-
-    const user = new User({
-      userId,
-      memberId,
-      username,
-      email,
-      phoneNumber,
-      passwordHash: temporaryPassword, // Will be hashed by pre-save hook
-      isTemporaryPassword: true,
-      status: 'active',
-      modules,
-    });
-
-    await user.save();
-
-    // Send credentials via email/SMS
-    const notificationData = {
-      memberId: member.memberId,
-      memberName: member.memberName,
-      email: member.email,
-      phoneNumber: member.phoneNumber,
-      username: user.username,
-      temporaryPassword,
-    };
-
-    // Send notifications (email by default, SMS if configured)
-    const notificationResults = await sendCredentials(notificationData, {
-      email: true,
-      sms: process.env.SEMAPHORE_API_KEY ? true : false, // Only send SMS if configured
-    });
-
     res.status(201).json({
-      message: 'Member and account created successfully',
+      message: 'Member created successfully',
       member: {
         memberId: member.memberId,
         memberName: member.memberName,
@@ -165,16 +121,9 @@ const createMemberWithAccount = async (req, res) => {
         phoneNumber: member.phoneNumber,
         status: member.status,
       },
-      account: {
-        userId: user.userId,
-        username: user.username,
-        temporaryPassword, // Send this to the member via email/SMS
-        isTemporaryPassword: true,
-      },
-      notifications: notificationResults,
     });
   } catch (error) {
-    console.error('Error creating member with account:', error);
+    console.error('Error creating member:', error);
     res.status(500).json({ message: 'Error creating member', error: error.message });
   }
 };
@@ -195,10 +144,14 @@ const bulkCreateMembers = async (req, res) => {
 
     for (const memberData of members) {
       try {
+        memberData.email = normalizeContact(memberData.email);
+        memberData.phoneNumber = normalizeContact(memberData.phoneNumber);
+        const invalidContact = contactError(memberData.email, memberData.phoneNumber);
+        if (invalidContact) throw new Error(invalidContact);
         console.log(`📝 Processing member: ${memberData.memberName} (${memberData.email})`);
         
         // Check if email already exists
-        const existingMember = await Member.findOne({ email: memberData.email });
+        const existingMember = memberData.email ? await Member.findOne({ email: memberData.email }) : null;
         if (existingMember) {
           console.log(`❌ Email already exists: ${memberData.email}`);
           results.failed.push({
@@ -253,34 +206,10 @@ const bulkCreateMembers = async (req, res) => {
           address: memberData.address,
         });
 
-        // Generate temporary password
-        const temporaryPassword = generatePassword();
-
-        // Create user account
-        const userId = uuidv4();
-        const username = memberData.email.split('@')[0] + memberId.slice(-4);
-
-        const user = new User({
-          userId,
-          memberId,
-          username,
-          email: memberData.email,
-          phoneNumber: memberData.phoneNumber,
-          passwordHash: temporaryPassword,
-          isTemporaryPassword: true,
-          status: 'active',
-          modules: memberData.modules || ['attendance', 'mortuary'],
-        });
-
-        await user.save();
-        console.log(`✅ User account created: ${user.username}`);
-
         results.success.push({
           memberId: member.memberId,
           memberName: member.memberName,
           email: member.email,
-          username: user.username,
-          temporaryPassword,
         });
       } catch (error) {
         console.error(`❌ Error processing ${memberData.email}:`, error.message);
@@ -292,16 +221,6 @@ const bulkCreateMembers = async (req, res) => {
       }
     }
 
-    // Send bulk notifications to all successful members
-    let notificationResults = [];
-    if (results.success.length > 0) {
-      console.log(`📧 Sending credentials to ${results.success.length} members...`);
-      notificationResults = await sendBulkCredentials(results.success, {
-        email: true,
-        sms: false, // SMS disabled for bulk to avoid high costs, can be enabled if needed
-      });
-    }
-
     res.status(200).json({
       message: 'Bulk member creation completed',
       summary: {
@@ -310,7 +229,6 @@ const bulkCreateMembers = async (req, res) => {
         failed: results.failed.length,
       },
       results,
-      notifications: notificationResults,
     });
   } catch (error) {
     console.error('Error in bulk member creation:', error);
@@ -384,17 +302,6 @@ const updateMember = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // If email or phoneNumber changed, update User as well
-    if (updateData.email || updateData.phoneNumber) {
-      await User.findOneAndUpdate(
-        { memberId },
-        {
-          ...(updateData.email && { email: updateData.email }),
-          ...(updateData.phoneNumber && { phoneNumber: updateData.phoneNumber }),
-        }
-      );
-    }
-
     res.status(200).json({
       message: 'Member updated successfully',
       member,
@@ -420,12 +327,6 @@ const deleteMember = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // Also deactivate user account
-    await User.findOneAndUpdate(
-      { memberId },
-      { status: 'inactive' }
-    );
-
     res.status(200).json({
       message: 'Member deactivated successfully',
       member,
@@ -436,11 +337,7 @@ const deleteMember = async (req, res) => {
   }
 };
 
-// Toggle a member between active and inactive — flips both Member and User
-// status together (mirrors deleteMember's active->inactive dual-write,
-// made bidirectional so a deactivated member can be reactivated). Refuses
-// to touch deceased/staff members since there's no sensible active/inactive
-// toggle for those statuses.
+// Toggle the member record only; staff accounts have their own lifecycle.
 const toggleMemberStatus = async (req, res) => {
   try {
     const { memberId } = req.params;
@@ -460,7 +357,6 @@ const toggleMemberStatus = async (req, res) => {
     member.status = nextStatus;
     await member.save();
 
-    await User.findOneAndUpdate({ memberId }, { status: nextStatus });
 
     res.status(200).json({
       message: `Member ${nextStatus === 'active' ? 'activated' : 'deactivated'} successfully`,
@@ -472,56 +368,11 @@ const toggleMemberStatus = async (req, res) => {
   }
 };
 
-// Reset member password
-const resetMemberPassword = async (req, res) => {
-  try {
-    const { memberId } = req.params;
-
-    const user = await User.findOne({ memberId });
-    if (!user) {
-      return res.status(404).json({ message: 'User account not found' });
-    }
-
-    // Generate new temporary password
-    const temporaryPassword = generatePassword();
-
-    user.passwordHash = temporaryPassword; // Will be hashed by pre-save hook
-    user.isTemporaryPassword = true;
-    await user.save();
-
-    // Get member details for notification
-    const member = await Member.findOne({ memberId });
-
-    // Send password reset notification
-    const notificationData = {
-      memberId: member.memberId,
-      memberName: member.memberName,
-      email: member.email,
-      phoneNumber: member.phoneNumber,
-      username: user.username,
-      temporaryPassword,
-    };
-
-    const notificationResult = await sendPasswordResetNotification(notificationData);
-
-    res.status(200).json({
-      message: 'Password reset successfully',
-      username: user.username,
-      temporaryPassword,
-      notification: notificationResult,
-    });
-  } catch (error) {
-    console.error('Error resetting password:', error);
-    res.status(500).json({ message: 'Error resetting password', error: error.message });
-  }
-};
-
 module.exports = {
-  createMemberWithAccount,
+  createMember,
   bulkCreateMembers,
   getAllMembers,
   updateMember,
   deleteMember,
   toggleMemberStatus,
-  resetMemberPassword,
 };

@@ -1,7 +1,6 @@
 const ImportOperation = require('../models/ImportOperation');
 const { parseCSV, validateMemberData } = require('../../modules/attendance/services/csvParserService');
 const { processBulkImport } = require('../services/bulkImportService');
-const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 
 // Step 1: Upload and preview CSV
@@ -71,7 +70,7 @@ const uploadAndPreviewCSV = async (req, res) => {
 // Step 2: Confirm and start import
 const confirmAndStartImport = async (req, res) => {
   try {
-    const { operationId, sendVia } = req.body;
+    const { operationId } = req.body;
 
     if (!operationId) {
       return res.status(400).json({ message: 'Operation ID required' });
@@ -86,7 +85,7 @@ const confirmAndStartImport = async (req, res) => {
       return res.status(400).json({ message: 'Operation is not in preview status' });
     }
 
-    // Prepare row data with sendVia preference
+    // Prepare member records for import.
     const rowsData = importOp.previewData.map((preview) => ({
       memberId: preview.memberId,
       memberName: preview.memberName,
@@ -94,11 +93,10 @@ const confirmAndStartImport = async (req, res) => {
       phoneNumber: preview.phoneNumber,
       barangay: preview.barangay,
       address: preview.address,
-      sendVia: sendVia || ['email', 'sms'],
     }));
 
     // Process bulk import (async)
-    processBulkImport(operationId, rowsData, importOp.createdBy)
+    processBulkImport(operationId, rowsData)
       .then(() => {
         console.log(`Import operation ${operationId} completed`);
       })
@@ -136,12 +134,8 @@ const getImportStatus = async (req, res) => {
         successCount: importOp.successCount,
         failureCount: importOp.failureCount,
         duplicateCount: importOp.duplicateCount,
-        emailsSent: importOp.emailsSent,
-        emailsFailed: importOp.emailsFailed,
-        smsSent: importOp.smsSent,
-        smsFailed: importOp.smsFailed,
       },
-      createdUsers: importOp.createdUsers.length,
+      createdMembers: importOp.createdMembers.length,
       errors: importOp.rowErrors.length,
       startedAt: importOp.startedAt,
       completedAt: importOp.completedAt,

@@ -1,5 +1,5 @@
 const SMSNotification = require('../models/SMSNotification');
-const { getNotificationHistory, getPendingNotifications, retryFailedNotifications } = require('../services/thresholdNotificationService');
+const { getNotificationHistory, getPendingNotifications } = require('../services/thresholdNotificationService');
 
 // Get notification history for a member
 const getMemberNotificationHistory = async (req, res) => {
@@ -85,26 +85,6 @@ const getPending = async (req, res) => {
   }
 };
 
-// Retry failed notifications
-const retryFailed = async (req, res) => {
-  try {
-    const result = await retryFailedNotifications();
-    
-    res.status(200).json({
-      success: true,
-      message: `Retried ${result.retried} notifications, ${result.succeeded} succeeded`,
-      data: result
-    });
-  } catch (error) {
-    console.error('Error retrying failed notifications:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error retrying failed notifications',
-      error: error.message
-    });
-  }
-};
-
 // Get notification statistics
 const getNotificationStats = async (req, res) => {
   try {
@@ -153,6 +133,5 @@ module.exports = {
   getMemberNotificationHistory,
   getAllNotifications,
   getPending,
-  retryFailed,
   getNotificationStats
 };

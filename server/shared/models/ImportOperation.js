@@ -40,6 +40,7 @@ const importOperationSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Legacy counters retained for historical imports; new imports are email-only.
     smsSent: {
       type: Number,
       default: 0,
@@ -69,6 +70,8 @@ const importOperationSchema = new mongoose.Schema(
         errorMessage: String,
       },
     ],
+    createdMembers: [{ memberId: String, memberName: String, email: String, phoneNumber: String }],
+    // Historical imports only; no new credentials are generated.
     createdUsers: [
       {
         userId: String,

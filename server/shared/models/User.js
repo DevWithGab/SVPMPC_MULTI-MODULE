@@ -22,11 +22,13 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
+      trim: true,
+      required: function () { return this.role !== 'member'; },
     },
     phoneNumber: {
       type: String,
-      required: true,
+      trim: true,
+      required: function () { return this.role !== 'member'; },
     },
     passwordHash: {
       type: String,

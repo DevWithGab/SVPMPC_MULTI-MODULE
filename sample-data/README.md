@@ -18,10 +18,7 @@ dateOfBirth, gender`
 Each row also gets a `modules: ['attendance', 'mortuary']` default from the UI,
 so the members land in both modules.
 
-Emails use the reserved `example.com` domain so the automatic credential email
-(`sendBulkCredentials`) does not reach a real inbox. Swap in real addresses if
-you want to receive the temporary passwords — the server prints them in the
-response either way. Bulk SMS is disabled server-side.
+Email and phone number are optional contact information. Uploading members creates records only; no login accounts, credentials, email, or SMS are generated.
 
 ## Step 2 — give each member the ₱1,000 balance
 

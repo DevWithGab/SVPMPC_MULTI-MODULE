@@ -179,12 +179,11 @@ export const bulkImportAPI = {
   },
 
   // Confirm import operation
-  confirmImport: async (operationId, sendVia = ['email', 'sms']) => {
+  confirmImport: async (operationId) => {
     try {
       const response = await api.post('/auth/bulk-import/confirm', {
         operationId,
-        sendVia,
-      });
+        });
       return {
         success: true,
         data: response.data

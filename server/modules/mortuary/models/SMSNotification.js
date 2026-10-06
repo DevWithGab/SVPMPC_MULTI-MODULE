@@ -1,3 +1,4 @@
+// Historical records only. No new SMS deliveries or retries are supported.
 const mongoose = require('mongoose');
 
 const smsNotificationSchema = new mongoose.Schema(

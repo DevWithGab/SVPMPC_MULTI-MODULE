@@ -18,8 +18,7 @@ const {
 const { 
   getAllMemberBalances,
   processAutomaticDeduction,
-  checkLowBalanceMembers,
-  sendLowBalanceNotifications
+  checkLowBalanceMembers
 } = require('../controllers/deductionController');
 
 const { 
@@ -33,7 +32,6 @@ const {
   getMemberNotificationHistory,
   getAllNotifications,
   getPending,
-  retryFailed,
   getNotificationStats
 } = require('../controllers/smsNotificationController');
 
@@ -91,7 +89,6 @@ router.get('/notice-thresholds', getCurrentThresholds);
 router.get('/balances/all', getAllMemberBalances);
 router.post('/balances/automatic-deduction', processAutomaticDeduction);
 router.get('/balances/low-balance-check', checkLowBalanceMembers);
-router.post('/balances/send-low-balance-notifications', sendLowBalanceNotifications);
 
 // Background PDF generation for notice batches too large to comfortably
 // build in the browser (see LARGE_BATCH_THRESHOLD in MemberBalances.jsx).
@@ -104,11 +101,10 @@ router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLedger);
 
-// SMS notification history and stats (automatic threshold notifications)
+// Read-only historical notification records; no send or retry endpoints.
 router.get('/notifications/history/:memberId', getMemberNotificationHistory);
 router.get('/notifications/all', getAllNotifications);
 router.get('/notifications/pending', getPending);
-router.post('/notifications/retry-failed', retryFailed);
 router.get('/notifications/stats', getNotificationStats);
 
 // Claims processing routes — a claim sitting in "pending_deduction" is the

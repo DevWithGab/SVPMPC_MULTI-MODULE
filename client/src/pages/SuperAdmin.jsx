@@ -15,7 +15,7 @@ import { Modal } from '../components/ui/modal';
 import { UploadFilePicker, UploadTemplateCard } from '../components/mortuary/shared/BulkUploadDialog';
 import { validatePhPhone, sanitizePhoneInput } from '../utils/validation';
 
-const REQUIRED_MEMBER_FIELDS = ['memberName', 'email', 'phoneNumber', 'barangay', 'address'];
+const MEMBER_VALIDATION_FIELDS = ['memberName', 'email', 'phoneNumber', 'barangay', 'address', 'beneficiaryContactNumber'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const validateMemberField = (name, rawValue) => {
@@ -26,10 +26,11 @@ const validateMemberField = (name, rawValue) => {
       if (value.length < 2) return "Enter the member's full name.";
       return '';
     case 'email':
-      if (!value) return 'Email is required.';
+      if (!value) return '';
       if (!EMAIL_REGEX.test(value)) return 'Enter a valid email address.';
       return '';
     case 'phoneNumber':
+      if (!value) return '';
       // Shared with the mortuary Beneficiary forms — same 11-digit,
       // starts-with-09 PH mobile rule everywhere in the app.
       return validatePhPhone(value);
@@ -127,7 +128,7 @@ const SuperAdmin = () => {
   // Create Member form: validation + post-success confirmation
   const [memberErrors, setMemberErrors] = useState({});
   const [memberTouched, setMemberTouched] = useState({});
-  const [createdAccount, setCreatedAccount] = useState(null);
+  const [createdMember, setCreatedMember] = useState(null);
   const memberFieldRefs = useRef({});
 
   const emptyMemberForm = {
@@ -150,7 +151,7 @@ const SuperAdmin = () => {
   );
 
   const isCreateFormDirty = () =>
-    REQUIRED_MEMBER_FIELDS.concat('beneficiaries', 'beneficiaryRelationship', 'beneficiaryContactNumber').some(
+    MEMBER_VALIDATION_FIELDS.concat('beneficiaries', 'beneficiaryRelationship').some(
       (field) => (newMember[field] || '').trim() !== ''
     );
 
@@ -174,7 +175,7 @@ const SuperAdmin = () => {
   // input asks for confirmation first, so a stray click can't silently
   // discard work (error prevention / user control & freedom).
   const requestCloseCreateModal = () => {
-    if (createdAccount) {
+    if (createdMember) {
       finishCreateMember();
       return;
     }
@@ -189,7 +190,7 @@ const SuperAdmin = () => {
 
   const finishCreateMember = () => {
     setShowCreateModal(false);
-    setCreatedAccount(null);
+    setCreatedMember(null);
     setNewMember(emptyMemberForm);
     setMemberErrors({});
     setMemberTouched({});
@@ -273,15 +274,15 @@ const SuperAdmin = () => {
     // catches the mistake immediately instead of round-tripping to the
     // server first (error prevention).
     const nextErrors = {};
-    REQUIRED_MEMBER_FIELDS.forEach((field) => {
+    MEMBER_VALIDATION_FIELDS.forEach((field) => {
       nextErrors[field] = validateMemberField(field, newMember[field]);
     });
     setMemberErrors(nextErrors);
     setMemberTouched(
-      REQUIRED_MEMBER_FIELDS.reduce((acc, field) => ({ ...acc, [field]: true }), {})
+      MEMBER_VALIDATION_FIELDS.reduce((acc, field) => ({ ...acc, [field]: true }), {})
     );
 
-    const firstInvalidField = REQUIRED_MEMBER_FIELDS.find((field) => nextErrors[field]);
+    const firstInvalidField = MEMBER_VALIDATION_FIELDS.find((field) => nextErrors[field]);
     if (firstInvalidField) {
       memberFieldRefs.current[firstInvalidField]?.focus();
       return;
@@ -289,8 +290,8 @@ const SuperAdmin = () => {
 
     setLoading(true);
     try {
-      await adminAPI.createMember(newMember);
-      setCreatedAccount({ memberName: newMember.memberName });
+      const response = await adminAPI.createMember(newMember);
+      setCreatedMember(response.member);
       fetchMembers();
     } catch (error) {
       const message = error.response?.data?.message || 'Error creating member';
@@ -762,19 +763,19 @@ const SuperAdmin = () => {
       <Modal
         isOpen={showCreateModal}
         onClose={requestCloseCreateModal}
-        title={createdAccount ? 'Member Created' : 'Create New Member'}
+        title={createdMember ? 'Member Created' : 'Create New Member'}
         className="max-w-2xl"
       >
-        {createdAccount ? (
+        {createdMember ? (
           <div className="space-y-5">
             <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
               <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-emerald-900">
-                  {createdAccount.memberName} was added successfully.
+                  {createdMember.memberName} was added successfully.
                 </p>
                 <p className="text-xs text-emerald-700 mt-1">
-                  Login credentials were sent to the member automatically.
+                  The member record is ready for attendance and mortuary management.
                 </p>
               </div>
             </div>
@@ -807,10 +808,9 @@ const SuperAdmin = () => {
                 ref={(el) => (memberFieldRefs.current.memberName = el)}
               />
               <FormField
-                label="Email"
+                label="Email (optional)"
                 name="email"
                 type="email"
-                required
                 value={newMember.email}
                 onChange={(value) => handleMemberFieldChange('email', value)}
                 onBlur={() => handleMemberFieldBlur('email')}
@@ -819,16 +819,15 @@ const SuperAdmin = () => {
                 ref={(el) => (memberFieldRefs.current.email = el)}
               />
               <FormField
-                label="Phone Number"
+                label="Phone Number (optional)"
                 name="phoneNumber"
                 type="tel"
                 inputMode="numeric"
-                required
                 value={newMember.phoneNumber}
                 onChange={(value) => handleMemberFieldChange('phoneNumber', value)}
                 onBlur={() => handleMemberFieldBlur('phoneNumber')}
                 error={memberTouched.phoneNumber ? memberErrors.phoneNumber : ''}
-                hint={!memberErrors.phoneNumber ? 'Used to send login credentials via SMS. 11 digits, e.g. 09171234567.' : undefined}
+                hint={!memberErrors.phoneNumber ? 'Optional contact number. 11 digits, e.g. 09171234567.' : undefined}
                 placeholder="09171234567"
                 maxLength={11}
                 ref={(el) => (memberFieldRefs.current.phoneNumber = el)}
@@ -952,8 +951,8 @@ const SuperAdmin = () => {
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
                 <UploadTemplateCard onDownload={downloadMemberTemplate} disabled={loading}>
                   <p>Replace the sample row with your members. Keep the column headers and save as CSV UTF-8.</p>
-                  <p><strong>Required:</strong> memberName, email, phoneNumber, barangay, address. Use a unique email for each member.</p>
-                  <p><strong>Optional:</strong> beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, memberId. Leave memberId blank to generate it automatically, or enter a unique existing passbook ID.</p>
+                  <p><strong>Required:</strong> memberName, barangay, address.</p>
+                  <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, memberId. Email and phone number may be blank. Any email supplied must be unique. Leave memberId blank to generate it automatically, or enter a unique existing passbook ID.</p>
                   <p>Use YYYY-MM-DD for dates and male, female, or other for gender. Blank gender defaults to male.</p>
                   <p>Format phone columns as Text in your spreadsheet to keep the leading zero (for example, 09123456789). Enclose addresses containing commas in double quotes.</p>
                   <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>

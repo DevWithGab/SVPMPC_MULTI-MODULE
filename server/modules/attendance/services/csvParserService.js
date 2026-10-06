@@ -20,7 +20,7 @@ const parseCSV = (filePath) => {
 };
 
 const validateMemberData = (members) => {
-  const requiredFields = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address'];
+  const requiredFields = ['memberId', 'memberName', 'barangay', 'address'];
   const errors = [];
 
   members.forEach((member, index) => {

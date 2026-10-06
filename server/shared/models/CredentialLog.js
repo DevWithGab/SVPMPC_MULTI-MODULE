@@ -25,6 +25,7 @@ const credentialLogSchema = new mongoose.Schema(
     },
     sentMethod: {
       type: [String],
+      // Keep the legacy value readable in existing audit records.
       enum: ['email', 'sms'],
     },
     sentDate: {

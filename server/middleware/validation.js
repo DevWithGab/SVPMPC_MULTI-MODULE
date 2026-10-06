@@ -75,14 +75,6 @@ const validateAttendance = [
   handleValidationErrors
 ];
 
-// SMS notification validation
-const validateSMSNotification = [
-  body('message').notEmpty().withMessage('Message is required'),
-  body('message').isLength({ max: 160 }).withMessage('Message must be 160 characters or less'),
-  body('recipients').isIn(['all', 'active', 'delinquent', 'specific']).withMessage('Invalid recipient type'),
-  handleValidationErrors
-];
-
 // Pagination validation
 const validatePagination = [
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
@@ -101,6 +93,5 @@ module.exports = {
   validateClaim,
   validateEvent,
   validateAttendance,
-  validateSMSNotification,
   validatePagination
 };

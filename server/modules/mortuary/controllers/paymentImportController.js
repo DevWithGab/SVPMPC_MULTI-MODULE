@@ -6,7 +6,6 @@ const service = createPaymentImportService({
   Ledger: require('../models/Ledger'),
   PaymentImport: require('../models/PaymentImport'),
   getLatestBalance: require('../utils/ledgerBalance').getLatestBalance,
-  checkAndNotify: require('../services/thresholdNotificationService').checkAndNotify,
 });
 
 const summarize = rows => ({

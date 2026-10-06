@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, Users, DollarSign, AlertTriangle, Minus, 
-  MessageSquare, RefreshCw, Search, CheckCircle2 
+  RefreshCw, Search, CheckCircle2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
@@ -78,20 +78,6 @@ export default function FundBalances({ user }) {
       alert('Error processing automatic deduction. Please try again.');
     } finally {
       setDeductionLoading(false);
-    }
-  };
-
-  const handleSendLowBalanceNotifications = async () => {
-    if (!confirm('Send SMS notifications to all members with low balance?')) return;
-
-    try {
-      const response = await api.post('/mortuary/treasurer/balances/send-low-balance-notifications');
-      if (response.data.success) {
-        alert(`Low balance notifications prepared for ${response.data.data.count} members.`);
-      }
-    } catch (error) {
-      console.error('Error sending notifications:', error);
-      alert('Error sending notifications. Please try again.');
     }
   };
 
@@ -188,14 +174,6 @@ export default function FundBalances({ user }) {
                 </p>
               </div>
             </div>
-            <Button
-              onClick={handleSendLowBalanceNotifications}
-              variant="secondary"
-              className="border-red-300 text-red-700 hover:bg-red-100 rounded-xl"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Send SMS Alerts
-            </Button>
           </div>
         </Card>
       )}

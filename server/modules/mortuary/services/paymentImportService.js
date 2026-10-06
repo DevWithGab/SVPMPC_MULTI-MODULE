@@ -7,7 +7,7 @@ const samePayment = (stored, entry) =>
   new Date(stored.paymentDate).toISOString().slice(0, 10) === entry.paymentDate &&
   stored.paymentMethod === entry.paymentMethod;
 
-function createPaymentImportService({ Member, Contribution, Ledger, PaymentImport, getLatestBalance, checkAndNotify }) {
+function createPaymentImportService({ Member, Contribution, Ledger, PaymentImport, getLatestBalance }) {
   async function preview(rows) {
     const valid = rows.filter(row => !row.errors.length);
     const memberIds = [...new Set(valid.map(row => row.entry.memberId))];
@@ -76,13 +76,6 @@ function createPaymentImportService({ Member, Contribution, Ledger, PaymentImpor
         status: 'paid', paymentMethod: 'cash', referenceNumber: reservation.referenceNumber,
         notes: reservation.notes,
       } }, { upsert: true, runValidators: true });
-      try {
-        const member = await Member.findOne({ memberId: reservation.memberId });
-        await checkAndNotify(reservation.memberId, member.memberName, member.phoneNumber,
-          Math.round((ledger.balance - reservation.amount) * 100) / 100, ledger.balance, 'contribution', id);
-      } catch (error) {
-        console.error('Bulk payment notification failed:', error.message);
-      }
       return { ...checked, status: 'imported', contributionId: id, balance: ledger.balance };
     });
   }

@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 
-// Create single member with account
-router.post('/members/create', adminController.createMemberWithAccount);
+// Create a member record
+router.post('/members/create', adminController.createMember);
 
 // Bulk create members from CSV
 router.post('/members/bulk-create', adminController.bulkCreateMembers);
@@ -20,7 +20,5 @@ router.delete('/members/:memberId', adminController.deleteMember);
 // Toggle a member between active and inactive
 router.post('/members/:memberId/toggle-status', adminController.toggleMemberStatus);
 
-// Reset member password
-router.post('/members/:memberId/reset-password', adminController.resetMemberPassword);
 
 module.exports = router;

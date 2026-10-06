@@ -121,6 +121,10 @@ const changePassword = async (req, res) => {
     }
 
     // Verify current password
+    if (user.role === 'member') {
+      return res.status(403).json({ message: 'Member self-service access is no longer available.' });
+    }
+
     const isPasswordValid = await user.comparePassword(currentPassword);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Current password is incorrect' });
@@ -215,6 +219,10 @@ const verifyToken = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+
+    if (decoded.role === 'member') {
+      return res.status(403).json({ message: 'Member self-service access is no longer available.' });
+    }
 
     res.status(200).json({
       message: 'Token is valid',

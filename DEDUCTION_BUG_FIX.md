@@ -1,3 +1,5 @@
+> Historical reference: SMS delivery and retry support have been removed. SMS setup instructions and SMS-specific expectations below no longer apply. Use printed/PDF notices for balance reminders; existing notification history is retained. See README.md for current behavior.
+
 # Death Deduction Bug Fix
 
 **Date:** May 14, 2026  

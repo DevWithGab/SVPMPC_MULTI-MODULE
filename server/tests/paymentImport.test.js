@@ -89,7 +89,7 @@ test('daily payments update both records, accumulate repeat-member credits, pres
   assert.equal(state.ledgers.at(-1).recordedBy, 'treasurer-1');
   assert.equal(state.contributions[0].paymentDate.toISOString().slice(0, 10), '2026-10-05');
   assert.equal(state.ledgers[1].referenceId, state.contributions[0].contributionId);
-  assert.equal(state.notifications.length, 3);
+  assert.equal(state.notifications.length, 0, 'Payment imports must not trigger the retired SMS hook');
 });
 
 test('reordered re-upload skips duplicates and rejects a changed payment using an existing reference', async () => {
