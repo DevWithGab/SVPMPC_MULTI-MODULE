@@ -11,13 +11,13 @@ const BATCH_DIR = path.join(__dirname, '..', '..', '..', 'uploads', 'notice-batc
 // called from startNoticeBatch without awaiting it so the HTTP request can
 // return immediately (202) instead of holding the connection open for
 // however long generation takes.
-const runNoticeBatchJob = async (jobId, level, managerName) => {
+const runNoticeBatchJob = async (jobId, level, managerName, barangay) => {
   const job = await NoticeBatchJob.findOne({ jobId });
   if (!job) return;
 
   try {
     const [{ members }, thresholds] = await Promise.all([
-      getMemberBalanceSnapshots(),
+      getMemberBalanceSnapshots({ barangayFilter: barangay || '' }),
       NoticeThresholdSetting.findOne({ status: 'active' }).lean(),
     ]);
 
@@ -56,21 +56,25 @@ const startNoticeBatch = async (req, res) => {
     if (![1, 2, 3].includes(level)) {
       return res.status(400).json({ success: false, message: 'level must be 1, 2, or 3' });
     }
+    const barangay = (req.body.barangay || '').trim() || undefined;
 
     const jobId = uuidv4();
     await NoticeBatchJob.create({
       jobId,
       level,
+      barangay,
       status: 'processing',
       createdBy: req.user?.username || req.user?.name || 'treasurer',
     });
 
     // Not awaited on purpose — see runNoticeBatchJob's comment.
-    runNoticeBatchJob(jobId, level, req.user?.name || req.user?.username);
+    runNoticeBatchJob(jobId, level, req.user?.name || req.user?.username, barangay);
 
     res.status(202).json({
       success: true,
-      message: `Generating ${NOTICE_LEVEL_LABELS[level]} letters in the background`,
+      message: barangay
+        ? `Generating ${NOTICE_LEVEL_LABELS[level]} letters for ${barangay} in the background`
+        : `Generating ${NOTICE_LEVEL_LABELS[level]} letters in the background`,
       jobId,
       status: 'processing',
     });
@@ -92,6 +96,7 @@ const getNoticeBatchStatus = async (req, res) => {
       success: true,
       jobId,
       level: job.level,
+      barangay: job.barangay || undefined,
       status: job.status,
       totalMembers: job.totalMembers,
       error: job.error || undefined,

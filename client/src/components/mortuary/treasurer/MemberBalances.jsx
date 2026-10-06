@@ -47,31 +47,41 @@ const MemberBalances = ({
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
   const lowBalancePercent = members.length > 0 ? (lowBalanceMembers.length / members.length) * 100 : 0;
 
-  // Counted across every member (not just the current filtered/paginated
-  // view) so the bulk-print buttons below always reflect the true batch
-  // size regardless of what's on screen.
+  // Scoped to the barangay currently selected in the Filter Bar below (same
+  // filter the table uses) — "All barangays" means every member, same as
+  // before. This lets the Treasurer print/download just one barangay's
+  // notices in one job instead of always generating every barangay at once.
+  const noticeTargetMembers = useMemo(
+    () => (barangayFilter === 'All' ? members : members.filter((m) => getBarangay(m) === barangayFilter)),
+    [members, barangayFilter]
+  );
+  const barangayLabel = barangayFilter === 'All' ? '' : ` in ${barangayFilter}`;
+
+  // Counted across every matching member (not just the current
+  // filtered/paginated table view) so the bulk-print buttons below always
+  // reflect the true batch size regardless of what's on screen.
   const noticeLevelCounts = useMemo(() => {
     const counts = { 1: 0, 2: 0, 3: 0 };
-    members.forEach((m) => {
+    noticeTargetMembers.forEach((m) => {
       const level = getNoticeLevel(m.balance, noticeThresholds);
       if (level) counts[level] += 1;
     });
     return counts;
-  }, [members, noticeThresholds]);
+  }, [noticeTargetMembers, noticeThresholds]);
 
   const handleBulkPrint = (level) => {
     const count = noticeLevelCounts[level];
     if (count === 0) return;
-    if (!window.confirm(`Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}? Each will print as a separate page in one job.`)) {
+    if (!window.confirm(`Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel}? Each will print as a separate page in one job.`)) {
       return;
     }
     setPrintingLevel(level);
     try {
-      const printed = printBalanceNoticesBulk(members, level, user?.name, noticeThresholds);
+      const printed = printBalanceNoticesBulk(noticeTargetMembers, level, user?.name, noticeThresholds);
       if (printed === 0) {
         showToast?.('Your browser blocked the print window. Please allow pop-ups and try again.', 'error');
       } else {
-        showToast?.(`Queued ${printed} ${NOTICE_LEVEL_LABELS[level]} letter${printed === 1 ? '' : 's'} for printing.`, 'success');
+        showToast?.(`Queued ${printed} ${NOTICE_LEVEL_LABELS[level]} letter${printed === 1 ? '' : 's'}${barangayLabel} for printing.`, 'success');
       }
     } finally {
       setPrintingLevel(null);
@@ -82,10 +92,10 @@ const MemberBalances = ({
   // instantly in the browser. Polling (below) picks up the result.
   const handleBulkDownloadBackground = async (level, count) => {
     try {
-      const response = await treasurerAPI.startNoticeBatch(level);
+      const response = await treasurerAPI.startNoticeBatch(level, barangayFilter === 'All' ? undefined : barangayFilter);
       setBatchJob({ jobId: response.jobId, level });
       showToast?.(
-        `Preparing ${count} ${NOTICE_LEVEL_LABELS[level]} letters in the background — this may take a moment. We'll let you know when it's ready.`,
+        `Preparing ${count} ${NOTICE_LEVEL_LABELS[level]} letters${barangayLabel} in the background — this may take a moment. We'll let you know when it's ready.`,
         'success'
       );
     } catch (error) {
@@ -97,7 +107,7 @@ const MemberBalances = ({
   const handleBulkDownload = async (level) => {
     const count = noticeLevelCounts[level];
     if (count === 0 || batchJob) return;
-    if (!window.confirm(`Download ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'} as one PDF?`)) {
+    if (!window.confirm(`Download ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel} as one PDF?`)) {
       return;
     }
 
@@ -108,8 +118,8 @@ const MemberBalances = ({
 
     setDownloadingLevel(level);
     try {
-      const downloaded = await downloadBalanceNoticesBulkPDF(members, level, user?.name, noticeThresholds);
-      showToast?.(`Downloaded ${downloaded} ${NOTICE_LEVEL_LABELS[level]} letter${downloaded === 1 ? '' : 's'} as a PDF.`, 'success');
+      const downloaded = await downloadBalanceNoticesBulkPDF(noticeTargetMembers, level, user?.name, noticeThresholds);
+      showToast?.(`Downloaded ${downloaded} ${NOTICE_LEVEL_LABELS[level]} letter${downloaded === 1 ? '' : 's'}${barangayLabel} as a PDF.`, 'success');
     } catch (error) {
       console.error('Error downloading notices PDF:', error);
       showToast?.('Unable to generate the notices PDF. Please try again.', 'error');
@@ -131,7 +141,7 @@ const MemberBalances = ({
           const url = resolveQrAssetUrl(status.downloadUrl);
           if (url) window.open(url, '_blank');
           showToast?.(
-            `${status.totalMembers} ${NOTICE_LEVEL_LABELS[batchJob.level]} letter${status.totalMembers === 1 ? '' : 's'} ready — download started.`,
+            `${status.totalMembers} ${NOTICE_LEVEL_LABELS[batchJob.level]} letter${status.totalMembers === 1 ? '' : 's'}${status.barangay ? ` in ${status.barangay}` : ''} ready — download started.`,
             'success'
           );
           setBatchJob(null);
@@ -290,11 +300,19 @@ const MemberBalances = ({
 
       {/* Bulk Notice Printing — prints or downloads every member at a given
           threshold as one combined job (one letter per page) instead of
-          opening each member's ledger and handling them one at a time. */}
+          opening each member's ledger and handling them one at a time.
+          Scoped by the barangay filter above, same as the table. */}
       <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Printer className="w-4 h-4 text-slate-400" />
-          <p className="text-sm font-semibold text-slate-900">Print or download notices by threshold</p>
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Printer className="w-4 h-4 text-slate-400" />
+            <p className="text-sm font-semibold text-slate-900">Print or download notices by threshold</p>
+          </div>
+          {barangayFilter !== 'All' && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Scoped to {barangayFilter}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3].map((level) => {
@@ -310,7 +328,7 @@ const MemberBalances = ({
                 <button
                   onClick={() => handleBulkPrint(level)}
                   disabled={count === 0 || busy}
-                  title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}` : undefined}
+                  title={count === 0 ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}${barangayLabel}` : undefined}
                   className={`inline-flex items-center gap-2 pl-4 pr-3 py-2 text-sm font-semibold rounded-l-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${colorClass}`}
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -322,7 +340,7 @@ const MemberBalances = ({
                   disabled={count === 0 || busy}
                   title={
                     count === 0
-                      ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}`
+                      ? `No members currently need ${NOTICE_LEVEL_LABELS[level]}${barangayLabel}`
                       : isPreparingInBackground
                         ? 'Generating in the background — this may take a moment'
                         : `Download ${NOTICE_LEVEL_LABELS[level]} as PDF`

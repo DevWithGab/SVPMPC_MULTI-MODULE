@@ -227,10 +227,10 @@ const Dashboard = ({
       section: "members",
     },
     {
-      label: "View Reports",
-      desc: "Export attendance data",
+      label: "Backup & Restore",
+      desc: "Export or restore system data",
       icon: FileText,
-      section: "reports",
+      section: "backup",
     },
   ];
 

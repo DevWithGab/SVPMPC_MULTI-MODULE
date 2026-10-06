@@ -16,6 +16,12 @@ const noticeBatchJobSchema = new mongoose.Schema(
       enum: [1, 2, 3],
       required: true,
     },
+    // Unset means "every barangay" — set when the Treasurer ran this batch
+    // scoped to one barangay from Member Balances' existing filter.
+    barangay: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['processing', 'completed', 'failed'],
