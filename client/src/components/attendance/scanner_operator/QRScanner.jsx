@@ -34,28 +34,6 @@ import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import jsQR from "jsqr";
 import { formatDate, formatTime, formatDateTime } from "../../../utils/date";
 
-const AVATAR_COLORS = [
-  { bg: "bg-green-100", text: "text-green-700" },
-  { bg: "bg-blue-100", text: "text-blue-700" },
-  { bg: "bg-purple-100", text: "text-purple-700" },
-  { bg: "bg-amber-100", text: "text-amber-700" },
-  { bg: "bg-rose-100", text: "text-rose-700" },
-];
-
-const getAvatarColor = (name = "") => {
-  const code = name.trim().charCodeAt(0) || 0;
-  return AVATAR_COLORS[code % AVATAR_COLORS.length];
-};
-
-const getInitials = (name = "") =>
-  name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "?";
-
 const METRIC_TONE = {
   green: "bg-green-50 border-green-100 text-coop-green",
   amber: "bg-amber-50 border-amber-100 text-amber-600",
@@ -1172,14 +1150,8 @@ export default function QRScanner({
               {recentScansDisplay.length > 0 ? (
                 <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                   {recentScansDisplay.map((scan) => {
-                    const avatar = getAvatarColor(scan.memberName);
                     return (
                       <div key={scan.id} className="flex items-center gap-3 p-4">
-                        <div
-                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${avatar.bg} ${avatar.text}`}
-                        >
-                          {getInitials(scan.memberName)}
-                        </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-slate-900 truncate">
                             {scan.memberName}
@@ -1415,11 +1387,6 @@ export default function QRScanner({
         {manualReasonMember && (
           <div className="mb-5 p-4 bg-slate-50 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-coop-green rounded-full flex items-center justify-center shrink-0">
-                <span className="text-base font-bold text-white">
-                  {manualReasonMember.name?.charAt(0) || "?"}
-                </span>
-              </div>
               <div>
                 <p className="text-base font-bold text-slate-900">
                   {manualReasonMember.name}

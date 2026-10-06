@@ -101,7 +101,7 @@ const getAuditTrail = async (req, res) => {
  */
 const getAuditLogStats = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, module } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({
@@ -111,7 +111,8 @@ const getAuditLogStats = async (req, res) => {
 
     const summary = await getAuditLogsSummary(
       new Date(startDate),
-      new Date(endDate)
+      new Date(endDate),
+      module
     );
 
     res.status(200).json({

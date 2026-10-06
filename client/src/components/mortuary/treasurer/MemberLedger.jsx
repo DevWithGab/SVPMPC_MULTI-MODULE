@@ -6,13 +6,6 @@ import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../share
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 
-const getInitials = (name) => {
-  if (!name) return '?';
-  const parts = name.split(' ').filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return parts[0][0].toUpperCase();
-};
-
 
 const formatPeso = (amount, { signed = false } = {}) => {
   const value = amount || 0;
@@ -684,9 +677,6 @@ const MemberLedger = ({
               >
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-sm font-bold text-green-700 shrink-0">
-                      {getInitials(member.name)}
-                    </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{member.name}</p>
                       <p className="text-xs text-slate-400">#{member.id.toString().padStart(6, '0')}</p>

@@ -33,18 +33,18 @@ const qrState = (member) => {
 };
 
 const QR_STATE_META = {
-  none: { label: "Not Generated", className: "bg-slate-100 text-slate-700" },
-  active: { label: "Active", className: "bg-green-100 text-green-800" },
-  inactive: { label: "Inactive", className: "bg-amber-100 text-amber-800" },
+  none: { label: "QR Not Generated", className: "bg-slate-100 text-slate-700" },
+  active: { label: "QR Active", className: "bg-green-100 text-green-800" },
+  inactive: { label: "QR Inactive", className: "bg-amber-100 text-amber-800" },
 };
 
 // Member.status is shared with the Mortuary module — filing a death claim
 // there flips a member to 'deceased', which this screen needs to surface
 // (and gate QR issuance on) instead of treating every member as active.
 const MEMBER_STATUS_META = {
-  active: { label: "Active", className: "bg-green-100 text-green-800" },
-  deceased: { label: "Deceased", className: "bg-rose-100 text-rose-700" },
-  inactive: { label: "Inactive", className: "bg-slate-100 text-slate-600" },
+  active: { label: "Member Active", className: "bg-green-100 text-green-800" },
+  deceased: { label: "Member Deceased", className: "bg-rose-100 text-rose-700" },
+  inactive: { label: "Member Inactive", className: "bg-slate-100 text-slate-600" },
   staff: { label: "Staff", className: "bg-blue-100 text-blue-700" },
 };
 
@@ -451,19 +451,6 @@ const MemberManagement = () => {
   const getMemberDisplayName = (member) =>
     String(member?.memberName || member?.name || "Unknown Member");
 
-  const getMemberInitials = (member) => {
-    const displayName = getMemberDisplayName(member).trim();
-    return (
-      displayName
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase() || "?"
-    );
-  };
-
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file && file.type === "text/csv") {
@@ -681,12 +668,6 @@ const MemberManagement = () => {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3"
-                            style={{ backgroundColor: "#2D7A3E" }}
-                          >
-                            {getMemberInitials(member)}
-                          </div>
                           <div>
                             <div className="text-sm font-medium text-slate-900">
                               {getMemberDisplayName(member)}
@@ -757,12 +738,6 @@ const MemberManagement = () => {
                 className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 hover:border-green-200 transition-all"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
-                    style={{ backgroundColor: "#2D7A3E" }}
-                  >
-                    {getMemberInitials(member)}
-                  </div>
                   <div className="flex flex-col items-end gap-1.5">
                     <MemberStatusBadge member={member} />
                     <QRStatusBadge member={member} />

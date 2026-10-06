@@ -965,8 +965,9 @@ export const auditAPI = {
   },
 
   // Get audit logs summary statistics
-  getStats: async (startDate, endDate) => {
+  getStats: async (startDate, endDate, module) => {
     const params = new URLSearchParams({ startDate, endDate });
+    if (module) params.append('module', module);
     const response = await api.get(`/audit/stats?${params}`);
     return response.data;
   },

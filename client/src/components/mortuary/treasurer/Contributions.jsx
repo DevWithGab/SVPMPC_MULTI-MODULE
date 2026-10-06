@@ -111,14 +111,9 @@ const Contributions = ({
                   <p className="text-xs text-slate-400">#{c.id.toString().padStart(6, '0')}</p>
                 </td>
                 <td className="px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-xs font-bold text-green-700 shrink-0">
-                      {(c.member_name || 'M').charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{c.member_name || `Member #${c.member_id}`}</p>
-                      <p className="text-xs text-slate-400">{c.member_id}</p>
-                    </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{c.member_name || `Member #${c.member_id}`}</p>
+                    <p className="text-xs text-slate-400">{c.member_id}</p>
                   </div>
                 </td>
                 <td className="px-5 py-4 text-right">
