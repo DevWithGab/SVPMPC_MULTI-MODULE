@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, UserPlus, AlertCircle } from 'lucide-react';
+﻿import React, { useState, useEffect, useRef } from 'react';
+import { Loader2, AlertCircle, CheckCircle2, ArrowRight, FileText, UserRound } from 'lucide-react';
 import Modal from '../../shared/Modal';
 import SearchableMemberSelect from '../../shared/SearchableMemberSelect';
 import Button from '../../../shared/ui/Button';
@@ -7,343 +7,154 @@ import Input from '../../../shared/ui/Input';
 import { beneficiaryAPI, claimAPI } from '../../../../services/api';
 import { sanitizePhoneInput, validatePhPhone } from '../../../../utils/validation';
 
-const emptyBeneficiaryForm = { beneficiaryName: '', relationship: '', contactNumber: '', address: '' };
+const emptyBeneficiary = { beneficiaryName: '', relationship: '', contactNumber: '', address: '' };
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const formatDate = value => new Date(`${value}T12:00:00`).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
 
-export default function RegisterClaimModal({ isOpen, onClose, members, user, onRegistered }) {
-  const [step, setStep] = useState('form'); // 'form' | 'confirm'
+function Field({ id, label, required, children }) {
+  return <div className="space-y-1.5"><label htmlFor={id} className="block text-sm font-semibold text-slate-700">{label}{required && <span className="text-rose-600"> *</span>}</label>{children}</div>;
+}
+
+export default function RegisterClaimModal(props) {
+  // Each opening starts a fresh draft; closing never leaves a stale lookup behind.
+  return props.isOpen ? <ClaimRegistration {...props} /> : null;
+}
+
+function ClaimRegistration({ onClose, members = [], membersLoading, membersError, onRetryMembers, user, onRegistered }) {
+  const [step, setStep] = useState('details');
   const [memberId, setMemberId] = useState('');
-  const [dateOfDeath, setDateOfDeath] = useState(new Date().toISOString().split('T')[0]);
+  const [dateOfDeath, setDateOfDeath] = useState('');
   const [causeOfDeath, setCauseOfDeath] = useState('');
   const [remarks, setRemarks] = useState('');
-
   const [beneficiary, setBeneficiary] = useState(null);
-  const [loadingBeneficiary, setLoadingBeneficiary] = useState(false);
-  const [beneficiaryForm, setBeneficiaryForm] = useState(emptyBeneficiaryForm);
-
+  const [beneficiaryForm, setBeneficiaryForm] = useState(emptyBeneficiary);
+  const [lookup, setLookup] = useState('idle');
+  const [retry, setRetry] = useState(0);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [discard, setDiscard] = useState(false);
+  const lock = useRef(false);
+  const heading = useRef(null);
+  const selectedMember = members.find(m => String(m.id) === String(memberId));
+  const dirty = !!(memberId || dateOfDeath || causeOfDeath || remarks);
+  const recipient = beneficiary || beneficiaryForm;
 
-  const reset = useCallback(() => {
-    setStep('form');
-    setMemberId('');
-    setDateOfDeath(new Date().toISOString().split('T')[0]);
-    setCauseOfDeath('');
-    setRemarks('');
-    setBeneficiary(null);
-    setBeneficiaryForm(emptyBeneficiaryForm);
-    setError('');
-  }, []);
-
-  const handleClose = () => {
-    if (submitting) return;
-    reset();
-    onClose();
-  };
-
-  // Auto-look-up the member's current beneficiary whenever selection changes
+  useEffect(() => { heading.current?.focus(); }, [step, discard]);
   useEffect(() => {
-    if (!memberId) {
-      setBeneficiary(null);
-      setBeneficiaryForm(emptyBeneficiaryForm);
-      return;
-    }
-
+    if (!memberId) return;
     let cancelled = false;
-    setLoadingBeneficiary(true);
+    beneficiaryAPI.getHistory(memberId).then(res => {
+      if (cancelled) return;
+      if (!Array.isArray(res?.data)) throw new Error('Invalid beneficiary response');
+      setBeneficiary(res.data.find(b => b.isActive) || null);
+      setLookup('ready');
+    }).catch(() => { if (!cancelled) setLookup('error'); });
+    return () => { cancelled = true; };
+  }, [memberId, retry]);
+
+  const close = () => {
+    if (lock.current) return;
+    if (dirty && step !== 'success') setDiscard(true);
+    else onClose();
+  };
+  const chooseMember = id => {
+    if (String(id) === String(memberId)) return;
+    const member = members.find(m => String(m.id) === String(id));
+    setMemberId(id);
     setBeneficiary(null);
-    setBeneficiaryForm(emptyBeneficiaryForm);
-
-    beneficiaryAPI
-      .getHistory(memberId)
-      .then((res) => {
-        if (cancelled) return;
-        const history = Array.isArray(res?.data) ? res.data : [];
-        const current = history.find((b) => b.isActive) || null;
-        setBeneficiary(current);
-
-        if (!current) {
-          // Members registered before the structured Beneficiary record
-          // existed only ever got a free-text name (and, more recently, a
-          // relationship) on Member.beneficiaries/beneficiaryRelationship —
-          // no contact number was ever captured for them. There's genuinely
-          // no structured record to find, but carry over whatever legacy
-          // fields exist so the admin isn't retyping data that's already
-          // visible elsewhere on this member's profile.
-          const legacyMember = (members || []).find(
-            (m) => m.id?.toString() === memberId?.toString(),
-          );
-          const legacyName = legacyMember?.beneficiaries?.trim();
-          const legacyRelationship = legacyMember?.beneficiaryRelationship?.trim();
-          if (legacyName || legacyRelationship) {
-            setBeneficiaryForm((f) => ({
-              ...f,
-              ...(legacyName && { beneficiaryName: legacyName }),
-              ...(legacyRelationship && { relationship: legacyRelationship }),
-            }));
-          }
-        }
-      })
-      .catch(() => {
-        // Leave beneficiary null — the form below already treats a null
-        // beneficiary as "show the quick-add fields."
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingBeneficiary(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberId]);
-
-  const selectedMember = (members || []).find((m) => m.id?.toString() === memberId?.toString());
-  const legacyBeneficiaryCarriedOver =
-    !beneficiary && !loadingBeneficiary && beneficiaryForm.beneficiaryName === selectedMember?.beneficiaries?.trim() && !!selectedMember?.beneficiaries?.trim();
-
-  const handleContinue = async (e) => {
+    setBeneficiaryForm({ ...emptyBeneficiary, beneficiaryName: member?.beneficiaries?.trim() || '', relationship: member?.beneficiaryRelationship?.trim() || '' });
+    setLookup('loading');
+    setError('');
+  };
+  const review = e => {
     e.preventDefault();
     setError('');
-
-    if (!memberId) {
-      setError('Select the deceased member.');
-      return;
-    }
-    if (!dateOfDeath) {
-      setError('Date of death is required.');
-      return;
-    }
-
+    if (!selectedMember) return setError('Please select the member this claim is for.');
+    if (lookup !== 'ready') return setError('Please wait until the beneficiary details are available.');
+    if (!dateOfDeath || dateOfDeath > today()) return setError('Enter a date of death that is today or earlier.');
     if (!beneficiary) {
-      // No beneficiary on file — register the quick-add form as their first
-      // beneficiary record before moving on.
-      const { beneficiaryName, relationship, contactNumber } = beneficiaryForm;
-      if (!beneficiaryName.trim() || !relationship.trim() || !contactNumber.trim()) {
-        setError('Beneficiary name, relationship, and contact number are required.');
-        return;
-      }
-      const phoneError = validatePhPhone(contactNumber);
-      if (phoneError) {
-        setError(phoneError);
-        return;
-      }
-
-      setSubmitting(true);
-      try {
-        const res = await beneficiaryAPI.updateBeneficiary(memberId, {
-          ...beneficiaryForm,
-          updatedBy: user?.name || user?.username,
-        });
-        setBeneficiary(res?.data || null);
-      } catch (err) {
-        setError(err.response?.data?.message || 'Unable to save beneficiary information.');
-        setSubmitting(false);
-        return;
-      }
-      setSubmitting(false);
+      if (!beneficiaryForm.beneficiaryName.trim() || !beneficiaryForm.relationship.trim()) return setError('Enter the beneficiary’s full name and relationship.');
+      const phoneError = validatePhPhone(beneficiaryForm.contactNumber);
+      if (phoneError) return setError(phoneError);
     }
-
-    setStep('confirm');
+    setStep('review');
   };
-
-  const handleSubmitClaim = async () => {
-    if (submitting) return;
+  const submit = async () => {
+    if (lock.current) return;
+    lock.current = true;
     setSubmitting(true);
     setError('');
-
+    let savedBeneficiary = beneficiary;
     try {
-      await claimAPI.createClaim({
-        memberId,
-        beneficiaryId: beneficiary?.beneficiaryId,
-        dateOfDeath,
-        causeOfDeath: causeOfDeath || undefined,
-        remarks: remarks || undefined,
-        createdBy: user?.name || user?.username,
-      });
-      reset();
-      onClose();
-      onRegistered?.();
+      if (!savedBeneficiary) {
+        const res = await beneficiaryAPI.updateBeneficiary(memberId, {
+          ...Object.fromEntries(Object.entries(beneficiaryForm).map(([key, value]) => [key, value.trim()])),
+          updatedBy: user?.name || user?.username,
+        });
+        if (!res?.data?.beneficiaryId) throw new Error('The beneficiary could not be confirmed. Please try again.');
+        savedBeneficiary = res.data;
+        setBeneficiary(savedBeneficiary);
+      }
+      await claimAPI.createClaim({ memberId, beneficiaryId: savedBeneficiary.beneficiaryId, dateOfDeath, causeOfDeath: causeOfDeath.trim() || undefined, remarks: remarks.trim() || undefined, createdBy: user?.name || user?.username });
+      setStep('success');
     } catch (err) {
-      setError(err.response?.data?.message || 'Unable to register this claim.');
+      setError((savedBeneficiary && !beneficiary ? 'Beneficiary details were saved. ' : '') + (err.response?.data?.message || err.message || 'Unable to register this claim. Please try again.'));
     } finally {
+      lock.current = false;
       setSubmitting(false);
     }
   };
+  const finish = () => { onClose(); onRegistered?.(); };
+  const update = key => e => setBeneficiaryForm(f => ({ ...f, [key]: key === 'contactNumber' ? sanitizePhoneInput(e.target.value) : e.target.value }));
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      maxWidth="max-w-lg"
-      title={step === 'confirm' ? 'Confirm Claim Details' : 'Register New Claim'}
-    >
-      {step === 'form' ? (
-        <form onSubmit={handleContinue} className="space-y-4">
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
-              Deceased Member <span className="text-red-500">*</span>
-            </label>
-            {/* No balance is passed: getAllMembers doesn't return one, and a
-                member's contribution balance has no bearing on which deceased
-                member a claim is filed for. The picker omits the figure rather
-                than showing a placeholder ₱0 that reads as real. */}
-            <SearchableMemberSelect
-              members={(members || []).map((m) => ({ id: m.id, name: m.name, barangay: m.barangay, address: m.address }))}
-              value={memberId}
-              onChange={setMemberId}
-              placeholder="Search member by name or ID..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
-                Date of Death <span className="text-red-500">*</span>
-              </label>
-              <Input type="date" value={dateOfDeath} onChange={(e) => setDateOfDeath(e.target.value)} required />
+  return <Modal isOpen onClose={step === 'success' ? finish : close} title="Register New Claim" maxWidth="max-w-2xl" className="rounded-2xl shadow-2xl" accessible>
+    <div className="space-y-6" aria-busy={submitting}>
+      {discard ? <div className="space-y-5">
+        <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold text-slate-900 outline-none">Leave this claim?</h2>
+        <p className="text-sm text-slate-600">Your claim draft will be discarded.{beneficiary && step === 'review' ? ' Any beneficiary details already saved will remain on the member’s record.' : ''}</p>
+        <div className="flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={onClose}>Discard draft</Button><Button onClick={() => setDiscard(false)}>Keep editing</Button></div>
+      </div> : step === 'success' ? <div className="py-4 text-center space-y-4">
+        <CheckCircle2 className="w-12 h-12 mx-auto text-coop-green" />
+        <h2 ref={heading} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">Claim registered</h2>
+        <p className="text-sm text-slate-600">The claim for <strong>{selectedMember?.name}</strong> is now awaiting requirements.</p>
+        <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Next, open the claim to add and verify the required documents.</div>
+        <Button onClick={finish} className="w-full sm:w-auto">Back to claims</Button>
+      </div> : <>
+        <ol aria-label="Registration progress" className="flex gap-3 text-sm">
+          {['Details', 'Review & register'].map((label, index) => <li key={label} aria-current={(step === 'details' ? index === 0 : index === 1) ? 'step' : undefined} className={`flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 ${((step === 'details' && index === 0) || (step === 'review' && index === 1)) ? 'bg-emerald-50 text-emerald-800 font-semibold' : 'bg-slate-50 text-slate-500'}`}><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-current text-xs">{index + 1}</span>{label}</li>)}
+        </ol>
+        <div><h2 ref={heading} tabIndex={-1} className="text-lg font-bold text-slate-900 outline-none">{step === 'details' ? 'Let’s start with the claim details' : 'Review before registering'}</h2><p className="mt-1 text-sm text-slate-500">{step === 'details' ? 'Select a member, confirm their beneficiary, and review the information. Fields marked * are required.' : 'Please check the member, beneficiary, and date below. You can go back to make changes.'}</p></div>
+        {error && <div role="alert" className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"><AlertCircle className="h-5 w-5 shrink-0" />{error}</div>}
+        {step === 'details' ? <form onSubmit={review} className="space-y-5">
+          <section className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><UserRound className="h-4 w-4 text-coop-green" /> Member & beneficiary</h3>
+            <div><p id="claim-member-label" className="mb-1.5 text-sm font-semibold text-slate-700">Deceased member <span className="text-rose-600">*</span></p>
+              {membersLoading ? <p role="status" className="text-sm text-slate-500">Loading members…</p> : membersError ? <div role="alert" className="text-sm text-rose-700">{membersError} <button type="button" onClick={onRetryMembers} className="underline font-semibold">Try again</button></div> : <SearchableMemberSelect members={members} value={memberId} onChange={chooseMember} placeholder="Search by member name or ID" ariaLabel="Deceased member" />}
+              {!membersLoading && !membersError && !members.length && <p className="mt-2 text-sm text-slate-500">No eligible members are available to register a claim.</p>}
             </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Date Filed</label>
-              <Input type="date" value={new Date().toISOString().split('T')[0]} disabled />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Cause of Death (optional)</label>
-            <Input value={causeOfDeath} onChange={(e) => setCauseOfDeath(e.target.value)} placeholder="e.g. Natural causes" />
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Remarks</label>
-            <textarea
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
-              placeholder="Optional notes"
-            />
-          </div>
-
-          {memberId && (
-            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/60">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Beneficiary</p>
-              {loadingBeneficiary ? (
-                <p className="text-sm text-slate-400">Looking up beneficiary...</p>
-              ) : beneficiary ? (
-                <div className="text-sm">
-                  <p className="font-semibold text-slate-900">{beneficiary.beneficiaryName}</p>
-                  <p className="text-slate-500">{beneficiary.relationship} • {beneficiary.contactNumber}</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    <UserPlus className="w-3.5 h-3.5 shrink-0" />
-                    {legacyBeneficiaryCarriedOver
-                      ? `${selectedMember?.name || 'This member'} only has a name on file — carried it over below. Confirm the relationship and contact number to continue.`
-                      : `No beneficiary on file for ${selectedMember?.name || 'this member'} — add one to continue.`}
-                  </div>
-                  <Input
-                    placeholder="Beneficiary full name"
-                    value={beneficiaryForm.beneficiaryName}
-                    onChange={(e) => setBeneficiaryForm((f) => ({ ...f, beneficiaryName: e.target.value }))}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      placeholder="Relationship"
-                      value={beneficiaryForm.relationship}
-                      onChange={(e) => setBeneficiaryForm((f) => ({ ...f, relationship: e.target.value }))}
-                    />
-                    <Input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={11}
-                      placeholder="09171234567"
-                      value={beneficiaryForm.contactNumber}
-                      onChange={(e) => setBeneficiaryForm((f) => ({ ...f, contactNumber: sanitizePhoneInput(e.target.value) }))}
-                    />
-                  </div>
-                  <Input
-                    placeholder="Address (optional)"
-                    value={beneficiaryForm.address}
-                    onChange={(e) => setBeneficiaryForm((f) => ({ ...f, address: e.target.value }))}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <Button type="button" variant="secondary" onClick={handleClose} className="flex-1" disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="submit" className="flex-1" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                'Continue'
-              )}
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <div className="space-y-4">
-          <div className="border border-slate-200 divide-y divide-slate-200 rounded-lg overflow-hidden">
-            <div className="flex justify-between px-4 py-2.5 text-sm">
-              <span className="text-slate-500">Deceased Member</span>
-              <span className="font-semibold text-slate-900">{selectedMember?.name}</span>
-            </div>
-            <div className="flex justify-between px-4 py-2.5 text-sm bg-slate-50">
-              <span className="text-slate-500">Beneficiary</span>
-              <span className="font-semibold text-slate-900">{beneficiary?.beneficiaryName}</span>
-            </div>
-            <div className="flex justify-between px-4 py-2.5 text-sm">
-              <span className="text-slate-500">Date of Death</span>
-              <span className="font-semibold text-slate-900">{dateOfDeath}</span>
-            </div>
-            {causeOfDeath && (
-              <div className="flex justify-between px-4 py-2.5 text-sm bg-slate-50">
-                <span className="text-slate-500">Cause of Death</span>
-                <span className="font-semibold text-slate-900">{causeOfDeath}</span>
-              </div>
-            )}
-          </div>
-
-          <p className="text-xs text-slate-400">
-            Filing this claim will mark the member's status as deceased and start the requirements checklist.
-          </p>
-
-          {error && (
-            <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <Button type="button" variant="secondary" onClick={() => setStep('form')} className="flex-1" disabled={submitting}>
-              Back
-            </Button>
-            <Button type="button" onClick={handleSubmitClaim} className="flex-1" disabled={submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Filing...
-                </>
-              ) : (
-                'File Claim'
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
+            {memberId && <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              {lookup === 'loading' ? <p role="status" className="flex gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Looking up beneficiary details…</p> : lookup === 'error' ? <div role="alert" className="text-sm text-rose-700">We couldn’t load the beneficiary. Please try again before continuing.<button type="button" className="block mt-2 font-semibold underline" onClick={() => { setLookup('loading'); setRetry(n => n + 1); }}>Retry lookup</button></div> : beneficiary ? <div className="space-y-1 text-sm"><p className="flex gap-2 items-center font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Beneficiary on file</p><p className="font-semibold text-slate-900 break-words">{beneficiary.beneficiaryName}</p><p className="text-slate-600">{beneficiary.relationship} · {beneficiary.contactNumber}</p></div> : <div className="space-y-3">
+                <div><p className="text-sm font-semibold text-slate-900">Complete the beneficiary details</p><p className="mt-1 text-xs leading-relaxed text-slate-500">There is no active beneficiary record. Any existing name and relationship are filled in below. These details will be saved when you register the claim.</p></div>
+                <Field id="claim-beneficiary" label="Full name" required><Input id="claim-beneficiary" required value={beneficiaryForm.beneficiaryName} onChange={update('beneficiaryName')} autoComplete="name" /></Field>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><Field id="claim-relationship" label="Relationship" required><Input id="claim-relationship" required placeholder="e.g. Spouse" value={beneficiaryForm.relationship} onChange={update('relationship')} /></Field><Field id="claim-contact" label="Mobile number" required><Input id="claim-contact" required type="tel" inputMode="numeric" maxLength={11} placeholder="09171234567" value={beneficiaryForm.contactNumber} onChange={update('contactNumber')} /></Field></div>
+                <Field id="claim-address" label="Address (optional)"><Input id="claim-address" value={beneficiaryForm.address} onChange={update('address')} /></Field>
+              </div>}
+            </div>}
+          </section>
+          <section className="space-y-4 border-t border-slate-100 pt-5">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><FileText className="h-4 w-4 text-coop-green" /> Claim information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Field id="claim-death-date" label="Date of death" required><Input id="claim-death-date" type="date" required max={today()} value={dateOfDeath} onChange={e => setDateOfDeath(e.target.value)} /></Field><Field id="claim-cause" label="Cause of death (optional)"><Input id="claim-cause" value={causeOfDeath} onChange={e => setCauseOfDeath(e.target.value)} placeholder="Enter if known" /></Field></div>
+            <Field id="claim-remarks" label="Remarks (optional)"><textarea id="claim-remarks" value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30" placeholder="Add any information helpful for reviewing this claim" /></Field>
+          </section>
+          <div className="sticky -bottom-5 border-t border-slate-200 bg-white py-4 flex flex-col-reverse sm:flex-row sm:justify-between gap-3"><Button variant="ghost" onClick={close}>Cancel</Button><Button type="submit" disabled={!memberId || lookup !== 'ready' || membersLoading || !!membersError}>Review claim <ArrowRight className="h-4 w-4" /></Button></div>
+        </form> : <div className="space-y-5">
+          <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
+            {[[ 'Member', selectedMember?.name ], ['Member ID', memberId], ['Beneficiary', recipient.beneficiaryName], ['Relationship', recipient.relationship], ['Mobile number', recipient.contactNumber], ['Beneficiary address', recipient.address || 'Not provided'], ['Date of death', formatDate(dateOfDeath)], ['Date filed', 'Recorded automatically on registration'], ['Cause of death', causeOfDeath.trim() || 'Not provided'], ['Remarks', remarks.trim() || 'None']].map(([label, value]) => <div key={label} className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-1 sm:gap-4 py-3 text-sm"><dt className="text-slate-500">{label}</dt><dd className="font-medium text-slate-900 whitespace-pre-wrap break-words min-w-0">{value}</dd></div>)}
+          </dl>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900"><p className="font-semibold">What happens next</p><p className="mt-1">Registering marks the member as deceased and creates a claim awaiting requirements. Benefit approval and payment happen after review.</p></div>
+          <div className="sticky -bottom-5 border-t border-slate-200 bg-white py-4 flex flex-col-reverse sm:flex-row sm:justify-between gap-3"><Button variant="secondary" disabled={submitting} onClick={() => { setError(''); setStep('details'); }}>Back to details</Button><Button disabled={submitting} onClick={submit}>{submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Registering…</> : 'Register claim'}</Button></div>
+        </div>}
+      </>}
+    </div>
+  </Modal>;
 }

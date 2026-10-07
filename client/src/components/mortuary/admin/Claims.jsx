@@ -1,4 +1,5 @@
 import useUrlState from '../../../hooks/useUrlState';
+import { loadAllPages } from '../../../utils/loadAllPages';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle, ChevronRight } from 'lucide-react';
 import StatCard from '../shared/StatCard';
@@ -19,6 +20,8 @@ export default function Claims({ user }) {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [claimCounts, setClaimCounts] = useState({});
   const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [membersError, setMembersError] = useState('');
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -59,11 +62,15 @@ export default function Claims({ user }) {
   }, []);
 
   const loadMembers = useCallback(async () => {
+    setMembersLoading(true);
+    setMembersError('');
     try {
-      const res = await mortuaryMemberAPI.getAllMembers({ limit: 100 });
-      setMembers((res?.members || []).filter((m) => m.status !== 'deceased'));
+      const records = await loadAllPages(page => mortuaryMemberAPI.getAllMembers({ page, limit: 100 }));
+      setMembers(records.filter(m => m.status !== 'deceased'));
     } catch {
-      // Non-fatal — the register modal will just show an empty picker.
+      setMembersError('Unable to load members.');
+    } finally {
+      setMembersLoading(false);
     }
   }, []);
 
@@ -79,6 +86,7 @@ export default function Claims({ user }) {
   const handleChanged = () => {
     loadClaims();
     loadCounts();
+    loadMembers();
   };
 
   useEffect(() => {
@@ -104,8 +112,10 @@ export default function Claims({ user }) {
           <p className="text-slate-500 text-sm mt-1">Register, verify, and process death benefit claims.</p>
         </div>
         <button
+          type="button"
+          aria-haspopup="dialog"
           onClick={() => setShowRegisterModal(true)}
-          className="inline-flex items-center gap-2 h-11 px-5 text-sm font-semibold bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg transition-colors shrink-0 self-start sm:self-auto"
+          className="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-semibold bg-coop-green hover:bg-coop-darkGreen text-white rounded-xl shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green focus-visible:ring-offset-2 transition-all shrink-0 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" /> Register New Claim
         </button>
@@ -291,6 +301,9 @@ export default function Claims({ user }) {
         isOpen={showRegisterModal}
         onClose={() => setShowRegisterModal(false)}
         members={members}
+        membersLoading={membersLoading}
+        membersError={membersError}
+        onRetryMembers={loadMembers}
         user={user}
         onRegistered={handleChanged}
       />

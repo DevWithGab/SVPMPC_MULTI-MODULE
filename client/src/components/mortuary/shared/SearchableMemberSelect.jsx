@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight } from 'lucide-react';
 import { getBarangay } from '../../../utils/helpers';
 
-const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Search member...", extraOptions = [] }) => {
+const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Search member...", extraOptions = [], ariaLabel = 'Select member' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
@@ -31,11 +31,17 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
       <div
         className="w-full min-h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 flex items-center cursor-text focus-within:ring-2 focus-within:ring-coop-green/20 focus-within:bg-white transition-all overflow-hidden"
         onClick={() => setIsOpen(true)}
+        role="button"
+        tabIndex={isOpen ? -1 : 0}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setIsOpen(true); } }}
       >
         <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
         {isOpen ? (
           <input
             autoFocus
+            aria-label={ariaLabel}
             type="text"
             className="w-full bg-transparent outline-none text-sm font-bold placeholder:text-slate-400 placeholder:font-medium"
             placeholder={placeholder}
@@ -65,7 +71,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -129,7 +135,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No members found</p>
                </div>
             )}
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>
