@@ -27,12 +27,10 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       trim: true,
-      required: true,
     },
     phoneNumber: {
       type: String,
       trim: true,
-      required: true,
     },
     passwordHash: {
       type: String,

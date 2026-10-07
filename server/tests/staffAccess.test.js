@@ -63,10 +63,12 @@ test('staff creation and reset return credentials once, exclude secrets from lis
   }
   const staff = load('../shared/controllers/staffController', { '../models/User': User, '../models/AuditLog': { create: async log => logs.push(log) } });
   const actor = { userId: 'super', username: 'superadmin', role: 'super_admin' };
-  const req = { user: actor, body: { fullName: 'Staff Example', username: 'maria.santos', email: 'STAFF@example.com', phoneNumber: '09123456789', role: 'secretary', modules: ['attendance'] } };
+  const req = { user: actor, body: { fullName: 'Staff Example', username: 'maria.santos', role: 'secretary', modules: ['attendance'] } };
   const created = response(); await staff.create(req, created);
   assert.equal(created.code, 201);
   assert.equal(created.data.user.username, 'maria.santos');
+  assert.equal(created.data.user.email, undefined);
+  assert.equal(created.data.user.phoneNumber, undefined);
   assert.ok(created.data.credentials.password.length >= 24);
   assert.equal(users[0].isTemporaryPassword, true);
   assert.equal(created.data.user.passwordHash, undefined);

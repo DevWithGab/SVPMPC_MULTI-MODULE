@@ -24,17 +24,16 @@ exports.list = async (req, res) => {
   res.json({ users: users.map(publicUser) });
 };
 exports.create = async (req, res) => {
-  const { fullName, email, phoneNumber, role, modules } = req.body;
+  const { fullName, role, modules } = req.body;
   const username = normalizeUsername(req.body.username);
   if (!validUsername(username)) return res.status(400).json({ message: 'Choose a username with 3–32 letters, numbers, dots, underscores, or hyphens. Start with a letter or number.' });
-  if (typeof fullName !== 'string' || fullName.trim().length < 2 || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || !/^09\d{9}$/.test(phoneNumber) || !validateAccess(role, modules)) {
-    return res.status(400).json({ message: 'Provide a full name, valid email, 11-digit PH mobile number, and valid role/module assignment.' });
+  if (typeof fullName !== 'string' || fullName.trim().length < 2 || !validateAccess(role, modules)) {
+    return res.status(400).json({ message: 'Provide a full name and valid role/module assignment.' });
   }
   try {
     if (await usernameTaken(username)) return res.status(409).json({ message: 'Username is already taken. Choose another username.' });
-    if (await User.exists({ email: email.trim().toLowerCase() })) return res.status(409).json({ message: 'Email already belongs to an account.' });
     const password = temporaryPassword();
-    const user = new User({ userId: randomUUID(), staffId: `STAFF-${randomUUID()}`, fullName: fullName.trim(), email: email.trim().toLowerCase(), phoneNumber,
+    const user = new User({ userId: randomUUID(), staffId: `STAFF-${randomUUID()}`, fullName: fullName.trim(),
       username, passwordHash: password, role, modules, status: 'active', isTemporaryPassword: true });
     await user.save();
     await audit(req, user, 'staff_created');

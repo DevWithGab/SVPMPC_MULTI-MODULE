@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
 const roleModules = { admin: ['attendance', 'mortuary'], secretary: ['attendance'], scanner_operator: ['attendance'], treasurer: ['mortuary'] };
-const empty = { fullName: '', username: '', email: '', phoneNumber: '', role: 'secretary', modules: ['attendance'], status: 'active' };
+const empty = { fullName: '', username: '', role: 'secretary', modules: ['attendance'], status: 'active' };
 const label = value => value.replaceAll('_', ' ');
 
 export default function StaffAccounts() {
@@ -66,20 +66,17 @@ export default function StaffAccounts() {
         <label className="text-sm">Name<Input required minLength={2} value={form.fullName || ''} onChange={e => setForm({ ...form, fullName: e.target.value })} /></label>
         <label className="text-sm">Login username<Input required minLength={3} maxLength={32} pattern="[a-z0-9][a-z0-9._\-]{2,31}" autoComplete="off" value={form.username || ''} onChange={e => setForm({ ...form, username: e.target.value.toLowerCase() })} /><span className="text-xs text-slate-500">3–32 characters, e.g. maria.santos. Staff use this username to sign in.</span></label>
       </div>
-      {!form.userId && <div className="grid md:grid-cols-3 gap-4">
-        {[['email', 'Email', 'email'], ['phoneNumber', 'Mobile number', 'tel']].map(([key, title, type]) => <label key={key} className="text-sm">{title}<Input required type={type} value={form[key]} pattern={key === 'phoneNumber' ? '09[0-9]{9}' : undefined} placeholder={key === 'phoneNumber' ? '09123456789' : title} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
-      </div>}
       <label className="block text-sm">Role<select className="block border rounded p-2 mt-1" value={form.role} onChange={e => setForm({ ...form, role: e.target.value, modules: [...roleModules[e.target.value]] })}>{Object.keys(roleModules).map(role => <option key={role} value={role}>{label(role)}</option>)}</select></label>
       <fieldset><legend className="text-sm mb-2">Module access</legend><div className="flex gap-5">{roleModules[form.role].map(module => <label key={module} className="capitalize"><input type="checkbox" checked={form.modules.includes(module)} onChange={e => setForm({ ...form, modules: e.target.checked ? [...form.modules, module] : form.modules.filter(m => m !== module) })} /> {module}</label>)}</div></fieldset>
       {form.userId && <label className="block text-sm">Status<select className="block border rounded p-2 mt-1" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{['active', 'inactive', 'suspended'].map(status => <option key={status}>{status}</option>)}</select></label>}
       {form.userId && <p className="text-sm text-slate-500">Saving access changes signs this staff member out of existing sessions.</p>}
       <div className="flex gap-3"><Button type="submit" disabled={busy || !form.modules.length}>{busy ? 'Saving…' : form.userId ? 'Save changes' : 'Generate account'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setForm(null)}>Cancel</Button></div>
     </form>}
-    <Input aria-label="Search staff" placeholder="Search staff by name, username, or email" value={search} onChange={e => setSearch(e.target.value)} />
+    <Input aria-label="Search staff" placeholder="Search staff by name or username" value={search} onChange={e => setSearch(e.target.value)} />
     {loadingList && <p role="status" className="py-3">Loading staff accounts...</p>}
     {listError && <p role="alert" className="py-3 text-red-700">{listError}</p>}
     <div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><thead><tr>{['Staff', 'Role', 'Modules', 'Status', 'Actions'].map(title => <th className="p-3 border-b" key={title}>{title}</th>)}</tr></thead>
-      <tbody>{users.filter(user => `${user.fullName || ''} ${user.username} ${user.email}`.toLowerCase().includes(search.toLowerCase())).map(user => <tr key={user.userId}>
+      <tbody>{users.filter(user => `${user.fullName || ''} ${user.username}`.toLowerCase().includes(search.toLowerCase())).map(user => <tr key={user.userId}>
         <td className="p-3 border-b"><p className="font-semibold">{user.fullName || user.username}</p><p>{user.email}</p><p className="text-xs text-slate-500">{user.username}</p></td>
         <td className="p-3 border-b capitalize">{label(user.role)}</td><td className="p-3 border-b capitalize">{user.modules.join(', ')}</td><td className="p-3 border-b">{user.status}{user.isTemporaryPassword && <p className="text-xs text-amber-700">Password change required</p>}</td>
         <td className="p-3 border-b"><div className="flex gap-2"><Button variant="outline" disabled={busy || Boolean(credentials)} onClick={() => setForm({ ...user })}>Edit account</Button><Button variant="outline" disabled={busy || Boolean(credentials)} onClick={() => {
@@ -91,6 +88,6 @@ export default function StaffAccounts() {
             if (form?.userId === user.userId) setForm(null);
           });
         }}>Delete</Button></div></td>
-      </tr>)}</tbody></table>{!loadingList && !listError && !users.length && <p className="py-4 text-slate-500">No staff accounts yet.</p>}{users.length > 0 && !users.some(user => `${user.fullName || ''} ${user.username} ${user.email}`.toLowerCase().includes(search.toLowerCase())) && <p className="py-4 text-slate-500">No staff match this search. Clear the search to see all accounts.</p>}</div>
+      </tr>)}</tbody></table>{!loadingList && !listError && !users.length && <p className="py-4 text-slate-500">No staff accounts yet.</p>}{users.length > 0 && !users.some(user => `${user.fullName || ''} ${user.username}`.toLowerCase().includes(search.toLowerCase())) && <p className="py-4 text-slate-500">No staff match this search. Clear the search to see all accounts.</p>}</div>
   </section>;
 }

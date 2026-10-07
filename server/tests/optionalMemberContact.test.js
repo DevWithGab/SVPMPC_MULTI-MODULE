@@ -86,8 +86,10 @@ test('bulk creation allows multiple members with blank contacts and retains emai
   assert.ok(result.data.results.failed.some(row => row.reason === 'Email already exists'));
 });
 
-test('staff accounts still require email and phone number', async () => {
+test('staff accounts can be created without email and phone number', async () => {
   const user = new User({ userId: 'staff-test', staffId: 'staff-test', username: 'staff-test', role: 'admin', passwordHash: 'test' });
-  await assert.rejects(user.validate(), error => Boolean(error.errors.email && error.errors.phoneNumber));
+  await user.validate();
+  assert.equal(user.email, undefined);
+  assert.equal(user.phoneNumber, undefined);
 });
 
