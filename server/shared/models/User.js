@@ -11,11 +11,13 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     memberId: {
+      // Retained for reading legacy accounts; members no longer get logins.
       type: String,
       ref: 'Member',
     },
     staffId: {
       type: String,
+      required: true,
     },
     username: {
       type: String,
@@ -25,12 +27,12 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       trim: true,
-      required: function () { return this.role !== 'member'; },
+      required: true,
     },
     phoneNumber: {
       type: String,
       trim: true,
-      required: function () { return this.role !== 'member'; },
+      required: true,
     },
     passwordHash: {
       type: String,
@@ -59,25 +61,20 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['member', 'admin', 'secretary', 'treasurer', 'scanner_operator', 'super_admin'],
-      default: 'member',
+      enum: ['admin', 'secretary', 'treasurer', 'scanner_operator', 'super_admin'],
+      required: true,
     },
   },
   { timestamps: true }
 );
 
-userSchema.pre('validate', function () {
-  const staffRoles = ['admin', 'secretary', 'treasurer', 'scanner_operator', 'super_admin'];
-  const isStaffAccount = staffRoles.includes(this.role);
-
-  if (isStaffAccount) {
-    if (!this.staffId) {
-      throw new Error('staffId is required for staff accounts');
-    }
-  } else if (!this.memberId) {
-    throw new Error('memberId is required for member accounts');
-  }
-});
+// Login accounts are staff-only. Require the same validation when updating
+// accounts through query helpers as when creating/saving documents.
+for (const operation of ['updateOne', 'updateMany', 'findOneAndUpdate', 'replaceOne', 'findOneAndReplace']) {
+  userSchema.pre(operation, function () {
+    this.setOptions({ runValidators: true });
+  });
+}
 
 // Hash password before saving
 userSchema.pre('save', async function () {

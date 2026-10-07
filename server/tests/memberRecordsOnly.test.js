@@ -85,3 +85,61 @@ test('member creation routes remain available and member password-reset route is
   assert.ok(paths.includes('/members/:memberId/toggle-status'));
   assert.ok(!paths.includes('/members/:memberId/reset-password'));
 });
+
+test('User schema requires an explicit staff role and rejects member login accounts', async () => {
+  const User = require('../shared/models/User');
+  const account = { userId: 'test-user', staffId: 'STAFF-TEST', memberId: 'MEM-TEST', username: 'test-user', passwordHash: 'temporary-password', email: 'staff@example.com', phoneNumber: '09123456789' };
+  await assert.rejects(new User({ ...account, role: 'member' }).validate(), error => Boolean(error.errors.role));
+  await assert.rejects(new User(account).validate(), error => Boolean(error.errors.role));
+  for (const role of ['admin', 'secretary', 'treasurer', 'scanner_operator', 'super_admin']) {
+    await new User({ ...account, role }).validate();
+    await assert.rejects(new User({ ...account, role, staffId: undefined }).validate(), error => Boolean(error.errors.staffId));
+  }
+});
+
+test('Mortuary single and bulk member creation save members and ledgers without login accounts', async () => {
+  const members = [], ledgers = [];
+  class Member {
+    constructor(data) { Object.assign(this, data); }
+    async save() { members.push(this); return this; }
+    static findOne() { return { sort: async () => members.at(-1) || null }; }
+  }
+  class Ledger {
+    constructor(data) { Object.assign(this, data); }
+    async save() { ledgers.push(this); }
+  }
+  class ForbiddenAccount { constructor() { throw new Error('Member registration must not create a User'); } }
+  const controller = load('../modules/mortuary/controllers/adminController', {
+    '../../../shared/models': { Member, User: ForbiddenAccount }, '../models': { Ledger },
+  });
+  const body = { name: 'Member Example', contact: '09123456789', barangay: 'Sample', address: 'Sample address' };
+  const single = response(); await controller.createMember({ body }, single);
+  assert.equal(single.data.success, true);
+  const bulk = response(); await controller.bulkCreateMembers({ body: { members: [body, body] } }, bulk);
+  assert.equal(bulk.data.success, true);
+  assert.equal(members.length, 3);
+  assert.equal(ledgers.length, 3);
+  assert.ok(members.every(member => !member.username && !member.passwordHash));
+});
+
+test('Attendance CSV member creation saves only member records, without credentials', async () => {
+  const members = [];
+  class Member {
+    constructor(data) { Object.assign(this, data); }
+    async save() { members.push(this); return this; }
+  }
+  class ForbiddenAccount { constructor() { throw new Error('Member upload must not create a User'); } }
+  const controller = load('../modules/attendance/controllers/memberController', {
+    '../../../shared/models': { Member, User: ForbiddenAccount },
+    '../services/csvParserService': { parseCSV: async () => [{ memberId: '001', memberName: 'Member Example', email: '', phoneNumber: '', barangay: 'Sample', address: 'Sample address' }], validateMemberData: () => ({ isValid: true }) },
+    '../../../shared/services/auditLoggingService': { createAuditLog: async () => {} },
+    fs: { unlinkSync() {} },
+  });
+  const result = response();
+  await controller.uploadMembers({ file: { path: 'fake.csv', originalname: 'members.csv' }, get: () => '' }, result);
+  assert.equal(result.code, 201);
+  assert.equal(result.data.savedCount, 1);
+  assert.equal(members.length, 1);
+  assert.equal(members[0].username, undefined);
+  assert.equal(members[0].passwordHash, undefined);
+});
