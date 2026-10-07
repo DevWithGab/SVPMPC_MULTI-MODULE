@@ -11,6 +11,7 @@ const attendanceRoutes = require('./modules/attendance/routes/attendanceRoutes')
 const mortuaryRoutes = require('./modules/mortuary/routes/mortuaryRoutes');
 const auditLogRoutes = require('./shared/routes/auditLogRoutes');
 
+const { authenticateToken, authorizeModule, authorizeAdminOnly, requirePasswordChange } = require('./middleware/auth');
 const app = express();
 
 // CORS - Must be FIRST, before any other middleware
@@ -38,10 +39,10 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/mortuary', mortuaryRoutes);
-app.use('/api/audit', auditLogRoutes);
+app.use('/api/admin', authenticateToken, requirePasswordChange, authorizeAdminOnly, adminRoutes);
+app.use('/api/attendance', authenticateToken, requirePasswordChange, authorizeModule('attendance'), attendanceRoutes);
+app.use('/api/mortuary', authenticateToken, requirePasswordChange, authorizeModule('mortuary'), mortuaryRoutes);
+app.use('/api/audit', authenticateToken, requirePasswordChange, auditLogRoutes);
 
 // Global error handling middleware
 app.use(globalErrorHandler);

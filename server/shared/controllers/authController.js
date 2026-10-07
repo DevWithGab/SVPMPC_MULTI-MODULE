@@ -74,6 +74,7 @@ const login = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       {
+        sessionVersion: user.sessionVersion || 0,
         userId: user.userId,
         memberId: user.memberId,
         staffId: user.staffId,
@@ -114,6 +115,7 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ message: 'Current and new password required' });
     }
 
+
     // Find user
     const user = await User.findOne({ userId });
     if (!user) {
@@ -125,9 +127,11 @@ const changePassword = async (req, res) => {
       return res.status(403).json({ message: 'Member self-service access is no longer available.' });
     }
 
+    if (typeof newPassword !== 'string' || Buffer.byteLength(newPassword, 'utf8') > 72 || newPassword.length < 12 || newPassword === currentPassword) return res.status(400).json({ message: 'Use a different password with at least 12 characters (maximum 72 bytes)' });
+
     const isPasswordValid = await user.comparePassword(currentPassword);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Current password is incorrect' });
+      return res.status(400).json({ message: 'Current password is incorrect' });
     }
 
     // Update password
@@ -219,6 +223,8 @@ const verifyToken = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+    const user = await User.findOne({ userId: decoded.userId });
+    if (!user || user.status !== 'active' || (decoded.sessionVersion || 0) !== (user.sessionVersion || 0)) return res.status(401).json({ message: 'Please sign in again' });
 
     if (decoded.role === 'member') {
       return res.status(403).json({ message: 'Member self-service access is no longer available.' });

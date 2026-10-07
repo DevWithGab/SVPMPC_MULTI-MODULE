@@ -5,6 +5,8 @@ const authController = require('../controllers/authController');
 const bulkImportController = require('../controllers/bulkImportController');
 const { loginLimiter, changePasswordLimiter } = require('../../middleware');
 
+const { authenticateToken, requirePasswordChange, authorizeAdminOnly } = require('../../middleware/auth');
+const ownAccount = (req, res, next) => req.params.userId === req.user.userId ? next() : res.status(403).json({ message: 'Access denied' });
 const router = express.Router();
 
 // Configure multer for CSV uploads
@@ -30,10 +32,12 @@ const upload = multer({
 
 // Auth routes
 router.post('/login', loginLimiter, authController.login);
-router.put('/change-password/:userId', changePasswordLimiter, authController.changePassword);
-router.get('/profile/:userId', authController.getUserProfile);
-router.get('/credential-history/:userId', authController.getCredentialHistory);
+router.put('/change-password/:userId', changePasswordLimiter, authenticateToken, ownAccount, authController.changePassword);
+router.get('/profile/:userId', authenticateToken, ownAccount, authController.getUserProfile);
+router.get('/credential-history/:userId', authenticateToken, ownAccount, authController.getCredentialHistory);
 router.get('/verify-token', authController.verifyToken);
+
+router.use('/bulk-import', authenticateToken, requirePasswordChange, authorizeAdminOnly);
 
 // Bulk import routes
 router.post('/bulk-import/upload', upload.single('file'), bulkImportController.uploadAndPreviewCSV);

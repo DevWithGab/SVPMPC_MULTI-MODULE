@@ -28,6 +28,8 @@ const authenticateToken = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Member self-service access is no longer available.' });
     }
 
+    if (user.status !== 'active') return res.status(401).json({ message: 'Account is not active' });
+    if ((decoded.sessionVersion || 0) !== (user.sessionVersion || 0)) return res.status(401).json({ message: 'Please sign in again' });
     req.user = user;
     next();
   } catch (error) {
@@ -70,6 +72,8 @@ const authorizeModule = (module) => {
       });
     }
 
+    if (req.user.role === 'super_admin') return next();
+    if (!req.user.modules?.includes(module)) return res.status(403).json({ message: 'Module access denied' });
     // Check if user has access to the specific module
     const moduleAccess = {
       'mortuary': ['admin', 'treasurer'],
@@ -90,12 +94,12 @@ const authorizeModule = (module) => {
 };
 
 // Middleware for specific role combinations
-const authorizeMortuaryRoles = authorizeRoles('admin', 'treasurer');
+const authorizeMortuaryRoles = authorizeRoles('admin', 'treasurer', 'super_admin');
 // Members no longer have self-service access to the attendance system —
 // their QR codes are issued and used physically instead.
-const authorizeAttendanceRoles = authorizeRoles('admin', 'secretary', 'scanner_operator');
-const authorizeTreasurerOnly = authorizeRoles('treasurer', 'admin');
-const authorizeSecretaryOnly = authorizeRoles('secretary', 'admin');
+const authorizeAttendanceRoles = authorizeRoles('admin', 'secretary', 'scanner_operator', 'super_admin');
+const authorizeTreasurerOnly = authorizeRoles('treasurer', 'admin', 'super_admin');
+const authorizeSecretaryOnly = authorizeRoles('secretary', 'admin', 'super_admin');
 // super_admin is treated as admin-or-above everywhere authorizeAdminOnly is
 // used — the login gate (authController's expectedRole check) already lets
 // a super_admin account sign in through the "admin" login for any module
@@ -119,3 +123,5 @@ module.exports = {
   authorizeSecretaryOnly,
   authorizeAdminOnly
 };
+
+module.exports.requirePasswordChange = (req, res, next) => req.user.isTemporaryPassword ? res.status(403).json({ message: 'Change your temporary password before continuing', code: 'PASSWORD_CHANGE_REQUIRED' }) : next();

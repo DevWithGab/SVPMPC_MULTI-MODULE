@@ -13,7 +13,6 @@ const getAllAuditLogs = async (req, res) => {
     const {
       userId,
       action,
-      module,
       userRole,
       entityType,
       startDate,
@@ -25,7 +24,7 @@ const getAllAuditLogs = async (req, res) => {
     const result = await getAuditLogs({
       userId,
       action,
-      module,
+      module: req.auditModule,
       userRole,
       entityType,
       startDate,
@@ -38,7 +37,7 @@ const getAllAuditLogs = async (req, res) => {
       const derivedResult = await getDerivedActivityFeed({
         userId,
         action,
-        module,
+        module: req.auditModule,
         userRole,
         entityType,
         startDate,
@@ -79,7 +78,7 @@ const getAuditTrail = async (req, res) => {
       });
     }
 
-    const logs = await getEntityAuditTrail(entityType, entityId, limit);
+    const logs = await getEntityAuditTrail(entityType, entityId, limit, req.auditModule);
 
     res.status(200).json({
       message: 'Entity audit trail retrieved successfully',
@@ -101,7 +100,7 @@ const getAuditTrail = async (req, res) => {
  */
 const getAuditLogStats = async (req, res) => {
   try {
-    const { startDate, endDate, module } = req.query;
+    const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({
@@ -112,7 +111,7 @@ const getAuditLogStats = async (req, res) => {
     const summary = await getAuditLogsSummary(
       new Date(startDate),
       new Date(endDate),
-      module
+      req.auditModule
     );
 
     res.status(200).json({
@@ -143,6 +142,7 @@ const getUserActivity = async (req, res) => {
 
     const result = await getAuditLogs({
       userId,
+      module: req.auditModule,
       page,
       limit,
     });
@@ -175,6 +175,7 @@ const getRoleActivity = async (req, res) => {
     }
 
     const result = await getAuditLogs({
+      module: req.auditModule,
       userRole: role,
       page,
       limit,

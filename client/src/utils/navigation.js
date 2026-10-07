@@ -14,6 +14,7 @@ export function readSession(storage = localStorage) {
     const selection = JSON.parse(storage.getItem('selectedModule'));
     if (!token || !user || !selection || portalPath(selection.module, selection.role) === '/') return null;
     if (user.role !== selection.role && user.role !== 'super_admin') return null;
+    if (user.role !== 'super_admin' && !user.modules?.includes(selection.module)) return null;
     return { ...selection, user, token };
   } catch {
     return null;

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
+import StaffAccounts from '../components/shared/StaffAccounts';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -92,7 +93,8 @@ const FormField = React.forwardRef(
 );
 FormField.displayName = 'FormField';
 
-const SuperAdmin = () => {
+const SuperAdmin = ({ onAuthenticated, onLogout }) => {
+  const [section, setSection] = useState('members');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -222,14 +224,16 @@ const SuperAdmin = () => {
       
       // Login with super_admin credentials
       const response = await adminAPI.login('superadmin', authPassword);
+      if (response.user?.role !== 'super_admin') throw new Error('Superadmin access required');
       
       if (response.token) {
         // Store token in localStorage
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         
+        onAuthenticated(response.user, response.token);
         setIsAuthenticated(true);
-        fetchMembers();
+        if (!response.user.isTemporaryPassword) fetchMembers();
       } else {
         setAuthError('Invalid super admin credentials');
       }
@@ -483,7 +487,7 @@ const SuperAdmin = () => {
                 </div>
               </div>
               <CardTitle className="text-center text-2xl font-black">Super Admin Access</CardTitle>
-              <p className="text-center text-emerald-100 text-sm mt-2">Member Management System</p>
+              <p className="text-center text-emerald-100 text-sm mt-2">Modules, Staff Accounts & Members</p>
             </CardHeader>
             <CardContent className="p-8">
               <form onSubmit={handleAuth} className="space-y-6">
@@ -561,6 +565,7 @@ const SuperAdmin = () => {
               onClick={() => {
                 setIsAuthenticated(false);
                 setAuthPassword('');
+                onLogout();
               }}
               className="rounded-xl"
             >
@@ -573,6 +578,9 @@ const SuperAdmin = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex gap-3 mb-6"><Button variant={section === 'members' ? 'default' : 'outline'} onClick={() => setSection('members')}>Members</Button><Button variant={section === 'staff' ? 'default' : 'outline'} onClick={() => setSection('staff')}>Staff Accounts</Button></div>
+        {section === 'staff' && <StaffAccounts />}
+        <div hidden={section !== 'members'}>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="border-slate-200 shadow-sm">
@@ -757,6 +765,8 @@ const SuperAdmin = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
       </div>
 
       {/* Create Member Modal */}

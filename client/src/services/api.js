@@ -55,7 +55,7 @@ export const authAPI = {
 
   changePassword: async (userId, oldPassword, newPassword) => {
     const response = await api.put(`/auth/change-password/${userId}`, {
-      oldPassword,
+      currentPassword: oldPassword,
       newPassword,
     });
     return response.data;
@@ -677,9 +677,16 @@ export const paymentScheduleAPI = {
 // ============================================
 // ADMIN - MEMBER MANAGEMENT API
 // ============================================
+export const staffAPI = {
+  remove: id => api.delete('/admin/staff/' + id).then(r => r.data),
+  list: () => api.get('/admin/staff').then(r => r.data),
+  create: data => api.post('/admin/staff', data).then(r => r.data),
+  update: (id, data) => api.put('/admin/staff/' + id, data).then(r => r.data),
+  resetPassword: id => api.post('/admin/staff/' + id + '/reset-password').then(r => r.data),
+};
 export const adminAPI = {
   login: async (username, password) => {
-    const response = await api.post('/auth/login', { username, password });
+    const response = await api.post('/auth/login', { username, password, expectedRole: 'super_admin' });
     return response.data;
   },
 

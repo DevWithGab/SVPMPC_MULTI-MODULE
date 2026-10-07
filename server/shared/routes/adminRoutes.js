@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 
+const staff = require('../controllers/staffController');
+const { authorizeRoles } = require('../../middleware/auth');
+router.use('/staff', authorizeRoles('super_admin'));
+router.get('/staff', staff.list);
+router.post('/staff', staff.create);
+router.put('/staff/:userId', staff.update);
+router.delete('/staff/:userId', staff.remove);
+router.post('/staff/:userId/reset-password', staff.resetPassword);
+
 // Create a member record
 router.post('/members/create', adminController.createMember);
 

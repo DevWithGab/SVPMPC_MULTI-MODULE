@@ -74,7 +74,7 @@ export const authAPI = {
   changePassword: async (userId, oldPassword, newPassword) => {
     try {
       const response = await api.put(`/auth/change-password/${userId}`, {
-        oldPassword,
+        currentPassword: oldPassword,
         newPassword,
       });
       return {

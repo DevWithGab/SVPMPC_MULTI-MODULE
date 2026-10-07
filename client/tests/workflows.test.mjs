@@ -35,7 +35,7 @@ test('reporting month uses Manila time at the year boundary', () => {
 test('session recovery tolerates malformed storage and rejects a mismatched role', () => {
   const storage = values => ({ getItem: key => values[key] ?? null });
   assert.equal(readSession(storage({ user: '{broken' })), null);
-  const values = { token: 'test', user: JSON.stringify({ role: 'treasurer' }), selectedModule: JSON.stringify({ module: 'mortuary', role: 'treasurer' }) };
+  const values = { token: 'test', user: JSON.stringify({ role: 'treasurer', modules: ['mortuary'] }), selectedModule: JSON.stringify({ module: 'mortuary', role: 'treasurer' }) };
   assert.equal(readSession(storage(values)).role, 'treasurer');
   assert.equal(readSession(storage({ ...values, user: JSON.stringify({ role: 'secretary' }) })), null);
   assert.equal(portalPath('attendance', 'treasurer'), '/');

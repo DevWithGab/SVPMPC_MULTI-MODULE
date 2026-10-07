@@ -5,11 +5,7 @@ const {
   authorizeRoles,
 } = require('../../../middleware');
 
-// Regenerating or deactivating a member's QR is more consequential than the
-// rest of admin-only (it can lock a member out of scanning), so — unlike
-// every other route on this router — it's restricted to the literal
-// 'admin' role and does not extend to super_admin.
-const authorizeAttendanceAdminOnly = authorizeRoles('admin');
+const authorizeAttendanceAdminOnly = authorizeRoles('admin', 'super_admin');
 
 // Import existing controllers
 const memberController = require('../controllers/memberController');

@@ -19,9 +19,9 @@ const backupController = require('../controllers/backupController');
 
 const router = express.Router();
 
-// Temporarily remove auth for testing
-// router.use(authenticateToken);
-// router.use(authorizeAdminOnly);
+// All admin operations require administrator access.
+router.use(authenticateToken);
+router.use(authorizeAdminOnly);
 
 // Dashboard routes
 router.get('/dashboard', dashboardController.getAdminDashboard);
@@ -46,9 +46,7 @@ router.get('/payouts/:payoutId', payoutController.getPayoutById);
 router.get('/ledger', ledgerController.getAllLedger);
 router.get('/ledger/:memberId', ledgerController.getMemberLedger);
 
-// Claims management routes — auth enforced per-route (the router-level
-// auth above is left commented out to avoid touching the existing,
-// untested-open routes above; these new routes are guarded explicitly).
+// Claims management routes
 router.post('/claims', authenticateToken, authorizeAdminOnly, claimController.createClaim);
 router.get('/claims', authenticateToken, authorizeAdminOnly, claimController.getAllClaims);
 router.get('/claims/:claimId', authenticateToken, authorizeAdminOnly, claimController.getClaimById);

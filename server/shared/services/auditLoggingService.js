@@ -222,7 +222,7 @@ const getDerivedActivityFeed = async (options = {}) => {
 
     if (userId) filtered = filtered.filter((log) => String(log.userId || '') === String(userId));
     if (action) filtered = filtered.filter((log) => String(log.action || '') === String(action));
-    if (module) filtered = filtered.filter((log) => String(log.module || '') === String(module));
+    if (module) filtered = filtered.filter(log => Array.isArray(module) ? module.includes(log.module) : String(log.module || '') === String(module));
     if (userRole) filtered = filtered.filter((log) => String(log.userRole || '') === String(userRole));
     if (entityType) filtered = filtered.filter((log) => String(log.entityType || '') === String(entityType));
 
@@ -299,7 +299,7 @@ const getAuditLogs = async (options = {}) => {
 
     if (userId) filter.userId = userId;
     if (action) filter.action = action;
-    if (module) filter.module = module;
+    if (module) filter.module = Array.isArray(module) ? { $in: module } : module;
     if (userRole) filter.userRole = userRole;
     if (entityType) filter.entityType = entityType;
 
@@ -341,11 +341,12 @@ const getAuditLogs = async (options = {}) => {
  * @param {number} limit - Number of logs to fetch
  * @returns {Promise<Array>} Audit logs for entity
  */
-const getEntityAuditTrail = async (entityType, entityId, limit = 20) => {
+const getEntityAuditTrail = async (entityType, entityId, limit = 20, module) => {
   try {
     const logs = await AuditLog.find({
       entityType,
       entityId,
+      ...(module ? { module: Array.isArray(module) ? { $in: module } : module } : {}),
     })
       .sort({ timestamp: -1 })
       .limit(parseInt(limit));
@@ -372,7 +373,7 @@ const getAuditLogsSummary = async (startDate, endDate, module) => {
         $lte: new Date(endDate),
       },
     };
-    if (module) filter.module = module;
+    if (module) filter.module = Array.isArray(module) ? { $in: module } : module;
 
     const [totalActions, actionsByType, actionsByRole, actionsByStatus] =
       await Promise.all([

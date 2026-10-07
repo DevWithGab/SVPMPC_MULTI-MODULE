@@ -226,7 +226,7 @@ const updateEvent = async (req, res) => {
     // time-exceeded, event).
     if (
       !['draft', 'pending_approval', 'rejected'].includes(originalEvent.status) &&
-      req.user?.role !== 'admin'
+      !['admin', 'super_admin'].includes(req.user?.role)
     ) {
       return res.status(400).json({ message: 'Only draft, pending, or rejected events can be edited' });
     }

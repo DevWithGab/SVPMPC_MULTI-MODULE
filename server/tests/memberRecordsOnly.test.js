@@ -8,7 +8,7 @@ function load(relativePath, dependencies) {
   const filename = require.resolve(relativePath);
   const localRequire = createRequire(filename);
   const context = {
-    module: { exports: {} }, process, console: { log() {}, error() {} },
+    module: { exports: {} }, process, Buffer, console: { log() {}, error() {} },
     require: name => Object.hasOwn(dependencies, name) ? dependencies[name] : localRequire(name),
   };
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), context, { filename });
@@ -66,7 +66,7 @@ test('member login and password changes are blocked while staff login still issu
 test('existing member tokens cannot pass authentication; staff tokens still can', async () => {
   for (const role of ['member', 'super_admin', 'admin', 'treasurer', 'secretary', 'scanner_operator']) {
     const middleware = load('../middleware/auth', {
-      '../shared/models/User': { findOne: () => ({ select: async () => ({ userId: 'test', role }) }) },
+      '../shared/models/User': { findOne: () => ({ select: async () => ({ userId: 'test', role, status: 'active' }) }) },
       jsonwebtoken: { verify: () => ({ userId: 'test', role }) },
     });
     const result = response();

@@ -1,3 +1,5 @@
+const { authorizeRoles } = require('../../../middleware/auth');
+const manageRecords = authorizeRoles('admin', 'super_admin', 'secretary');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -41,18 +43,18 @@ const upload = multer({
 });
 
 // Legacy member routes
-router.post('/members/upload', upload.single('file'), memberController.uploadMembers);
-router.post('/members/generate-qr', memberController.generateQRCodes);
-router.post('/members/generate-all-qr', memberController.generateAllQRCodes);
+router.post('/members/upload', manageRecords, upload.single('file'), memberController.uploadMembers);
+router.post('/members/generate-qr', manageRecords, memberController.generateQRCodes);
+router.post('/members/generate-all-qr', manageRecords, memberController.generateAllQRCodes);
 router.get('/members', memberController.getAllMembers);
 router.get('/members/:memberId', memberController.getMemberById);
 
 // Legacy event routes
-router.post('/events', eventController.createEvent);
+router.post('/events', manageRecords, eventController.createEvent);
 router.get('/events', eventController.getAllEvents);
 router.get('/events/:eventId', eventController.getEventById);
-router.put('/events/:eventId', eventController.updateEvent);
-router.delete('/events/:eventId', eventController.deleteEvent);
+router.put('/events/:eventId', manageRecords, eventController.updateEvent);
+router.delete('/events/:eventId', authorizeRoles('admin', 'super_admin'), eventController.deleteEvent);
 
 // Legacy attendance routes
 router.post('/attendance/record', attendanceController.recordAttendance);

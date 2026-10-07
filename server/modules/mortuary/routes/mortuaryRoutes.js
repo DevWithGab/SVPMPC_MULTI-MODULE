@@ -1,10 +1,7 @@
 const express = require('express');
-const { authenticateToken, authorizeMortuaryRoles } = require('../../../middleware');
 const router = express.Router();
 
-// Temporarily remove auth for testing
-// router.use(authenticateToken);
-// router.use(authorizeMortuaryRoles);
+// Authentication, password change, and module access are enforced by server.js.
 
 // Import role-based routes
 const treasurerRoutes = require('./treasurerRoutes');
