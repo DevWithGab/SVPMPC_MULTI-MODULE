@@ -689,7 +689,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Member</th>
                     <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Location</th>
+                    <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Barangay</th>
                     <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Modules</th>
                     <th className="px-6 py-4 text-right text-xs font-black text-slate-600 uppercase tracking-wider">Actions</th>
