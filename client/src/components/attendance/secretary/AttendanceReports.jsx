@@ -2,14 +2,13 @@ import React, { useState, useEffect } from "react";
 import {
   BarChart3,
   Download,
-  Calendar,
   Users,
   Filter,
-  TrendingUp,
   FileText,
   Loader2,
   ChevronRight,
   ArrowLeft,
+  Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -21,8 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "../../ui/table";
-import { StatCard, EventAttendeesPanel } from "../shared";
-import { pdfReportGenerator } from "../../../utils/pdfReportGenerator";
+import { EventAttendeesPanel } from "../shared";
+import { createAttendanceReportPdf, matchesAttendancePeriod, attendancePeriods } from "../../../utils/attendanceReport";
+import { loadReportLogo } from "../../../utils/mortuaryReportPdf";
+import './AttendanceReports.css';
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDate, formatTime } from "../../../utils/date";
 
@@ -54,12 +55,17 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const [localAttendanceLogs, setLocalAttendanceLogs] = useState(
     attendanceLogs || [],
   );
-  const [loadingEvents, setLoadingEvents] = useState(false);
-  const [loadingAttendance, setLoadingAttendance] = useState(false);
-  const [totalMembersInDb, setTotalMembersInDb] = useState(0);
-  const [_totalAttendanceInDb, setTotalAttendanceInDb] = useState(0);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
+  const [loadingMembers, setLoadingMembers] = useState(true);
   const [allMembers, setAllMembers] = useState([]);
   const [viewingEvent, setViewingEvent] = useState(null);
+  const [loadErrors, setLoadErrors] = useState({});
+  const [reload, setReload] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     setLocalEvents(events || []);
@@ -72,6 +78,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   useEffect(() => {
     const loadEvents = async () => {
       setLoadingEvents(true);
+      setLoadErrors(errors => ({ ...errors, events: false }));
       try {
         const response = await eventAPI.getAllEvents();
         if (Array.isArray(response?.events)) {
@@ -83,18 +90,21 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         }
       } catch (error) {
         console.error("Error loading events from DB:", error);
+        setLoadErrors(errors => ({ ...errors, events: true }));
       } finally {
         setLoadingEvents(false);
       }
     };
 
     loadEvents();
-  }, [events]);
+  }, [events, reload]);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadMembers = async () => {
+      setLoadingMembers(true);
+      setLoadErrors(errors => ({ ...errors, members: false }));
       try {
         const response = await memberAPI.getAllMembers();
         const memberList = Array.isArray(response?.members)
@@ -107,14 +117,15 @@ export default function AttendanceReports({ attendanceLogs, events }) {
 
         if (isMounted) {
           setAllMembers(memberList);
-          setTotalMembersInDb(memberList.length);
         }
       } catch (error) {
         console.error("Error loading members from DB:", error);
         if (isMounted) {
+          setLoadErrors(errors => ({ ...errors, members: true }));
           setAllMembers([]);
-          setTotalMembersInDb(0);
         }
+      } finally {
+        if (isMounted) setLoadingMembers(false);
       }
     };
 
@@ -123,13 +134,14 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [reload]);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadAttendance = async () => {
       setLoadingAttendance(true);
+      setLoadErrors(errors => ({ ...errors, attendance: false }));
       try {
         let page = 1;
         let totalPages = 1;
@@ -148,13 +160,12 @@ export default function AttendanceReports({ attendanceLogs, events }) {
 
         if (isMounted) {
           setLocalAttendanceLogs(attendanceList);
-          setTotalAttendanceInDb(attendanceList.length);
         }
       } catch (error) {
         console.error("Error loading attendance from DB:", error);
         if (isMounted) {
+          setLoadErrors(errors => ({ ...errors, attendance: true }));
           setLocalAttendanceLogs(attendanceLogs || []);
-          setTotalAttendanceInDb((attendanceLogs || []).length);
         }
       } finally {
         if (isMounted) {
@@ -168,7 +179,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     return () => {
       isMounted = false;
     };
-  }, [attendanceLogs]);
+  }, [attendanceLogs, reload]);
 
   const normalizeLog = (log) => {
     const memberName =
@@ -203,75 +214,36 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     Array.isArray(localAttendanceLogs) ? localAttendanceLogs : []
   ).map(normalizeLog);
 
+  const selectedEventData = localEvents.find(event => String(event.eventId || event.id || event._id || event.eventName || event.name) === selectedEvent);
+  const matchesEventLog = (log, event) => log.eventId
+    ? String(log.eventId) === String(event.eventId || event.id || event._id || '')
+    : log.eventName === (event.eventName || event.name);
+
   const filteredLogs = normalizedLogs.filter((log) => {
     const matchesEvent =
       selectedEvent === "all" ||
-      String(log.eventId || "") === selectedEvent ||
-      log.eventName === selectedEvent;
+      (selectedEventData && matchesEventLog(log, selectedEventData));
     const matchesBarangay =
       selectedBarangay === "all" ||
       String(log.barangay || "").toLowerCase() === selectedBarangay;
 
-    let matchesDate = true;
-    if (dateRange !== "all") {
-      const logDate = new Date(log.scanTime);
-      const now = new Date();
-
-      switch (dateRange) {
-        case "today":
-          matchesDate = logDate.toDateString() === now.toDateString();
-          break;
-        case "week": {
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          matchesDate = logDate >= weekAgo;
-          break;
-        }
-        case "month":
-          matchesDate =
-            logDate.getMonth() === now.getMonth() &&
-            logDate.getFullYear() === now.getFullYear();
-          break;
-        case "year":
-          matchesDate = logDate.getFullYear() === now.getFullYear();
-          break;
-      }
-    }
+    const matchesDate = matchesAttendancePeriod(log.scanTime, dateRange);
 
     return matchesEvent && matchesBarangay && matchesDate;
   });
 
   // Calculate statistics
   const totalAttendance = filteredLogs.length;
-  const eventsCovered = localEvents.filter((event) => {
-    const eventKey = String(event?.eventId || event?.id || event?._id || "");
-    const eventName = String(event?.eventName || event?.name || "");
-
-    return filteredLogs.some((log) => {
-      return (
-        (eventKey && String(log.eventId || "") === eventKey) ||
-        (eventName && log.eventName === eventName)
-      );
-    });
-  }).length;
+  const eventsCovered = new Set(filteredLogs.map(log => String(log.eventId || log.eventName))).size;
   const uniqueMembers = [
-    ...new Set(filteredLogs.map((log) => log.memberId || log.memberName)),
+    ...new Set(filteredLogs.map((log) => String(log.memberId || log.memberName))),
   ].length;
   const uniqueEvents = eventsCovered;
   const averagePerEvent =
     eventsCovered > 0 ? Math.round(totalAttendance / eventsCovered) : 0;
 
   const getEventAttendanceLogs = (event) => {
-    const eventKey = String(event?.eventId || event?.id || event?._id || "");
-    const eventName = String(event?.eventName || event?.name || "");
-
-    return filteredLogs.filter((log) => {
-      const matchesEvent =
-        (eventKey && String(log.eventId || "") === eventKey) ||
-        (eventName && log.eventName === eventName);
-      const matchesStatus = log.status === "present";
-
-      return matchesEvent && matchesStatus;
-    });
+    return filteredLogs.filter(log => matchesEventLog(log, event));
   };
 
   // Group attendance by event for summary
@@ -286,10 +258,14 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       displayDate: event.eventDate || event.date || "",
       attendanceCount: eventLogs.length,
       uniqueAttendees: [
-        ...new Set(eventLogs.map((log) => log.memberId || log.memberName)),
+        ...new Set(eventLogs.map((log) => String(log.memberId || log.memberName))),
       ].length,
     };
-  });
+  }).filter(event =>
+    (selectedEvent === 'all' || event.filterKey === selectedEvent || event.displayName === selectedEvent) &&
+    (event.attendanceCount > 0 || (selectedBarangay === 'all' && matchesAttendancePeriod(event.displayDate, dateRange))) &&
+    [event.displayName, event.location].join(' ').toLowerCase().includes(search.trim().toLowerCase())
+  ).sort((a, b) => (new Date(b.displayDate).getTime() || 0) - (new Date(a.displayDate).getTime() || 0));
 
   const barangayOptions = [
     ...new Set(
@@ -299,236 +275,61 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     ),
   ].sort((a, b) => String(a).localeCompare(String(b)));
 
-  const handleExportCSV = () => {
-    const csvContent = [
-      ["Member Name", "Event", "Date", "Time"],
-      ...filteredLogs.map((log) => [
-        log.memberName,
-        log.eventName,
-        excelText(formatDate(log.scanTime)),
-        excelText(formatTime(log.scanTime)),
-      ]),
-    ]
-      .map((row) => row.map(csvCell).join(","))
-      .join("\n");
+  const reportLoading = loadingEvents || loadingAttendance || loadingMembers;
+  const reportError = Object.values(loadErrors).some(Boolean);
+  const exportDisabled = reportLoading || reportError || exporting || !filteredLogs.length;
+  const eventLabel = selectedEventData ? selectedEventData.eventName || selectedEventData.name : 'All events';
+  const barangayLabel = selectedBarangay === 'all' ? 'All barangays' : barangayOptions.find(value => String(value).toLowerCase() === selectedBarangay) || selectedBarangay;
+  const scope = [attendancePeriods[dateRange], eventLabel, barangayLabel].join(' · ');
+  const totalPages = Math.max(1, Math.ceil(eventSummary.length / 10));
+  const currentPage = Math.min(page, totalPages);
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance-report-${new Date().toISOString().split("T")[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleExportPDF = () => {
+  const exportRecords = async (type, event) => {
+    if (exportDisabled) return;
+    const records = event ? getEventAttendanceLogs(event) : filteredLogs;
+    if (!records.length) return;
+    setExporting(true);
+    setFeedback(null);
+    const reportScope = event ? [attendancePeriods[dateRange], event.eventName || event.name, barangayLabel].join(' · ') : scope;
+    const filename = 'attendance-' + (event ? String(event.eventName || event.name).replace(/[^a-z0-9]+/gi, '-').slice(0, 60) : 'report') + '-' + new Date().toISOString().slice(0, 10);
     try {
-      // Transform the attendance logs to match the expected format
-      const transformedData = filteredLogs.map((log) => ({
-        scanTime: log.scanTime,
-        memberId: log.memberId || "N/A",
-        memberName: log.memberName,
-        eventName: log.eventName,
-        barangay: log.barangay || "N/A",
-        status: "Present",
-      }));
-
-      const reportOptions = {
-        data: transformedData,
-        filters: {
-          event: selectedEvent,
-          eventName: selectedEvent !== "all" ? selectedEvent : null,
-          dateRange:
-            dateRange === "all"
-              ? "All time"
-              : dateRange === "today"
-                ? "Today"
-                : dateRange === "week"
-                  ? "This Week"
-                  : dateRange === "month"
-                    ? "This Month"
-                    : dateRange === "year"
-                      ? "This Year"
-                      : "Custom",
-        },
-        stats: {
-          totalRecords: totalAttendance,
-          uniqueMembers: uniqueMembers,
-          uniqueEvents: uniqueEvents,
-          presentCount: totalAttendance,
-        },
-        title: "Attendance Report",
-        subtitle: "Secretary Dashboard - Cooperative Management System",
-      };
-
-      const result = pdfReportGenerator.generateAttendanceReport(reportOptions);
-
-      if (result.success) {
-        console.log(`PDF report generated: ${result.filename}`);
-        // You could add a toast notification here if available
+      if (type === 'pdf') {
+        const logo = await loadReportLogo();
+        createAttendanceReportPdf({ logs: records, scope: reportScope, logo }).save(filename + '.pdf');
+      } else {
+        const rows = [['Passbook Number', 'Member Name', 'Barangay', 'Event', 'Date (PHT)', 'Time (PHT)', 'Status'],
+          ...records.map(log => [log.memberId, log.memberName, log.barangay, log.eventName,
+            log.scanTime ? excelText(formatDate(log.scanTime)) : 'Not recorded',
+            log.scanTime ? excelText(formatTime(log.scanTime)) : 'Not recorded', log.status])];
+        const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8;' }));
+        const link = document.createElement('a');
+        link.href = url; link.download = filename + '.csv';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
+      setFeedback({ message: type.toUpperCase() + ' download prepared with ' + records.length.toLocaleString() + ' records.' });
     } catch (error) {
-      console.error("Error generating PDF report:", error);
-      alert("Error generating PDF report. Please try again.");
-    }
+      setFeedback({ error: true, message: error.message || 'Unable to export. Please try again.' });
+    } finally { setExporting(false); }
   };
-
-  // Export attendees for a specific event, optionally filtered by barangay (CSV)
-  const handleExportAttendeesByBarangay = (eventObj) => {
-    try {
-      const eventId = String(
-        eventObj.eventId || eventObj.id || eventObj._id || "",
-      );
-      const eventName = eventObj.eventName || eventObj.name || "";
-      const barangayFilter =
-        selectedBarangay && selectedBarangay !== "all"
-          ? selectedBarangay.toLowerCase()
-          : "";
-
-      const eventAttendance = normalizedLogs.filter((log) => {
-        const matchesEvent =
-          (eventId && String(log.eventId || "") === eventId) ||
-          (eventName && log.eventName === eventName);
-        if (!matchesEvent) return false;
-        if (!barangayFilter) return true;
-        return String(log.barangay || "").toLowerCase() === barangayFilter;
-      });
-
-      if (!eventAttendance || eventAttendance.length === 0) {
-        alert("No attendance records found for this event/barangay.");
-        return;
-      }
-
-      const rows = [
-        ["Passbook Number", "Member Name", "Barangay", "Scan Time"],
-        ...eventAttendance.map((log) => [
-          log.memberId || "",
-          log.memberName || "",
-          log.barangay || "",
-          excelText(`${formatDate(log.scanTime)} ${formatTime(log.scanTime)}`),
-        ]),
-      ];
-
-      const csvContent = rows.map((r) => r.map(csvCell).join(",")).join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const safeEventName = eventName.replace(/\s+/g, "-").toLowerCase();
-      const safeBarangay = barangayFilter
-        ? String(barangayFilter).replace(/\s+/g, "-")
-        : "all";
-      a.download = `attendees-${safeEventName}-${safeBarangay}-${
-        new Date().toISOString().split("T")[0]
-      }.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error exporting attendees by barangay:", error);
-      alert("Failed to export attendees. See console for details.");
-    }
-  };
-
-  // Export attendees for a specific event as PDF, optionally filtered by barangay
-  const handleExportAttendeesByBarangayPDF = (eventObj) => {
-    try {
-      const eventId = String(
-        eventObj.eventId || eventObj.id || eventObj._id || "",
-      );
-      const eventName = eventObj.eventName || eventObj.name || "";
-      const barangayFilter =
-        selectedBarangay && selectedBarangay !== "all"
-          ? selectedBarangay.toLowerCase()
-          : "";
-
-      const eventAttendance = normalizedLogs.filter((log) => {
-        const matchesEvent =
-          (eventId && String(log.eventId || "") === eventId) ||
-          (eventName && log.eventName === eventName);
-        if (!matchesEvent) return false;
-        if (!barangayFilter) return true;
-        return String(log.barangay || "").toLowerCase() === barangayFilter;
-      });
-
-      if (!eventAttendance || eventAttendance.length === 0) {
-        alert("No attendance records found for this event/barangay.");
-        return;
-      }
-
-      const attendanceData = eventAttendance.map((log) => ({
-        scanTime: log.scanTime,
-        memberId: log.memberId || "N/A",
-        memberName: log.memberName,
-        eventName: log.eventName,
-        barangay: log.barangay || "N/A",
-        status: "Present",
-      }));
-
-      const selectedEventData = localEvents.find(
-        (e) =>
-          String(e.eventId || e.id || e._id || "") === eventId ||
-          (e.eventName || e.name) === eventName,
-      );
-
-      const displayBarangay =
-        selectedBarangay && selectedBarangay !== "all"
-          ? barangayOptions.find(
-              (b) => String(b).toLowerCase() === selectedBarangay,
-            ) || selectedBarangay
-          : null;
-
-      const reportOptions = {
-        eventData: {
-          eventName: selectedEventData
-            ? selectedEventData.eventName || selectedEventData.name
-            : eventName,
-          eventDate: selectedEventData
-            ? selectedEventData.eventDate || selectedEventData.date
-            : "",
-          eventTime: selectedEventData
-            ? selectedEventData.eventTime || selectedEventData.time || "N/A"
-            : "N/A",
-          location: selectedEventData ? selectedEventData.location : "",
-          status: selectedEventData ? selectedEventData.status || "" : "",
-          description: selectedEventData
-            ? selectedEventData.description || ""
-            : "",
-        },
-        attendanceData,
-        title: `Attendees - ${eventName}`,
-        subtitle: displayBarangay
-          ? `Filtered by ${displayBarangay}`
-          : "All barangays",
-      };
-
-      const result =
-        pdfReportGenerator.generateEventSummaryReport(reportOptions);
-
-      if (result.success) {
-        console.log(`Event attendees PDF generated: ${result.filename}`);
-      }
-    } catch (error) {
-      console.error("Error exporting attendees by barangay (PDF):", error);
-      alert("Failed to export attendees PDF. See console for details.");
-    }
-  };
+  const handleExportCSV = () => exportRecords('csv');
+  const handleExportPDF = () => exportRecords('pdf');
+  const handleExportAttendeesByBarangay = event => exportRecords('csv', event);
+  const handleExportAttendeesByBarangayPDF = event => exportRecords('pdf', event);
 
   // Clicking an event replaces this whole screen with its own page (not a
   // modal, not an inline-expanding row) — a dedicated place to search for a
   // specific member and see present/absent, with a way back to the report.
   if (viewingEvent) {
     return (
-      <div className="space-y-6 pb-12">
+      <div className="attendance-reports space-y-6 pb-12">
         <button
           onClick={() => setViewingEvent(null)}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-coop-green transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Reports
         </button>
+        <p className="ar-scope">Full event attendance · All dates and barangays. Absence is based on active membership.</p>
         <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
           <EventAttendeesPanel
             event={viewingEvent}
@@ -541,20 +342,22 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="attendance-reports space-y-6 pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
+          <p className="ar-eyebrow">Attendance management / Reports</p>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Attendance Reports
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            View and export attendance data
+            Review participation and prepare official attendance records.
           </p>
         </div>
         <div className="flex gap-2">
           <Button
             onClick={handleExportCSV}
+            disabled={exportDisabled}
             variant="outline"
             className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green font-semibold rounded-lg"
           >
@@ -563,25 +366,30 @@ export default function AttendanceReports({ attendanceLogs, events }) {
           </Button>
           <Button
             onClick={handleExportPDF}
+            disabled={exportDisabled}
             className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-5 py-2.5 rounded-lg"
           >
             <FileText className="w-4 h-4 mr-2" />
-            Export PDF
+            {exporting ? 'Preparing export…' : 'Export PDF'}
           </Button>
         </div>
       </div>
 
+      {reportError && <div role="alert" className="ar-notice ar-error">Unable to load the complete report. Retry before exporting.<button className="ar-button" onClick={() => setReload(value => value + 1)}>Retry</button></div>}
+      {feedback && <div role={feedback.error ? 'alert' : 'status'} className={feedback.error ? 'ar-notice ar-error' : 'ar-notice'}>{feedback.message}</div>}
       {/* Filters */}
       <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
         <CardContent className="p-5 space-y-4">
+          <div className="ar-filter-heading"><h2>Report scope</h2><span>Applies to totals and exports</span></div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="ar-event" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Event
               </label>
               <select
+                id="ar-event"
                 value={selectedEvent}
-                onChange={(e) => setSelectedEvent(e.target.value)}
+                onChange={(e) => { setSelectedEvent(e.target.value); setPage(1); setFeedback(null); }}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               >
                 <option value="all">All Events</option>
@@ -590,7 +398,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                   return (
                     <option
                       key={event.eventId || event.id || event._id || eventName}
-                      value={eventName}
+                      value={String(event.eventId || event.id || event._id || eventName)}
                     >
                       {eventName}
                     </option>
@@ -599,28 +407,30 @@ export default function AttendanceReports({ attendanceLogs, events }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="ar-period" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Date Range
               </label>
               <select
+                id="ar-period"
                 value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
+                onChange={(e) => { setDateRange(e.target.value); setPage(1); setFeedback(null); }}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               >
                 <option value="all">All Time</option>
                 <option value="today">Today</option>
-                <option value="week">This Week</option>
+                <option value="week">Last 7 days</option>
                 <option value="month">This Month</option>
                 <option value="year">This Year</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="ar-barangay" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Barangay
               </label>
               <select
+                id="ar-barangay"
                 value={selectedBarangay}
-                onChange={(e) => setSelectedBarangay(e.target.value)}
+                onChange={(e) => { setSelectedBarangay(e.target.value); setPage(1); setFeedback(null); }}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               >
                 <option value="all">All Barangays</option>
@@ -637,12 +447,13 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                   setSelectedEvent("all");
                   setSelectedBarangay("all");
                   setDateRange("month");
+                  setSearch(''); setPage(1); setFeedback(null);
                 }}
                 variant="outline"
                 className="w-full border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
               >
                 <Filter className="w-4 h-4 mr-2" />
-                Reset
+                Reset filters
               </Button>
             </div>
           </div>
@@ -669,44 +480,26 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         </CardContent>
       </Card>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-in">
-        <StatCard
-          title="Total Attendance"
-          value={totalAttendance}
-          subtitle="Total records"
-          icon={Users}
-        />
-        <StatCard
-          title="Total Members"
-          value={totalMembersInDb}
-          subtitle="Members in database"
-          icon={Users}
-        />
-        <StatCard
-          title="Events Covered"
-          value={uniqueEvents}
-          subtitle="Events with attendance"
-          icon={Calendar}
-          color="amber"
-        />
-        <StatCard
-          title="Avg per Event"
-          value={averagePerEvent}
-          subtitle="Average attendance"
-          icon={TrendingUp}
-        />
-      </div>
+      <section className="ar-metrics" aria-label="Report summary" aria-busy={reportLoading}>
+        {[
+          ['Attendance records', totalAttendance, 'Scans in the selected scope'],
+          ['Unique attendees', uniqueMembers, 'Distinct members represented'],
+          ['Events represented', uniqueEvents, 'Events with attendance records'],
+          ['Average per event', averagePerEvent, 'Records per represented event'],
+        ].map(([label, value, note]) => <div key={label}><p>{label}</p><strong>{reportLoading || reportError ? '—' : value.toLocaleString()}</strong><span>{note}</span></div>)}
+      </section>
 
       {/* Event Summary */}
       <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
         <CardHeader className="border-b border-slate-100 p-5">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-coop-green" />
-            Event Summary
+            Attendance by event
           </CardTitle>
-          <p className="text-slate-400 text-xs mt-1">Attendance by event</p>
+          <p className="text-slate-500 text-xs mt-1">Open an event to review its full member attendance.</p>
+          <label className="ar-search"><Search size={16} /><span className="sr-only">Search events or locations</span><input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search events or locations" /></label>
         </CardHeader>
+        <div className="ar-scope"><span>{scope}</span><span>All times in Philippine time (PHT)</span></div>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -730,26 +523,21 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                 </TableRow>
               </TableHeader>
               <TableBody className="stagger-in">
-                {eventSummary.map((event) => {
+                {!reportLoading && !reportError && eventSummary.slice((currentPage - 1) * 10, currentPage * 10).map((event) => {
                   const eventKey =
                     event.eventId || event.id || event._id || event.displayName;
                   return (
                     <TableRow
                       key={eventKey}
-                      onClick={() =>
-                        setViewingEvent({
-                          name: event.displayName,
-                          date: event.displayDate,
-                          presentLogs: getEventAttendanceLogs(event),
-                        })
-                      }
-                      className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                      className="hover:bg-slate-50/50 transition-colors"
                     >
                       <TableCell className="py-3">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">
                             {event.displayName}
                           </p>
+                          <button className="ar-view" onClick={() => setViewingEvent({ name: event.displayName, date: event.displayDate,
+                            presentLogs: normalizedLogs.filter(log => (log.eventId ? String(log.eventId) === event.filterKey : log.eventName === event.displayName) && log.status === 'present') })}>View attendees <ChevronRight size={14} /></button>
                           <p className="text-xs text-slate-400">
                             {event.location}
                           </p>
@@ -762,11 +550,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               ? formatDate(event.displayDate)
                               : "No date"}
                           </p>
-                          <p className="text-xs text-slate-400">
-                            {event.displayDate
-                              ? formatTime(event.displayDate)
-                              : "No time"}
-                          </p>
+
                         </div>
                       </TableCell>
                       <TableCell className="py-3">
@@ -782,7 +566,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               {event.uniqueAttendees} members
                             </span>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-slate-300" />
                         </div>
                       </TableCell>
                       <TableCell className="py-3">
@@ -794,12 +577,12 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                             variant="outline"
                             size="sm"
                             onClick={() => handleExportAttendeesByBarangay(event)}
-                            disabled={event.attendanceCount === 0}
+                            disabled={exportDisabled || event.attendanceCount === 0}
                             aria-label={`Export ${event.displayName} attendees as CSV`}
                             title="Export attendees (CSV)"
                             className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <Download className="w-4 h-4" />
+                            <Download className="w-4 h-4 mr-1.5" /> CSV
                           </Button>
                           <Button
                             variant="outline"
@@ -807,19 +590,20 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                             onClick={() =>
                               handleExportAttendeesByBarangayPDF(event)
                             }
-                            disabled={event.attendanceCount === 0}
+                            disabled={exportDisabled || event.attendanceCount === 0}
                             aria-label={`Export ${event.displayName} attendees as PDF`}
                             title="Export attendees (PDF)"
                             className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            <FileText className="w-4 h-4" />
+                            <FileText className="w-4 h-4 mr-1.5" /> PDF
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   );
                 })}
-                {eventSummary.length === 0 && (
+                {(reportLoading || reportError) && <TableRow><TableCell colSpan={5}><div className="ar-empty" role="status">{reportLoading && <Loader2 className="animate-spin" />}<strong>{reportLoading ? 'Loading complete attendance records…' : 'Report unavailable'}</strong><p>{reportLoading ? 'Gathering all pages for accurate totals and exports.' : 'Retry loading the report to continue.'}</p></div></TableCell></TableRow>}
+                {!reportLoading && !reportError && eventSummary.length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -829,11 +613,10 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                         <BarChart3 className="w-10 h-10 text-slate-300" />
                         <div>
                           <p className="font-semibold text-slate-600">
-                            No events to summarize
+                            No events match this view
                           </p>
                           <p className="text-sm">
-                            Create an event and record attendance to see it
-                            here.
+                            Try another period, barangay, or search term.
                           </p>
                         </div>
                       </div>
@@ -843,6 +626,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
               </TableBody>
             </Table>
           </div>
+          <div className="ar-pagination"><span>{eventSummary.length} events · Search narrows this table. Exports use the report scope.</span><div><button className="ar-button" disabled={currentPage === 1 || reportLoading} onClick={() => setPage(currentPage - 1)}>Previous</button><span aria-live="polite">{currentPage} / {totalPages}</span><button className="ar-button" disabled={currentPage === totalPages || reportLoading} onClick={() => setPage(currentPage + 1)}>Next</button></div></div>
         </CardContent>
       </Card>
     </div>
