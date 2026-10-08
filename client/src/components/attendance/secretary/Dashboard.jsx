@@ -1,470 +1,148 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  Calendar,
-  Users,
-  BarChart3,
-  Activity,
-  Plus,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  MapPin,
-  ArrowRight,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import { Button } from "../../ui/button";
-import { StatCard } from "../shared";
-import { formatTime, formatLongDate, getManilaHour } from "../../../utils/date";
-import { attendanceAPI, eventAPI } from "../../../services/api";
+import React, { useEffect, useState } from 'react';
+import { ArrowRight, RefreshCw, Loader2 } from 'lucide-react';
+import { attendanceAPI, eventAPI } from '../../../services/api';
+import { formatDate, formatTime, formatTimeRange, formatLongDate } from '../../../utils/date';
+import { eventStatusLabels } from '../../../utils/eventManagement';
+import { loadDashboardRecords, summarizeDashboard, recordTime, eventTime, validTimestamp } from '../../../utils/attendanceDashboard';
+import './Dashboard.css';
 
-const EVENT_STATUS_META = {
-  active: {
-    label: "Active",
-    dot: "bg-coop-green",
-    text: "text-coop-green",
-    bg: "bg-green-50",
-    border: "border-green-200",
-  },
-  upcoming: {
-    label: "Upcoming",
-    dot: "bg-amber-500",
-    text: "text-amber-600",
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-  },
-  closed: {
-    label: "Closed",
-    dot: "bg-red-500",
-    text: "text-red-600",
-    bg: "bg-red-50",
-    border: "border-red-200",
-  },
-};
+const statusTone = status => ({ active: 'active', upcoming: 'upcoming', pending_approval: 'pending', rejected: 'revision' }[status] || 'neutral');
+const eventName = event => event.eventName || event.name || 'Unnamed event';
+const displayDate = value => validTimestamp(value) ? formatDate(value) : 'Date not recorded';
 
-const getStatusMeta = (status) =>
-  EVENT_STATUS_META[status] || EVENT_STATUS_META.closed;
+function Status({ status }) {
+  return <span className={`sd-status sd-status-${statusTone(status)}`}>{eventStatusLabels[status] || 'Not recorded'}</span>;
+}
 
-const getEventDateValue = (event) => {
-  const raw = event.eventDate || event.date;
-  const parsed = raw ? new Date(raw) : null;
-  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
-};
+function DataState({ loading, error, emptyTitle, emptyDescription, onRetry }) {
+  return <div className="sd-data-state" role={error ? 'alert' : 'status'}>
+    {loading && <Loader2 size={19} className="animate-spin" aria-hidden="true" />}
+    <strong>{loading ? 'Loading records…' : error ? 'Unable to load this section' : emptyTitle}</strong>
+    <p>{loading ? 'Preparing the latest overview.' : error ? 'Retry to see complete, up-to-date records.' : emptyDescription}</p>
+    {error && !loading && <button className="sd-button" onClick={onRetry}>Retry</button>}
+  </div>;
+}
 
-const QuickActionTile = ({ icon: Icon, label, subtitle, onClick, accent = false }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`group flex flex-col items-start gap-3 rounded-xl p-4 text-left transition-all duration-150 active:scale-[0.97] ${
-      accent
-        ? "bg-coop-green hover:bg-coop-darkGreen shadow-sm hover:shadow-md"
-        : "border border-slate-200 hover:border-coop-green hover:bg-green-50"
-    }`}
-  >
-    <div
-      className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-        accent ? "bg-white/20" : "bg-green-50"
-      }`}
-    >
-      <Icon
-        className={`w-5 h-5 ${accent ? "text-white" : "text-coop-green"}`}
-      />
-    </div>
-    <div className="min-w-0">
-      <p
-        className={`text-sm font-semibold leading-tight ${accent ? "text-white" : "text-slate-900"}`}
-      >
-        {label}
-      </p>
-      <p
-        className={`text-xs mt-0.5 leading-tight ${accent ? "text-green-100/80" : "text-slate-400"}`}
-      >
-        {subtitle}
-      </p>
-    </div>
-  </button>
-);
-
-export default function SecretaryDashboard({
-  user,
-  attendanceLogs,
-  events: initialEvents = [],
-  setActiveTab,
-}) {
-  const [events, setEvents] = useState(initialEvents);
-  const [attendanceRecords, setAttendanceRecords] = useState(
-    attendanceLogs || [],
-  );
+export default function SecretaryDashboard({ attendanceLogs, events: initialEvents, setActiveTab }) {
+  const [events, setEvents] = useState(initialEvents || []);
+  const [records, setRecords] = useState(attendanceLogs || []);
+  const [loading, setLoading] = useState({ events: true, attendance: true });
+  const [errors, setErrors] = useState({});
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [reload, setReload] = useState(0);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    let mounted = true;
-    const fetchEvents = async () => {
-      try {
-        const res = await eventAPI.getAllEvents();
-        if (!mounted) return;
-        // Response shape: { events: [...] } or array - handle both
-        const fetched = Array.isArray(res)
-          ? res
-          : res?.events || res?.data || [];
-        setEvents(fetched);
-      } catch (err) {
-        console.error("Failed to fetch events for secretary dashboard:", err);
-      }
-    };
-
-    // Fetch fresh events from DB on mount
-    fetchEvents();
-
-    return () => {
-      mounted = false;
-    };
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    const fetchAttendance = async () => {
+    let cancelled = false;
+    setLoading({ events: true, attendance: true });
+    setErrors({});
+    const load = async (key, fetchPage, responseKey, setter) => {
       try {
-        const response = await attendanceAPI.getAllAttendance();
-        const fetched = Array.isArray(response)
-          ? response
-          : Array.isArray(response?.data)
-            ? response.data
-            : response?.attendance || response?.data?.attendance || [];
-
-        if (!mounted) return;
-        setAttendanceRecords(fetched);
-      } catch (err) {
-        console.error(
-          "Failed to fetch attendance for secretary dashboard:",
-          err,
-        );
-        if (mounted) {
-          setAttendanceRecords(attendanceLogs || []);
-        }
+        const rows = await loadDashboardRecords(fetchPage, responseKey);
+        if (!cancelled) setter(rows);
+        return true;
+      } catch {
+        if (!cancelled) setErrors(previous => ({ ...previous, [key]: true }));
+        return false;
+      } finally {
+        if (!cancelled) setLoading(previous => ({ ...previous, [key]: false }));
       }
     };
+    Promise.all([
+      load('events', eventAPI.getEvents, 'events', setEvents),
+      load('attendance', attendanceAPI.getAllAttendance, 'attendance', setRecords),
+    ]).then(results => {
+      if (!cancelled && results.every(Boolean)) {
+        const timestamp = new Date();
+        setUpdatedAt(timestamp);
+        setNow(timestamp);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [reload, initialEvents, attendanceLogs]);
 
-    fetchAttendance();
+  const { counts, agenda, latest, todayAttendance } = summarizeDashboard(events, records, now);
+  const refreshing = loading.events || loading.attendance;
+  const retry = () => setReload(value => value + 1);
+  const metric = (value, source) => loading[source] || errors[source] ? '—' : value.toLocaleString();
+  const eventReady = !loading.events && !errors.events;
+  const attendanceReady = !loading.attendance && !errors.attendance;
+  const workflow = [
+    ['rejected', 'Needs revision', 'Review administrator feedback, edit the event, and resubmit.'],
+    ['pending_approval', 'Pending approval', 'Submitted events awaiting administrator review.'],
+    ['draft', 'Drafts', 'Events that have not entered the approval queue.'],
+  ];
 
-    return () => {
-      mounted = false;
-    };
-  }, [attendanceLogs]);
+  return <div className="secretary-dashboard">
+    <header className="sd-header">
+      <div><p className="sd-eyebrow">Attendance management / Overview</p><h1>Attendance dashboard</h1><p className="sd-description">{formatLongDate(now)} <span>· Philippine time</span></p></div>
+      <div className="sd-header-actions">
+        <button className="sd-button" onClick={retry} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+        <button className="sd-button sd-primary" onClick={() => setActiveTab('events')}>Manage events <ArrowRight size={15} aria-hidden="true" /></button>
+      </div>
+    </header>
 
-  // Calculate stats
-  const totalEvents = events.length;
-  const activeEvents = events.filter(
-    (event) => event.status === "active",
-  ).length;
-  const upcomingEventsCount = events.filter(
-    (event) => event.status === "upcoming",
-  ).length;
-  const closedEventsCount = events.filter(
-    (event) => event.status === "closed",
-  ).length;
-  const totalAttendance = attendanceRecords.length;
-  const todayAttendance = attendanceRecords.filter((log) => {
-    const scanTime = log.scanTime || log.timestamp || log.createdAt;
-    if (!scanTime) return false;
-    return new Date(scanTime).toDateString() === new Date().toDateString();
-  }).length;
+    <section className="sd-metrics" aria-label="Attendance overview" aria-busy={refreshing}>
+      {[
+        ["Today's attendance", metric(todayAttendance, 'attendance'), 'Records dated today in PHT'],
+        ['Total attendance', metric(records.length, 'attendance'), 'All recorded attendance entries'],
+        ['Active events', metric(counts.active || 0, 'events'), 'Currently open for attendance'],
+        ['Upcoming events', metric(counts.upcoming || 0, 'events'), 'Approved and scheduled'],
+      ].map(([label, value, note]) => <div key={label}><p>{label}</p><strong>{value}</strong><span>{note}</span></div>)}
+    </section>
+    <div className="sd-freshness" role="status">{refreshing ? 'Updating the overview…' : errors.events || errors.attendance ? 'Some records could not be refreshed. Retry the affected section.' : updatedAt ? `Updated ${formatDate(updatedAt)}, ${formatTime(updatedAt)} PHT. Refresh to check for new records.` : 'Overview of recorded attendance.'}</div>
 
-  // Get recent events
-  const recentEvents = events.slice(0, 5);
+    <div className="sd-workspace">
+      <div className="sd-main">
+        <section className="sd-panel" aria-labelledby="sd-schedule-title">
+          <div className="sd-panel-heading"><div><h2 id="sd-schedule-title">Event schedule</h2><p>Active events first, followed by the next scheduled assemblies.</p></div><button className="sd-link" onClick={() => setActiveTab('events')}>All events <ArrowRight size={14} aria-hidden="true" /></button></div>
+          {eventReady && agenda.length ? <>
+            <div className="sd-table-scroll" role="region" aria-label="Event schedule" tabIndex={0}><table className="sd-schedule-table"><thead><tr><th scope="col">Event</th><th scope="col">Schedule (PHT)</th><th scope="col">Status</th></tr></thead><tbody>
+              {agenda.slice(0, 5).map((event, index) => <tr key={event.eventId || event.id || event._id || index}>
+                <td><strong>{eventName(event)}</strong><span className="sd-secondary">{event.location || 'Location not recorded'}</span></td>
+                <td>{displayDate(eventTime(event))}<span className="sd-secondary">{formatTimeRange(event.startTime || event.eventTime, event.endTime) || 'Time not recorded'}</span></td>
+                <td><Status status={event.status} /></td>
+              </tr>)}
+            </tbody></table></div>
+            <div className="sd-panel-footer">Showing {Math.min(agenda.length, 5)} of {agenda.length} active and upcoming events.</div>
+          </> : <DataState loading={loading.events} error={errors.events} onRetry={retry} emptyTitle="No active or upcoming events" emptyDescription="Open Event Management to review approvals or schedule an assembly." />}
+        </section>
 
-  // Nearest upcoming/active event, for the hero spotlight
-  const spotlightEvent = useMemo(() => {
-    const now = new Date();
-    const candidates = events
-      .filter(
-        (event) => event.status === "active" || event.status === "upcoming",
-      )
-      .map((event) => ({ event, date: getEventDateValue(event) }))
-      .filter(({ date }) => date)
-      .sort((a, b) => a.date - b.date);
-
-    const upcoming = candidates.find(({ date }) => date >= now);
-    return (upcoming || candidates[0])?.event || null;
-  }, [events]);
-
-  const greeting = useMemo(() => {
-    const hour = getManilaHour();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  }, []);
-
-  const today = useMemo(() => formatLongDate(), []);
-
-  return (
-    <div className="space-y-6 pb-12">
-      {/* Header — same title style, size, and color as every other page */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            {greeting}, {user?.name || "Secretary"}
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Here&apos;s what&apos;s happening across your General Assembly
-            events today · {today}
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {spotlightEvent && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("events")}
-              className="group flex items-center gap-3 bg-white hover:bg-green-50 border border-slate-200 hover:border-coop-green rounded-xl px-4 py-3 text-left transition-colors"
-            >
-              <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
-                <Calendar className="w-4 h-4 text-coop-green" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  {spotlightEvent.status === "active"
-                    ? "Happening now"
-                    : "Next up"}
-                </p>
-                <p className="text-sm font-semibold text-slate-900 truncate max-w-[180px]">
-                  {spotlightEvent.eventName || spotlightEvent.name}
-                </p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </button>
-          )}
-          <Button
-            onClick={() => setActiveTab("events")}
-            className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-5 py-2.5 rounded-lg shrink-0"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Event
-          </Button>
-        </div>
+        <section className="sd-panel" aria-labelledby="sd-attendance-title">
+          <div className="sd-panel-heading"><div><h2 id="sd-attendance-title">Latest attendance</h2><p>The five most recent attendance entries across all events.</p></div><button className="sd-link" onClick={() => setActiveTab('live')}>Live attendance <ArrowRight size={14} aria-hidden="true" /></button></div>
+          {attendanceReady && latest.length ? <div className="sd-table-scroll" role="region" aria-label="Latest attendance" tabIndex={0}><table className="sd-attendance-table"><thead><tr><th scope="col">Member</th><th scope="col">Event</th><th scope="col">Recorded (PHT)</th></tr></thead><tbody>
+            {latest.slice(0, 5).map((record, index) => <tr key={record._id || record.id || index}>
+              <td><strong>{record.memberName || record.member_name || record.name || 'Unknown member'}</strong><span className="sd-secondary">Passbook: {record.memberId || record.member_id || 'Not recorded'}</span></td>
+              <td>{record.eventName || record.event_name || (typeof record.event === 'string' ? record.event : '') || 'Event not recorded'}</td>
+              <td>{displayDate(recordTime(record))}<span className="sd-secondary">{validTimestamp(recordTime(record)) ? formatTime(recordTime(record)) : 'Time not recorded'}</span></td>
+            </tr>)}
+          </tbody></table></div> : <DataState loading={loading.attendance} error={errors.attendance} onRetry={retry} emptyTitle="No attendance recorded" emptyDescription="New attendance entries will appear here after members check in." />}
+        </section>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-in">
-        <StatCard
-          title="Total Events"
-          value={totalEvents}
-          subtitle="All events created"
-          icon={Calendar}
-        />
-        <StatCard
-          title="Active Events"
-          value={activeEvents}
-          subtitle="Currently running"
-          icon={Clock}
-        />
-        <StatCard
-          title="Total Attendance"
-          value={totalAttendance}
-          subtitle="All time records"
-          icon={Users}
-        />
-        <StatCard
-          title="Today's Attendance"
-          value={todayAttendance}
-          subtitle="Today's records"
-          icon={CheckCircle2}
-          accent
-        />
-      </div>
+      <aside className="sd-sidebar">
+        <section className="sd-panel" aria-labelledby="sd-workflow-title">
+          <div className="sd-panel-heading"><div><h2 id="sd-workflow-title">Event workflow</h2><p>Review and approval across all events.</p></div></div>
+          {eventReady ? <>
+            <dl className="sd-workflow">{workflow.map(([status, label, description]) => <div key={status}><dt><span>{label}</span><small>{description}</small></dt><dd className={status === 'rejected' && counts[status] ? 'sd-revision-count' : ''}>{(counts[status] || 0).toLocaleString()}</dd></div>)}</dl>
+            <div className="sd-workflow-footer"><button className="sd-link" onClick={() => setActiveTab('events')}>Open event register <ArrowRight size={14} aria-hidden="true" /></button></div>
+            <details className="sd-status-details"><summary>All event statuses <span>{events.length.toLocaleString()} total</span></summary><dl>{Object.entries({ ...eventStatusLabels, unknown: 'Not recorded', ...Object.fromEntries(Object.keys(counts).filter(key => !eventStatusLabels[key] && key !== 'unknown').map(key => [key, key])) }).map(([status, label]) => <div key={status}><dt>{label}</dt><dd>{(counts[status] || 0).toLocaleString()}</dd></div>)}</dl></details>
+          </> : <DataState loading={loading.events} error={errors.events} onRetry={retry} />}
+        </section>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Events */}
-        <Card className="lg:col-span-2 border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-          <CardHeader className="border-b border-slate-100 p-5">
-            <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-coop-green" />
-              Recent Events
-            </CardTitle>
-            <p className="text-slate-400 text-xs mt-1">
-              Latest event activities
-            </p>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100 stagger-in">
-              {recentEvents.map((event) => {
-                const meta = getStatusMeta(event.status);
-                const eventDate = getEventDateValue(event);
-
-                return (
-                  <button
-                    key={
-                      event.eventId ||
-                      event.id ||
-                      event._id ||
-                      event.eventName ||
-                      event.name ||
-                      JSON.stringify(event)
-                    }
-                    type="button"
-                    onClick={() => setActiveTab("events")}
-                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-slate-50/70 transition-colors"
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200 flex flex-col items-center justify-center shrink-0">
-                      <span className="text-sm font-bold text-slate-900 leading-none">
-                        {eventDate ? eventDate.getDate() : "--"}
-                      </span>
-                      <span className="text-[10px] font-semibold uppercase text-slate-400 mt-0.5">
-                        {eventDate
-                          ? eventDate.toLocaleDateString("en-US", {
-                              month: "short",
-                            })
-                          : ""}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {event.eventName || event.name}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-400">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">
-                          {event.location || "No location set"}
-                        </span>
-                        <span className="text-slate-300">&bull;</span>
-                        <span className="shrink-0">
-                          {event.eventTime ||
-                            (eventDate ? formatTime(eventDate) : "")}
-                        </span>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${meta.dot}`}
-                      />
-                      {meta.label}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {recentEvents.length === 0 && (
-                <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
-                  <Calendar className="w-8 h-8 text-slate-300" />
-                  <p className="font-medium">No events found.</p>
-                  <p className="text-xs">
-                    Create your first event to get started.
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-slate-100 text-center">
-              <Button
-                variant="outline"
-                onClick={() => setActiveTab("events")}
-                className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green font-semibold rounded-lg"
-              >
-                Manage All Events
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Event Breakdown */}
-        <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-          <CardHeader className="border-b border-slate-100 p-5">
-            <CardTitle className="text-sm font-bold text-slate-900">
-              Event Breakdown
-            </CardTitle>
-            <p className="text-slate-400 text-xs mt-1">
-              Status across all events
-            </p>
-          </CardHeader>
-          <CardContent className="p-5 space-y-4 stagger-in">
-            {[
-              {
-                label: "Active",
-                count: activeEvents,
-                meta: EVENT_STATUS_META.active,
-              },
-              {
-                label: "Upcoming",
-                count: upcomingEventsCount,
-                meta: EVENT_STATUS_META.upcoming,
-              },
-              {
-                label: "Closed",
-                count: closedEventsCount,
-                meta: EVENT_STATUS_META.closed,
-              },
-            ].map(({ label, count, meta }) => {
-              const percent =
-                totalEvents > 0 ? Math.round((count / totalEvents) * 100) : 0;
-              return (
-                <div key={label}>
-                  <div className="flex items-center justify-between text-sm mb-1.5">
-                    <span className="flex items-center gap-2 font-medium text-slate-700">
-                      <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-                      {label}
-                    </span>
-                    <span className="text-slate-400 font-medium">{count}</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${meta.dot} transition-all duration-700 ease-out`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-
-            {totalEvents === 0 && (
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                <AlertCircle className="w-4 h-4" />
-                No events yet to break down.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions — full-width row so all four tiles get equal room
-          instead of being squeezed into a narrow sidebar column. */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-        <CardHeader className="border-b border-slate-100 p-5">
-          <CardTitle className="text-sm font-bold text-slate-900">
-            Quick Actions
-          </CardTitle>
-          <p className="text-slate-400 text-xs mt-1">Common tasks</p>
-        </CardHeader>
-        <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 stagger-in">
-          <QuickActionTile
-            icon={Plus}
-            label="Create Event"
-            subtitle="New assembly"
-            onClick={() => setActiveTab("events")}
-            accent
-          />
-          <QuickActionTile
-            icon={Activity}
-            label="Live Attendance"
-            subtitle="Who's checked in"
-            onClick={() => setActiveTab("live")}
-          />
-          <QuickActionTile
-            icon={BarChart3}
-            label="View Reports"
-            subtitle="Export data"
-            onClick={() => setActiveTab("reports")}
-          />
-          <QuickActionTile
-            icon={Users}
-            label="Directory"
-            subtitle="Member QR codes"
-            onClick={() => setActiveTab("directory")}
-          />
-        </CardContent>
-      </Card>
+        <nav className="sd-tools" aria-label="Attendance workspace">
+          <h2>Workspace</h2>
+          {[
+            ['reports', 'Attendance reports', 'Review participation and export records.'],
+            ['directory', 'Member directory', 'Find members and access their QR codes.'],
+          ].map(([tab, label, description]) => <button key={tab} onClick={() => setActiveTab(tab)}><span><strong>{label}</strong><small>{description}</small></span><ArrowRight size={15} aria-hidden="true" /></button>)}
+        </nav>
+      </aside>
     </div>
-  );
+  </div>;
 }
