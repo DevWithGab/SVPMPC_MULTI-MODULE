@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowRight, RefreshCw, Loader2, Clock, Users, Activity, Calendar } from 'lucide-react';
 import { attendanceAPI, eventAPI } from '../../../services/api';
 import { formatDate, formatTime, formatTimeRange, formatLongDate } from '../../../utils/date';
 import { eventStatusLabels } from '../../../utils/eventManagement';
 import { loadDashboardRecords, summarizeDashboard, recordTime, eventTime, validTimestamp } from '../../../utils/attendanceDashboard';
+import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import './Dashboard.css';
 
 const statusTone = status => ({ active: 'active', upcoming: 'upcoming', pending_approval: 'pending', rejected: 'revision' }[status] || 'neutral');
@@ -87,14 +88,12 @@ export default function SecretaryDashboard({ attendanceLogs, events: initialEven
       </div>
     </header>
 
-    <section className="sd-metrics" aria-label="Attendance overview" aria-busy={refreshing}>
-      {[
-        ["Today's attendance", metric(todayAttendance, 'attendance'), 'Records dated today in PHT'],
-        ['Total attendance', metric(records.length, 'attendance'), 'All recorded attendance entries'],
-        ['Active events', metric(counts.active || 0, 'events'), 'Currently open for attendance'],
-        ['Upcoming events', metric(counts.upcoming || 0, 'events'), 'Approved and scheduled'],
-      ].map(([label, value, note]) => <div key={label}><p>{label}</p><strong>{value}</strong><span>{note}</span></div>)}
-    </section>
+    <AttendanceMetricGrid label="Attendance overview" busy={refreshing} items={[
+        ["Today's attendance", metric(todayAttendance, 'attendance'), 'Records dated today in PHT', Clock],
+        ['Total attendance', metric(records.length, 'attendance'), 'All recorded attendance entries', Users],
+        ['Active events', metric(counts.active || 0, 'events'), 'Currently open for attendance', Activity],
+        ['Upcoming events', metric(counts.upcoming || 0, 'events'), 'Approved and scheduled', Calendar],
+      ]} />
     <div className="sd-freshness" role="status">{refreshing ? 'Updating the overview…' : errors.events || errors.attendance ? 'Some records could not be refreshed. Retry the affected section.' : updatedAt ? `Updated ${formatDate(updatedAt)}, ${formatTime(updatedAt)} PHT. Refresh to check for new records.` : 'Overview of recorded attendance.'}</div>
 
     <div className="sd-workspace">

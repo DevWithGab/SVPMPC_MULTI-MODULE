@@ -10,12 +10,6 @@
 .sd-primary:hover { background: #163a1e; }
 .sd-button:disabled { opacity: .5; cursor: not-allowed; }
 .secretary-dashboard :is(button, summary, [tabindex]):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
-.sd-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: #f6f8f6; border: 1px solid #dce3dd; border-radius: 6px; padding: 24px 0; }
-.sd-metrics > div { padding-inline: 24px; border-right: 1px solid #dce3dd; }
-.sd-metrics > div:last-child { border: 0; }
-.sd-metrics p { font-size: 12px; font-weight: 600; color: #526058; }
-.sd-metrics strong { display: block; font-size: 30px; font-weight: 600; letter-spacing: -.8px; margin: 7px 0; font-variant-numeric: tabular-nums; }
-.sd-metrics span { font-size: 11px; color: #647069; }
 .sd-freshness { color: #647069; font-size: 11px; padding: 10px 0 22px; line-height: 1.6; }
 .sd-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 24px; align-items: start; }
 .sd-main, .sd-sidebar { display: grid; gap: 24px; min-width: 0; }
@@ -67,5 +61,5 @@
 .sd-data-state strong { font-weight: 600; }
 .sd-data-state p { color: #647069; font-size: 12px; line-height: 1.7; max-width: 340px; }
 @media(max-width: 1200px) { .sd-workspace { grid-template-columns: minmax(0, 1fr); } .sd-sidebar { grid-template-columns: 1fr 1fr; align-items: start; } }
-@media(max-width: 1000px) { .sd-header { align-items: start; flex-direction: column; } .sd-metrics { grid-template-columns: 1fr 1fr; gap: 24px 0; } .sd-metrics > div:nth-child(2) { border: 0; } }
-@media(max-width: 640px) { .sd-header h1 { font-size: 25px; } .sd-sidebar { grid-template-columns: 1fr; } .sd-header-actions { width: 100%; } .sd-header-actions .sd-button { flex: 1; } .sd-metrics > div { padding-inline: 16px; } .sd-metrics strong { font-size: 26px; } .sd-panel-heading, .sd-panel-footer { padding-inline: 16px; } .secretary-dashboard :is(th, td) { padding-inline: 16px; } }
+@media(max-width: 1000px) { .sd-header { align-items: start; flex-direction: column; } }
+@media(max-width: 640px) { .sd-header h1 { font-size: 25px; } .sd-sidebar { grid-template-columns: 1fr; } .sd-header-actions { width: 100%; } .sd-header-actions .sd-button { flex: 1; } .sd-panel-heading, .sd-panel-footer { padding-inline: 16px; } .secretary-dashboard :is(th, td) { padding-inline: 16px; } }

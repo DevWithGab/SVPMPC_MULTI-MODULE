@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ArrowLeft,
   Search,
+  Calendar,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -23,6 +24,7 @@ import {
 import { EventAttendeesPanel } from "../shared";
 import { createAttendanceReportPdf, matchesAttendancePeriod, attendancePeriods } from "../../../utils/attendanceReport";
 import { loadReportLogo } from "../../../utils/mortuaryReportPdf";
+import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import './AttendanceReports.css';
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDate, formatTime } from "../../../utils/date";
@@ -480,14 +482,12 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         </CardContent>
       </Card>
 
-      <section className="ar-metrics" aria-label="Report summary" aria-busy={reportLoading}>
-        {[
-          ['Attendance records', totalAttendance, 'Scans in the selected scope'],
-          ['Unique attendees', uniqueMembers, 'Distinct members represented'],
-          ['Events represented', uniqueEvents, 'Events with attendance records'],
-          ['Average per event', averagePerEvent, 'Records per represented event'],
-        ].map(([label, value, note]) => <div key={label}><p>{label}</p><strong>{reportLoading || reportError ? '—' : value.toLocaleString()}</strong><span>{note}</span></div>)}
-      </section>
+      <AttendanceMetricGrid label="Report summary" busy={reportLoading} items={[
+          ['Attendance records', totalAttendance, 'Scans in the selected scope', FileText],
+          ['Unique attendees', uniqueMembers, 'Distinct members represented', Users],
+          ['Events represented', uniqueEvents, 'Events with attendance records', Calendar],
+          ['Average per event', averagePerEvent, 'Records per represented event', BarChart3],
+        ].map(([label, value, note, Icon]) => [label, reportLoading || reportError ? '—' : value.toLocaleString(), note, Icon])} />
 
       {/* Event Summary */}
       <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">

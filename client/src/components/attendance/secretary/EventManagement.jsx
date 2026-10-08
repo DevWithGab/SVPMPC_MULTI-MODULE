@@ -13,6 +13,7 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -30,6 +31,7 @@ import { Toast } from "../../ui/toast";
 import { eventAPI } from "../../../services/attendance/secretary";
 import { formatDate, formatTimeRange } from "../../../utils/date";
 import { eventStatusLabels, validateEventForm, loadSecretaryEvents } from '../../../utils/eventManagement';
+import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import './EventManagement.css';
 
 export default function EventManagement({ user, events, onRefreshEvents }) {
@@ -406,14 +408,12 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         <div className="em-header-actions"><button className="em-button" onClick={fetchEvents} disabled={loadingEvents || busy}><RefreshCw size={15} className={loadingEvents ? 'animate-spin' : ''} /> Refresh</button><button className="em-button em-primary" onClick={openCreate} disabled={busy}><Plus size={16} /> Create event</button></div>
       </header>
       {loadError && <div className="em-notice em-error" role="alert"><span>{loadError} The list may be out of date.</span><button className="em-button" onClick={fetchEvents} disabled={loadingEvents}>Retry</button></div>}
-      <section className="em-metrics" aria-label="Event overview" aria-busy={loadingEvents}>
-        {[
-          ['All events', eventList.length, 'Across all lifecycle stages'],
-          ['Pending approval', eventList.filter(event => event.status === 'pending_approval').length, 'Awaiting administrator review'],
-          ['Scheduled & active', eventList.filter(event => ['upcoming', 'active'].includes(event.status)).length, 'Approved events on the calendar'],
-          ['Needs revision', eventList.filter(event => event.status === 'rejected').length, 'Review feedback and resubmit'],
-        ].map(([label, value, note]) => <div key={label}><p>{label}</p><strong>{loadingEvents || loadError ? '—' : value.toLocaleString()}</strong><span>{note}</span></div>)}
-      </section>
+      <AttendanceMetricGrid label="Event overview" busy={loadingEvents} items={[
+          ['All events', eventList.length, 'Across all lifecycle stages', Calendar],
+          ['Pending approval', eventList.filter(event => event.status === 'pending_approval').length, 'Awaiting administrator review', Clock],
+          ['Scheduled & active', eventList.filter(event => ['upcoming', 'active'].includes(event.status)).length, 'Approved events on the calendar', CheckCircle2],
+          ['Needs revision', eventList.filter(event => event.status === 'rejected').length, 'Review feedback and resubmit', AlertTriangle],
+        ].map(([label, value, note, Icon]) => [label, loadingEvents || loadError ? '—' : value.toLocaleString(), note, Icon])} />
       <section className="em-filters" aria-label="Event filters">
         <div className="em-filter-heading"><h2>Find an event</h2><button className="em-reset" onClick={resetFilters} disabled={!searchTerm && filterStatus === 'all' && sortOrder === 'newest'}>Reset filters</button></div>
         <div className="em-filter-grid">

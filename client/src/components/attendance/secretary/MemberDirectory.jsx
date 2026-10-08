@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, QrCode, Download, Printer, RefreshCw, Loader2, List, Grid2X2 } from 'lucide-react';
+import { Search, QrCode, Download, Printer, RefreshCw, Loader2, List, Grid2X2, Users, UserCheck } from 'lucide-react';
 import { Modal } from '../../ui/modal';
 import { memberAPI, attendanceAPI, resolveQrAssetUrl } from '../../../services/api';
 import { loadDashboardRecords } from '../../../utils/attendanceDashboard';
 import { directoryDate, getQrUnavailableReason, normalizeDirectoryMembers, filterDirectoryMembers, directoryCsv, directoryPrintHtml } from '../../../utils/memberDirectory';
+import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import './MemberDirectory.css';
 
 export default function MemberDirectory() {
@@ -107,13 +108,11 @@ export default function MemberDirectory() {
       <div className="md-header-actions"><button className="md-button" onClick={() => setReload(value => value + 1)} disabled={loading || printing}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh</button><button className="md-button md-primary" onClick={exportDirectory} disabled={!ready || !filtered.length}><Download size={15} /> Export CSV</button></div>
     </header>
     {feedback && <div role={feedback.error ? 'alert' : 'status'} className={`md-notice ${feedback.error ? 'md-error' : ''}`}>{feedback.message}</div>}
-    <section className="md-summary" aria-label="Directory overview" aria-busy={loading}>
-      {[
-        ['Registered members', normalized.length],
-        ['Active members', normalized.filter(member => member.status === 'active').length],
-        ['QR codes available', normalized.filter(member => !getQrUnavailableReason(member)).length],
-      ].map(([label, value]) => <div key={label}><span>{label}</span><strong>{ready ? value.toLocaleString() : '—'}</strong></div>)}
-    </section>
+    <AttendanceMetricGrid label="Directory overview" busy={loading} items={[
+      ['Registered members', ready ? normalized.length.toLocaleString() : '—', null, Users],
+      ['Active members', ready ? normalized.filter(member => member.status === 'active').length.toLocaleString() : '—', null, UserCheck],
+      ['QR codes available', ready ? normalized.filter(member => !getQrUnavailableReason(member)).length.toLocaleString() : '—', null, QrCode],
+    ]} />
     <section className="md-filters" aria-label="Member filters"><div className="md-filter-heading"><h2>Find a member</h2><button className="md-text-button" onClick={reset} disabled={!hasFilters}>Reset filters</button></div>
       <div className="md-filter-grid">
         <label>Search members<div className="md-search"><Search size={16} /><input value={search} onChange={e => update(setSearch, e.target.value)} placeholder="Name, passbook, email, or phone" /></div></label>
