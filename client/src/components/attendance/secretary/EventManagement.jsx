@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Calendar,
   Plus,
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   XCircle,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -28,6 +29,8 @@ import {
 import { Toast } from "../../ui/toast";
 import { eventAPI } from "../../../services/attendance/secretary";
 import { formatDate, formatTimeRange } from "../../../utils/date";
+import { eventStatusLabels, validateEventForm, loadSecretaryEvents } from '../../../utils/eventManagement';
+import './EventManagement.css';
 
 export default function EventManagement({ user, events, onRefreshEvents }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,7 +42,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
   const [eventPendingDelete, setEventPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [actionPending, setActionPending] = useState(false);
+  const [page, setPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState('newest');
+  const requestVersion = useRef({ version: 0 });
   const [toast, setToast] = useState(null);
   const [eventList, setEventList] = useState(events || []);
   const phtDateTime = (date, time) => `${date}T${time || "00:00"}:00+08:00`;
@@ -61,28 +70,23 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
   }, [events]);
 
   const fetchEvents = async () => {
+    const version = ++requestVersion.current.version;
     setLoadingEvents(true);
+    setLoadError('');
     try {
-      const response = await eventAPI.getEvents();
-      if (response.success) {
-        const loadedEvents = Array.isArray(response.data?.events)
-          ? response.data.events
-          : Array.isArray(response.data)
-            ? response.data
-            : [];
-        setEventList(loadedEvents);
-      } else {
-        console.error("Error fetching events:", response.message);
-      }
+      const loaded = await loadSecretaryEvents(eventAPI.getEvents);
+      if (version === requestVersion.current.version) setEventList(loaded);
     } catch (error) {
-      console.error("Error fetching events:", error);
+      if (version === requestVersion.current.version) setLoadError(error.message || 'Unable to load events. Please retry.');
     } finally {
-      setLoadingEvents(false);
+      if (version === requestVersion.current.version) setLoadingEvents(false);
     }
   };
 
   useEffect(() => {
+    const requests = requestVersion.current;
     fetchEvents();
+    return () => { requests.version++; };
   }, []);
 
   const normalizeTimeValue = (time) => {
@@ -124,15 +128,35 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
     const eventName = event.eventName || event.name || "";
     const eventLocation = event.location || "";
     const matchesSearch =
-      eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      eventLocation.toLowerCase().includes(searchTerm.toLowerCase());
+      eventName.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
+      eventLocation.toLowerCase().includes(searchTerm.trim().toLowerCase());
     const matchesStatus =
       filterStatus === "all" || event.status === filterStatus;
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    if (sortOrder === 'name') return (a.eventName || a.name || '').localeCompare(b.eventName || b.name || '');
+    const difference = (new Date(a.eventDate || a.date).getTime() || 0) - (new Date(b.eventDate || b.date).getTime() || 0);
+    return sortOrder === 'oldest' ? difference : -difference;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / 10));
+  const currentPage = Math.min(page, totalPages);
+  const busy = loading || deleting || actionPending;
+  const resetFilters = () => { setSearchTerm(''); setFilterStatus('all'); setSortOrder('newest'); setPage(1); };
+  const openCreate = () => {
+    setNewEvent({ name: '', description: '', date: '', startTime: '', endTime: '', location: '', status: 'pending_approval' });
+    setFormError(''); setShowCreateModal(true);
+  };
+  const displayDate = event => {
+    const value = event.eventDate || event.date;
+    return value && Number.isFinite(new Date(value).getTime()) ? formatDate(value) : 'Date not recorded';
+  };
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
+    if (loading) return;
+    const validation = validateEventForm(newEvent);
+    setFormError(validation);
+    if (validation) return;
     setLoading(true);
 
     try {
@@ -145,18 +169,19 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
       );
 
       const eventData = {
-        eventName: newEvent.name,
+        eventName: newEvent.name.trim(),
         eventDate: eventDateTime.toISOString(),
         eventTime: normalizedStartTime,
         startTime: normalizedStartTime,
         endTime: normalizedEndTime,
-        location: newEvent.location,
+        location: newEvent.location.trim(),
         description: newEvent.description,
         createdBy: user?.id || user?.memberId || "secretary",
         type: EVENT_TYPE,
       };
 
       const response = await eventAPI.createEvent(eventData);
+      if (!response.success) throw new Error(response.message || "Unable to create event.");
 
       setToast({
         message: response.message || "Event created successfully!",
@@ -179,10 +204,10 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         await onRefreshEvents();
       }
     } catch (error) {
-      console.error("Error creating event:", error);
+      setFormError(error.response?.data?.message || error.message || "Unable to create event.");
       setToast({
         message:
-          error.response?.data?.message ||
+          error.response?.data?.message || error.message ||
           "Failed to create event. Please try again.",
         type: "error",
       });
@@ -192,6 +217,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
   };
 
   const handleEditEvent = (event) => {
+    setFormError('');
     setSelectedEvent(event);
     const eventDate = new Date(event.eventDate || event.date);
     setNewEvent({
@@ -219,6 +245,10 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
 
   const handleUpdateEvent = async (e) => {
     e.preventDefault();
+    if (loading) return;
+    const validation = validateEventForm(newEvent);
+    setFormError(validation);
+    if (validation) return;
     setLoading(true);
 
     try {
@@ -231,12 +261,12 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
       );
 
       const eventData = {
-        eventName: newEvent.name,
+        eventName: newEvent.name.trim(),
         eventDate: eventDateTime.toISOString(),
         eventTime: normalizedStartTime,
         startTime: normalizedStartTime,
         endTime: normalizedEndTime,
-        location: newEvent.location,
+        location: newEvent.location.trim(),
         description: newEvent.description,
         type: EVENT_TYPE,
       };
@@ -244,6 +274,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
       const eventId =
         selectedEvent.eventId || selectedEvent._id || selectedEvent.id;
       const response = await eventAPI.updateEvent(eventId, eventData);
+      if (!response.success) throw new Error(response.message || "Unable to update event.");
 
       setToast({
         message: response.message || "Event updated successfully!",
@@ -259,10 +290,10 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         await onRefreshEvents();
       }
     } catch (error) {
-      console.error("Error updating event:", error);
+      setFormError(error.response?.data?.message || error.message || "Unable to update event.");
       setToast({
         message:
-          error.response?.data?.message ||
+          error.response?.data?.message || error.message ||
           "Failed to update event. Please try again.",
         type: "error",
       });
@@ -273,7 +304,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
 
   const confirmCancelEvent = async () => {
     if (!eventPendingDelete || deleting) return;
-    const eventId = eventPendingDelete.eventId || eventPendingDelete.id;
+    const eventId = eventPendingDelete.eventId || eventPendingDelete._id || eventPendingDelete.id;
 
     setDeleting(true);
     try {
@@ -293,7 +324,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
       console.error("Error deleting event:", error);
       setToast({
         message:
-          error.response?.data?.message ||
+          error.response?.data?.message || error.message ||
           "Failed to cancel event. Please try again.",
         type: "error",
       });
@@ -303,32 +334,26 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
   };
 
   const runEventAction = async (event, action, successMessage) => {
+    if (actionPending) return;
+    setActionPending(true);
     try {
-      await eventAPI[action](event.eventId || event._id || event.id);
+      const response = await eventAPI[action](event.eventId || event._id || event.id);
+      if (!response.success) throw new Error(response.message || 'Event action failed.');
       setToast({ message: successMessage, type: "success" });
       await fetchEvents();
       await onRefreshEvents?.();
     } catch (error) {
       setToast({
-        message: error.response?.data?.message || "Event action failed.",
+        message: error.response?.data?.message || error.message || "Event action failed.",
         type: "error",
       });
-    }
+    } finally { setActionPending(false); }
   };
 
   // Human-readable labels for each lifecycle status. "Upcoming", "Active" and
   // "Close" are set automatically by the system based on PHT start/end time;
   // the Secretary never sets these directly.
-  const statusLabels = {
-    draft: "Draft",
-    pending_approval: "Pending Approval",
-    upcoming: "Upcoming",
-    active: "Active",
-    closed: "Close",
-    rejected: "Rejected",
-    cancelled: "Cancelled",
-  };
-  const getStatusLabel = (status) => statusLabels[status] || status;
+  const getStatusLabel = status => eventStatusLabels[status] || status || "Not recorded";
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -345,7 +370,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
       case "completed":
         return "text-slate-500 bg-slate-50 border-slate-200";
       case "closed":
-        return "text-red-600 bg-red-50 border-red-200";
+        return "text-slate-600 bg-slate-50 border-slate-200";
       default:
         return "text-slate-500 bg-slate-50 border-slate-200";
     }
@@ -375,65 +400,28 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
     event?.eventName || event?.name || "this event";
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Event Management
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Create and manage General Assembly events
-          </p>
+    <div className="event-management space-y-6 pb-12">
+      <header className="em-header">
+        <div><p className="em-eyebrow">Attendance management / Events</p><h1>Event management</h1><p className="em-description">Plan General Assemblies and track each event from approval to completion.</p></div>
+        <div className="em-header-actions"><button className="em-button" onClick={fetchEvents} disabled={loadingEvents || busy}><RefreshCw size={15} className={loadingEvents ? 'animate-spin' : ''} /> Refresh</button><button className="em-button em-primary" onClick={openCreate} disabled={busy}><Plus size={16} /> Create event</button></div>
+      </header>
+      {loadError && <div className="em-notice em-error" role="alert"><span>{loadError} The list may be out of date.</span><button className="em-button" onClick={fetchEvents} disabled={loadingEvents}>Retry</button></div>}
+      <section className="em-metrics" aria-label="Event overview" aria-busy={loadingEvents}>
+        {[
+          ['All events', eventList.length, 'Across all lifecycle stages'],
+          ['Pending approval', eventList.filter(event => event.status === 'pending_approval').length, 'Awaiting administrator review'],
+          ['Scheduled & active', eventList.filter(event => ['upcoming', 'active'].includes(event.status)).length, 'Approved events on the calendar'],
+          ['Needs revision', eventList.filter(event => event.status === 'rejected').length, 'Review feedback and resubmit'],
+        ].map(([label, value, note]) => <div key={label}><p>{label}</p><strong>{loadingEvents || loadError ? '—' : value.toLocaleString()}</strong><span>{note}</span></div>)}
+      </section>
+      <section className="em-filters" aria-label="Event filters">
+        <div className="em-filter-heading"><h2>Find an event</h2><button className="em-reset" onClick={resetFilters} disabled={!searchTerm && filterStatus === 'all' && sortOrder === 'newest'}>Reset filters</button></div>
+        <div className="em-filter-grid">
+          <label>Search events<div className="em-search"><Search size={16} /><input value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Event name or location" /></div></label>
+          <label>Status<select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}><option value="all">All statuses</option>{Object.entries(eventStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>Sort by<select value={sortOrder} onChange={e => { setSortOrder(e.target.value); setPage(1); }}><option value="newest">Event date: newest first</option><option value="oldest">Event date: oldest first</option><option value="name">Event name: A–Z</option></select></label>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-5 py-2.5 rounded-lg"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Event
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-        <CardContent className="p-5 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input
-              placeholder="Search events by name or location..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-slate-200 rounded-lg"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              "all",
-              "pending_approval",
-              "rejected",
-              "cancelled",
-              "upcoming",
-              "active",
-              "closed",
-            ].map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setFilterStatus(status)}
-                aria-pressed={filterStatus === status}
-                className={`px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/40 ${
-                  filterStatus === status
-                    ? "bg-coop-green border-coop-green text-white"
-                    : "border-slate-200 text-slate-600 hover:border-coop-green hover:bg-green-50 hover:text-coop-green"
-                }`}
-              >
-                {status === "all" ? "All" : getStatusLabel(status)}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      </section>
 
       {/* Events Table */}
       <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
@@ -442,10 +430,10 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             <div>
               <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-coop-green" />
-                Events ({filteredEvents.length})
+                Event register
               </CardTitle>
               <p className="text-slate-400 text-xs mt-1">
-                All General Assembly and secretary-managed events
+                Review schedules, approval status, and available actions.
               </p>
             </div>
             {loadingEvents && (
@@ -456,6 +444,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             )}
           </div>
         </CardHeader>
+        <div className="em-scope"><span>{filterStatus === 'all' ? 'All statuses' : getStatusLabel(filterStatus)} · {loadingEvents ? 'Loading events…' : filteredEvents.length + ' matching events'}</span><span>Schedules use Philippine time (PHT)</span></div>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -479,7 +468,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 </TableRow>
               </TableHeader>
               <TableBody className="stagger-in">
-                {filteredEvents.map((event) => (
+                {!loadingEvents && filteredEvents.slice((currentPage - 1) * 10, currentPage * 10).map((event) => (
                   <TableRow
                     key={event.eventId || event._id || event.id}
                     className="hover:bg-slate-50/50 transition-colors"
@@ -497,7 +486,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                     <TableCell className="py-3">
                       <div>
                         <p className="text-sm font-medium text-slate-700">
-                          {formatDate(event.eventDate || event.date)}
+                          {displayDate(event)}
                         </p>
                         <p className="text-xs text-slate-400">
                           {formatTimeRange(
@@ -546,7 +535,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                           aria-label={`View details for ${eventDisplayName(event)}`}
                           className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4 mr-1.5" /> View
                         </Button>
                         {["draft", "pending_approval", "rejected"].includes(
                           event.status,
@@ -556,9 +545,11 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                             size="sm"
                             onClick={() => handleEditEvent(event)}
                             title="Edit event"
+                            disabled={busy || !!loadError}
+                            aria-label={`Edit ${eventDisplayName(event)}`}
                             className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
                           >
-                            <Edit3 className="w-4 h-4" />
+                            <Edit3 className="w-4 h-4 mr-1.5" /> Edit
                           </Button>
                         )}
                         {event.status === "rejected" && (
@@ -573,6 +564,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                               )
                             }
                             title="Resubmit event"
+                            disabled={busy || !!loadError}
                             className="border-blue-200 text-blue-600 hover:bg-blue-50"
                           >
                             Resubmit
@@ -588,16 +580,17 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                             aria-label={`Cancel ${eventDisplayName(event)}`}
                             title="Cancel event"
                             className="border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg"
-                            disabled={loading}
+                            disabled={busy || !!loadError}
                           >
-                            <XCircle className="w-4 h-4" />
+                            <XCircle className="w-4 h-4 mr-1.5" /> Cancel
                           </Button>
                         )}
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredEvents.length === 0 && (
+                {loadingEvents && <TableRow><TableCell colSpan={5}><div className="em-empty" role="status"><Loader2 size={24} className="animate-spin" /><strong>Loading event register</strong><p>Gathering all events and their latest approval status.</p></div></TableCell></TableRow>}
+                {!loadingEvents && filteredEvents.length === 0 && (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -607,18 +600,18 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                         <Calendar className="w-10 h-10 text-slate-300" />
                         <div>
                           <p className="font-semibold text-slate-600">
-                            No events found
+                            {loadError ? 'Event register unavailable' : eventList.length ? 'No matching events' : 'No events yet'}
                           </p>
                           <p className="text-sm">
-                            Create your first event to get started
+                            {loadError ? 'Retry loading to see the latest events.' : eventList.length ? 'Try another search or status filter.' : 'Create a General Assembly event to begin the approval process.'}
                           </p>
                         </div>
                         <Button
-                          onClick={() => setShowCreateModal(true)}
+                          onClick={eventList.length ? resetFilters : openCreate}
                           className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-5 py-2.5 rounded-lg"
                         >
                           <Plus className="w-4 h-4 mr-2" />
-                          Create Event
+                          {eventList.length ? 'Reset filters' : 'Create event'}
                         </Button>
                       </div>
                     </TableCell>
@@ -627,23 +620,29 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               </TableBody>
             </Table>
           </div>
+          <footer className="em-pagination"><span>{loadingEvents ? 'Loading…' : filteredEvents.length ? ((currentPage - 1) * 10 + 1) + '–' + Math.min(currentPage * 10, filteredEvents.length) + ' of ' + filteredEvents.length + ' events' : '0 events'}</span><nav aria-label="Event pages"><button className="em-button" disabled={loadingEvents || currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span aria-live="polite">{currentPage} / {totalPages}</span><button className="em-button" disabled={loadingEvents || currentPage === totalPages} onClick={() => setPage(currentPage + 1)}>Next</button></nav></footer>
         </CardContent>
       </Card>
+      <p className="em-footnote">New events require administrator approval. Approved events become active and close automatically according to their schedule.</p>
 
       {/* Create Event Modal */}
       <Modal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => !loading && setShowCreateModal(false)}
         title="Create New Event"
         className="max-w-lg"
       >
         <form onSubmit={handleCreateEvent} className="space-y-4">
+          <p className="em-form-intro">Submit a General Assembly for administrator approval. All schedule times are in PHT.</p>
+          {formError && <div role="alert" className="em-notice em-error">{formError}</div>}
+          <fieldset disabled={loading} className="space-y-4"><legend className="sr-only">Event details</legend>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            <label htmlFor="em-create-name" className="block text-sm font-semibold text-slate-700 mb-1.5">
               Event Name
             </label>
             <Input
               type="text"
+              id="em-create-name"
               value={newEvent.name}
               onChange={(e) =>
                 setNewEvent({ ...newEvent, name: e.target.value })
@@ -654,10 +653,11 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-              Description
+            <label htmlFor="em-create-description" className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Description (optional)
             </label>
             <textarea
+              id="em-create-description"
               value={newEvent.description}
               onChange={(e) =>
                 setNewEvent({ ...newEvent, description: e.target.value })
@@ -669,12 +669,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="em-create-date" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Date
               </label>
               <Input
                 type="date"
-                value={newEvent.date}
+                id="em-create-date"
+              value={newEvent.date}
                 onChange={(e) =>
                   setNewEvent({ ...newEvent, date: e.target.value })
                 }
@@ -683,12 +684,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="em-create-startTime" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Start Time
               </label>
               <Input
                 type="time"
-                value={newEvent.startTime}
+                id="em-create-startTime"
+              value={newEvent.startTime}
                 onChange={(e) =>
                   setNewEvent({ ...newEvent, startTime: e.target.value })
                 }
@@ -697,12 +699,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="em-create-endTime" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 End Time
               </label>
               <Input
                 type="time"
-                value={newEvent.endTime}
+                id="em-create-endTime"
+              value={newEvent.endTime}
                 onChange={(e) =>
                   setNewEvent({ ...newEvent, endTime: e.target.value })
                 }
@@ -712,11 +715,12 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            <label htmlFor="em-create-location" className="block text-sm font-semibold text-slate-700 mb-1.5">
               Location
             </label>
             <Input
               type="text"
+              id="em-create-location"
               value={newEvent.location}
               onChange={(e) =>
                 setNewEvent({ ...newEvent, location: e.target.value })
@@ -726,10 +730,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               className="border-slate-200 rounded-lg"
             />
           </div>
+          </fieldset>
+          <p className="em-footnote">All fields except description are required. End time must follow start time on the same day.</p>
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
+              disabled={loading}
               onClick={() => setShowCreateModal(false)}
               className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
             >
@@ -746,7 +753,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4 mr-2" /> Create Event
+                  <Plus className="w-4 h-4 mr-2" /> Submit for approval
                 </>
               )}
             </Button>
@@ -757,17 +764,21 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
       {/* Edit Event Modal */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        onClose={() => !loading && setShowEditModal(false)}
         title="Edit Event"
         className="max-w-lg"
       >
         <form onSubmit={handleUpdateEvent} className="space-y-4">
+          <p className="em-form-intro">Update the event details. Rejected events can be resubmitted from the register after saving. All schedule times are in PHT.</p>
+          {formError && <div role="alert" className="em-notice em-error">{formError}</div>}
+          <fieldset disabled={loading} className="space-y-4"><legend className="sr-only">Event details</legend>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            <label htmlFor="em-edit-name" className="block text-sm font-semibold text-slate-700 mb-1.5">
               Event Name
             </label>
             <Input
               type="text"
+              id="em-edit-name"
               value={newEvent.name}
               onChange={(e) =>
                 setNewEvent({ ...newEvent, name: e.target.value })
@@ -778,10 +789,11 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-              Description
+            <label htmlFor="em-edit-description" className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Description (optional)
             </label>
             <textarea
+              id="em-edit-description"
               value={newEvent.description}
               onChange={(e) =>
                 setNewEvent({ ...newEvent, description: e.target.value })
@@ -793,12 +805,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="em-edit-date" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Date
               </label>
               <Input
                 type="date"
-                value={newEvent.date}
+                id="em-edit-date"
+              value={newEvent.date}
                 onChange={(e) =>
                   setNewEvent({ ...newEvent, date: e.target.value })
                 }
@@ -807,12 +820,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="em-edit-startTime" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Start Time
               </label>
               <Input
                 type="time"
-                value={newEvent.startTime}
+                id="em-edit-startTime"
+              value={newEvent.startTime}
                 onChange={(e) =>
                   setNewEvent({ ...newEvent, startTime: e.target.value })
                 }
@@ -821,12 +835,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="em-edit-endTime" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 End Time
               </label>
               <Input
                 type="time"
-                value={newEvent.endTime}
+                id="em-edit-endTime"
+              value={newEvent.endTime}
                 onChange={(e) =>
                   setNewEvent({ ...newEvent, endTime: e.target.value })
                 }
@@ -836,11 +851,12 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            <label htmlFor="em-edit-location" className="block text-sm font-semibold text-slate-700 mb-1.5">
               Location
             </label>
             <Input
               type="text"
+              id="em-edit-location"
               value={newEvent.location}
               onChange={(e) =>
                 setNewEvent({ ...newEvent, location: e.target.value })
@@ -850,10 +866,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               className="border-slate-200 rounded-lg"
             />
           </div>
+          </fieldset>
+          <p className="em-footnote">All fields except description are required. End time must follow start time on the same day.</p>
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
+              disabled={loading}
               onClick={() => setShowEditModal(false)}
               className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
             >
@@ -922,7 +941,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 </dt>
                 <dd className="mt-1 flex items-center gap-2 text-slate-700">
                   <Calendar className="w-4 h-4 text-slate-400" />
-                  {formatDate(viewedEvent.eventDate || viewedEvent.date)}
+                  {displayDate(viewedEvent)}
                 </dd>
               </div>
               <div>
@@ -997,7 +1016,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               onClick={() => setEventPendingDelete(null)}
               className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
             >
-              Cancel
+              Keep event
             </Button>
             <Button
               type="button"
@@ -1007,7 +1026,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             >
               {deleting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deleting...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Cancelling...
                 </>
               ) : (
                 <>
