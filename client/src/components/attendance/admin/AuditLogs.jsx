@@ -10,7 +10,6 @@ import {
   Clock,
   Zap,
   Calendar,
-  RefreshCw,
   Users,
   XCircle,
 } from "lucide-react";
@@ -153,7 +152,6 @@ const describeMetadata = (metadata) => {
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -181,12 +179,8 @@ const AuditLogs = () => {
 
   // Fetch audit logs
   const fetchAuditLogs = useCallback(
-    async (showLoader = false) => {
-      if (showLoader) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
+    async () => {
+      setLoading(true);
       try {
         const response = await auditAPI.getLogs({
           ...filters,
@@ -199,7 +193,6 @@ const AuditLogs = () => {
         console.error("Error fetching audit logs:", error);
       } finally {
         setLoading(false);
-        setRefreshing(false);
       }
     },
     [filters],
@@ -222,15 +215,7 @@ const AuditLogs = () => {
   }, [filters.startDate, filters.endDate]);
 
   useEffect(() => {
-    fetchAuditLogs(true);
-  }, [fetchAuditLogs]);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      fetchAuditLogs(false);
-    }, 15000);
-
-    return () => clearInterval(intervalId);
+    fetchAuditLogs();
   }, [fetchAuditLogs]);
 
   useEffect(() => {
@@ -245,10 +230,6 @@ const AuditLogs = () => {
 
   const handlePageChange = (newPage) => {
     setFilters({ ...filters, page: newPage });
-  };
-
-  const handleRefresh = () => {
-    fetchAuditLogs(false);
   };
 
   const handleExportCSV = () => {
@@ -339,23 +320,6 @@ const AuditLogs = () => {
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-coop-green/40 hover:bg-green-50 hover:text-coop-green"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${refreshing ? "bg-yellow-500" : "bg-green-500"}`}
-            />
-            {refreshing ? "Refreshing live data..." : "Live audit feed"}
-          </div>
           {lastUpdated && (
             <p className="text-xs text-slate-400">
               Last updated {formatTime(lastUpdated)}
