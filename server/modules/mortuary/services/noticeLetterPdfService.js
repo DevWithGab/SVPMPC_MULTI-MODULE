@@ -34,7 +34,7 @@ const NOTICE_LEVEL_LABELS = { 1: 'Notice 1', 2: 'Notice 2', 3: 'Final Notice' };
 
 const formatPeso = (amount) => {
   const value = amount || 0;
-  return `₱${Math.abs(value).toLocaleString('en-PH', {
+  return `${value < 0 ? '-' : ''}₱${Math.abs(value).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -192,7 +192,9 @@ const drawRichTextBody = (doc, paragraphs, { x, y, maxWidth, lineHeight, fontSiz
       const words = [];
       runs.forEach((run) => {
         const style = fontStyleFor(run);
-        run.text.split(/\s+/).filter(Boolean).forEach((text) => {
+        // Built-in Times has no peso glyph. Normalize before measuring so
+        // the visible amount and its allocated width agree.
+        run.text.replace(/(-?)₱/g, 'PHP $1').split(/\s+/).filter(Boolean).forEach((text) => {
           doc.setFont('times', style);
           words.push({ text, style, underline: run.underline, width: doc.getTextWidth(text) });
         });
