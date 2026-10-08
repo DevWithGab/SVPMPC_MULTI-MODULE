@@ -103,7 +103,7 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search member by name or ID..."
+            placeholder="Search member by name or Passbook No."
             className="h-10 w-full pl-9 pr-3 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
           />
         </div>
@@ -145,7 +145,7 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 truncate">{m.memberName}</p>
                   <p className="text-xs text-slate-400 truncate">
-                    {m.barangay || "—"} {m.memberId ? `• ID: ${m.memberId}` : ""}
+                    {m.barangay || "—"} {m.memberId ? `• Passbook No.: ${m.memberId}` : ""}
                   </p>
                 </div>
                 <span

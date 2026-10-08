@@ -1310,7 +1310,7 @@ export default function QRScanner({
                 Can't scan? Search manually
               </p>
               <p className="text-slate-400 text-xs mt-0.5">
-                Find a member by name or ID instead
+                Find a member by name or Passbook No. instead
               </p>
             </div>
           </div>
@@ -1324,7 +1324,7 @@ export default function QRScanner({
             <Input
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
-              placeholder="Search by member name or ID..."
+              placeholder="Search by member name or Passbook No."
               className="rounded-lg border-slate-200"
             />
 
@@ -1350,7 +1350,7 @@ export default function QRScanner({
                         {member.name}
                       </p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        ID: {member.memberId || "N/A"}
+                        Passbook No.: {member.memberId || "N/A"}
                         {member.barangay ? ` • ${member.barangay}` : ""}
                       </p>
                     </div>
@@ -1392,7 +1392,7 @@ export default function QRScanner({
                   {manualReasonMember.name}
                 </p>
                 <p className="text-sm text-slate-500">
-                  ID: {manualReasonMember.memberId}
+                  Passbook No.: {manualReasonMember.memberId}
                 </p>
               </div>
             </div>

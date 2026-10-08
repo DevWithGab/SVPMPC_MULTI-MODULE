@@ -268,7 +268,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             body: periodBreakdown.map(row => [row.label, reportAmount(row.contributions), reportAmount(row.deductionsCollected), reportAmount(row.payoutsReleased)]) },
         ];
       } else if (reportType === 'contributions') {
-        sections = [{ head: ['Payment date', 'Member ID', 'Member name', 'Amount (PHP)', 'Status'],
+        sections = [{ head: ['Payment date', 'Passbook No.', 'Member name', 'Amount (PHP)', 'Status'],
           widths: [28, 30, 62, 32, 24], numberColumns: [3],
           body: filteredContributions.map(c => [date(c.payment_date || c.created_at), c.member_id, c.member_name || '-', reportAmount(c.amount), c.status || 'Paid']) }];
       } else if (reportType === 'claims') {
@@ -277,11 +277,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           body: filteredClaims.map(c => [c.claimId, c.memberName, c.beneficiaryName, date(c.dateFiled), getClaimStatusMeta(c.status).label]) }];
       } else if (reportType === 'deceasedMembers') {
         scope = 'Current member roster. Deceased members only.';
-        sections = [{ head: ['Member ID', 'Member name', 'Barangay', 'Join date'], widths: [31, 66, 49, 30],
+        sections = [{ head: ['Passbook No.', 'Member name', 'Barangay', 'Join date'], widths: [31, 66, 49, 30],
           body: filteredDeceasedMembers.map(m => [m.id || m.memberId, m.name || m.memberName, m.barangay || '-', date(m.join_date || m.joinDate)]) }];
       } else if (reportType === 'memberStanding') {
         scope = 'Current posted balances. Active members only; lowest balance first.';
-        sections = [{ head: ['Member ID', 'Member name', 'Barangay', 'Balance (PHP)', 'Standing'],
+        sections = [{ head: ['Passbook No.', 'Member name', 'Barangay', 'Balance (PHP)', 'Standing'],
           widths: [28, 53, 37, 33, 25], numberColumns: [3],
           body: filteredMemberStandingList.map(m => [m.id, m.name, m.barangay, reportAmount(m.balance), m.standing]) }];
       } else if (reportType === 'negativeBalances') {
@@ -289,7 +289,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
         sections = [
           { title: 'Balance overview', head: ['Particulars', 'Value'], widths: [125, 51], numberColumns: [1],
             body: [['Members with negative balances', String(filteredNegativeMembers.length)], ['Total shortfall to zero (PHP)', reportAmount(filteredTotalShortfall)]] },
-          { title: 'Members with negative balances', head: ['Member ID', 'Member name', 'Barangay', 'Status', 'Balance (PHP)'],
+          { title: 'Members with negative balances', head: ['Passbook No.', 'Member name', 'Barangay', 'Status', 'Balance (PHP)'],
             widths: [28, 55, 37, 23, 33], numberColumns: [4],
             body: filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, reportAmount(m.balance)]),
             emptyMessage: 'No members have a negative balance.',
@@ -343,19 +343,19 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       });
     } else if (reportType === 'deceasedMembers') {
       filename = `deceased-members-${new Date().toISOString().split('T')[0]}.csv`;
-      csvContent = 'ID,Name,Barangay,Join Date\n';
+      csvContent = 'Passbook No.,Name,Barangay,Join Date\n';
       filteredDeceasedMembers.forEach(m => {
         csvContent += `"${m.id || m.memberId}","${m.name || m.memberName}","${m.barangay || ''}","${m.join_date || ''}"\n`;
       });
     } else if (reportType === 'memberStanding') {
       filename = `member-standing-${new Date().toISOString().split('T')[0]}.csv`;
-      csvContent = 'ID,Name,Barangay,Balance,Standing\n';
+      csvContent = 'Passbook No.,Name,Barangay,Balance,Standing\n';
       filteredMemberStandingList.forEach(m => {
         csvContent += `"${m.id}","${m.name}","${m.barangay}","${m.balance}","${m.standing}"\n`;
       });
     } else if (reportType === 'negativeBalances') {
       filename = 'negative-balances-' + new Date().toISOString().slice(0, 10) + '.csv';
-      const rows = [['Member ID', 'Member Name', 'Barangay', 'Status', 'Balance (PHP)', 'Shortfall to Zero (PHP)'],
+      const rows = [['Passbook No.', 'Member Name', 'Barangay', 'Status', 'Balance (PHP)', 'Shortfall to Zero (PHP)'],
         ...filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
       csvContent = rows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
     } else if (reportType === 'deductions') {
@@ -576,7 +576,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">ID</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
                     <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
                     <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
                     <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Join Date</th>
@@ -607,7 +607,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
-                      <tr>{['Member ID', 'Name', 'Barangay', 'Status', 'Balance (PHP)'].map((label, index) => <th key={label} className={index === 4 ? 'px-4 py-3 text-right font-medium' : 'px-4 py-3 text-left font-medium'}>{label}</th>)}</tr>
+                      <tr>{['Passbook No.', 'Name', 'Barangay', 'Status', 'Balance (PHP)'].map((label, index) => <th key={label} className={index === 4 ? 'px-4 py-3 text-right font-medium' : 'px-4 py-3 text-left font-medium'}>{label}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {paginatedData.data.map(member => <tr key={member.id}>
@@ -627,7 +627,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">ID</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
                     <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
                     <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
                     <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Balance</th>

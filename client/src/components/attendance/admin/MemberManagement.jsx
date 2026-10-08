@@ -81,7 +81,7 @@ const printQRCodes = (members) => {
       <div class="qr-card">
         <div class="qr-header">
           <h3>${member.memberName}</h3>
-          <p>ID: ${member.memberId}</p>
+          <p>Passbook No.: ${member.memberId}</p>
         </div>
         <div class="qr-code">
           ${
@@ -221,7 +221,7 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
             <h3 className="font-bold text-slate-900">
               {current.memberName || current.name}
             </h3>
-            <p className="text-xs text-slate-500">ID: {current.memberId}</p>
+            <p className="text-xs text-slate-500">Passbook No.: {current.memberId}</p>
           </div>
           <button
             onClick={onClose}
@@ -590,7 +590,7 @@ const MemberManagement = () => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, ID, or email..."
+                placeholder="Search by name, Passbook No., or email..."
                 className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
               />
             </div>
@@ -673,7 +673,7 @@ const MemberManagement = () => {
                               {getMemberDisplayName(member)}
                             </div>
                             <div className="text-sm text-slate-500">
-                              ID: {member?.memberId || "N/A"}
+                              Passbook No.: {member?.memberId || "N/A"}
                             </div>
                           </div>
                         </div>
@@ -748,7 +748,7 @@ const MemberManagement = () => {
                   {getMemberDisplayName(member)}
                 </h3>
                 <p className="text-sm text-slate-500 mb-4">
-                  ID: {member?.memberId || "N/A"}
+                  Passbook No.: {member?.memberId || "N/A"}
                 </p>
 
                 <div className="space-y-2 mb-4">

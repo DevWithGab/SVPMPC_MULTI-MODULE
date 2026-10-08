@@ -85,7 +85,7 @@ const MemberManagement = ({
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">ID</th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Passbook No.</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Name</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Contact</th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>

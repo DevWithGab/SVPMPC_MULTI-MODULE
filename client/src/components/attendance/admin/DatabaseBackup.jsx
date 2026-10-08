@@ -64,7 +64,7 @@ export default function DatabaseBackup({
 
   const downloadMembersCSV = () => {
     const csv = toCSV([
-      ["ID", "Name", "Email", "Phone", "Status", "Join Date"],
+      ["Passbook No.", "Name", "Email", "Phone", "Status", "Join Date"],
       ...members.map((m) => [
         m.memberId || m.id,
         m.memberName || m.name,

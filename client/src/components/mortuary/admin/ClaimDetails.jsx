@@ -238,7 +238,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 {claim.memberName}
               </p>
               <p className="text-xs text-slate-400 mt-0.5">
-                ID: {claim.memberId}
+                Passbook No.: {claim.memberId}
               </p>
               {member && (
                 <div className="mt-3 space-y-1 text-xs text-slate-500">

@@ -402,7 +402,7 @@ export default function LiveAttendanceList({
                               {row.memberName}
                             </div>
                             <div className="text-xs text-slate-400">
-                              ID: {row.memberId || row.memberKey || "N/A"}
+                              Passbook No.: {row.memberId || row.memberKey || "N/A"}
                             </div>
                           </div>
                         </td>
