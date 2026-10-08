@@ -3,6 +3,8 @@ import { Search, FileText, Eye, Printer } from 'lucide-react';
 import Modal from '../shared/Modal';
 import Button from '../../shared/ui/Button';
 import Input from '../../shared/ui/Input';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
 import { printClaimReceipt } from './claimReceipt';
 
@@ -12,26 +14,37 @@ import { printClaimReceipt } from './claimReceipt';
 // number, claim ID, released by, remarks) lives in the details modal.
 export default function ClaimDisbursementReport() {
   const [claims, setClaims] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState(null);
+  const { page, limit, setPage } = usePagination(1, 10);
 
-  const load = useCallback(async (searchTerm) => {
+  const load = useCallback(async (searchTerm, pageNum) => {
     setLoading(true);
     try {
-      const res = await treasurerAPI.getDisbursementReport({ limit: 100, search: searchTerm || undefined });
+      const res = await treasurerAPI.getDisbursementReport({ page: pageNum, limit, search: searchTerm || undefined });
       setClaims(Array.isArray(res?.data) ? res.data : []);
+      setTotal(res?.pagination?.total ?? 0);
     } catch {
       setClaims([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [limit]);
 
   useEffect(() => {
-    const timer = setTimeout(() => load(search), 300);
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => load(search, page), 300);
     return () => clearTimeout(timer);
-  }, [search, load]);
+  }, [search, page, load]);
+
+  const totalPages = Math.ceil(total / limit) || 1;
 
   return (
     <div className="space-y-6">
@@ -103,6 +116,18 @@ export default function ClaimDisbursementReport() {
             </tbody>
           </table>
         </div>
+        {!loading && total > 0 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <PaginationInfo currentPage={page} limit={limit} total={total} />
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              hasNextPage={page < totalPages}
+              hasPrevPage={page > 1}
+            />
+          </div>
+        )}
       </div>
 
       <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Disbursement Details">

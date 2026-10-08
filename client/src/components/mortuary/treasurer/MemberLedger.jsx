@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
 import { Button } from '../../ui/button';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../shared/BulkUploadDialog';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
@@ -715,29 +716,18 @@ const MemberLedger = ({
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
-          {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, totalMembers)} of {totalMembers}
-        </p>
-        <div className="flex gap-2">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-          >
-            Previous
-          </button>
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-          >
-            Next
-          </button>
-        </div>
+        {totalMembers > 0 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <PaginationInfo currentPage={currentPage} limit={itemsPerPage} total={totalMembers} />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              hasNextPage={currentPage < totalPages}
+              hasPrevPage={currentPage > 1}
+            />
+          </div>
+        )}
       </div>
 
       {/* Bulk Upload Modal */}

@@ -168,7 +168,7 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
       </div>
 
       {total > 0 && (
-        <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
           <PaginationInfo currentPage={page} limit={limit} total={total} />
           <Pagination
             currentPage={page}

@@ -3,6 +3,7 @@ import { Search, Users, History, Pencil } from 'lucide-react';
 import { beneficiaryAPI } from '../../../services/api';
 import BeneficiaryHistory from './BeneficiaryHistory';
 import UpdateBeneficiaryModal from './modals/UpdateBeneficiaryModal';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
 
 export default function Beneficiaries({ user }) {
   const [beneficiaries, setBeneficiaries] = useState([]);
@@ -139,31 +140,19 @@ export default function Beneficiaries({ user }) {
             )}
           </tbody>
         </table>
-      </div>
-
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-500">
-            Page {pagination.page} of {pagination.totalPages} • {pagination.total} record{pagination.total === 1 ? '' : 's'}
-          </p>
-          <div className="flex gap-2">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Previous
-            </button>
-            <button
-              disabled={page === pagination.totalPages}
-              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Next
-            </button>
-          </div>
+        {pagination.total > 0 && (
+        <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <PaginationInfo currentPage={page} limit={10} total={pagination.total} />
+          <Pagination
+            currentPage={page}
+            totalPages={pagination.totalPages}
+            onPageChange={setPage}
+            hasNextPage={page < pagination.totalPages}
+            hasPrevPage={page > 1}
+          />
         </div>
-      )}
+        )}
+      </div>
 
       <UpdateBeneficiaryModal
         isOpen={Boolean(editRecord)}

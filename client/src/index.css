@@ -60,6 +60,17 @@
       monospace;
   }
 
+  /* Without this, nothing in the ancestor chain has a defined height, so
+     any descendant's h-full (e.g. the admin portals) resolves against
+     `auto` and collapses to its content height instead of filling the
+     viewport. h-dvh-based layouts are unaffected either way, and
+     min-h-screen pages still only ask for *at least* 100%. */
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
   html {
     scroll-behavior: smooth;
   }

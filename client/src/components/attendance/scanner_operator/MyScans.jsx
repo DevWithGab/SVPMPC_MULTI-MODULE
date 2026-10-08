@@ -145,7 +145,7 @@ export default function MyScans({ user }) {
           </div>
 
           {total > 0 && (
-            <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
               <PaginationInfo currentPage={page} limit={limit} total={total} />
               <Pagination
                 currentPage={page}

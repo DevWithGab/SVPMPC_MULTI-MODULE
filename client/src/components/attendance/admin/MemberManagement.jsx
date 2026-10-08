@@ -21,6 +21,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { memberAPI, resolveQrAssetUrl } from "../../../services/api";
+import { Pagination, PaginationInfo } from "../../ui/pagination";
+import { usePagination } from "../../../hooks/usePagination";
 
 // A member's QR is in exactly one of three states — this is the single
 // source of truth the whole screen (badges, filters, actions) reads from.
@@ -448,6 +450,17 @@ const MemberManagement = () => {
     return matchesSearch && matchesBarangay;
   });
 
+  const { page, limit, setPage } = usePagination(1, 10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedBarangay, viewMode, setPage]);
+
+  const totalFilteredMembers = filteredMembers.length;
+  const totalPages = Math.ceil(totalFilteredMembers / limit) || 1;
+  const pageStartIndex = (page - 1) * limit;
+  const paginatedMembers = filteredMembers.slice(pageStartIndex, pageStartIndex + limit);
+
   const getMemberDisplayName = (member) =>
     String(member?.memberName || member?.name || "Unknown Member");
 
@@ -659,7 +672,7 @@ const MemberManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredMembers.map((member) => {
+                {paginatedMembers.map((member) => {
                   const isDeceased = member?.status === "deceased";
                   return (
                     <tr
@@ -727,7 +740,7 @@ const MemberManagement = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMembers.map((member) => {
+          {paginatedMembers.map((member) => {
             const isDeceased = member?.status === "deceased";
             return (
               <motion.div
@@ -786,6 +799,19 @@ const MemberManagement = () => {
               </motion.div>
             );
           })}
+        </div>
+      )}
+
+      {!loading && totalFilteredMembers > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <PaginationInfo currentPage={page} limit={limit} total={totalFilteredMembers} />
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            hasNextPage={page < totalPages}
+            hasPrevPage={page > 1}
+          />
         </div>
       )}
 

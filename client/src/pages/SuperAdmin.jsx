@@ -13,6 +13,8 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Toast } from '../components/ui/toast';
 import { Modal } from '../components/ui/modal';
+import { Pagination, PaginationInfo } from '../components/ui/pagination';
+import { usePagination } from '../hooks/usePagination';
 import { UploadFilePicker, UploadTemplateCard } from '../components/mortuary/shared/BulkUploadDialog';
 import { validatePhPhone, sanitizePhoneInput } from '../utils/validation';
 
@@ -104,6 +106,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
   const [members, setMembers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { page: membersPage, limit: membersLimit, setPage: setMembersPage } = usePagination(1, 10);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [toast, setToast] = useState(null);
@@ -266,6 +269,13 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
       fetchMembers();
     }
   }, [statusFilter, searchQuery]);
+
+  useEffect(() => {
+    setMembersPage(1);
+  }, [statusFilter, searchQuery, setMembersPage]);
+
+  const membersTotalPages = Math.ceil(members.length / membersLimit) || 1;
+  const paginatedMembers = members.slice((membersPage - 1) * membersLimit, membersPage * membersLimit);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -696,7 +706,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {members.map((member) => (
+                  {paginatedMembers.map((member) => (
                     <tr key={member.memberId} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
                         <div>
@@ -763,6 +773,18 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                 </tbody>
               </table>
             </div>
+            {members.length > 0 && (
+              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <PaginationInfo currentPage={membersPage} limit={membersLimit} total={members.length} />
+                <Pagination
+                  currentPage={membersPage}
+                  totalPages={membersTotalPages}
+                  onPageChange={setMembersPage}
+                  hasNextPage={membersPage < membersTotalPages}
+                  hasPrevPage={membersPage > 1}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

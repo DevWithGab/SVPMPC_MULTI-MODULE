@@ -1,9 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Users, UserCheck, UserMinus, Heart, Search, FileText } from 'lucide-react';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 const MemberManagement = ({
   filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab
 }) => {
+  const { page, limit, setPage } = usePagination(1, 10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, searchQuery, setPage]);
+
+  const totalMembers = filteredMembers.length;
+  const totalPages = Math.ceil(totalMembers / limit) || 1;
+  const startIndex = (page - 1) * limit;
+  const paginatedMembers = filteredMembers.slice(startIndex, startIndex + limit);
+
   return (
     <div className="space-y-6 pb-12">
       <div>
@@ -95,7 +108,7 @@ const MemberManagement = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredMembers.map((member) => (
+              {paginatedMembers.map((member) => (
                 <tr key={member.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-3.5 text-xs font-medium text-slate-500">#{member.id}</td>
                   <td className="px-6 py-3.5 text-sm font-semibold text-slate-900">{member.name}</td>
@@ -151,6 +164,18 @@ const MemberManagement = ({
             </tbody>
           </table>
         </div>
+        {totalMembers > 0 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <PaginationInfo currentPage={page} limit={limit} total={totalMembers} />
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              hasNextPage={page < totalPages}
+              hasPrevPage={page > 1}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

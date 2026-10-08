@@ -50,11 +50,7 @@ function AppRoutes() {
     updateAuth(user, authToken);
     setSession(previous => previous ? { ...previous, user } : previous);
   }} />;
-  return (<>
-    {isSuperAdmin && <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-emerald-900 text-white p-3">
-      <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/admin">Mortuary</Link>
-      <button className="ml-auto" onClick={handleLogout}>Sign out</button>
-    </nav>}
+  const routesElement = (
     <Routes>
       <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector onModuleSelect={handleLogin} />} />
       <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'admin', user, token)} onLogout={handleLogout} />} />
@@ -68,6 +64,35 @@ function AppRoutes() {
       ))}
       <Route path="*" element={<Navigate to={home} replace />} />
     </Routes>
+  );
+
+  // Only the two /admin portals fill exactly 100dvh internally and manage
+  // their own scrolling — stacking the superadmin nav bar above them needs
+  // this height-constrained flex column so the nav bar gets its own space
+  // instead of the portal's full 100dvh overflowing past it (that's what
+  // hid the sidebar's collapse toggle below the fold). Every other
+  // superadmin route (the hub itself, the login screen) relies on normal
+  // page scrolling via min-h-screen, so it must NOT be wrapped the same
+  // way — doing so clips it against overflow-hidden with no way to scroll.
+  const isAdminPortalRoute = location.pathname === '/attendance/admin' || location.pathname === '/mortuary/admin';
+  if (isSuperAdmin && isAdminPortalRoute) {
+    return (
+      <div className="h-dvh flex flex-col overflow-hidden">
+        <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-emerald-900 text-white p-3 shrink-0">
+          <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/admin">Mortuary</Link>
+          <button className="ml-auto" onClick={handleLogout}>Sign out</button>
+        </nav>
+        <div className="flex-1 min-h-0">{routesElement}</div>
+      </div>
+    );
+  }
+
+  return (<>
+    {isSuperAdmin && <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-emerald-900 text-white p-3">
+      <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/admin">Mortuary</Link>
+      <button className="ml-auto" onClick={handleLogout}>Sign out</button>
+    </nav>}
+    {routesElement}
   </>);
 }
 

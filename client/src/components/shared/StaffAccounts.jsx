@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { staffAPI } from '../../services/api';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Pagination, PaginationInfo } from '../ui/pagination';
+import { usePagination } from '../../hooks/usePagination';
 
 const roleModules = { admin: ['attendance', 'mortuary'], secretary: ['attendance'], scanner_operator: ['attendance'], treasurer: ['mortuary'] };
 const empty = { fullName: '', username: '', role: 'secretary', modules: ['attendance'], status: 'active' };
@@ -38,6 +40,12 @@ export default function StaffAccounts() {
     catch (e) { setError(e.response?.data?.message || 'Unable to complete this action.'); }
     finally { setBusy(false); }
   };
+  const { page, limit, setPage } = usePagination(1, 10);
+  useEffect(() => { setPage(1); }, [search, setPage]);
+  const filteredUsers = users.filter(user => `${user.fullName || ''} ${user.username}`.toLowerCase().includes(search.toLowerCase()));
+  const totalPages = Math.ceil(filteredUsers.length / limit) || 1;
+  const paginatedUsers = filteredUsers.slice((page - 1) * limit, page * limit);
+
   const save = e => {
     e.preventDefault();
     run(async () => {
@@ -76,7 +84,7 @@ export default function StaffAccounts() {
     {loadingList && <p role="status" className="py-3">Loading staff accounts...</p>}
     {listError && <p role="alert" className="py-3 text-red-700">{listError}</p>}
     <div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><thead><tr>{['Staff', 'Role', 'Modules', 'Status', 'Actions'].map(title => <th className="p-3 border-b" key={title}>{title}</th>)}</tr></thead>
-      <tbody>{users.filter(user => `${user.fullName || ''} ${user.username}`.toLowerCase().includes(search.toLowerCase())).map(user => <tr key={user.userId}>
+      <tbody>{paginatedUsers.map(user => <tr key={user.userId}>
         <td className="p-3 border-b"><p className="font-semibold">{user.fullName || user.username}</p><p>{user.email}</p><p className="text-xs text-slate-500">{user.username}</p></td>
         <td className="p-3 border-b capitalize">{label(user.role)}</td><td className="p-3 border-b capitalize">{user.modules.join(', ')}</td><td className="p-3 border-b">{user.status}{user.isTemporaryPassword && <p className="text-xs text-amber-700">Password change required</p>}</td>
         <td className="p-3 border-b"><div className="flex gap-2"><Button variant="outline" disabled={busy || Boolean(credentials)} onClick={() => setForm({ ...user })}>Edit account</Button><Button variant="outline" disabled={busy || Boolean(credentials)} onClick={() => {
@@ -88,6 +96,10 @@ export default function StaffAccounts() {
             if (form?.userId === user.userId) setForm(null);
           });
         }}>Delete</Button></div></td>
-      </tr>)}</tbody></table>{!loadingList && !listError && !users.length && <p className="py-4 text-slate-500">No staff accounts yet.</p>}{users.length > 0 && !users.some(user => `${user.fullName || ''} ${user.username}`.toLowerCase().includes(search.toLowerCase())) && <p className="py-4 text-slate-500">No staff match this search. Clear the search to see all accounts.</p>}</div>
+      </tr>)}</tbody></table>{!loadingList && !listError && !users.length && <p className="py-4 text-slate-500">No staff accounts yet.</p>}{users.length > 0 && !filteredUsers.length && <p className="py-4 text-slate-500">No staff match this search. Clear the search to see all accounts.</p>}</div>
+    {filteredUsers.length > 0 && <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-100">
+      <PaginationInfo currentPage={page} limit={limit} total={filteredUsers.length} />
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} hasNextPage={page < totalPages} hasPrevPage={page > 1} />
+    </div>}
   </section>;
 }

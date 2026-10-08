@@ -690,7 +690,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           </div>}
 
           {reportType !== 'summary' && !reportLoading && !reportError && paginatedData.total > 0 && (
-            <div className="p-4 border-t border-slate-200 flex flex-wrap gap-3 items-center justify-between">
+            <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
               <PaginationInfo currentPage={page} limit={limit} total={paginatedData.total} />
               <Pagination
                 currentPage={page}

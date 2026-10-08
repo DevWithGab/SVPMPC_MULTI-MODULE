@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle, ChevronRight } from 'lucide-react';
 import StatCard from '../shared/StatCard';
 import { claimAPI, mortuaryMemberAPI, mortuaryDashboardAPI } from '../../../services/api';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { getClaimStatusMeta, getClaimAction, CLAIM_STATUS_ORDER } from '../shared/claimMeta';
 import ClaimDetails from './ClaimDetails';
 import RegisterClaimModal from './modals/RegisterClaimModal';
@@ -270,32 +271,19 @@ export default function Claims({ user }) {
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-500">
-            Page {pagination.page} of {pagination.totalPages} • {pagination.total} claim{pagination.total === 1 ? '' : 's'}
-          </p>
-          <div className="flex gap-2">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Previous
-            </button>
-            <button
-              disabled={page === pagination.totalPages}
-              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Next
-            </button>
+        {pagination.total > 0 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <PaginationInfo currentPage={page} limit={10} total={pagination.total} />
+            <Pagination
+              currentPage={page}
+              totalPages={pagination.totalPages}
+              onPageChange={setPage}
+              hasNextPage={page < pagination.totalPages}
+              hasPrevPage={page > 1}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <RegisterClaimModal
         isOpen={showRegisterModal}

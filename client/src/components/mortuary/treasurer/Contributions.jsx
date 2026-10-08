@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Banknote, CalendarDays, Archive, Upload } from 'lucide-react';
 import StatCard from '../shared/StatCard';
 import BulkPaymentUpload from './BulkPaymentUpload';
 import { Button } from '../../ui/button';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 const Contributions = ({
   contributions,
@@ -25,6 +27,17 @@ const Contributions = ({
     c.memberId?.toString().includes(paymentSearchQuery) ||
     c.member_id?.toString().includes(paymentSearchQuery)
   );
+
+  const { page, limit, setPage } = usePagination(1, 10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [paymentSearchQuery, setPage]);
+
+  const totalFilteredContributions = filteredContributions.length;
+  const totalPages = Math.ceil(totalFilteredContributions / limit) || 1;
+  const pageStartIndex = (page - 1) * limit;
+  const paginatedContributions = filteredContributions.slice(pageStartIndex, pageStartIndex + limit);
 
   return (
     <div className="space-y-6">
@@ -104,7 +117,7 @@ const Contributions = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredContributions.slice(0, 50).map((c) => (
+            {paginatedContributions.map((c) => (
               <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="px-5 py-4">
                   <p className="text-sm text-slate-700">{c.payment_date}</p>
@@ -140,13 +153,19 @@ const Contributions = ({
             )}
           </tbody>
         </table>
+        {totalFilteredContributions > 0 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <PaginationInfo currentPage={page} limit={limit} total={totalFilteredContributions} />
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              hasNextPage={page < totalPages}
+              hasPrevPage={page > 1}
+            />
+          </div>
+        )}
       </div>
-
-      {filteredContributions.length > 50 && (
-        <p className="text-xs text-slate-400">
-          Showing 50 of {filteredContributions.length} records
-        </p>
-      )}
     </div>
   );
 };

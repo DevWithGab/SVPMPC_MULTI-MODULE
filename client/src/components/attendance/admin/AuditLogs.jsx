@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { auditAPI } from "../../../services/api";
+import { Pagination, PaginationInfo } from "../../ui/pagination";
 import {
   formatDateTime,
   formatDate,
@@ -586,31 +587,15 @@ const AuditLogs = () => {
             </div>
 
             {/* Pagination */}
-            <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-slate-200">
-              <div className="text-sm text-slate-600">
-                Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
-                of {pagination.total} logs
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                  className="px-3 py-1 rounded border border-slate-300 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
-                >
-                  Previous
-                </button>
-                <span className="px-3 py-1">
-                  Page {pagination.page} of {pagination.pages}
-                </span>
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.pages}
-                  className="px-3 py-1 rounded border border-slate-300 text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
-                >
-                  Next
-                </button>
-              </div>
+            <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <PaginationInfo currentPage={pagination.page} limit={pagination.limit} total={pagination.total} />
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.pages}
+                onPageChange={handlePageChange}
+                hasNextPage={pagination.page < pagination.pages}
+                hasPrevPage={pagination.page > 1}
+              />
             </div>
           </>
         )}

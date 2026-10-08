@@ -2,34 +2,41 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Banknote, Pencil, History, Loader2 } from 'lucide-react';
 import { deductionSettingAPI } from '../../../services/api';
 import UpdateDeductionRateModal from './modals/UpdateDeductionRateModal';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export default function DeductionSettings({ user }) {
   const [current, setCurrent] = useState(null);
   const [history, setHistory] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const { page, limit, setPage } = usePagination(1, 10);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (pageNum) => {
     setLoading(true);
     setError('');
     try {
       const [currentRes, historyRes] = await Promise.all([
         deductionSettingAPI.getCurrentRate(),
-        deductionSettingAPI.getRateHistory({ limit: 20 }),
+        deductionSettingAPI.getRateHistory({ page: pageNum, limit }),
       ]);
       setCurrent(currentRes?.data || null);
       setHistory(Array.isArray(historyRes?.data) ? historyRes.data : []);
+      setHistoryTotal(historyRes?.pagination?.total ?? 0);
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to load deduction settings.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [limit]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load(page);
+  }, [load, page]);
+
+  const totalPages = Math.ceil(historyTotal / limit) || 1;
 
   return (
     <div className="space-y-6 pb-12">
@@ -117,6 +124,18 @@ export default function DeductionSettings({ user }) {
                 </tbody>
               </table>
             </div>
+            {historyTotal > 0 && (
+              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <PaginationInfo currentPage={page} limit={limit} total={historyTotal} />
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  hasNextPage={page < totalPages}
+                  hasPrevPage={page > 1}
+                />
+              </div>
+            )}
           </div>
         </>
       )}
@@ -126,7 +145,7 @@ export default function DeductionSettings({ user }) {
         onClose={() => setShowUpdateModal(false)}
         currentAmount={current?.amount ?? 25}
         user={user}
-        onSaved={load}
+        onSaved={() => { setPage(1); load(1); }}
       />
     </div>
   );

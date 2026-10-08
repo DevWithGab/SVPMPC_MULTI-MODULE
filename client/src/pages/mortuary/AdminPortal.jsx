@@ -231,7 +231,7 @@ const AdminPortal = ({ onBack, user }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-dvh bg-slate-50">
+      <div className="flex items-center justify-center h-full bg-slate-50">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-slate-200 border-t-coop-green rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-500 font-medium">
@@ -243,7 +243,7 @@ const AdminPortal = ({ onBack, user }) => {
   }
 
   return (
-    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
+    <div className="h-full bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
@@ -263,7 +263,7 @@ const AdminPortal = ({ onBack, user }) => {
               : 0,
         }}
         transition={{ type: "tween", duration: 0.2 }}
-        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden"
+        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh lg:h-full z-50 overflow-hidden"
       >
         <div
           className={`border-b border-white/10 flex items-center shrink-0 ${isSidebarCollapsed ? "justify-center py-5" : "gap-3 px-5 py-5"}`}

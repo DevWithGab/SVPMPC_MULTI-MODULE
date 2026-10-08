@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, FileText, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import Input from '../../shared/ui/Input';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
+import { usePagination } from '../../../hooks/usePagination';
+import { loadAllPages } from '../../../utils/loadAllPages';
 import { treasurerAPI } from '../../../services/api';
 
 // Per-claim collections, benefits, and retained income. Unreleased claims
@@ -29,53 +32,76 @@ const SummaryTile = ({ label, value, hint, icon: Icon, tone }) => (
 
 export default function ClaimIncomeReport() {
   const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
   const [totals, setTotals] = useState(null);
   const [maxBenefit, setMaxBenefit] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
+  const { page, limit, setPage } = usePagination(1, 10);
 
-  const load = useCallback(async (searchTerm) => {
+  const load = useCallback(async (searchTerm, pageNum) => {
     setLoading(true);
     try {
-      const res = await treasurerAPI.getClaimIncomeReport({ limit: 100, search: searchTerm || undefined });
+      const res = await treasurerAPI.getClaimIncomeReport({ page: pageNum, limit, search: searchTerm || undefined });
       setRows(Array.isArray(res?.data) ? res.data : []);
+      setTotal(res?.pagination?.total ?? 0);
       setTotals(res?.totals || null);
       setMaxBenefit(res?.maxBenefitAmount ?? null);
     } catch {
       setRows([]);
+      setTotal(0);
       setTotals(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [limit]);
 
   useEffect(() => {
-    const timer = setTimeout(() => load(search), 300);
-    return () => clearTimeout(timer);
-  }, [search, load]);
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
-  const exportCSV = () => {
-    if (!rows.length) return;
-    const header = [
-      'Claim ID', 'Deceased Member', 'Beneficiary', 'Status', 'Members Charged', 'Per Member',
-      'Total Collected', 'Released', 'Processed', 'Released On', 'DV Number',
-    ];
-    const body = rows.map((r) => [
-      r.claimId, r.memberName, r.beneficiaryName, r.status, r.membersCharged, r.amountPerMember,
-      r.totalCollected, r.amountReleased ?? '',
-      r.processedAt ? new Date(r.processedAt).toISOString().split('T')[0] : '',
-      r.releasedAt ? new Date(r.releasedAt).toISOString().split('T')[0] : '',
-      r.dvNumber ?? '',
-    ]);
-    const csv = [header, ...body]
-      .map((line) => line.map((cell) => (typeof cell === 'string' ? `"${cell.replace(/"/g, '""')}"` : cell)).join(','))
-      .join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `claims-income-report-${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  useEffect(() => {
+    const timer = setTimeout(() => load(search, page), 300);
+    return () => clearTimeout(timer);
+  }, [search, page, load]);
+
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  // Exports every claim matching the current search, not just the page on
+  // screen — the on-screen table is now paginated, but the CSV should still
+  // be the complete report.
+  const exportCSV = async () => {
+    if (!total || exporting) return;
+    setExporting(true);
+    try {
+      const allRows = await loadAllPages((p) => treasurerAPI.getClaimIncomeReport({ page: p, limit: 100, search: search || undefined }));
+      const header = [
+        'Claim ID', 'Deceased Member', 'Beneficiary', 'Status', 'Members Charged', 'Per Member',
+        'Total Collected', 'Released', 'Processed', 'Released On', 'DV Number',
+      ];
+      const body = allRows.map((r) => [
+        r.claimId, r.memberName, r.beneficiaryName, r.status, r.membersCharged, r.amountPerMember,
+        r.totalCollected, r.amountReleased ?? '',
+        r.processedAt ? new Date(r.processedAt).toISOString().split('T')[0] : '',
+        r.releasedAt ? new Date(r.releasedAt).toISOString().split('T')[0] : '',
+        r.dvNumber ?? '',
+      ]);
+      const csv = [header, ...body]
+        .map((line) => line.map((cell) => (typeof cell === 'string' ? `"${cell.replace(/"/g, '""')}"` : cell)).join(','))
+        .join('\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `claims-income-report-${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Export failures aren't fatal to the page; the on-screen report is unaffected.
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -99,10 +125,10 @@ export default function ClaimIncomeReport() {
           </div>
           <button
             onClick={exportCSV}
-            disabled={!rows.length}
+            disabled={!total || exporting}
             className="inline-flex items-center gap-1.5 px-3 h-10 text-sm font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           >
-            <Download className="w-4 h-4" /> CSV
+            <Download className="w-4 h-4" /> {exporting ? 'Exporting...' : 'CSV'}
           </button>
         </div>
       </div>
@@ -187,6 +213,18 @@ export default function ClaimIncomeReport() {
             </tbody>
           </table>
         </div>
+        {!loading && total > 0 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <PaginationInfo currentPage={page} limit={limit} total={total} />
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              hasNextPage={page < totalPages}
+              hasPrevPage={page > 1}
+            />
+          </div>
+        )}
       </div>
 
       {maxBenefit != null && (

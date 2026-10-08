@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
-import { ArrowRight, ChevronLeft, ChevronRight, Loader2, RefreshCw, Search, X } from 'lucide-react';
+import { ArrowRight, Loader2, RefreshCw, Search, X } from 'lucide-react';
+import { Pagination } from '../../ui/pagination';
 import { fieldClass, peso, shortDate } from './claimWorkflowUtils';
 
 export function Action({ children, primary = false, className = '', ...props }) {
@@ -32,7 +33,13 @@ export function ClaimQueue({ queue, release = false, onSelect }) {
           </table></div>}
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
       <span aria-live="polite">{loading ? 'Loading…' : error ? 'Claims unavailable' : total ? `${(page - 1) * 10 + 1}–${Math.min(page * 10, total)} of ${total} ${search ? 'matching ' : ''}claims` : '0 claims'}</span>
-      <div className="flex items-center gap-2"><Action aria-label="Previous page" disabled={loading || !!error || page === 1} onClick={() => setPage(page - 1)}><ChevronLeft className="h-4 w-4" /></Action><span>Page {page} of {Math.max(1, Math.ceil(total / 10))}</span><Action aria-label="Next page" disabled={loading || !!error || page * 10 >= total} onClick={() => setPage(page + 1)}><ChevronRight className="h-4 w-4" /></Action></div>
+      <Pagination
+        currentPage={page}
+        totalPages={Math.max(1, Math.ceil(total / 10))}
+        onPageChange={setPage}
+        hasNextPage={!loading && !error && page * 10 < total}
+        hasPrevPage={!loading && !error && page > 1}
+      />
     </div>
   </section>;
 }

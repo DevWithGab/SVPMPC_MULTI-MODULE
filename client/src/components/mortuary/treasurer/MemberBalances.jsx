@@ -4,6 +4,7 @@ import StatCard from '../shared/StatCard';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 import { treasurerAPI, resolveQrAssetUrl } from '../../../services/api';
+import { Pagination, PaginationInfo } from '../../ui/pagination';
 
 // Above this, generating the batch PDF is handed off to a background server
 // job instead of built instantly in the browser — native text rendering is
@@ -465,29 +466,18 @@ const MemberBalances = ({
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
-          {filteredMembers.length === 0 ? 0 : ((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, filteredMembers.length)} of {filteredMembers.length}
-        </p>
-        <div className="flex gap-2">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-          >
-            Previous
-          </button>
-          <button
-            disabled={currentPage === totalPagesMemberBalances}
-            onClick={() => setCurrentPage(p => Math.min(totalPagesMemberBalances, p + 1))}
-            className="h-9 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-          >
-            Next
-          </button>
-        </div>
+        {filteredMembers.length > 0 && (
+          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <PaginationInfo currentPage={currentPage} limit={itemsPerPage} total={filteredMembers.length} />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPagesMemberBalances}
+              onPageChange={setCurrentPage}
+              hasNextPage={currentPage < totalPagesMemberBalances}
+              hasPrevPage={currentPage > 1}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
