@@ -47,8 +47,8 @@ export default function ClaimDisbursementReport() {
   const totalPages = Math.ceil(total / limit) || 1;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="mc-view mc-report space-y-6">
+      <div className="mc-view-heading">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Claim Disbursement Report</h2>
           <p className="text-sm text-slate-500 mt-1">
@@ -58,6 +58,7 @@ export default function ClaimDisbursementReport() {
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
+            aria-label="Search disbursements by voucher, claim ID, or member"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search DV #, claim ID, name..."
@@ -66,8 +67,8 @@ export default function ClaimDisbursementReport() {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="mc-register">
+        <div className="mc-table-scroll" role="region" aria-label="Claims report" tabIndex={0}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">

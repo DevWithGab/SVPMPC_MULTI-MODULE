@@ -1,0 +1,44 @@
+.treasurer-dashboard { max-width: 1600px; margin-inline: auto; padding-bottom: 48px; color: #24362a; }
+.td-header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 26px; }
+.td-eyebrow { color: #647069; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.td-header h1 { font-size: 28px; font-weight: 650; letter-spacing: -.7px; color: #17251d; margin-top: 7px; }
+.td-description { color: #647069; font-size: 13px; margin-top: 7px; line-height: 1.6; }
+.td-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.td-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 38px; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; color: #34453a; font-size: 12px; font-weight: 600; cursor: pointer; }
+.td-button:hover { background: #f3f6f3; }
+.td-primary { background: #245e32; border-color: #245e32; color: white; }
+.td-primary:hover { background: #163a1e; }
+.td-button:disabled { opacity: .5; cursor: not-allowed; }
+.treasurer-dashboard button:focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.td-overview { color: #647069; font-size: 12px; margin: -8px 0 22px; line-height: 1.6; }
+.td-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 24px; align-items: start; }
+.td-main, .td-sidebar { display: grid; gap: 24px; min-width: 0; }
+.td-panel { background: white; border: 1px solid #dce3dd; border-radius: 6px; overflow: hidden; min-width: 0; }
+.td-chart-panel { padding: 22px 20px; }
+.td-chart-panel > div:first-child:not(.td-composition), .td-panel-heading { border-bottom: 1px solid #e2e7e3; padding-bottom: 18px; }
+.td-chart-panel > p:first-child { color: #17251d; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.td-chart-panel .text-slate-400, .td-chart-panel .text-slate-500 { color: #647069; }
+.td-chart-panel .text-slate-900 { color: #17251d; }
+.td-pies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.td-composition { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.td-composition > div:last-child { width: 100%; }
+.td-panel-heading { padding: 22px 20px; }
+.td-panel-heading h2 { font-size: 16px; font-weight: 600; letter-spacing: -.2px; color: #17251d; }
+.td-panel-heading p { font-size: 12px; line-height: 1.6; margin-top: 5px; color: #647069; }
+.td-fund-totals { padding-inline: 20px; }
+.td-fund-totals > div { padding-block: 18px; }
+.td-fund-totals > div + div { border-top: 1px solid #edf0ed; }
+.td-fund-totals dt { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #526058; }
+.td-fund-totals dd { margin-top: 8px; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.td-fund-totals small { display: block; margin-top: 5px; color: #647069; font-size: 11px; line-height: 1.6; }
+.td-tools { padding: 0 4px; }
+.td-tools h2 { color: #647069; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; }
+.td-tools button { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid #dce3dd; color: #34453a; cursor: pointer; }
+.td-tools button:hover strong { color: #245e32; text-decoration: underline; }
+.td-tools strong { font-size: 13px; font-weight: 600; }
+.td-tools small { display: block; font-size: 12px; color: #647069; margin-top: 5px; line-height: 1.6; }
+.td-tools svg { flex-shrink: 0; }
+@media(max-width: 1400px) { .td-pies { grid-template-columns: minmax(0, 1fr); } .td-composition { flex-direction: row; } }
+@media(max-width: 1200px) { .td-workspace { grid-template-columns: minmax(0, 1fr); } .td-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } .td-pies { grid-template-columns: repeat(2, minmax(0, 1fr)); } .td-composition { flex-direction: column; } }
+@media(max-width: 1000px) { .td-header { align-items: start; flex-direction: column; } }
+@media(max-width: 640px) { .td-header h1 { font-size: 25px; } .td-sidebar, .td-pies { grid-template-columns: minmax(0, 1fr); } .td-header-actions { width: 100%; flex-wrap: wrap; } .td-header-actions .td-button { flex: 1; } .td-chart-panel, .td-panel-heading { padding-inline: 16px; } }

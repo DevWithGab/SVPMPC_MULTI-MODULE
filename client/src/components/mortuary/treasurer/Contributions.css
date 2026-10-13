@@ -1,0 +1,44 @@
+.mortuary-contributions { max-width: 1600px; margin-inline: auto; padding-bottom: 48px; color: #24362a; }
+.ct-header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 26px; }
+.ct-eyebrow { color: #647069; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.ct-header h1 { color: #17251d; font-size: 28px; font-weight: 650; letter-spacing: -.7px; margin-top: 7px; }
+.ct-description { color: #647069; font-size: 13px; line-height: 1.6; margin-top: 7px; }
+.ct-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.ct-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; color: #34453a; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ct-button:hover { background: #f3f6f3; }
+.ct-primary { background: #245e32; border-color: #245e32; color: white; }
+.ct-primary:hover { background: #163a1e; }
+.ct-text-button:disabled { opacity: .45; cursor: not-allowed; }
+.mortuary-contributions :is(button, input, [tabindex]):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.ct-filters { background: white; border: 1px solid #dce3dd; border-radius: 6px; padding: 20px; margin-bottom: 24px; }
+.ct-filter-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.ct-filter-heading h2 { font-size: 13px; font-weight: 600; }
+.ct-text-button { padding: 5px; font-size: 12px; font-weight: 600; color: #245e32; cursor: pointer; }
+.ct-text-button:hover:not(:disabled) { text-decoration: underline; }
+.ct-search-label { display: block; max-width: 520px; font-size: 12px; font-weight: 600; }
+.ct-search { display: flex; align-items: center; gap: 8px; min-height: 40px; margin-top: 7px; padding: 8px 10px; border: 1px solid #cdd6cf; border-radius: 5px; color: #647069; background: white; font-size: 13px; font-weight: 400; }
+.ct-search svg { flex-shrink: 0; }
+.ct-search input { width: 100%; min-width: 0; color: #24362a; }
+.ct-register { min-width: 0; background: white; border: 1px solid #dce3dd; border-radius: 6px; overflow: hidden; }
+.ct-register-heading { padding: 22px 20px; }
+.ct-register-heading h2 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; color: #17251d; }
+.ct-register-heading p { font-size: 12px; color: #647069; line-height: 1.6; margin-top: 5px; }
+.ct-scope { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 20px; background: #f8faf8; border-block: 1px solid #e2e7e3; color: #526058; font-size: 12px; }
+.ct-table-scroll { overflow-x: auto; }
+.ct-register table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ct-register th { padding: 13px 20px; background: #fcfdfc; color: #526058; text-align: left; font-size: 11px; font-weight: 600; border-bottom: 1px solid #e2e7e3; }
+.ct-register td { padding: 17px 20px; border-bottom: 1px solid #edf0ed; vertical-align: middle; }
+.ct-register tbody tr:last-child td { border-bottom: 0; }
+.ct-register tbody tr:hover { background: #f8faf8; }
+.ct-register td strong { font-weight: 600; }
+.ct-register td:nth-child(2) { min-width: 200px; max-width: 320px; overflow-wrap: anywhere; }
+.ct-register .ct-number { text-align: right; white-space: nowrap; }
+.ct-secondary { display: block; color: #647069; font-size: 12px; margin-top: 5px; }
+.ct-status { display: inline-flex; border: 1px solid #dce3dd; background: #f5f6f5; color: #647069; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; text-transform: capitalize; white-space: nowrap; }
+.ct-status-paid { color: #245e32; background: #edf5ee; border-color: #cbdccd; }
+.ct-pagination { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border-top: 1px solid #e2e7e3; }
+.ct-empty { display: flex; align-items: center; flex-direction: column; gap: 12px; text-align: center; padding: 48px 20px; font-size: 13px; color: #526058; }
+.ct-empty strong { font-weight: 600; }
+.ct-empty p { color: #647069; font-size: 12px; max-width: 440px; line-height: 1.7; }
+@media(max-width: 1000px) { .ct-header { align-items: start; flex-direction: column; gap: 16px; } }
+@media(max-width: 640px) { .ct-header h1 { font-size: 25px; } .ct-header-actions { width: 100%; flex-wrap: wrap; } .ct-header-actions .ct-button { flex: 1; } .ct-filters, .ct-register-heading, .ct-pagination, .ct-scope { padding-inline: 16px; } }

@@ -1,3 +1,4 @@
+import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, FileText, TrendingUp, TrendingDown, Download } from 'lucide-react';
 import Input from '../../shared/ui/Input';
@@ -18,17 +19,6 @@ const STATUS_LABEL = {
   deduction_processed: { text: 'Awaiting release', className: 'bg-amber-100 text-amber-700' },
   released: { text: 'Released', className: 'bg-green-100 text-coop-green' },
 };
-
-const SummaryTile = ({ label, value, hint, icon: Icon, tone }) => (
-  <div className={`rounded-xl border p-4 ${tone}`}>
-    <div className="flex items-center gap-2">
-      <Icon className="w-4 h-4 shrink-0 opacity-70" />
-      <p className="text-xs font-semibold uppercase tracking-wider opacity-70">{label}</p>
-    </div>
-    <p className="text-2xl font-bold mt-2 tabular-nums">{value}</p>
-    <p className="text-xs opacity-60 mt-0.5">{hint}</p>
-  </div>
-);
 
 export default function ClaimIncomeReport() {
   const [rows, setRows] = useState([]);
@@ -105,8 +95,8 @@ export default function ClaimIncomeReport() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="mc-view mc-report space-y-6">
+      <div className="mc-view-heading">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Claims Summary</h2>
           <p className="text-sm text-slate-500 mt-1">
@@ -117,6 +107,7 @@ export default function ClaimIncomeReport() {
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
+              aria-label="Search claims by claim ID or member"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search claim ID or name..."
@@ -135,25 +126,13 @@ export default function ClaimIncomeReport() {
 
       {/* Totals span every claim matching the current search, not just the rows
           on screen, so these agree with the dashboard tiles when unfiltered. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <SummaryTile
-          label="Total Deductions Collected"
-          value={peso(totals?.totalDeductionsCollected)}
-          hint="Held, awaiting release"
-          icon={TrendingUp}
-          tone="bg-blue-50 border-blue-100 text-blue-900"
-        />
-        <SummaryTile
-          label="Total Claims Released"
-          value={peso(totals?.totalReleased)}
-          hint={maxBenefit ? `Benefits paid out (max ${peso(maxBenefit)}/claim)` : 'Benefits paid out'}
-          icon={TrendingDown}
-          tone="bg-rose-50 border-rose-100 text-rose-900"
-        />
-      </div>
+      <AttendanceMetricGrid label="Claims summary totals" busy={loading} items={[
+        ['Total deductions collected', loading ? '—' : peso(totals?.totalDeductionsCollected), 'Held, awaiting release', TrendingUp],
+        ['Total claims released', loading ? '—' : peso(totals?.totalReleased), maxBenefit ? 'Benefits paid out (max ' + peso(maxBenefit) + '/claim)' : 'Benefits paid out', TrendingDown],
+      ]} />
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="mc-register">
+        <div className="mc-table-scroll" role="region" aria-label="Claims report" tabIndex={0}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">

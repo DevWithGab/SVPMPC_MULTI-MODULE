@@ -1,11 +1,13 @@
 import { contributionTrend, memberBalanceCoverage, contributionGrowth } from '../../../utils/dashboardMetrics';
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown, ArrowRight, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
-import StatCard from '../shared/StatCard';
+import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
+import { formatLongDate } from '../../../utils/date';
+import './Dashboard.css';
 
-const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError }) => {
+const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError, setActiveTab, onRefresh, refreshing = false }) => {
   const firstName = user?.name?.split(' ')[0] || 'Treasurer';
   const healthyRatio = memberBalanceCoverage(stats);
 
@@ -75,79 +77,24 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError 
   const outstandingClaims = claimsData.reduce((total, row) => total + row.claims, 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Welcome back, {firstName} — here's the fund's financial overview and member insights.
-          </p>
+    <div className="treasurer-dashboard">
+      <header className="td-header">
+        <div><p className="td-eyebrow">Mortuary management / Overview</p><h1>Mortuary dashboard</h1><p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p></div>
+        <div className="td-header-actions">
+          <button className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+          <button className="td-button td-primary" onClick={() => setActiveTab('contributions')}>Manage contributions <ArrowRight size={15} aria-hidden="true" /></button>
         </div>
-        <div className="hidden sm:flex items-center gap-2 h-10 px-4 rounded-lg border border-slate-200 text-sm font-medium text-slate-500 shrink-0">
-          <Calendar className="w-4 h-4 text-slate-400" />
-          {new Date().toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-          })}
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Active Member Balances"
-          value={`₱${stats?.fundBalance?.toLocaleString() || '0'}`}
-          subtitle="Sum of active member ledger balances"
-          icon={Wallet}
-          color="emerald"
-        />
-        <StatCard
-          title="Active Members"
-          value={stats?.activeMembers?.toLocaleString() || '0'}
-          subtitle="Currently contributing"
-          icon={Users}
-          color="blue"
-        />
-        <StatCard
-          title="Low Balance"
-          value={<>{stats?.lowBalanceMembers || 0} <span className="text-base font-normal text-slate-500">members</span></>}
-          subtitle="Below ₱1,000"
-          icon={AlertTriangle}
-          color="amber"
-        />
-        <StatCard
-          title="Above Minimum Balance"
-          value={healthyRatio === null ? 'N/A' : `${healthyRatio}%`}
-          subtitle="Active members with at least PHP 1,000"
-          icon={ShieldCheck}
-          color={healthyRatio === null ? 'blue' : healthyRatio >= 80 ? 'emerald' : 'rose'}
-        />
-      </div>
-
-      {/* Death-fund assessments collected and benefits released. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard
-          title="Total Deductions Collected"
-          value={`₱${(stats?.totalDeductionsCollected || 0).toLocaleString()}`}
-          subtitle="All-time assessments collected"
-          icon={TrendingUp}
-          color="blue"
-        />
-        <StatCard
-          title="Total Claims Released"
-          value={`₱${(stats?.totalReleased || 0).toLocaleString()}`}
-          subtitle="Benefits paid out (max ₱50,000/claim)"
-          icon={TrendingDown}
-          color="rose"
-        />
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      </header>
+      <AttendanceMetricGrid label="Mortuary fund overview" busy={refreshing} items={[
+        ['Active member balances', '₱' + (stats?.fundBalance?.toLocaleString() || '0'), 'Sum of active member ledger balances', Wallet],
+        ['Active members', stats?.activeMembers?.toLocaleString() || '0', 'Currently contributing', Users],
+        ['Low balance', (stats?.lowBalanceMembers || 0).toLocaleString(), 'Members with balances below ₱1,000', AlertTriangle],
+        ['Above minimum balance', healthyRatio === null ? 'N/A' : healthyRatio + '%', 'Active members with at least PHP 1,000', ShieldCheck],
+      ]} />
+      <p className="td-overview">Welcome back, {firstName}. Review the fund's financial overview and member insights.</p>
+      <div className="td-workspace"><div className="td-main">
         {/* Fund Growth Line Chart */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
+        <div className="td-panel td-chart-panel">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -195,8 +142,84 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError 
           </div>
         </div>
 
-        {/* Claims awaiting treasurer action */}
-        <div className="min-w-0 bg-white border border-slate-200 rounded-xl p-6">
+      {/* Pie Charts Section */}
+      <div className="td-pies">
+        {/* Member Standing */}
+        <div className="td-panel td-chart-panel">
+          <p className="text-sm font-semibold text-slate-900 mb-1">Member Standing</p>
+          <p className="text-xs text-slate-400 mb-4">Balance-based categories</p>
+
+          <div className="h-[220px]">
+            <ChartContainer config={memberStandingConfig} className="w-full h-full">
+              <PieChart>
+                <ChartTooltip
+                  content={<ChartTooltipContent
+                    hideLabel
+                    formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
+                  />}
+                />
+                <Pie
+                  data={memberStandingData}
+                  dataKey="members"
+                  label={({ standing, percent }) =>
+                    `${standing === 'atRisk' ? 'At Risk' : standing.charAt(0).toUpperCase() + standing.slice(1)}: ${(percent * 100).toFixed(0)}%`
+                  }
+                  nameKey="standing"
+                />
+              </PieChart>
+            </ChartContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-100">
+            {memberStandingData.map((item) => (
+              <div key={item.standing} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.fill }} />
+                  <span className="text-slate-600">{item.standing === 'atRisk' ? 'At Risk' : item.standing.charAt(0).toUpperCase() + item.standing.slice(1)}</span>
+                </span>
+                <span className="font-bold text-slate-900">{item.members}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Status Composition */}
+        <div className="td-panel td-chart-panel">
+          <p className="text-sm font-semibold text-slate-900 mb-1">Status Composition</p>
+          <p className="text-xs text-slate-400 mb-4">Member status breakdown</p>
+
+          <div className="td-composition">
+            <div className="h-[180px] w-[180px] shrink-0">
+              <ChartContainer config={statusCompositionConfig} className="w-full h-full">
+                <PieChart>
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent
+                      hideLabel
+                      formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
+                    />}
+                  />
+                  <Pie data={statusCompositionData} dataKey="members" nameKey="status" stroke="0" />
+                </PieChart>
+              </ChartContainer>
+            </div>
+            <div className="space-y-3 flex-1">
+              {statusCompositionData.map((item) => (
+                <div key={item.status} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
+                  <span className="font-bold text-slate-900">{item.members}</span>
+                </div>
+              ))}
+              <div className="pt-3 border-t border-slate-100">
+                <p className="text-xs text-slate-400">Total members</p>
+                <p className="text-lg font-bold text-slate-900">{stats?.totalMembers?.toLocaleString() || '0'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+</div><aside className="td-sidebar" aria-label="Claims and fund activity">        {/* Claims awaiting treasurer action */}
+        <div className="td-panel td-chart-panel">
           <div className="mb-4">
             <p className="text-sm font-semibold text-slate-900">Claims Awaiting Action</p>
             <p className="text-xs text-slate-400 mt-0.5">Current claims pending deduction or benefit release</p>
@@ -245,82 +268,23 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError 
             </div>
           )}
         </div>
-      </div>
-      {/* Pie Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Member Standing */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <p className="text-sm font-semibold text-slate-900 mb-1">Member Standing</p>
-          <p className="text-xs text-slate-400 mb-4">Balance-based categories</p>
 
-          <div className="h-[220px]">
-            <ChartContainer config={memberStandingConfig} className="w-full h-full">
-              <PieChart>
-                <ChartTooltip
-                  content={<ChartTooltipContent
-                    hideLabel
-                    formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
-                  />}
-                />
-                <Pie
-                  data={memberStandingData}
-                  dataKey="members"
-                  label={({ standing, percent }) =>
-                    `${standing === 'atRisk' ? 'At Risk' : standing.charAt(0).toUpperCase() + standing.slice(1)}: ${(percent * 100).toFixed(0)}%`
-                  }
-                  nameKey="standing"
-                />
-              </PieChart>
-            </ChartContainer>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-100">
-            {memberStandingData.map((item) => (
-              <div key={item.standing} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.fill }} />
-                  <span className="text-slate-600">{item.standing === 'atRisk' ? 'At Risk' : item.standing.charAt(0).toUpperCase() + item.standing.slice(1)}</span>
-                </span>
-                <span className="font-bold text-slate-900">{item.members}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Status Composition */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
-          <p className="text-sm font-semibold text-slate-900 mb-1">Status Composition</p>
-          <p className="text-xs text-slate-400 mb-4">Member status breakdown</p>
-
-          <div className="flex items-center gap-6">
-            <div className="h-[180px] w-[180px] shrink-0">
-              <ChartContainer config={statusCompositionConfig} className="w-full h-full">
-                <PieChart>
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent
-                      hideLabel
-                      formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
-                    />}
-                  />
-                  <Pie data={statusCompositionData} dataKey="members" nameKey="status" stroke="0" />
-                </PieChart>
-              </ChartContainer>
-            </div>
-            <div className="space-y-3 flex-1">
-              {statusCompositionData.map((item) => (
-                <div key={item.status} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
-                  <span className="font-bold text-slate-900">{item.members}</span>
-                </div>
-              ))}
-              <div className="pt-3 border-t border-slate-100">
-                <p className="text-xs text-slate-400">Total members</p>
-                <p className="text-lg font-bold text-slate-900">{stats?.totalMembers?.toLocaleString() || '0'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+          <section className="td-panel" aria-labelledby="td-fund-title">
+            <div className="td-panel-heading"><h2 id="td-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></div>
+            <dl className="td-fund-totals">
+              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{(stats?.totalDeductionsCollected || 0).toLocaleString()}</dd><small>All-time assessments collected</small></div>
+              <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{(stats?.totalReleased || 0).toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
+            </dl>
+          </section>
+          <nav className="td-tools" aria-label="Mortuary workspace">
+            <h2>Workspace</h2>
+            {[
+              ['claims', 'Claims', 'Process deductions and release benefits.'],
+              ['members', 'Member balances', 'Review balances and member standing.'],
+              ['reports', 'Mortuary reports', 'Review fund activity and export records.'],
+            ].map(([tab, label, description]) => <button key={tab} onClick={() => setActiveTab(tab)}><span><strong>{label}</strong><small>{description}</small></span><ArrowRight size={15} aria-hidden="true" /></button>)}
+          </nav>
+        </aside>
       </div>
     </div>
   );

@@ -42,8 +42,8 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
     finally { inFlight.current = false; setBusy(false); }
   };
 
-  return <div className="space-y-5">
-    <header><h2 className="text-2xl font-bold text-slate-900 tracking-tight">Awaiting release</h2><p className="mt-1.5 text-sm text-slate-500">Record the disbursement for claims with completed deductions.</p></header>
+  return <div className="mc-view space-y-5">
+    <header className="mc-view-heading"><div><h2 className="text-2xl font-bold text-slate-900 tracking-tight">Awaiting release</h2><p className="mt-1.5 text-sm text-slate-500">Record the disbursement for claims with completed deductions.</p></div></header>
     <ClaimQueue queue={queue} release onSelect={open} />
     <p className="text-xs leading-5 text-slate-500">For release shows the beneficiary’s payout after the benefit cap. Any retained amount remains with the cooperative.</p>
     {target && <ClaimDialog title={released ? 'Disbursement recorded' : review ? 'Confirm release' : 'Prepare release'} step={released ? 'Completed' : review ? 'Step 2 of 2 · Confirm disbursement' : 'Step 1 of 2 · Disbursement details'} busy={busy} onClose={close} footer={released ? <>

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Banknote, CalendarDays, Archive, Upload } from 'lucide-react';
-import StatCard from '../shared/StatCard';
+import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
+import './Contributions.css';
 import BulkPaymentUpload from './BulkPaymentUpload';
-import { Button } from '../../ui/button';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 
@@ -36,136 +36,44 @@ const Contributions = ({
 
   const totalFilteredContributions = filteredContributions.length;
   const totalPages = Math.ceil(totalFilteredContributions / limit) || 1;
-  const pageStartIndex = (page - 1) * limit;
+  const visiblePage = Math.min(page, totalPages);
+  const pageStartIndex = (visiblePage - 1) * limit;
   const paginatedContributions = filteredContributions.slice(pageStartIndex, pageStartIndex + limit);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Record Payments</h2>
-        <p className="text-sm text-slate-500 mt-1">Track and manage member contributions</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Today"
-          value={`₱${totalToday.toLocaleString()}`}
-          subtitle={`${contributionsToday.length} transactions`}
-          icon={Banknote}
-          color="emerald"
-        />
-        <StatCard
-          title="This Month"
-          value={`₱${totalMonth.toLocaleString()}`}
-          subtitle={new Date().toLocaleString('default', { month: 'long' })}
-          icon={CalendarDays}
-          color="blue"
-        />
-        <StatCard
-          title="All Time"
-          value={contributions.length}
-          subtitle="total records"
-          icon={Archive}
-          color="amber"
-        />
-      </div>
-
-      {/* Filter Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="relative flex-1 w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              aria-label="Search contributions by name or Passbook No."
-              placeholder="Search name or Passbook No."
-              value={paymentSearchQuery}
-              onChange={e => setPaymentSearchQuery(e.target.value)}
-              className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
-            />
-          </div>
-          <Button
-            type="button"
-            onClick={() => setBulkUploadOpen(true)}
-            className="gap-1.5 shrink-0 whitespace-nowrap bg-coop-green text-white hover:bg-coop-darkGreen"
-          >
-            <Upload className="h-4 w-4" aria-hidden="true" /> Bulk Upload CSV
-          </Button>
-          <Button
-            type="button"
-            onClick={() => setIsAddContributionOpen(true)}
-            className="shrink-0 whitespace-nowrap bg-coop-green text-white hover:bg-coop-darkGreen"
-          >
-            Record Payment
-          </Button>
+    <div className="mortuary-contributions">
+      <header className="ct-header">
+        <div><p className="ct-eyebrow">Mortuary management / Contributions</p><h1>Contributions</h1><p className="ct-description">Record member payments and review contribution history.</p></div>
+        <div className="ct-header-actions">
+          <button type="button" className="ct-button" onClick={() => setBulkUploadOpen(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</button>
+          <button type="button" className="ct-button ct-primary" onClick={() => setIsAddContributionOpen(true)}><Banknote size={15} aria-hidden="true" />Record payment</button>
         </div>
-      </div>
-
+      </header>
+      <AttendanceMetricGrid label="Contribution overview" items={[
+        ["Today's contributions", '₱' + totalToday.toLocaleString(), contributionsToday.length.toLocaleString() + ' transactions', Banknote],
+        ['This month', '₱' + totalMonth.toLocaleString(), new Date().toLocaleString('default', { month: 'long' }), CalendarDays],
+        ['All-time records', contributions.length.toLocaleString(), 'Total contribution records', Archive],
+      ]} />
+      <section className="ct-filters" aria-labelledby="ct-filter-title">
+        <div className="ct-filter-heading"><h2 id="ct-filter-title">Find a contribution</h2><button type="button" className="ct-text-button" disabled={!paymentSearchQuery} onClick={() => setPaymentSearchQuery('')}>Reset search</button></div>
+        <label className="ct-search-label">Search members<span className="ct-search"><Search size={16} aria-hidden="true" /><input type="text" placeholder="Name or Passbook No." value={paymentSearchQuery} onChange={e => setPaymentSearchQuery(e.target.value)} /></span></label>
+      </section>
+      <section className="ct-register" aria-labelledby="ct-register-title">
+        <div className="ct-register-heading"><h2 id="ct-register-title">Contribution register</h2><p>Payment dates, member details, and recorded amounts.</p></div>
+        <div className="ct-scope"><span>{totalFilteredContributions.toLocaleString()} of {contributions.length.toLocaleString()} records</span><span>{paymentSearchQuery ? 'Search results' : 'All contributions'}</span></div>
+        <div className="ct-table-scroll" role="region" aria-label="Contribution register" tabIndex={0}>
+          <table><thead><tr><th scope="col">Date / Record</th><th scope="col">Member / Passbook</th><th scope="col" className="ct-number">Amount</th><th scope="col">Status</th></tr></thead>
+          <tbody>{paginatedContributions.map(c => <tr key={c.id}>
+            <td>{c.payment_date}<span className="ct-secondary">#{c.id.toString().padStart(6, '0')}</span></td>
+            <td><strong>{c.member_name || c.memberName || ('Member #' + (c.member_id ?? c.memberId))}</strong><span className="ct-secondary">{c.member_id ?? c.memberId}</span></td>
+            <td className="ct-number"><strong>₱{c.amount?.toLocaleString()}</strong></td>
+            <td><span className={'ct-status' + (c.status === 'paid' || c.status === 'completed' ? ' ct-status-paid' : '')}>{c.status || 'Not recorded'}</span></td>
+          </tr>)}</tbody></table>
+        </div>
+        {!totalFilteredContributions && <div className="ct-empty" role="status"><strong>{paymentSearchQuery ? 'No contributions match your search' : 'No contributions recorded'}</strong><p>{paymentSearchQuery ? 'Try a different member name or passbook number.' : 'Record a payment or upload a CSV to add member contributions.'}</p>{paymentSearchQuery && <button type="button" className="ct-button" onClick={() => setPaymentSearchQuery('')}>Reset search</button>}</div>}
+        <footer className="ct-pagination"><PaginationInfo currentPage={visiblePage} limit={limit} total={totalFilteredContributions} />{totalFilteredContributions > 0 && <Pagination currentPage={visiblePage} totalPages={totalPages} onPageChange={setPage} hasNextPage={visiblePage < totalPages} hasPrevPage={visiblePage > 1} />}</footer>
+      </section>
       {bulkUploadOpen && <BulkPaymentUpload onClose={() => setBulkUploadOpen(false)} onImported={onPaymentsImported} />}
-
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th>
-              <th className="text-left px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Member</th>
-              <th className="text-right px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Amount</th>
-              <th className="text-center px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {paginatedContributions.map((c) => (
-              <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-5 py-4">
-                  <p className="text-sm text-slate-700">{c.payment_date}</p>
-                  <p className="text-xs text-slate-400">#{c.id.toString().padStart(6, '0')}</p>
-                </td>
-                <td className="px-5 py-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{c.member_name || `Member #${c.member_id}`}</p>
-                    <p className="text-xs text-slate-400">{c.member_id}</p>
-                  </div>
-                </td>
-                <td className="px-5 py-4 text-right">
-                  <span className="text-sm font-bold text-slate-900 tabular-nums">₱{c.amount?.toLocaleString()}</span>
-                </td>
-                <td className="px-5 py-4 text-center">
-                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${
-                    c.status === 'paid' || c.status === 'completed'
-                      ? 'bg-green-50 text-green-700 border border-green-200'
-                      : 'bg-slate-100 text-slate-500 border border-slate-200'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${c.status === 'paid' || c.status === 'completed' ? 'bg-green-500' : 'bg-slate-400'}`} />
-                    {c.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-            {filteredContributions.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-5 py-12 text-center text-sm text-slate-400">
-                  No records found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {totalFilteredContributions > 0 && (
-          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <PaginationInfo currentPage={page} limit={limit} total={totalFilteredContributions} />
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-              hasNextPage={page < totalPages}
-              hasPrevPage={page > 1}
-            />
-          </div>
-        )}
-      </div>
     </div>
   );
 };

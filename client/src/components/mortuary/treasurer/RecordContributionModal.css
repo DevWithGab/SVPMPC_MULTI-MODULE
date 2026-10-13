@@ -1,0 +1,37 @@
+.contribution-payment-modal { border-color: #dce3dd; border-radius: 8px; color: #24362a; }
+.contribution-payment-modal > div:first-child { padding: 20px 24px; border-color: #e2e7e3; }
+.contribution-payment-modal > div:first-child h3 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; color: #17251d; }
+.contribution-payment-modal > div:first-child button { color: #647069; border-radius: 4px; }
+.contribution-payment-modal > div:last-child { padding: 0; }
+.contribution-payment-modal :is(button, input, [tabindex]):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.cp-intro { display: flex; align-items: start; gap: 12px; margin: 22px 24px; }
+.cp-icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid #dce3dd; border-radius: 5px; background: #f8faf8; color: #52715a; }
+.cp-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #526058; }
+.cp-intro p:last-child { margin-top: 5px; font-size: 12px; line-height: 1.6; color: #647069; }
+.cp-fields { min-width: 0; display: grid; gap: 20px; padding: 0 24px 24px; border: 0; }
+.cp-field { min-width: 0; }
+.cp-field > label, .cp-label { display: block; margin-bottom: 7px; color: #34453a; font-size: 12px; font-weight: 600; }
+.cp-field > label span, .cp-label span { color: #647069; font-size: 11px; font-weight: 400; }
+.cp-field > input { width: 100%; min-width: 0; min-height: 42px; padding: 9px 11px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; color: #24362a; font-size: 13px; }
+.cp-field > input.cp-readonly { background: #f8faf8; color: #647069; }
+.cp-field > input::placeholder { color: #7c8780; }
+.cp-fields:disabled { opacity: .65; }
+.cp-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cp-help { color: #647069; font-size: 11px; line-height: 1.7; margin-top: 7px; }
+.cp-locked-member { border: 1px solid #dce3dd; border-radius: 5px; background: #f8faf8; padding: 12px; }
+.cp-locked-member strong { display: block; color: #17251d; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.cp-locked-member span { display: block; margin-top: 5px; color: #647069; font-size: 11px; }
+.cp-member-picker [role="button"] { min-height: 42px; border-radius: 5px; border-color: #cdd6cf; padding: 9px 11px; background: white; }
+.cp-member-picker .font-bold { font-weight: 600; }
+.cp-member-picker .text-sm { font-size: 13px; }
+.cp-member-picker .absolute { top: calc(100% + 6px); border: 1px solid #dce3dd; border-radius: 6px; max-height: 220px; box-shadow: 0 8px 24px #17251d1a; }
+.cp-member-picker .absolute button { padding: 12px; }
+.cp-member-picker .text-slate-400 { color: #647069; }
+.cp-member-picker .tracking-widest { letter-spacing: normal; text-transform: none; font-weight: 400; }
+.cp-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 16px 24px; border-top: 1px solid #e2e7e3; background: #f8faf8; }
+.cp-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; color: #34453a; font-size: 12px; font-weight: 600; cursor: pointer; }
+.cp-button:hover { background: #f3f6f3; }
+.cp-primary { background: #245e32; border-color: #245e32; color: white; }
+.cp-primary:hover { background: #163a1e; }
+.cp-button:disabled { opacity: .45; cursor: not-allowed; }
+@media(max-width: 480px) { .contribution-payment-modal > div:first-child { padding: 18px 16px; } .cp-intro { margin-inline: 16px; } .cp-fields { padding-inline: 16px; } .cp-columns { grid-template-columns: minmax(0, 1fr); } .cp-footer { padding-inline: 16px; } .cp-footer button { flex: 1; } }

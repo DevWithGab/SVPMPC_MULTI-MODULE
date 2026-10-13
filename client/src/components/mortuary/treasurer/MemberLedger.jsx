@@ -1,3 +1,4 @@
+import './MemberLedger.css';
 import React, { useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
@@ -280,15 +281,12 @@ const MemberLedger = ({
     const monthGroups = groupEntriesByMonth(mEntries, sortOrder);
 
     return (
-      <div className="space-y-5 print:space-y-0">
+      <div className="member-ledger space-y-5 print:space-y-0">
         {/* Header */}
-        <div className="print:hidden">
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Member Ledger</h2>
-          <p className="text-sm text-slate-500 mt-1">Transaction history for {currentMember.name}</p>
-        </div>
+        <header className="ml-header ml-screen"><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></header>
 
         {/* Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden">
+        <div className="ml-controls ml-screen">
           <button
             onClick={() => {
               setSelectedLedgerMember(null);
@@ -300,7 +298,7 @@ const MemberLedger = ({
           >
             <ArrowLeft className="w-4 h-4" /> Back to list
           </button>
-          <div className="flex gap-2">
+          <div className="ml-actions">
             <button
               onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
@@ -357,83 +355,18 @@ const MemberLedger = ({
           </div>
         </div>
 
-        {/* Filters — kept outside #printable-ledger so it never prints,
-            and separate from the ledger card itself (not just print:hidden
-            inside it) per the requested layout. */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 print:hidden">
-          <div className="flex flex-wrap gap-x-5 gap-y-3 items-center">
-            <div className="inline-flex border border-slate-200 overflow-hidden shrink-0" role="group" aria-label="Filter by transaction direction">
-              {[
-                { value: 'all', label: 'All entries' },
-                { value: 'deposits', label: 'Received' },
-                { value: 'withdrawals', label: 'Withdrawn' },
-              ].map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setTransactionFilter(value)}
-                  aria-pressed={transactionFilter === value}
-                  className={`h-9 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:relative ${
-                    transactionFilter === value
-                      ? 'bg-green-700 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="inline-flex border border-slate-200 overflow-hidden shrink-0" role="group" aria-label="Filter by date range">
-              {[
-                { value: 'all', label: 'All time' },
-                { value: 'thisMonth', label: 'This month' },
-                { value: 'lastMonth', label: 'Last month' },
-                { value: 'thisYear', label: 'This year' },
-              ].map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setDatePreset(value)}
-                  aria-pressed={datePreset === value}
-                  className={`h-9 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:relative ${
-                    datePreset === value
-                      ? 'bg-green-700 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <label htmlFor="ledger-order" className="text-sm text-slate-500">Order</label>
-              <select
-                id="ledger-order"
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value)}
-                className="h-9 border border-slate-200 px-3 text-sm bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-              >
-                <option value="desc">Newest first</option>
-                <option value="asc">Oldest first</option>
-              </select>
-            </div>
-
-            {hasActiveLedgerFilters && (
-              <button
-                onClick={() => { setTransactionFilter('all'); setDatePreset('all'); setSortOrder('desc'); }}
-                className="h-9 px-3 text-sm text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded"
-              >
-                Reset
-              </button>
-            )}
+        <section className="ml-filters ml-screen" aria-labelledby="ml-entry-filter-title">
+          <div className="ml-filter-heading"><h2 id="ml-entry-filter-title">Find a transaction</h2><button className="ml-text-button" disabled={!hasActiveLedgerFilters && sortOrder === 'desc'} onClick={() => { setTransactionFilter('all'); setDatePreset('all'); setSortOrder('desc'); }}>Reset filters</button></div>
+          <div className="ml-filter-grid ml-entry-filters">
+            <label>Transaction type<select value={transactionFilter} onChange={e => setTransactionFilter(e.target.value)}><option value="all">All entries</option><option value="deposits">Received</option><option value="withdrawals">Withdrawn</option></select></label>
+            <label>Date range<select value={datePreset} onChange={e => setDatePreset(e.target.value)}><option value="all">All time</option><option value="thisMonth">This month</option><option value="lastMonth">Last month</option><option value="thisYear">This year</option></select></label>
+            <label>Sort by date<select value={sortOrder} onChange={e => setSortOrder(e.target.value)}><option value="desc">Newest first</option><option value="asc">Oldest first</option></select></label>
           </div>
-        </div>
+        </section>
 
         {/* Member Info Card */}
-        <div id="printable-ledger" className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-slate-100">
+        <div id="printable-ledger" className="ml-register bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="ml-member-info p-4 border-b border-slate-100">
             {/* Letterhead — screen-hidden, shown only on the printed statement */}
             <div className="hidden print:flex items-center justify-center gap-3 pb-4 mb-4 border-b border-slate-100">
               <img
@@ -449,7 +382,7 @@ const MemberLedger = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="ml-identity flex items-center gap-4">
               <div className="flex-1">
                 <p className="text-lg font-bold text-slate-900">{currentMember.name}</p>
                 <p className="text-xs text-slate-400">#{currentMember.id.toString().padStart(6, '0')}</p>
@@ -474,7 +407,7 @@ const MemberLedger = ({
                 })()}
               </div>
             </div>
-            <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+            <div className="ml-member-details mt-3 pt-3 border-t border-slate-100 space-y-3">
               <div>
                 <p className="text-xs text-slate-400">Address</p>
                 <p className="text-sm font-medium text-slate-700">{currentMember.address || '—'}</p>
@@ -493,7 +426,7 @@ const MemberLedger = ({
               monospaced totals on the right. Kept inside #printable-ledger so
               it appears on the printed statement too. Reflects whatever
               filter/date range is applied above. */}
-          <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="ml-summary px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
               <span className="font-semibold text-slate-700">{mEntries.length}</span>{' '}
               {mEntries.length === 1 ? 'entry' : 'entries'} shown &middot;{' '}
@@ -514,15 +447,15 @@ const MemberLedger = ({
           {/* Table — ruled like a paper ledger (outer border + vertical
               dividers between columns, on top of the row separators) since
               this is printed as an official statement. */}
-          <div className="overflow-x-auto">
+          <div className="ml-table-scroll overflow-x-auto" role="region" aria-label="Member transaction history" tabIndex={0}>
             <table className="w-full border border-slate-200 border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 divide-x divide-slate-200">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Reference</th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Received</th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Withdrawn</th>
-                  <th className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>
+                  <th scope="col" className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th>
+                  <th scope="col" className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Reference</th>
+                  <th scope="col" className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Received</th>
+                  <th scope="col" className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Withdrawn</th>
+                  <th scope="col" className="text-right px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>
                 </tr>
               </thead>
               {loadingMemberLedger ? (
@@ -594,79 +527,31 @@ const MemberLedger = ({
   const clearFilters = () => {
     setSearchQuery('');
     setBarangayFilter('All');
+    setCurrentPage(1);
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Member Ledger</h2>
-        <p className="text-sm text-slate-500 mt-1">Search and view individual member transaction history</p>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          {/* Barangay Filter */}
-          <select
-            className="h-10 px-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none shrink-0"
-            value={barangayFilter}
-            onChange={(e) => setBarangayFilter(e.target.value)}
-            aria-label="Filter by barangay"
-          >
-            {uniqueBarangays.map(b => (
-              <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>
-            ))}
-          </select>
-
-          {/* Search */}
-          <div className="relative flex-1 w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              aria-label="Search members"
-              placeholder="Search member..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
-            />
-          </div>
-
-          <span className="text-sm text-slate-400 shrink-0">
-            {totalMembers} member{totalMembers === 1 ? '' : 's'}
-          </span>
-
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded shrink-0"
-            >
-              Clear filters
-            </button>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2 sm:ml-auto w-full sm:w-auto">
-            <Button
-              type="button"
-              onClick={() => setShowBulkModal(true)}
-              className="gap-1.5 shrink-0 whitespace-nowrap bg-coop-green text-white hover:bg-coop-darkGreen"
-            >
-              <Upload className="w-4 h-4" aria-hidden="true" /> Bulk Upload CSV
-            </Button>
-          </div>
+    <div className="member-ledger">
+      <header className="ml-header ml-list-header"><div><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Find a member to review their contributions, deductions, and running balance.</p></div><button type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</button></header>
+      <section className="ml-filters" aria-labelledby="ml-member-filter-title">
+        <div className="ml-filter-heading"><h2 id="ml-member-filter-title">Find a member</h2><button className="ml-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
+        <div className="ml-filter-grid">
+          <label>Search members<span className="ml-search"><Search size={16} aria-hidden="true" /><input placeholder="Search member…" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} /></span></label>
+          <label>Barangay<select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setCurrentPage(1); }}>{uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}</select></label>
         </div>
-      </div>
+      </section>
 
       {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <table className="w-full">
+      <section className="ml-register" aria-labelledby="ml-register-title">
+        <div className="ml-register-heading"><h2 id="ml-register-title">Member register</h2><p>Select a member to open their complete ledger.</p></div>
+        <div className="ml-scope"><span>{totalMembers.toLocaleString()} {hasActiveFilters ? 'matching ' : ''}member{totalMembers === 1 ? '' : 's'}</span><span>{barangayFilter === 'All' ? 'All barangays' : barangayFilter}</span></div>
+        <div className="ml-table-scroll" role="region" aria-label="Member ledger register" tabIndex={0}><table className="w-full">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Member</th>
-              <th className="text-left px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Barangay</th>
-              <th className="text-right px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>
-              <th className="text-right px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+              <th scope="col" className="text-left px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Member</th>
+              <th scope="col" className="text-left px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Barangay</th>
+              <th scope="col" className="text-right px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>
+              <th scope="col" className="text-right px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -693,7 +578,8 @@ const MemberLedger = ({
                 <td className="px-5 py-4 text-right">
                   <button
                     onClick={(e) => { e.stopPropagation(); setSelectedLedgerMember(member); }}
-                    className="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
+                    className="ml-button"
+                    aria-label={'Open ledger for ' + member.name}
                   >
                     Open Ledger
                   </button>
@@ -715,9 +601,9 @@ const MemberLedger = ({
               </tr>
             )}
           </tbody>
-        </table>
+        </table></div>
         {totalMembers > 0 && (
-          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="ml-pagination">
             <PaginationInfo currentPage={currentPage} limit={itemsPerPage} total={totalMembers} />
             <Pagination
               currentPage={currentPage}
@@ -728,7 +614,7 @@ const MemberLedger = ({
             />
           </div>
         )}
-      </div>
+      </section>
 
       {/* Bulk Upload Modal */}
       {showBulkModal && (

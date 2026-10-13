@@ -6,6 +6,7 @@ import { treasurerAPI } from '../../../services/api';
 import { getClaimStatusMeta } from '../shared/claimMeta';
 import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, reportAmount } from '../../../utils/mortuaryReportPdf';
 import { loadAllPages } from '../../../utils/loadAllPages';
+import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import './Reports.css';
 
 
@@ -393,11 +394,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   }[reportType];
   return (
     <div className="financial-reports pb-12">
-      <div className="reports-page-heading">
-        <div><p className="reports-eyebrow">Mortuary fund / Treasurer</p><h1>Financial Reports</h1>
-          <p className="mt-2 text-sm text-slate-600">Review fund activity, member balances and benefit releases.</p></div>
+      <header className="reports-page-heading">
+        <div><p className="reports-eyebrow">Mortuary management / Reports</p><h1>Reports</h1>
+          <p className="reports-description">Review fund activity, member balances and benefit releases.</p></div>
         <p className="text-xs text-slate-500">Reporting currency <strong className="ml-1 text-slate-700">PHP</strong></p>
-      </div>
+      </header>
       <div className="reports-workspace">
         <nav className="reports-navigation" aria-label="Financial report selection">
           {[
@@ -428,43 +429,27 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           <div className="reports-scope-bar flex-wrap items-center">
             <span>{['memberStanding', 'negativeBalances', 'deceasedMembers'].includes(reportType) ? 'Current member records' : 'All recorded activity'}</span>
             <span>{reportLoading ? 'Loading records...' : reportError ? 'Data unavailable' : reportType === 'summary' ? periodBreakdown.length + ' reporting periods' : paginatedData.total.toLocaleString() + ' records'}</span>
-            {reportType !== 'summary' && (
-              <select
-                value={barangayFilter}
-                onChange={(e) => setBarangayFilter(e.target.value)}
-                aria-label="Filter by barangay"
-                className="h-9 px-3 text-xs font-medium border border-slate-200 rounded-lg bg-white text-slate-600 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none"
-              >
-                <option value="all">All barangays</option>
-                {barangayOptions.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            )}
           </div>
+          {reportType !== 'summary' && <section className="reports-filters" aria-labelledby="reports-filter-title">
+            <div className="reports-filter-heading"><h3 id="reports-filter-title">Filter report</h3><button type="button" className="reports-text-button" disabled={barangayFilter === 'all'} onClick={() => { setBarangayFilter('all'); setPage(1); }}>Reset filter</button></div>
+            <label>Barangay<select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setPage(1); }}><option value="all">All barangays</option>{barangayOptions.map(b => <option key={b} value={b}>{b}</option>)}</select></label>
+            <p>Applies to the displayed records and both exports.</p>
+          </section>}
           {(reportError || exportError) && <p role="alert" className="m-5 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{reportError || exportError}</p>}
-          {reportLoading ? <div role="status" className="p-12 text-center text-sm text-slate-600">Loading complete report data...</div> : reportError ? <div className="p-10 text-center text-sm text-slate-600">Reload this page to retrieve the complete report.</div> : <div className="reports-content" data-report={reportType}>
+          {reportLoading ? <div role="status" className="p-12 text-center text-sm text-slate-600">Loading complete report data...</div> : reportError ? <div className="p-10 text-center text-sm text-slate-600">Reload this page to retrieve the complete report.</div> : <div className="reports-content" data-report={reportType} role="region" aria-label={REPORT_TYPES.find(type => type.id === reportType).label + ' data'} tabIndex={0}>
             {reportType === 'summary' && (
-              <div className="reports-overview">
-                <div className="reports-fund-balance">
-                  <p className="text-sm text-slate-600">Total fund balance</p>
-                  <p className="reports-balance-amount">{'₱'}{reportAmount(stats?.fundBalance)}</p>
-                  <p className="mt-2 text-xs text-slate-500">Current fund position</p>
-                </div>
-                <dl className="reports-financial-lines">
-                  {[
-                    ['Contributions collected', metrics.totalContributions],
-                    ['Deductions collected', metrics.totalDeductionsCollected],
-                    ['Payouts released', metrics.totalPayoutsReleased],
-                  ].map(([label, amount]) => <div key={label}><dt>{label}</dt><dd>{'₱'}{reportAmount(amount)}</dd></div>)}
-                </dl>
-              </div>
+              <div className="reports-metrics"><AttendanceMetricGrid label="Financial summary" items={[
+                ['Total fund balance', '₱' + reportAmount(stats?.fundBalance), 'Current fund position', FileText],
+                ['Contributions collected', '₱' + reportAmount(metrics.totalContributions), 'All recorded contributions', TrendingUp],
+                ['Deductions collected', '₱' + reportAmount(metrics.totalDeductionsCollected), 'Member assessments collected', ClipboardCheck],
+                ['Payouts released', '₱' + reportAmount(metrics.totalPayoutsReleased), 'Benefits paid to beneficiaries', Receipt],
+              ]} /></div>
             )}
             {reportType === 'summary' && (
               <div className="px-5 pb-5">
                 <div className="flex items-center justify-between gap-3 mb-3 pt-2 border-t border-slate-100">
                   <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Activity by period</p>
-                  <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
+                  <div className="reports-period-switch" role="group" aria-label="Reporting period">
                     {['monthly', 'annually'].map((period) => (
                       <button
                         key={period}
@@ -485,12 +470,12 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50">
-                        <th className="text-left px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
+                        <th scope="col" className="text-left px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
                           {summaryPeriod === 'monthly' ? 'Month' : 'Year'}
                         </th>
-                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Contributions</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deductions Collected</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Payouts Released</th>
+                        <th scope="col" className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Contributions</th>
+                        <th scope="col" className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deductions Collected</th>
+                        <th scope="col" className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Payouts Released</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -519,10 +504,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Date</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Amount</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Date</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Amount</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -544,11 +529,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Beneficiary</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Date Filed</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Beneficiary</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Date Filed</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -576,10 +561,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Join Date</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Join Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -607,7 +592,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
-                      <tr>{['Passbook No.', 'Name', 'Barangay', 'Status', 'Balance (PHP)'].map((label, index) => <th key={label} className={index === 4 ? 'px-4 py-3 text-right font-medium' : 'px-4 py-3 text-left font-medium'}>{label}</th>)}</tr>
+                      <tr>{['Passbook No.', 'Name', 'Barangay', 'Status', 'Balance (PHP)'].map((label, index) => <th scope="col" key={label} className={index === 4 ? 'px-4 py-3 text-right font-medium' : 'px-4 py-3 text-left font-medium'}>{label}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {paginatedData.data.map(member => <tr key={member.id}>
@@ -627,11 +612,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Balance</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Standing</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Name</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Barangay</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Balance</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Standing</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -656,11 +641,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deducted</th>
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Released</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deducted</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Released</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -685,12 +670,12 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             )}
 
             {paginatedData.total === 0 && reportType !== 'summary' && !reportLoading && !reportError && (
-              <div className="py-16 text-center text-sm text-slate-400">{reportType === 'negativeBalances' ? 'No members have a negative balance.' : 'No records to display.'}</div>
+              <div role="status" className="reports-empty">{reportType === 'negativeBalances' ? 'No members have a negative balance.' : 'No records to display.'}</div>
             )}
           </div>}
 
           {reportType !== 'summary' && !reportLoading && !reportError && paginatedData.total > 0 && (
-            <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="reports-pagination">
               <PaginationInfo currentPage={page} limit={limit} total={paginatedData.total} />
               <Pagination
                 currentPage={page}

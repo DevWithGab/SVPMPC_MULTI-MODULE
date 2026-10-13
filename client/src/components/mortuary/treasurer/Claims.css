@@ -1,0 +1,42 @@
+.mortuary-claims { max-width: 1600px; margin-inline: auto; padding-bottom: 48px; color: #24362a; }
+.mc-header { margin-bottom: 26px; }
+.mc-eyebrow { color: #647069; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.mc-header h1 { color: #17251d; font-size: 28px; font-weight: 650; letter-spacing: -.7px; margin-top: 7px; }
+.mc-description { color: #647069; font-size: 13px; line-height: 1.6; margin-top: 7px; }
+.mc-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; margin-bottom: 24px; border: 1px solid #dce3dd; border-radius: 6px; background: white; }
+.mc-tab { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 9px 16px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #647069; cursor: pointer; }
+.mc-tab:hover { background: #f3f6f3; color: #245e32; }
+.mc-tab[aria-pressed="true"] { background: #eaf0ea; color: #245e32; }
+.mc-count { display: inline-flex; justify-content: center; align-items: center; min-width: 21px; padding: 1px 5px; border: 1px solid #cbdccd; border-radius: 4px; color: #245e32; background: #edf5ee; font-size: 11px; font-variant-numeric: tabular-nums; }
+.mortuary-claims :is(button, input, textarea, select, [tabindex]):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.mc-view-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; }
+.mc-view-heading h2 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; color: #17251d; }
+.mc-view-heading p { font-size: 12px; color: #647069; line-height: 1.6; }
+.mc-rate { padding: 14px 18px; border: 1px solid #dce3dd; border-radius: 5px; background: white; }
+.mc-rate p:nth-child(2) { font-size: 22px; font-weight: 600; color: #17251d; }
+.mc-register { min-width: 0; overflow: hidden; border: 1px solid #dce3dd; border-radius: 6px; background: white; }
+.mc-queue-filters { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 20px; border-bottom: 1px solid #e2e7e3; }
+.mc-search-field { width: 100%; max-width: 420px; }
+.mc-search-field label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 600; }
+.mortuary-claims input, .mortuary-claims textarea { border-color: #cdd6cf; border-radius: 5px; font-size: 13px; }
+.mortuary-claims .mc-action { min-height: 38px; border-radius: 5px; padding: 8px 13px; font-size: 12px; font-weight: 600; }
+.mortuary-claims .mc-action.bg-white { border-color: #cdd6cf; color: #34453a; }
+.mortuary-claims .mc-action.bg-coop-green { background: #245e32; border-color: #245e32; }
+.mortuary-claims .mc-action.bg-coop-green:hover { background: #163a1e; }
+.mc-table-scroll { overflow-x: auto; }
+.mc-register table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.mc-register th { padding: 13px 20px; background: #f8faf8; color: #526058; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: normal; border-bottom: 1px solid #e2e7e3; }
+.mc-register td { padding: 17px 20px; border-bottom: 1px solid #edf0ed; vertical-align: middle; }
+.mc-register tbody tr:last-child td { border-bottom: 0; }
+.mc-register tbody tr:hover { background: #f8faf8; }
+.mc-register :is(th, td).hidden { display: table-cell; }
+.mc-register td:first-child { min-width: 200px; max-width: 300px; overflow-wrap: anywhere; }
+.mc-register td:first-child > p.lg\:hidden { display: none; }
+.mc-pagination { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; border-top: 1px solid #e2e7e3; color: #647069; font-size: 12px; }
+.mortuary-claims .text-slate-900 { color: #17251d; }
+.mortuary-claims :is(.text-slate-400, .text-slate-500) { color: #647069; }
+.mortuary-claims .mc-dialog { border-color: #dce3dd; border-radius: 8px; }
+.mc-dialog header, .mc-dialog footer { border-color: #e2e7e3; }
+.mc-dialog footer { background: #f8faf8; }
+.mc-report .mc-register .rounded-full { border-radius: 4px; }
+@media(max-width: 640px) { .mc-header h1 { font-size: 25px; } .mc-tab { flex: 1 1 calc(50% - 4px); padding-inline: 8px; } .mc-view-heading { align-items: stretch; flex-direction: column; gap: 16px; } .mc-rate { width: 100%; } .mc-queue-filters, .mc-pagination { padding-inline: 16px; } .mc-search-field { max-width: none; } }

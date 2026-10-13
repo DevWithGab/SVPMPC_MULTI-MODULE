@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer, Download, Loader2, FileText } from 'lucide-react';
-import StatCard from '../shared/StatCard';
+import { Search, ArrowUpDown, BookOpen, Wallet, Clock, AlertTriangle, Printer, Download, Loader2, FileText, RefreshCw } from 'lucide-react';
+import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
+import './MemberBalances.css';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 import { treasurerAPI, resolveQrAssetUrl } from '../../../services/api';
@@ -29,7 +30,9 @@ const MemberBalances = ({
   currentPage,
   setCurrentPage,
   itemsPerPage,
-  onOpenLedger
+  onOpenLedger,
+  onRefresh,
+  refreshing = false
 }) => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -183,59 +186,69 @@ const MemberBalances = ({
     .sort((a, b) => sortOrder === 'asc' ? a.balance - b.balance : b.balance - a.balance);
 
   const totalPagesMemberBalances = Math.ceil(filteredMembers.length / itemsPerPage) || 1;
-  const currentMembersBalancesChunk = filteredMembers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const visiblePage = Math.min(currentPage, totalPagesMemberBalances);
+  const currentMembersBalancesChunk = filteredMembers.slice((visiblePage - 1) * itemsPerPage, visiblePage * itemsPerPage);
+  const updateFilter = (setter, value) => { setter(value); setCurrentPage(1); };
 
   const uniqueBarangays = ['All', ...Array.from(new Set(members.map(getBarangay)))].sort();
-  const hasActiveFilters = searchQuery !== '' || barangayFilter !== 'All' || statusFilter !== 'all' || memberFilter !== 'all';
+  const hasActiveFilters = searchQuery !== '' || barangayFilter !== 'All' || statusFilter !== 'all' || memberFilter !== 'all' || sortOrder !== 'asc';
   const clearFilters = () => {
     setSearchQuery('');
     setBarangayFilter('All');
     setStatusFilter('all');
     setMemberFilter('all');
+    setSortOrder('asc');
+    setCurrentPage(1);
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Member Balances
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Track contributions and spot balances that need attention. Death-fund deductions are now
-          triggered per claim from the Claims tab.
-        </p>
-      </div>
-
-      {/* Stats are informational only — the "All / At risk" tabs below are
-          the actual filter control. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Total capital"
-          value={`₱${totalCapital.toLocaleString()}`}
-          subtitle={`Across ${members.length} active members`}
-          icon={Wallet}
-          color="emerald"
-        />
-        <StatCard
-          title="Low balance"
-          value={<>{lowBalanceMembers.length} <span className="text-base font-normal text-slate-500">members</span></>}
-          subtitle={`Below ₱${targetBalance.toLocaleString()}`}
-          icon={Clock}
-          color="amber"
-        />
-        <StatCard
-          title="At risk"
-          value={`${lowBalancePercent.toFixed(1)}%`}
-          subtitle="Share of members with a low balance"
-          icon={AlertTriangle}
-          color="rose"
-        />
-      </div>
-
-      <section aria-labelledby="notice-panel-title" className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="member-balances">
+      <header className="mb-header">
+        <div><p className="mb-eyebrow">Mortuary management / Members</p><h1>Member balances</h1><p className="mb-description">Track contributions, review member balances, and prepare balance notices.</p></div>
+        <button className="mb-button" onClick={onRefresh} disabled={refreshing || noticeBusy}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</button>
+      </header>
+      <AttendanceMetricGrid label="Member balance overview" busy={refreshing} items={[
+        ['Total capital', peso(totalCapital), 'Across ' + members.length.toLocaleString() + ' active members', Wallet],
+        ['Low balance', lowBalanceMembers.length.toLocaleString(), 'Members below ' + peso(targetBalance), Clock],
+        ['At risk', lowBalancePercent.toFixed(1) + '%', 'Share of members with a low balance', AlertTriangle],
+      ]} />
+      <section className="mb-filters" aria-labelledby="mb-filter-title">
+        <div className="mb-filter-heading"><h2 id="mb-filter-title">Find a member</h2><button className="mb-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
+        <div className="mb-filter-grid">
+          <label>Search members<span className="mb-search"><Search size={16} aria-hidden="true" /><input value={searchQuery} onChange={e => updateFilter(setSearchQuery, e.target.value)} placeholder="Name or Passbook No." /></span></label>
+          <label>Barangay<select value={barangayFilter} onChange={e => updateFilter(setBarangayFilter, e.target.value)}>{uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}</select></label>
+          <label>Membership status<select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+          <label>Sort by balance<select value={sortOrder} onChange={e => updateFilter(setSortOrder, e.target.value)}><option value="asc">Lowest first</option><option value="desc">Highest first</option></select></label>
+        </div>
+      </section>
+      <section className="mb-panel" aria-labelledby="mb-register-title" aria-busy={refreshing}>
+        <div className="mb-register-heading"><div><h2 id="mb-register-title">Member register</h2><p>Open a member's ledger to review contributions and deductions.</p></div>
+          <div className="mb-view-switch" role="group" aria-label="Balance filter">
+            <button aria-pressed={memberFilter === 'all'} onClick={() => updateFilter(setMemberFilter, 'all')}>All members <span>{members.length.toLocaleString()}</span></button>
+            <button aria-pressed={memberFilter === 'low'} onClick={() => updateFilter(setMemberFilter, 'low')}>At risk <span>{lowBalanceMembers.length.toLocaleString()}</span></button>
+          </div>
+        </div>
+        <div className="mb-scope"><span>{filteredMembers.length.toLocaleString()} of {members.length.toLocaleString()} members{barangayFilter !== 'All' && ' · ' + barangayFilter}</span><span>Low balance: below {peso(targetBalance)}</span></div>
+        <div className="mb-table-scroll" role="region" aria-label="Member balances" tabIndex={0}>
+          <table><thead><tr><th scope="col">Member / Passbook</th><th scope="col">Barangay</th><th scope="col" className="mb-number" aria-sort={sortOrder === 'asc' ? 'ascending' : 'descending'}><button className="mb-sort" onClick={() => updateFilter(setSortOrder, sortOrder === 'asc' ? 'desc' : 'asc')}>Balance <ArrowUpDown size={14} aria-hidden="true" /></button></th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+          <tbody>{currentMembersBalancesChunk.map(m => <tr key={m.id} onClick={() => onOpenLedger?.(m)}>
+            <td><strong>{m.name}</strong><span className="mb-secondary">#{m.id.toString().padStart(6, '0')}</span></td>
+            <td>{getBarangay(m)}</td>
+            <td className="mb-number"><strong className={m.balance < targetBalance ? 'mb-low-balance' : ''}>₱{m.balance?.toLocaleString()}</strong></td>
+            <td><span className={'mb-status' + (m.status === 'active' ? ' mb-status-active' : '')}>{m.status === 'active' ? 'Active' : 'Inactive'}</span></td>
+            <td><button className="mb-button mb-ledger-button" onClick={e => { e.stopPropagation(); onOpenLedger?.(m); }} aria-label={'Open ledger for ' + m.name}><BookOpen size={14} aria-hidden="true" />Open ledger</button></td>
+          </tr>)}</tbody></table>
+        </div>
+        {filteredMembers.length === 0 && <div className="mb-empty" role="status"><strong>{hasActiveFilters ? 'No members match these filters' : 'No members found'}</strong><p>{hasActiveFilters ? 'Try a different name, passbook number, status, or barangay.' : 'Member balances will appear here when records are available.'}</p>{hasActiveFilters && <button className="mb-button" onClick={clearFilters}>Reset filters</button>}</div>}
+        <footer className="mb-pagination">
+          <PaginationInfo currentPage={visiblePage} limit={itemsPerPage} total={filteredMembers.length} />
+          {filteredMembers.length > 0 && <Pagination currentPage={visiblePage} totalPages={totalPagesMemberBalances} onPageChange={setCurrentPage} hasNextPage={visiblePage < totalPagesMemberBalances} hasPrevPage={visiblePage > 1} />}
+        </footer>
+      </section>
+      <section aria-labelledby="notice-panel-title" className="mb-panel mb-notices">
         <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700"><FileText className="w-5 h-5" aria-hidden="true" /></div>
+            <div className="p-2.5 rounded-md bg-emerald-50 text-emerald-700"><FileText className="w-5 h-5" aria-hidden="true" /></div>
             <div>
               <h3 id="notice-panel-title" className="text-base font-semibold text-slate-900">Member notices</h3>
               <p className="text-sm text-slate-500 mt-1">Download one PDF per notice level, or print a letter for each member.</p>
@@ -243,20 +256,20 @@ const MemberBalances = ({
           </div>
           <div className="w-full lg:w-56 shrink-0">
             <label htmlFor="notice-barangay" className="block text-xs font-semibold text-slate-600 mb-1.5">Barangay for notices</label>
-            <select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help" className="w-full h-11 px-3 text-sm rounded-lg border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60">
+            <select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help" className="w-full h-11 px-3 text-sm rounded-md border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60">
               {uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}
             </select>
           </div>
         </div>
         <div className="p-5">
-          <p id="notice-scope-help" className="text-xs text-slate-500 mb-4">Includes all eligible members in {noticeBarangay === 'All' ? 'all barangays' : noticeBarangay}. Table filters below do not change these downloads.</p>
+          <p id="notice-scope-help" className="text-xs text-slate-500 mb-4">Includes all eligible members in {noticeBarangay === 'All' ? 'all barangays' : noticeBarangay}. Member register filters do not change these downloads.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {[1, 2, 3].map(level => {
               const count = noticeLevelCounts[level];
               const preparing = downloadingLevel === level || batchJob?.level === level;
               const tone = level === 3 ? 'bg-red-50 text-red-700 border-red-100' : level === 2 ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-amber-50 text-amber-700 border-amber-100';
               return (
-                <div key={level} role="group" aria-labelledby={'notice-level-' + level} className="rounded-xl border border-slate-200 p-4 flex flex-col">
+                <div key={level} role="group" aria-labelledby={'notice-level-' + level} className="rounded-md border border-slate-200 p-4 flex flex-col">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <h4 id={'notice-level-' + level} className={'rounded-md border px-2 py-1 text-xs font-bold ' + tone}>{NOTICE_LEVEL_LABELS[level]}</h4>
                     <span className="text-xs font-medium text-slate-500 tabular-nums">{count} {count === 1 ? 'member' : 'members'}</span>
@@ -264,11 +277,11 @@ const MemberBalances = ({
                   <p className="text-lg font-semibold text-slate-900 mt-4 tabular-nums">{noticeRanges[level]}</p>
                   <p className="text-xs text-slate-500 mt-1 mb-4">{count === 0 ? 'No members need this notice.' : 'Current member balance'}</p>
                   <div className="flex flex-wrap gap-2 mt-auto">
-                    <button onClick={() => handleBulkDownload(level)} disabled={count === 0 || noticeBusy} aria-label={'Download ' + NOTICE_LEVEL_LABELS[level] + ' PDF for ' + count + ' members'} className="flex-1 inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                    <button onClick={() => handleBulkDownload(level)} disabled={count === 0 || noticeBusy} aria-label={'Download ' + NOTICE_LEVEL_LABELS[level] + ' PDF for ' + count + ' members'} className="flex-1 inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-md bg-[#245e32] text-white text-sm font-semibold hover:bg-[#163a1e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                       {preparing ? <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" /> : <Download className="w-4 h-4 shrink-0" aria-hidden="true" />}
                       {preparing ? 'Preparing...' : 'Download PDF'}
                     </button>
-                    <button onClick={() => handleBulkPrint(level)} disabled={count === 0 || noticeBusy} aria-label={'Print ' + NOTICE_LEVEL_LABELS[level] + ' for ' + count + ' members'} className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                    <button onClick={() => handleBulkPrint(level)} disabled={count === 0 || noticeBusy} aria-label={'Print ' + NOTICE_LEVEL_LABELS[level] + ' for ' + count + ' members'} className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-md border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
                       <Printer className="w-4 h-4" aria-hidden="true" /> Print
                     </button>
                   </div>
@@ -281,204 +294,16 @@ const MemberBalances = ({
             {!noticeBusy && readyDownload && <p className="sr-only">Your notice PDF is ready. Use the Download ready PDF link.</p>}
           </div>
           {readyDownload && (
-            <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3">
               <p className="text-sm text-emerald-900">{NOTICE_LEVEL_LABELS[readyDownload.level]} is ready &middot; {readyDownload.count} members &middot; {readyDownload.barangay || 'All barangays'}</p>
-              <a href={readyDownload.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 shrink-0"><Download className="w-4 h-4" aria-hidden="true" />Download ready PDF</a>
+              <a href={readyDownload.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-md bg-[#245e32] text-white text-sm font-semibold hover:bg-[#163a1e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 shrink-0"><Download className="w-4 h-4" aria-hidden="true" />Download ready PDF</a>
             </div>
           )}
         </div>
       </section>
 
-      {/* Filter Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          {/* Tabs */}
-          <div className="flex bg-slate-100 rounded-lg p-0.5 shrink-0">
-            <button
-              onClick={() => setMemberFilter('all')}
-              aria-pressed={memberFilter === 'all'}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                memberFilter === 'all'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              All <span className="ml-1 text-slate-400">{members.length}</span>
-            </button>
-            <button
-              onClick={() => setMemberFilter('low')}
-              aria-pressed={memberFilter === 'low'}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                memberFilter === 'low'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              At risk <span className="ml-1 text-slate-400">{lowBalanceMembers.length}</span>
-            </button>
-          </div>
 
-          {/* Search */}
-          <div className="relative flex-1 w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              aria-label="Search member by name or Passbook No."
-              placeholder="Search member or Passbook No."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none transition-all"
-            />
-          </div>
-
-          {/* Barangay Dropdown — this filter was previously invisible on this tab
-              (it's shared state set from the Ledger tab), silently hiding members
-              with no on-screen explanation. Surfacing it here makes the filter visible
-              and lets the treasurer control it directly from this screen too. */}
-          <select
-            value={barangayFilter}
-            onChange={e => setBarangayFilter(e.target.value)}
-            aria-label="Filter by barangay"
-            className="h-10 px-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none"
-          >
-            {uniqueBarangays.map(b => (
-              <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>
-            ))}
-          </select>
-
-          {/* Status Dropdown */}
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            aria-label="Filter by status"
-            className="h-10 px-4 text-sm border border-slate-200 bg-white focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 outline-none"
-          >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded shrink-0"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Member
-              </th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">
-                Barangay
-              </th>
-              <th className="text-right px-6 py-3.5">
-                <button
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  aria-label={`Sort by balance, currently ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded"
-                >
-                  Balance
-                  <ArrowUpDown className="w-3.5 h-3.5" />
-                </button>
-              </th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="text-right px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {currentMembersBalancesChunk.map(m => (
-              <tr
-                key={m.id}
-                onClick={() => onOpenLedger?.(m)}
-                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
-              >
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {m.name}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        #{m.id.toString().padStart(6, '0')}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-slate-600 hidden md:table-cell">
-                  {getBarangay(m)}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <span
-                    className={`text-sm font-bold tabular-nums ${m.balance < targetBalance ? 'text-red-500' : 'text-slate-900'}`}
-                  >
-                    ₱{m.balance?.toLocaleString()}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${
-                      m.status === 'active'
-                        ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'bg-slate-100 text-slate-500 border border-slate-200'
-                    }`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'active' ? 'bg-green-500' : 'bg-slate-400'}`} />
-                    {m.status === 'active' ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onOpenLedger?.(m); }}
-                    aria-label={`Open ledger for ${m.name}`}
-                    className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredMembers.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-16 text-center text-sm text-slate-400">
-                  {hasActiveFilters ? (
-                    <>
-                      No members match these filters.{' '}
-                      <button onClick={clearFilters} className="text-emerald-700 font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded">
-                        Clear filters
-                      </button>
-                    </>
-                  ) : 'No members found.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {filteredMembers.length > 0 && (
-          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <PaginationInfo currentPage={currentPage} limit={itemsPerPage} total={filteredMembers.length} />
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPagesMemberBalances}
-              onPageChange={setCurrentPage}
-              hasNextPage={currentPage < totalPagesMemberBalances}
-              hasPrevPage={currentPage > 1}
-            />
-          </div>
-        )}
-      </div>
+      <p className="mb-footnote">Death-fund deductions are processed per claim from the Claims tab.</p>
     </div>
   );
 };

@@ -1,0 +1,58 @@
+/* Screen styling leaves the printable statement's existing rules intact. */
+@media screen {
+  .member-ledger { max-width: 1600px; margin-inline: auto; padding-bottom: 48px; color: #24362a; }
+  .ml-header { margin-bottom: 26px; }
+  .ml-list-header { display: flex; justify-content: space-between; align-items: end; gap: 24px; }
+  .ml-eyebrow { color: #647069; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+  .ml-header h1 { color: #17251d; font-size: 28px; font-weight: 650; letter-spacing: -.7px; margin-top: 7px; }
+  .ml-description { color: #647069; font-size: 13px; line-height: 1.6; margin-top: 7px; }
+  .ml-button, .ml-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; height: auto; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; color: #34453a; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .ml-button:hover, .ml-controls button:hover { background: #f3f6f3; }
+  .ml-primary, .ml-controls button.bg-green-700 { background: #245e32; border-color: #245e32; color: white; }
+  .ml-primary:hover, .ml-controls button.bg-green-700:hover { background: #163a1e; }
+  .ml-controls button.bg-red-600 { color: #9b3425; background: #fff5f3; border-color: #ebc9c1; }
+  .ml-controls button.bg-amber-500 { color: #795d21; background: #faf6eb; border-color: #e7dcc0; }
+  .ml-button:disabled, .ml-controls button:disabled, .ml-text-button:disabled { opacity: .45; cursor: not-allowed; }
+  .member-ledger :is(button, input, select, [tabindex]):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+  .ml-controls { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 16px; }
+  .ml-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ml-filters { background: white; border: 1px solid #dce3dd; border-radius: 6px; padding: 20px; margin-bottom: 24px; }
+  .ml-filter-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .ml-filter-heading h2 { font-size: 13px; font-weight: 600; }
+  .ml-text-button { padding: 5px; font-size: 12px; font-weight: 600; color: #245e32; cursor: pointer; }
+  .ml-text-button:hover:not(:disabled) { text-decoration: underline; }
+  .ml-filter-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+  .ml-entry-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ml-filter-grid label { min-width: 0; font-size: 12px; font-weight: 600; }
+  .ml-search, .ml-filter-grid select { width: 100%; min-height: 40px; margin-top: 7px; border: 1px solid #cdd6cf; border-radius: 5px; padding: 8px 10px; background: white; font-size: 13px; font-weight: 400; }
+  .ml-search { display: flex; align-items: center; gap: 8px; color: #647069; }
+  .ml-search svg { flex-shrink: 0; }
+  .ml-search input { width: 100%; min-width: 0; color: #24362a; }
+  .ml-register { min-width: 0; background: white; border: 1px solid #dce3dd; border-radius: 6px; overflow: hidden; }
+  .ml-register-heading { padding: 22px 20px; }
+  .ml-register-heading h2 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; color: #17251d; }
+  .ml-register-heading p { font-size: 12px; color: #647069; line-height: 1.6; margin-top: 5px; }
+  .ml-scope { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 20px; background: #f8faf8; border-block: 1px solid #e2e7e3; color: #526058; font-size: 12px; }
+  .ml-table-scroll { overflow-x: auto; }
+  .ml-register table { width: 100%; min-width: 680px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ml-register th { padding: 13px 20px; background: #f8faf8; color: #526058; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: normal; border-bottom: 1px solid #e2e7e3; }
+  .ml-register td { padding: 17px 20px; border-bottom: 1px solid #edf0ed; }
+  .ml-register tbody tr:last-child td { border-bottom: 0; }
+  .ml-register tbody tr:hover { background: #f8faf8; }
+  .ml-register td:first-child { min-width: 160px; max-width: 300px; overflow-wrap: anywhere; }
+  .ml-register .text-slate-900 { color: #17251d; }
+  .ml-register :is(.text-slate-400, .text-slate-500) { color: #647069; }
+  .ml-register .font-bold { font-weight: 600; }
+  .ml-register td.text-right { white-space: nowrap; }
+  .ml-pagination { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border-top: 1px solid #e2e7e3; }
+  .ml-member-info { padding: 22px 20px; }
+  .ml-identity { flex-wrap: wrap; }
+  .ml-identity > div:first-child { min-width: 180px; overflow-wrap: anywhere; }
+  .ml-member-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .ml-member-details > div { margin: 0; overflow-wrap: anywhere; }
+  .ml-summary { background: #f8faf8; }
+  .ml-register .rounded-full { border-radius: 4px; }
+}
+@media screen and (max-width: 900px) { .ml-list-header { align-items: start; flex-direction: column; gap: 16px; } }
+@media screen and (max-width: 640px) { .ml-header h1 { font-size: 25px; } .ml-filter-grid, .ml-member-details { grid-template-columns: 1fr; } .ml-filters, .ml-register-heading, .ml-pagination, .ml-scope, .ml-member-info { padding-inline: 16px; } .ml-actions { width: 100%; } .ml-actions button { flex: 1; } }
+@media print { .ml-screen { display: none !important; } }

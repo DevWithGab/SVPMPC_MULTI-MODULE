@@ -1,3 +1,4 @@
+import '../../components/mortuary/treasurer/Claims.css';
 import { loadAllPages } from '../../utils/loadAllPages';
 import LoadError from '../../components/shared/common/LoadError';
 import useUrlState from '../../hooks/useUrlState';
@@ -22,11 +23,8 @@ import {
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
-import Modal from '../../components/mortuary/shared/Modal';
-import SearchableMemberSelect from '../../components/mortuary/shared/SearchableMemberSelect';
+import RecordContributionModal from '../../components/mortuary/treasurer/RecordContributionModal';
 import { Toast } from '../../components/ui/toast';
-import Button from '../../components/shared/ui/Button';
-import Input from '../../components/shared/ui/Input';
 import api from '../../services/api';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../utils/balanceNotice';
 
@@ -53,7 +51,7 @@ const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed
 );
 
 const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
-  <div className="flex bg-slate-100 rounded-lg p-0.5 w-fit">
+  <div className="mc-tabs" role="group" aria-label="Claims views">
     {[
       { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
       { id: 'awaiting-release', label: 'Awaiting Release', count: counts?.awaitingRelease ?? 0 },
@@ -64,13 +62,11 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
         key={opt.id}
         onClick={() => setClaimsView(opt.id)}
         aria-pressed={claimsView === opt.id}
-        className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition-all ${
-          claimsView === opt.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-        }`}
+        className="mc-tab"
       >
         {opt.label}
         {opt.count > 0 && (
-          <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 text-[11px] font-bold rounded-full bg-rose-100 text-rose-700">
+          <span className="mc-count">
             {opt.count}
           </span>
         )}
@@ -522,11 +518,16 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             contributions={contributions}
             claimsCounts={loaded.claims ? claimsCounts : null}
             claimsError={loadErrors.claims}
+            setActiveTab={setActiveTab}
+            onRefresh={retryLoads}
+            refreshing={retrying}
           />
         );
       case 'members':
         return (
           <MemberBalances
+            onRefresh={retryLoads}
+            refreshing={retrying}
             members={members}
             user={user}
             noticeThresholds={noticeThresholds}
@@ -545,7 +546,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         );
       case 'claims':
         return (
-          <div className="space-y-4">
+          <div className="mortuary-claims">
+            <header className="mc-header"><p className="mc-eyebrow">Mortuary management / Claims</p><h1>Claims</h1><p className="mc-description">Review member assessments, release benefits, and track claim records.</p></header>
             <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
             {claimsView === 'pending-deduction' ? (
               <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
@@ -723,114 +725,17 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         </main>
       </div>
 
-      {/* Record Contribution Modal */}
-      <Modal isOpen={isAddContributionOpen} onClose={closeAddContributionModal} title="Record Contribution">
-        <form onSubmit={handleAddContribution} className="space-y-5">
-          {/* Member — locked to the ledger owner when opened via "Add
-              Deposit" from their own ledger page (no need to search for
-              someone the treasurer already picked by being on this page).
-              Otherwise, the normal search-across-all-members flow. */}
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1 block">Member</label>
-            {lockedContributionMember ? (
-              <div className="w-full min-h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 flex items-center">
-                <span className="font-bold text-slate-900 text-sm">
-                  {lockedContributionMember.name || lockedContributionMember.memberName}
-                  <span className="text-slate-400 text-xs font-normal ml-2">
-                    UID: {(lockedContributionMember.id || lockedContributionMember.memberId)?.toString().padStart(6, '0')}
-                  </span>
-                </span>
-              </div>
-            ) : (
-              <SearchableMemberSelect
-                members={members}
-                value={newContribution.member_id}
-                onChange={(val) => setNewContribution({ ...newContribution, member_id: val })}
-                placeholder="Search by name..."
-              />
-            )}
-          </div>
-
-          {/* Barangay — auto-filled from the selected member's own record,
-              never typed by the Treasurer. */}
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1 block">Barangay</label>
-            <Input
-              type="text"
-              value={selectedContributionMember?.barangay || ''}
-              placeholder="Select a member to see their barangay"
-              disabled
-              readOnly
-              className="h-11 text-sm bg-slate-50 text-slate-600 cursor-not-allowed"
-            />
-          </div>
-
-          {/* Amount & Date */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-semibold text-slate-700 mb-1 block">Amount (₱)</label>
-              <Input
-                type="number"
-                min="1"
-                step="0.01"
-                placeholder="500"
-                value={newContribution.amount}
-                onChange={e => setNewContribution({ ...newContribution, amount: e.target.value })}
-                required
-                className="h-11 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-slate-700 mb-1 block">Payment Date</label>
-              <Input
-                type="date"
-                value={newContribution.payment_date}
-                onChange={e => setNewContribution({ ...newContribution, payment_date: e.target.value })}
-                required
-                className="h-11 text-sm"
-              />
-            </div>
-          </div>
-
-          {/* Reference Number — OR number, GCash/bank ref, etc. Required: it
-              becomes this transaction's Reference in the member's ledger. */}
-          <div>
-            <label className="text-sm font-semibold text-slate-700 mb-1 block">Reference Number</label>
-            <Input
-              type="text"
-              placeholder="OR/CDV number"
-              value={newContribution.referenceNumber}
-              onChange={e => setNewContribution({ ...newContribution, referenceNumber: e.target.value })}
-              required
-              className="h-11 text-sm"
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-1">
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={isSubmittingContribution}
-              onClick={closeAddContributionModal}
-              className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmittingContribution}
-              className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmittingContribution ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Recording...
-                </>
-              ) : 'Record Payment'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <RecordContributionModal
+        isOpen={isAddContributionOpen}
+        onClose={closeAddContributionModal}
+        onSubmit={handleAddContribution}
+        members={members}
+        lockedMember={lockedContributionMember}
+        selectedMember={selectedContributionMember}
+        contribution={newContribution}
+        setContribution={setNewContribution}
+        submitting={isSubmittingContribution}
+      />
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
