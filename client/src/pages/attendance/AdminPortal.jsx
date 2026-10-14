@@ -414,6 +414,7 @@ const AdminPortal = ({ onBack, user }) => {
 
                 {activeSection === "live" && (
                   <LiveAttendanceList
+                    variant="admin"
                     attendanceLogs={attendanceLogs}
                     events={events}
                     currentEvent={currentEvent}

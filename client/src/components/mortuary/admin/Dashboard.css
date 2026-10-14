@@ -1,0 +1,32 @@
+.mortuary-admin-dashboard .mad-fund-panel,
+.mortuary-admin-dashboard .mad-activity-panel { border-color: #dce3dd; border-radius: 6px; }
+.mortuary-admin-dashboard .mad-fund-panel > div:first-child,
+.mortuary-admin-dashboard .mad-activity-panel > div:first-child { padding: 22px 20px 18px; border-bottom: 1px solid #e2e7e3; }
+.mortuary-admin-dashboard .mad-fund-panel > div:last-child { padding-top: 20px; }
+.mortuary-admin-dashboard .mad-fund-panel h3,
+.mortuary-admin-dashboard .mad-activity-panel h3 { color: #17251d; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.mortuary-admin-dashboard .text-slate-400,
+.mortuary-admin-dashboard .text-slate-500 { color: #647069; }
+.mortuary-admin-dashboard .text-slate-900 { color: #17251d; }
+.mad-activity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.mad-notification-button { min-width: 38px; padding: 8px; }
+.mad-claim-list { padding-inline: 20px; }
+.mad-claim-list button { width: 100%; display: flex; align-items: center; gap: 10px; padding-block: 16px; text-align: left; color: #526058; font-size: 12px; cursor: pointer; }
+.mad-claim-list button + button { border-top: 1px solid #edf0ed; }
+.mad-claim-list button:hover { color: #245e32; }
+.mad-claim-list button > span:nth-child(2) { flex: 1; }
+.mad-claim-list strong { color: #17251d; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mad-claim-icon { width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center; border-radius: 4px; }
+.mad-tone-amber { background: #fffbeb; color: #b45309; }
+.mad-tone-blue { background: #eff6ff; color: #2563eb; }
+.mad-tone-green { background: #f0fdf4; color: #245e32; }
+.mad-tone-rose { background: #fff1f2; color: #be123c; }
+.mad-panel-link { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 15px 20px; border-top: 1px solid #e2e7e3; color: #245e32; font-size: 12px; font-weight: 600; cursor: pointer; }
+.mad-panel-link:hover { background: #f3f6f3; }
+@media (max-width: 1400px) { .mad-activity-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1200px) and (min-width: 801px) { .mad-activity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .mortuary-admin-dashboard .mad-fund-panel > div:first-child,
+  .mortuary-admin-dashboard .mad-activity-panel > div:first-child { padding-inline: 16px; }
+  .mad-claim-list { padding-inline: 16px; }
+}

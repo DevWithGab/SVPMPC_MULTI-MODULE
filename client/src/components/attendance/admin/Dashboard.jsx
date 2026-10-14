@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronDown,
+  ArrowRight,
   Clock,
   Activity,
   CheckCircle2,
@@ -27,7 +26,9 @@ import {
   YAxis,
 } from "recharts";
 import { formatDate, formatTime } from "../../../utils/date";
-import { Card, CardHeader, CardTitle, CardContent } from "../../ui/card";
+import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import "../secretary/Dashboard.css";
+import "./Dashboard.css";
 
 const getEventKey = (event) =>
   event?.eventId || event?._id || event?.id || event?.eventName || event?.name;
@@ -64,37 +65,8 @@ const getAttendanceLogMemberName = (log) =>
   normalizeAttendanceRecord(log).memberName || "Unknown Member";
 const getAttendanceLogMemberId = (log) =>
   normalizeAttendanceRecord(log).memberId || getAttendanceLogMemberName(log);
-const getAttendanceLogEventName = (log) =>
-  normalizeAttendanceRecord(log).eventName || "Unknown Event";
 const getAttendanceLogTime = (log) => normalizeAttendanceRecord(log).scanTime;
 const getAttendanceLogStatus = (log) => normalizeAttendanceRecord(log).status;
-const getAttendanceLogId = (log) =>
-  log.id ||
-  log._id ||
-  `${getAttendanceLogMemberName(log)}-${getAttendanceLogTime(log)}`;
-
-const getAttendanceStatusMeta = (status) => {
-  const normalizedStatus = String(status || "present").toLowerCase();
-
-  if (normalizedStatus === "absent") {
-    return {
-      label: "Absent",
-      textClass: "text-red-600",
-      bgClass: "bg-red-50",
-      borderClass: "border-red-200",
-      dotClass: "bg-red-500",
-    };
-  }
-
-  return {
-    label: "Present",
-    textClass: "text-green-700",
-    bgClass: "bg-green-50",
-    borderClass: "border-green-200",
-    dotClass: "bg-green-500",
-  };
-};
-
 const Dashboard = ({
   members,
   attendanceLogs,
@@ -103,7 +75,6 @@ const Dashboard = ({
   setCurrentEvent,
   setActiveSection,
 }) => {
-  const [isEventSelectorOpen, setIsEventSelectorOpen] = useState(false);
   const activeEvents = useMemo(
     () =>
       Array.isArray(events)
@@ -180,7 +151,7 @@ const Dashboard = ({
   const lastTrendRate = attendanceChartData.at(-1)?.rate || 0;
   const trendIsUp = lastTrendRate >= firstTrendRate;
 
-  const oneWeekAgoMs = useMemo(() => Date.now() - 7 * 24 * 60 * 60 * 1000, []);
+  const [oneWeekAgoMs] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
   const newMembersThisWeek = members.filter((member) => {
     const joined = member.joinDate || member.createdAt;
     if (!joined) return false;
@@ -235,259 +206,45 @@ const Dashboard = ({
   ];
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Dashboard Header & Event Selector */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="secretary-dashboard attendance-admin-dashboard">
+      <header className="sd-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            DASHBOARD
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Real-time attendance intelligence &amp; controls
-          </p>
+          <p className="sd-eyebrow">Attendance management / Overview</p>
+          <h1>Attendance dashboard</h1>
+          <p className="sd-description">Review event participation, attendance trends, and administrative tasks.</p>
         </div>
+        <button className="sd-button sd-primary" onClick={() => setActiveSection?.('live')}>Live attendance <ArrowRight size={15} aria-hidden="true" /></button>
+      </header>
 
-        <div className="relative">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
-            Active Event Session
-          </label>
-          <div
-            onClick={() => setIsEventSelectorOpen(!isEventSelectorOpen)}
-            className="flex items-center justify-between w-full md:w-80 px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-green-500 cursor-pointer transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "#2D7A3E" }}
-              >
-                <Calendar className="w-4 h-4 text-white" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-900 truncate uppercase tracking-wide">
-                  {currentEvent
-                    ? getEventName(currentEvent)
-                    : "No active event"}
-                </p>
-              </div>
-            </div>
-            <ChevronDown
-              className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isEventSelectorOpen ? "rotate-180" : ""}`}
-            />
-          </div>
+      <section className="sd-panel aad-event" aria-labelledby="aad-event-title">
+        <div><h2 id="aad-event-title">Active event session</h2><p>{currentEvent ? `${getEventName(currentEvent)} ? ${getEventDate(currentEvent)}` : 'No active event. Attendance counts will appear when an event is active.'}</p></div>
+        <label>Choose an active event
+          <select value={String(getEventKey(currentEvent) || '')} disabled={!activeEvents.length} onChange={e => setCurrentEvent(activeEvents.find(event => String(getEventKey(event)) === e.target.value) || null)}>
+            {!activeEvents.length && <option value="">No active event</option>}
+            {activeEvents.length > 0 && !currentEvent && <option value="" disabled>Select an event</option>}
+            {activeEvents.map(event => <option key={getEventKey(event)} value={String(getEventKey(event))}>{getEventName(event)} ? {getEventDate(event)}</option>)}
+          </select>
+        </label>
+      </section>
 
-          <AnimatePresence>
-            {isEventSelectorOpen && (
-              <Motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50"
-              >
-                {activeEvents.length > 0 ? (
-                  activeEvents.map((ev) => {
-                    const isSelected =
-                      currentEvent &&
-                      getEventKey(currentEvent) === getEventKey(ev);
-
-                    return (
-                      <button
-                        key={getEventKey(ev)}
-                        onClick={() => {
-                          setCurrentEvent(ev);
-                          setIsEventSelectorOpen(false);
-                        }}
-                        className={`w-full text-left p-3 rounded-lg transition-all mb-1 last:mb-0 ${
-                          isSelected
-                            ? "text-white border"
-                            : "hover:bg-slate-50 text-slate-600"
-                        }`}
-                        style={
-                          isSelected
-                            ? {
-                                backgroundColor: "#2D7A3E",
-                                borderColor: "#F2E416",
-                              }
-                            : {}
-                        }
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-6 h-6 rounded-md flex items-center justify-center ${
-                              isSelected ? "bg-white/20" : "bg-slate-100"
-                            }`}
-                          >
-                            <Calendar
-                              className={`w-3 h-3 ${
-                                isSelected ? "text-white" : "text-slate-400"
-                              }`}
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold tracking-tight truncate">
-                              {ev.eventName || ev.name}
-                            </p>
-                            <p className="text-xs font-medium opacity-60 uppercase">
-                              {getEventDate(ev)} • {ev.status}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="p-4 text-center text-sm font-bold text-slate-400">
-                    No active event yet.
-                  </div>
-                )}
-              </Motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Top Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-full -mr-12 -mt-12 group-hover:bg-slate-100 transition-all duration-700" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">
-                  Registered
-                </label>
-                <h3 className="text-4xl font-bold text-slate-900 tracking-tight">
-                  {totalMembers}
-                </h3>
-              </div>
-              <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500">
-                <Users className="w-7 h-7 text-slate-900" />
-              </div>
-            </div>
-            <div
-              className="mt-4 flex items-center text-xs font-bold uppercase tracking-wider"
-              style={{ color: "#2D7A3E" }}
-            >
-              <Activity className="w-3 h-3 mr-1" />
-              {newMembersThisWeek > 0
-                ? `+${newMembersThisWeek} new this week`
-                : "No new members this week"}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden group">
-          <div
-            className="absolute top-0 right-0 w-24 h-24 rounded-full -mr-12 -mt-12 group-hover:opacity-80 transition-all duration-700"
-            style={{ backgroundColor: "#2D7A3E", opacity: 0.1 }}
-          />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <label
-                  className="text-xs font-bold uppercase tracking-wider mb-2 block"
-                  style={{ color: "#2D7A3E", opacity: 0.6 }}
-                >
-                  Present
-                </label>
-                <h3
-                  className="text-4xl font-bold tracking-tight"
-                  style={{ color: "#2D7A3E" }}
-                >
-                  {currentEvent ? presentMembers : "—"}
-                </h3>
-              </div>
-
-              <div className="w-14 h-14 bg-green-50 border border-green-200 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500 text-coop-green">
-                <CheckCircle2 className="w-7 h-7" />
-              </div>
-            </div>
-            <div
-              className="mt-4 flex items-center text-xs font-bold uppercase tracking-wider"
-              style={{ color: "#2D7A3E" }}
-            >
-              <Clock className="w-3 h-3 mr-1" />
-              {!currentEvent
-                ? "No active event"
-                : lastScanTime
-                  ? `Last Scan: ${formatTime(lastScanTime)}`
-                  : "No scans recorded yet"}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full -mr-12 -mt-12 group-hover:bg-red-100 transition-all duration-700" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs font-bold text-red-600/60 uppercase tracking-wider mb-2 block">
-                  Absent
-                </label>
-                <h3 className="text-4xl font-bold text-red-700 tracking-tight">
-                  {currentEvent ? absentMembers : "—"}
-                </h3>
-              </div>
-              <div className="w-14 h-14 bg-red-50 border border-red-100 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500 text-red-600">
-                <History className="w-7 h-7" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-xs font-bold text-red-400 uppercase tracking-wider truncate">
-              {currentEvent
-                ? `For ${getEventName(currentEvent)}`
-                : "No active event"}
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden group"
-          style={{
-            background: "linear-gradient(135deg, #2D7A3E 0%, #163A1E 100%)",
-          }}
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-125 transition-all duration-700" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <label
-                  className="text-xs font-bold uppercase tracking-wider mb-2 block"
-                  style={{ color: "#F2E416" }}
-                >
-                  Success Rate
-                </label>
-                <h3 className="text-4xl font-bold text-white tracking-tight">
-                  {attendancePercentage}%
-                </h3>
-              </div>
-              <div className="w-14 h-14 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500 text-white/80">
-                <Target className="w-7 h-7" />
-              </div>
-            </div>
-            <div className="mt-6 h-2 w-full bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/5">
-              <Motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${attendancePercentage}%` }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                className="h-full rounded-full shadow-lg"
-                style={{ backgroundColor: "#F2E416" }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+      <AttendanceMetricGrid label="Attendance overview" items={[
+        ['Registered members', totalMembers.toLocaleString(), newMembersThisWeek > 0 ? `+${newMembersThisWeek} new this week` : 'No new members this week', Users],
+        ['Present', currentEvent ? presentMembers.toLocaleString() : '?', !currentEvent ? 'No active event' : lastScanTime ? `Last scan: ${formatTime(lastScanTime)}` : 'No scans recorded yet', CheckCircle2],
+        ['Absent', currentEvent ? absentMembers.toLocaleString() : '?', currentEvent ? `For ${getEventName(currentEvent)}` : 'No active event', History],
+        ['Attendance rate', `${attendancePercentage}%`, 'Share of registered members present', Target],
+      ]} />
 
       {/* Attendance Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <div className="flex items-start justify-between mb-5">
+      <div className="aad-charts">
+        <div className="sd-panel aad-chart-panel">
+          <div className="aad-chart-heading">
             <div>
               <h3
-                className="font-bold uppercase tracking-wider"
-                style={{ color: "#2D7A3E" }}
+                className="aad-chart-title"
               >
                 Attendance Overview
               </h3>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-wide mt-1">
+              <p className="aad-chart-caption">
                 Present and absent members by event
               </p>
             </div>
@@ -533,16 +290,15 @@ const Dashboard = ({
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <div className="flex items-start justify-between mb-5">
+        <div className="sd-panel aad-chart-panel">
+          <div className="aad-chart-heading">
             <div>
               <h3
-                className="font-bold uppercase tracking-wider"
-                style={{ color: "#2D7A3E" }}
+                className="aad-chart-title"
               >
                 Attendance Trend
               </h3>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-wide mt-1">
+              <p className="aad-chart-caption">
                 {attendanceChartData.length > 1
                   ? `${trendIsUp ? "Increasing" : "Decreasing"} over time`
                   : "Attendance rate over time"}
@@ -600,44 +356,19 @@ const Dashboard = ({
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
-        <CardHeader className="p-5 pb-4 space-y-0">
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-coop-green" />
-            <CardTitle className="text-sm font-bold text-slate-900">
-              QUICK ACTIONS
-            </CardTitle>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5 ml-6">
-            Jump to common attendance tasks
-          </p>
-        </CardHeader>
-        <CardContent className="p-5 pt-0">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {quickActions.map((action) => (
-              <button
-                key={action.section}
-                type="button"
-                onClick={() => setActiveSection?.(action.section)}
-                className="flex flex-col items-center justify-center gap-3 p-5 rounded-xl border border-slate-200 hover:border-coop-green hover:bg-green-50 transition-colors group text-center"
-              >
-                <div className="p-3 bg-green-50 rounded-xl group-hover:bg-white group-hover:shadow-sm transition-all">
-                  <action.icon className="w-5 h-5 text-coop-green" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-800">
-                    {action.label}
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">
-                    {action.desc}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+
+      <nav className="aad-workspace" aria-label="Attendance workspace">
+        <div className="aad-workspace-heading"><h2>Workspace</h2><p>Open common attendance tasks.</p></div>
+        <div className="aad-shortcuts">
+          {quickActions.map(action => (
+            <button key={action.section} type="button" onClick={() => setActiveSection?.(action.section)}>
+              <span className="aad-shortcut-icon"><action.icon size={17} aria-hidden="true" /></span>
+              <span><strong>{action.label}</strong><small>{action.desc}</small></span>
+              <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 };

@@ -1,0 +1,29 @@
+﻿.admin-claims .ac-filter-grid { grid-template-columns: minmax(0, 2fr) minmax(200px, 1fr); }
+.ac-metric { text-align: left; cursor: pointer; }
+.ac-metric .attendance-metric-heading { width: 100%; }
+.ac-metric:hover { border-color: #92ae98; background: #f8faf8; }
+.ac-metric[aria-pressed="true"] { border-color: #245e32; background: #edf5ee; }
+.admin-claims .mc-register table { min-width: 980px; }
+.admin-claims .mc-register td:first-child { min-width: 105px; }
+.admin-claims .mc-register td:nth-child(2) { min-width: 180px; }
+.admin-claims .mc-register td:nth-child(5) { min-width: 180px; }
+.admin-claims .mc-register td:nth-child(5) > span:first-child { white-space: nowrap; }
+.admin-claims .mc-register tr.bg-amber-50\/50:hover { background: #fffbeb; }
+.admin-claims .mc-register .td-button { white-space: nowrap; }
+.ac-detail-panel { min-width: 0; border: 1px solid #dce3dd; border-radius: 6px; background: #fff; }
+.admin-claim-details .td-header { align-items: center; }
+.ac-claim-id { overflow-wrap: anywhere; }
+.admin-claim-details .text-slate-900 { color: #17251d; }
+.admin-claim-details :is(.text-slate-400, .text-slate-500) { color: #647069; }
+.ac-detail-panel > div:first-child > .text-sm.font-bold,
+.ac-detail-panel > div:first-child > div > .text-sm.font-bold { font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.ac-detail-panel input:not([type="checkbox"]), .ac-detail-panel textarea { border-color: #cdd6cf; border-radius: 5px; }
+.ac-detail-panel button { border-radius: 5px; font-size: 12px; }
+.ac-detail-panel button.bg-coop-green { background: #245e32; }
+.ac-detail-panel th { background: #f8faf8; color: #526058; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: normal; }
+.ac-detail-panel td { border-color: #edf0ed; }
+.admin-claim-details :is(input, textarea):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+@media (max-width: 640px) {
+  .admin-claims .ac-filter-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-claim-details .td-header { align-items: start; }
+}

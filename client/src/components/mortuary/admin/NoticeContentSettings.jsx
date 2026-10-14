@@ -38,43 +38,43 @@ export default function NoticeContentSettings({ user }) {
   }, [load]);
 
   return (
-    <div className="space-y-6 pb-12">
-      <p className="text-slate-500 text-sm">
+    <div className="fs-section">
+      <p className="fs-section-description">
         The actual letter text printed for each notice level — title, fields, body, and signatures. Edit it like a
         document; only the logo/org-name letterhead is fixed.
       </p>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-400">
+        <div className="fs-loading" role="status" aria-label="Loading settings">
           <Loader2 className="w-6 h-6 animate-spin" />
         </div>
       ) : error && !current ? (
         <div className="py-16 text-center text-sm text-slate-400">{error}</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="fs-notice-grid">
+          <div className="fs-panel fs-notice-card">
+            <div className="fs-notice-heading">
               <p className="text-sm font-bold text-slate-900">Notice 1 &amp; 2 Document</p>
               <button
                 onClick={() => setEditingLevel(1)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-coop-green hover:underline shrink-0"
+                className="td-button"
               >
                 <FileEdit className="w-3.5 h-3.5" /> Edit Document
               </button>
             </div>
-            <p className="text-sm text-slate-700 whitespace-pre-line line-clamp-6">{previewText(current?.noticeBodyTemplate)}</p>
+            <p className="fs-notice-preview line-clamp-6">{previewText(current?.noticeBodyTemplate)}</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="fs-panel fs-notice-card">
+            <div className="fs-notice-heading">
               <p className="text-sm font-bold text-slate-900">Final Notice Document</p>
               <button
                 onClick={() => setEditingLevel(3)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-coop-green hover:underline shrink-0"
+                className="td-button"
               >
                 <FileEdit className="w-3.5 h-3.5" /> Edit Document
               </button>
             </div>
-            <p className="text-sm text-slate-700 whitespace-pre-line line-clamp-6">{previewText(current?.finalNoticeBodyTemplate)}</p>
+            <p className="fs-notice-preview line-clamp-6">{previewText(current?.finalNoticeBodyTemplate)}</p>
           </div>
         </div>
       )}

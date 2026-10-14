@@ -41,31 +41,31 @@ export default function BenefitCapSettings({ user }) {
   const totalPages = Math.ceil(historyTotal / limit) || 1;
 
   return (
-    <div className="space-y-6 pb-12">
-      <p className="text-slate-500 text-sm">
+    <div className="fs-section">
+      <p className="fs-section-description">
         The maximum death benefit released per claim. Collections above this
         amount from the per-member assessment become cooperative income instead
         of being paid out.
       </p>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-400">
+        <div className="fs-loading" role="status" aria-label="Loading settings">
           <Loader2 className="w-6 h-6 animate-spin" />
         </div>
       ) : (
         <>
           {/* Current cap */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <div className="fs-panel fs-current">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+                <div className="fs-current-icon">
                   <ShieldCheck className="w-6 h-6 text-coop-green" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  <p className="fs-value-label">
                     Current Cap
                   </p>
-                  <p className="text-3xl font-bold text-slate-900 mt-0.5">
+                  <p className="fs-value">
                     ₱
                     {current?.amount?.toLocaleString?.() ??
                       current?.amount ??
@@ -81,7 +81,7 @@ export default function BenefitCapSettings({ user }) {
               </div>
               <button
                 onClick={() => setShowUpdateModal(true)}
-                className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg transition-colors shrink-0"
+                className="td-button td-primary"
               >
                 <Pencil className="w-4 h-4" /> Update Cap
               </button>
@@ -89,25 +89,25 @@ export default function BenefitCapSettings({ user }) {
           </div>
 
           {/* History */}
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="border-b border-slate-100 p-5 flex items-center gap-2">
+          <div className="fs-panel fs-history">
+            <div className="fs-panel-heading">
               <History className="w-4 h-4 text-coop-green" />
               <p className="text-sm font-bold text-slate-900">Cap History</p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="fs-table-scroll" role="region" aria-label="Settings history" tabIndex={0}>
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Amount
                     </th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Effective Date
                     </th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">
                       Set By
                     </th>
                   </tr>
@@ -161,7 +161,7 @@ export default function BenefitCapSettings({ user }) {
               </table>
             </div>
             {historyTotal > 0 && (
-              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="fs-pagination">
                 <PaginationInfo currentPage={page} limit={limit} total={historyTotal} />
                 <Pagination
                   currentPage={page}

@@ -11,6 +11,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { backupAPI } from "../../../services/api";
+import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
+import "../treasurer/Dashboard.css";
+import "./DatabaseBackup.css";
 
 // The `members` prop comes back from the Mortuary admin member listing
 // reshaped for that screen's own display (id/name/contact instead of the
@@ -226,7 +229,7 @@ export default function DatabaseBackup({
         return;
       }
       setPendingRestore(parsed);
-    } catch (error) {
+    } catch {
       setParseError(
         "Couldn't read this file as JSON. Select a backup .json file exported from this page.",
       );
@@ -265,61 +268,25 @@ export default function DatabaseBackup({
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Database Backup & Restore
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Export and restore your mortuary fund data for emergency recovery.
-        </p>
-      </div>
+    <div className="treasurer-dashboard admin-backup">
+      <header className="td-header">
+        <div>
+          <p className="td-eyebrow">Mortuary management / Backup &amp; restore</p>
+          <h1>Backup &amp; restore</h1>
+          <p className="td-description">Export mortuary fund records and restore data from a saved JSON backup.</p>
+        </div>
+      </header>
 
-      {/* Backup Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-green-50 rounded-xl">
-            <Users className="w-5 h-5 text-coop-green" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Total Members
-            </p>
-            <p className="text-xl font-bold text-slate-900">{members.length}</p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-xl">
-            <Wallet className="w-5 h-5 text-blue-700" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Total Contributions
-            </p>
-            <p className="text-xl font-bold text-slate-900">
-              {contributions.length}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-amber-50 rounded-xl">
-            <Database className="w-5 h-5 text-amber-700" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Ledger Entries (Balances)
-            </p>
-            <p className="text-xl font-bold text-slate-900">
-              {loadingLedgers ? "…" : ledgers.length}
-            </p>
-          </div>
-        </div>
-      </div>
+      <AttendanceMetricGrid label="Records available for backup" busy={loadingLedgers} items={[
+        ['Members', members.length.toLocaleString(), 'Member records available for export', Users],
+        ['Contributions', contributions.length.toLocaleString(), 'Contribution records available for export', Wallet],
+        ['Ledger entries', loadingLedgers ? '?' : ledgerLoadError ? 'Unavailable' : ledgers.length.toLocaleString(), 'Transaction history behind member balances', Database],
+      ]} />
 
       {ledgerLoadError && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
           <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-red-700">
+          <p className="text-xs text-red-700" role="alert">
             {ledgerLoadError} The "Complete System Backup" below won't include
             member balances until this loads — refresh the page to retry.
           </p>
@@ -328,17 +295,17 @@ export default function DatabaseBackup({
 
       {/* Backup Options */}
       <div>
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">
+        <h2 className="backup-section-title">
           Backup
         </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-green-50 rounded-xl shrink-0">
+        <div className="backup-options">
+          <div className="backup-card">
+            <div className="backup-card-heading">
+              <div className="backup-icon">
                 <Users className="w-6 h-6 text-coop-green" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="backup-card-title">
                   Members Database
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
@@ -360,20 +327,20 @@ export default function DatabaseBackup({
             </div>
             <button
               onClick={downloadMembersCSV}
-              className="w-full h-11 px-4 mt-auto bg-white border-2 border-coop-green text-coop-green hover:bg-green-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="td-button backup-download"
             >
               <FileText className="w-4 h-4" />
               Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-blue-50 rounded-xl shrink-0">
+          <div className="backup-card">
+            <div className="backup-card-heading">
+              <div className="backup-icon">
                 <Wallet className="w-6 h-6 text-blue-700" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="backup-card-title">
                   Contributions
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
@@ -395,20 +362,20 @@ export default function DatabaseBackup({
             </div>
             <button
               onClick={downloadContributionsCSV}
-              className="w-full h-11 px-4 mt-auto bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="td-button backup-download"
             >
               <FileText className="w-4 h-4" />
               Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-amber-50 rounded-xl shrink-0">
+          <div className="backup-card">
+            <div className="backup-card-heading">
+              <div className="backup-icon">
                 <Wallet className="w-6 h-6 text-amber-700" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="backup-card-title">
                   Member Balances
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
@@ -431,20 +398,20 @@ export default function DatabaseBackup({
             <button
               onClick={downloadLedgerCSV}
               disabled={loadingLedgers}
-              className="w-full h-11 px-4 mt-auto bg-white border-2 border-amber-600 text-amber-700 hover:bg-amber-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="td-button backup-download"
             >
               <FileText className="w-4 h-4" />
               Download CSV
             </button>
           </div>
 
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-green-50 rounded-xl shrink-0">
+          <div className="backup-card">
+            <div className="backup-card-heading">
+              <div className="backup-icon">
                 <Database className="w-6 h-6 text-coop-green" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="backup-card-title">
                   Complete Backup
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">
@@ -479,7 +446,7 @@ export default function DatabaseBackup({
             <button
               onClick={downloadFullBackup}
               disabled={loadingLedgers}
-              className="w-full h-11 px-4 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="td-button td-primary backup-download"
             >
               <FileText className="w-4 h-4" />
               Download JSON Backup
@@ -490,16 +457,16 @@ export default function DatabaseBackup({
 
       {/* Restore */}
       <div>
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">
+        <h2 className="backup-section-title">
           Restore
         </h2>
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-slate-100 rounded-xl shrink-0">
+        <div className="backup-restore-panel">
+          <div className="backup-card-heading">
+            <div className="backup-icon">
               <Upload className="w-6 h-6 text-slate-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="backup-card-title">
                 Restore from Backup
               </h3>
               <p className="text-sm text-slate-500 mt-1">
@@ -519,29 +486,31 @@ export default function DatabaseBackup({
             </p>
           </div>
 
-          <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center mb-4">
+          <div className="backup-file-picker">
             <input
               type="file"
               accept="application/json,.json"
               onChange={handleFileSelect}
-              className="hidden"
+              className="sr-only"
+              aria-describedby="backup-file-help"
               id="mortuary-restore-upload"
               disabled={restoring}
             />
             <label
               htmlFor="mortuary-restore-upload"
-              className="cursor-pointer text-sm font-semibold text-slate-600 hover:text-slate-900"
+              className="backup-file-label"
             >
               {restoreFile
                 ? restoreFile.name
                 : "Click to select a backup .json file"}
             </label>
+            <p id="backup-file-help">Select a JSON backup to preview its records before confirming restore.</p>
           </div>
 
           {parseError && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4 flex items-start gap-2.5">
               <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700">{parseError}</p>
+              <p className="text-xs text-red-700" role="alert">{parseError}</p>
             </div>
           )}
 
@@ -570,7 +539,7 @@ export default function DatabaseBackup({
                   type="button"
                   onClick={cancelRestore}
                   disabled={restoring}
-                  className="flex-1 h-10 rounded-lg border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 disabled:opacity-50"
+                  className="td-button flex-1"
                 >
                   Cancel
                 </button>
@@ -578,7 +547,7 @@ export default function DatabaseBackup({
                   type="button"
                   onClick={confirmRestore}
                   disabled={restoring}
-                  className="flex-1 h-10 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="td-button backup-confirm flex-1"
                 >
                   {restoring ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -594,7 +563,7 @@ export default function DatabaseBackup({
           {restoreResult?.summary && (
             <div className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-coop-green shrink-0 mt-0.5" />
-              <div className="text-xs text-green-800 space-y-1">
+              <div className="text-xs text-green-800 space-y-1" role="status">
                 <p className="font-bold">Restore complete.</p>
                 {summaryCounts("members") && (
                   <p>Members: {summaryCounts("members")}</p>
@@ -612,20 +581,20 @@ export default function DatabaseBackup({
           {restoreResult?.error && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
               <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700">{restoreResult.error}</p>
+              <p className="text-xs text-red-700" role="alert">{restoreResult.error}</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Backup Instructions */}
-      <div className="bg-amber-50/40 border border-slate-200 shadow-sm rounded-xl p-6">
+      <div className="backup-guidance">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-amber-100 rounded-xl">
+          <div className="backup-icon">
             <AlertTriangle className="w-6 h-6 text-amber-700" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">
+            <h3 className="backup-card-title mb-2">
               Backup Best Practices
             </h3>
             <ul className="space-y-2 text-sm text-slate-600">

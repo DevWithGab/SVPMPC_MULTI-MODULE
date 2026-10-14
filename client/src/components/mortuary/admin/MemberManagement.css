@@ -1,0 +1,9 @@
+﻿.admin-member-management .admin-member-filters { grid-template-columns: minmax(0, 2fr) minmax(200px, 1fr); }
+.admin-member-management table { min-width: 960px; }
+.admin-member-management tbody tr { cursor: default; }
+.admin-member-management .admin-member-deceased { color: #9f3650; background: #fff1f2; border-color: #fecdd3; }
+.admin-member-actions { display: flex; align-items: center; gap: 8px; }
+.admin-member-join-date { white-space: nowrap; }
+@media (max-width: 640px) {
+  .admin-member-management .admin-member-filters { grid-template-columns: minmax(0, 1fr); }
+}

@@ -11,7 +11,7 @@ import {
   ClipboardCheck,
   XCircle,
   CheckCircle2,
-  Calendar,
+  ArrowRight,
   HeartHandshake,
   Leaf,
   CreditCard as PaymentIcon,
@@ -30,25 +30,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { mortuaryDashboardAPI } from "../../../services/api";
 import { getClaimStatusMeta } from "../shared/claimMeta";
-import StatCard from "../shared/StatCard";
+import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
+import { formatLongDate } from "../../../utils/date";
+import "../treasurer/Dashboard.css";
+import "./Dashboard.css";
 
 // ---- Local presentational pieces -------------------------------------
 
 const toAmount = (value) => Number(value) || 0;
 const formatAmount = (value) => toAmount(value).toLocaleString();
-
-// Thin wrapper so this page keeps its own `label`/`tone`/`solid` vocabulary
-// while the gradient look itself lives in one place (shared/StatCard).
-const StatTile = ({ label, value, subtitle, icon, tone = "green", solid = false, onClick }) => (
-  <StatCard
-    title={label}
-    value={value}
-    subtitle={subtitle}
-    icon={icon}
-    color={solid ? "green" : tone}
-    onClick={onClick}
-  />
-);
 
 const getActivityIcon = (status) => {
   switch (status) {
@@ -94,7 +84,7 @@ const NotificationBell = ({ items, count, onViewAll }) => {
         onClick={() => setOpen((o) => !o)}
         aria-label="Notifications"
         aria-expanded={open}
-        className="relative w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-coop-green hover:border-coop-green/40 transition-colors"
+        className="td-button mad-notification-button relative"
       >
         <Bell className="w-4 h-4" />
         {count > 0 && (
@@ -105,7 +95,7 @@ const NotificationBell = ({ items, count, onViewAll }) => {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
           <div className="p-4 border-b border-slate-100">
             <p className="text-sm font-bold text-slate-900">Needs Attention</p>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -174,7 +164,7 @@ const RecentActivities = ({ contributions, payouts, onViewAll }) => {
   ].sort((a, b) => new Date(b.time) - new Date(a.time));
 
   return (
-    <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white h-full">
+    <Card className="td-panel mad-activity-panel shadow-none h-full">
       <CardHeader className="border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
         <CardTitle className="text-sm font-bold text-slate-900">
           Recent Fund Activity
@@ -230,7 +220,7 @@ const RecentActivities = ({ contributions, payouts, onViewAll }) => {
 };
 
 const RecentClaimActivities = ({ activities, onViewAll }) => (
-  <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white h-full">
+  <Card className="td-panel mad-activity-panel shadow-none h-full">
     <CardHeader className="border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
       <CardTitle className="text-sm font-bold text-slate-900">
         Recent Claim Activity
@@ -288,7 +278,7 @@ const Dashboard = ({
   stats,
   contributions,
   payouts,
-  members,
+  members = [],
   setActiveTab,
   user,
 }) => {
@@ -435,175 +425,35 @@ const Dashboard = ({
   const firstName = user?.name?.split(" ")[0] || "Admin";
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div className="treasurer-dashboard mortuary-admin-dashboard">
+      <header className="td-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Welcome back, {firstName}! Here's what's happening with your
-            mortuary fund today.
-          </p>
+          <p className="td-eyebrow">Mortuary management / Overview</p>
+          <h1>Mortuary dashboard</h1>
+          <p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p>
         </div>
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            onClick={() => exportToCSV(members, "mortuary_report")}
-            className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold border border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4" /> Export Report
+        <div className="td-header-actions">
+          <button className="td-button" onClick={() => exportToCSV(members, "mortuary_report")} disabled={!members.length}>
+            <Download size={15} aria-hidden="true" /> Export report
           </button>
-          <div className="hidden sm:flex items-center gap-2 h-10 px-4 rounded-lg border border-slate-200 text-sm font-medium text-slate-500">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            {new Date().toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </div>
-          <NotificationBell
-            items={needsAttention}
-            count={needsAttentionCount}
-            onViewAll={() => setActiveTab("claims")}
-          />
+          <button className="td-button td-primary" onClick={() => setActiveTab("claims")}>
+            Manage claims <ArrowRight size={15} aria-hidden="true" />
+          </button>
+          <NotificationBell items={needsAttention} count={needsAttentionCount} onViewAll={() => setActiveTab("claims")} />
         </div>
-      </div>
+      </header>
 
-      {/* Fund stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile
-          label="Total Fund Balance"
-          value={`₱${currentBalance.toLocaleString()}`}
-          subtitle="Available Balance"
-          icon={Wallet}
-          solid
-        />
-        <StatTile
-          label="Active Members"
-          value={formatAmount(stats?.activeMembers)}
-          subtitle="Total Active Members"
-          icon={Users}
-          tone="green"
-        />
-        <StatTile
-          label="Total Collected"
-          value={`₱${totalCollected.toLocaleString()}`}
-          subtitle="All Time"
-          icon={CreditCard}
-          tone="amber"
-        />
-        <StatTile
-          label="Pending Requirements"
-          value={claimCounts.pending_requirements ?? 0}
-          subtitle="For Processing"
-          icon={Clock}
-          tone="amber"
-          onClick={() => setActiveTab("claims")}
-        />
-      </div>
+      <AttendanceMetricGrid label="Mortuary fund overview" items={[
+        ["Total fund balance", `₱${currentBalance.toLocaleString()}`, "Available balance", Wallet],
+        ["Active members", formatAmount(stats?.activeMembers), "Currently contributing", Users],
+        ["Total collected", `₱${totalCollected.toLocaleString()}`, "All-time member contributions", CreditCard],
+        ["Total paid out", `₱${totalPaidOut.toLocaleString()}`, "All-time payouts", Banknote],
+      ]} />
+      <p className="td-overview">Welcome back, {firstName}. Review the fund's financial overview and manage member claims.</p>
 
-      {/* Claim stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatTile
-          label="Pending Deduction"
-          value={claimCounts.pending_deduction ?? 0}
-          subtitle="Awaiting Deduction"
-          icon={Banknote}
-          tone="blue"
-          onClick={() => setActiveTab("claims")}
-        />
-        <StatTile
-          label="Claims Released"
-          value={claimCounts.released ?? 0}
-          subtitle="All Time"
-          icon={ClipboardCheck}
-          tone="green"
-          onClick={() => setActiveTab("claims")}
-        />
-        <StatTile
-          label="Claims Rejected"
-          value={claimCounts.rejected ?? 0}
-          subtitle="All Time"
-          icon={XCircle}
-          tone="rose"
-          onClick={() => setActiveTab("claims")}
-        />
-      </div>
-
-      {/* Death-fund assessments collected and benefits released. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatTile
-          label="Total Deductions Collected"
-          value={`₱${totalDeductionsCollected.toLocaleString()}`}
-          subtitle="Held, awaiting release"
-          icon={TrendingUp}
-          tone="blue"
-          onClick={() => setActiveTab("claims")}
-        />
-        <StatTile
-          label="Total Claims Released"
-          value={`₱${totalClaimsReleased.toLocaleString()}`}
-          subtitle="Benefits paid out (max ₱50,000/claim)"
-          icon={TrendingDown}
-          tone="rose"
-          onClick={() => setActiveTab("claims")}
-        />
-      </div>
-
-      {/* Quick Actions + Recent Activity (left) / Fund Overview (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
-            <CardHeader className="p-5 pb-4 space-y-0">
-              <div className="flex items-center gap-2">
-                <Leaf className="w-4 h-4 text-coop-green" />
-                <CardTitle className="text-sm font-bold text-slate-900">
-                  Quick Actions
-                </CardTitle>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5 ml-6">
-                Access frequently used features
-              </p>
-            </CardHeader>
-            <CardContent className="p-5 pt-0">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {quickActions.map((action) => (
-                  <button
-                    key={action.label}
-                    onClick={() => setActiveTab(action.tab)}
-                    className="flex flex-col items-center justify-center gap-3 p-5 rounded-xl border border-slate-200 hover:border-coop-green hover:bg-green-50 transition-colors group text-center"
-                  >
-                    <div className="p-3 bg-green-50 rounded-xl group-hover:bg-white group-hover:shadow-sm transition-all">
-                      <action.icon className="w-5 h-5 text-coop-green" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-800">
-                        {action.label}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">
-                        {action.desc}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <RecentActivities
-              contributions={contributions}
-              payouts={payouts}
-            />
-            <RecentClaimActivities
-              activities={recentClaimActivities}
-              onViewAll={() => setActiveTab("claims")}
-            />
-          </div>
-        </div>
-
-        <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
+      <div className="td-workspace">
+        <div className="td-main">
+        <Card className="td-panel mad-fund-panel shadow-none">
           <CardHeader className="p-5 pb-4 space-y-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -633,13 +483,13 @@ const Dashboard = ({
             </div>
 
             {fundOverviewData.length > 0 ? (
-              <div className="h-55 w-full">
+              <div className="h-[260px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={fundOverviewData} barGap={3}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       vertical={false}
-                      stroke="#f1f5f9"
+                      stroke="#e2e8f0"
                     />
                     <XAxis
                       dataKey="month"
@@ -657,7 +507,7 @@ const Dashboard = ({
                     />
                     <RechartsTooltip
                       contentStyle={{
-                        borderRadius: "10px",
+                        borderRadius: "6px",
                         border: "1px solid #e2e8f0",
                         fontSize: 12,
                       }}
@@ -670,19 +520,19 @@ const Dashboard = ({
                       dataKey="collected"
                       fill="#2D7A3E"
                       radius={[4, 4, 0, 0]}
-                      maxBarSize={14}
+                      maxBarSize={24}
                     />
                     <Bar
                       dataKey="paidOut"
                       fill="#bbe5c3"
                       radius={[4, 4, 0, 0]}
-                      maxBarSize={14}
+                      maxBarSize={24}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-55 flex items-center justify-center">
+              <div className="h-[260px] flex items-center justify-center">
                 <p className="text-sm text-slate-400">No fund data available</p>
               </div>
             )}
@@ -720,6 +570,54 @@ const Dashboard = ({
             </div>
           </CardContent>
         </Card>
+          <div className="mad-activity-grid">
+            <RecentActivities contributions={contributions} payouts={payouts} />
+            <RecentClaimActivities activities={recentClaimActivities} onViewAll={() => setActiveTab("claims")} />
+          </div>
+        </div>
+
+        <aside className="td-sidebar" aria-label="Claims and administration">
+          <section className="td-panel" aria-labelledby="mad-claims-title">
+            <div className="td-panel-heading">
+              <h2 id="mad-claims-title">Claims overview</h2>
+              <p>Review pending requirements and track claim outcomes.</p>
+            </div>
+            <div className="mad-claim-list">
+              {[
+                ["Pending requirements", claimCounts.pending_requirements, Clock, "amber"],
+                ["Pending deduction", claimCounts.pending_deduction, Banknote, "blue"],
+                ["Claims released", claimCounts.released, ClipboardCheck, "green"],
+                ["Claims rejected", claimCounts.rejected, XCircle, "rose"],
+              ].map(([label, count, Icon, tone]) => (
+                <button key={label} onClick={() => setActiveTab("claims")}>
+                  <span className={`mad-claim-icon mad-tone-${tone}`}>{React.createElement(Icon, { size: 16, "aria-hidden": true })}</span>
+                  <span>{label}</span>
+                  <strong>{formatAmount(count)}</strong>
+                  <ArrowRight size={14} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="td-panel" aria-labelledby="mad-fund-title">
+            <div className="td-panel-heading"><h2 id="mad-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></div>
+            <dl className="td-fund-totals">
+              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{totalDeductionsCollected.toLocaleString()}</dd><small>All-time assessments collected</small></div>
+              <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{totalClaimsReleased.toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
+            </dl>
+            <button className="mad-panel-link" onClick={() => setActiveTab("claims")}>View claims <ArrowRight size={15} aria-hidden="true" /></button>
+          </section>
+
+          <nav className="td-tools" aria-label="Administration workspace">
+            <h2>Workspace</h2>
+            {quickActions.map((action) => (
+              <button key={action.label} onClick={() => setActiveTab(action.tab)}>
+                <span><strong>{action.label}</strong><small>{action.desc}</small></span>
+                <ArrowRight size={15} aria-hidden="true" />
+              </button>
+            ))}
+          </nav>
+        </aside>
       </div>
     </div>
   );

@@ -185,6 +185,7 @@ export default function AttendanceSecretaryPortal({
       case "live":
         return (
           <LiveAttendanceList
+            variant="secretary"
             attendanceLogs={allAttendance}
             events={events}
             onRefresh={refreshAllAttendance}

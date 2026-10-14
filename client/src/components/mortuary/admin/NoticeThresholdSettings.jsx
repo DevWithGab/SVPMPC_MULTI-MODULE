@@ -39,28 +39,28 @@ export default function NoticeThresholdSettings({ user }) {
   const totalPages = Math.ceil(historyTotal / limit) || 1;
 
   return (
-    <div className="space-y-6 pb-12">
-      <p className="text-slate-500 text-sm">
+    <div className="fs-section">
+      <p className="fs-section-description">
         The balance ranges that trigger Notice 1, Notice 2, and the Final Notice printed from the Treasurer's
         Member Ledger.
       </p>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-400">
+        <div className="fs-loading" role="status" aria-label="Loading settings">
           <Loader2 className="w-6 h-6 animate-spin" />
         </div>
       ) : (
         <>
           {/* Current thresholds */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <div className="fs-panel fs-current">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
+                <div className="fs-current-icon">
                   <Bell className="w-6 h-6 text-coop-green" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Target Balance</p>
-                  <p className="text-3xl font-bold text-slate-900 mt-0.5">₱{current?.targetBalance?.toLocaleString() ?? '—'}</p>
+                  <p className="fs-value-label">Target Balance</p>
+                  <p className="fs-value">₱{current?.targetBalance?.toLocaleString() ?? '—'}</p>
                   <p className="text-xs text-slate-500 mt-1">
                     Effective {current?.effectiveDate ? new Date(current.effectiveDate).toLocaleDateString() : '—'}
                     {current?.description ? ` • ${current.description}` : ''}
@@ -69,13 +69,13 @@ export default function NoticeThresholdSettings({ user }) {
               </div>
               <button
                 onClick={() => setShowUpdateModal(true)}
-                className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg transition-colors shrink-0"
+                className="td-button td-primary"
               >
                 <Pencil className="w-4 h-4" /> Update Thresholds
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 pt-5 border-t border-slate-100">
+            <div className="fs-thresholds">
               <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
                 <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Notice 1</p>
                 <p className="text-sm font-semibold text-slate-900 mt-1">
@@ -98,21 +98,21 @@ export default function NoticeThresholdSettings({ user }) {
           </div>
 
           {/* History */}
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="border-b border-slate-100 p-5 flex items-center gap-2">
+          <div className="fs-panel fs-history">
+            <div className="fs-panel-heading">
               <History className="w-4 h-4 text-coop-green" />
               <p className="text-sm font-bold text-slate-900">Threshold History</p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="fs-table-scroll" role="region" aria-label="Settings history" tabIndex={0}>
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Target</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Notice 1</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Notice 2</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Effective Date</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Set By</th>
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Target</th>
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Notice 1</th>
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Notice 2</th>
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Effective Date</th>
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Set By</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -151,7 +151,7 @@ export default function NoticeThresholdSettings({ user }) {
               </table>
             </div>
             {historyTotal > 0 && (
-              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="fs-pagination">
                 <PaginationInfo currentPage={page} limit={limit} total={historyTotal} />
                 <Pagination
                   currentPage={page}

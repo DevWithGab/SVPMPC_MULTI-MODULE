@@ -11,6 +11,8 @@ import {
   History,
   Plus,
 } from "lucide-react";
+import "../treasurer/Dashboard.css";
+import "./Claims.css";
 import Button from "../../shared/ui/Button";
 import { claimAPI } from "../../../services/api";
 import { getClaimStatusMeta, isClaimFullySubmitted } from "../shared/claimMeta";
@@ -172,24 +174,25 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
   const allSubmitted = isClaimFullySubmitted(claim.requirements);
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="treasurer-dashboard admin-claim-details space-y-6">
+      <div className="td-header">
         <div>
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-coop-green mb-2"
+            className="td-button mb-3"
           >
             <ArrowLeft className="w-4 h-4" /> Back to Claims
           </button>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <p className="td-eyebrow">Mortuary management / Claims / Details</p>
+          <h1>
             {claim.memberName}
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="td-description ac-claim-id">
             Claim ID: {claim.claimId}
           </p>
         </div>
         <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
           {meta.label}
@@ -197,7 +200,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
       </div>
 
       {canDecide && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white border border-slate-200 rounded-xl p-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ac-detail-panel p-4">
           <p className="text-sm text-slate-500">
             {allSubmitted
               ? "All requirements are submitted — this claim is ready for a decision."
@@ -229,7 +232,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
         <div className="lg:col-span-2 space-y-6">
           {/* Member & Beneficiary info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <div className="ac-detail-panel p-5">
               <div className="flex items-center gap-2 mb-3">
                 <User className="w-4 h-4 text-coop-green" />
                 <p className="text-sm font-bold text-slate-900">Member</p>
@@ -270,7 +273,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <div className="ac-detail-panel p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Heart className="w-4 h-4 text-coop-green" />
                 <p className="text-sm font-bold text-slate-900">Beneficiary</p>
@@ -295,7 +298,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
           </div>
 
           {/* Requirements checklist */}
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="ac-detail-panel overflow-hidden">
             <div className="border-b border-slate-100 p-5 flex items-center gap-2">
               <ClipboardCheck className="w-4 h-4 text-coop-green" />
               <div>
@@ -342,10 +345,10 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
                       Requirement
                     </th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
+                    <th scope="col" className="text-center px-3 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
                       {COMBINED_COLUMN.label}
                     </th>
                   </tr>
@@ -388,7 +391,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
           </div>
 
           {/* Verification info */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className="ac-detail-panel p-5">
             <div className="flex items-center gap-2 mb-4">
               <FileText className="w-4 h-4 text-coop-green" />
               <p className="text-sm font-bold text-slate-900">
@@ -466,7 +469,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
         </div>
 
         {/* Status history */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 h-fit">
+        <div className="ac-detail-panel p-5 h-fit">
           <div className="flex items-center gap-2 mb-4">
             <History className="w-4 h-4 text-coop-green" />
             <p className="text-sm font-bold text-slate-900">Status History</p>

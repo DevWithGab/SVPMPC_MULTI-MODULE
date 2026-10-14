@@ -1,0 +1,26 @@
+﻿.aad-event { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 22px 20px; margin-bottom: 24px; }
+.aad-event > div { min-width: 0; }
+.aad-event h2, .aad-chart-title { color: #17251d; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.aad-event p { margin-top: 6px; color: #647069; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.aad-event label { display: block; width: 340px; max-width: 100%; flex-shrink: 0; color: #526058; font-size: 12px; font-weight: 600; }
+.aad-event select { width: 100%; margin-top: 7px; min-height: 40px; padding: 8px 10px; border: 1px solid #cdd6cf; border-radius: 5px; color: #24362a; background: white; font-size: 13px; font-weight: 400; }
+.aad-event select:disabled { opacity: .6; cursor: not-allowed; }
+.aad-event select:focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.aad-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.aad-chart-panel { padding: 22px 20px; }
+.aad-chart-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid #e2e7e3; }
+.aad-chart-caption { color: #647069; font-size: 12px; line-height: 1.6; margin-top: 5px; }
+.aad-workspace { margin-top: 28px; }
+.aad-workspace-heading h2 { color: #647069; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.aad-workspace-heading p { margin-top: 5px; color: #647069; font-size: 12px; }
+.aad-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; margin-top: 6px; }
+.aad-shortcuts button { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 18px 0; border-bottom: 1px solid #dce3dd; color: #34453a; cursor: pointer; }
+.aad-shortcuts button > span:nth-child(2) { flex: 1; min-width: 0; }
+.aad-shortcuts strong { font-size: 13px; font-weight: 600; }
+.aad-shortcuts small { display: block; margin-top: 5px; color: #647069; font-size: 12px; line-height: 1.6; }
+.aad-shortcuts button:hover strong { color: #245e32; text-decoration: underline; }
+.aad-shortcut-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border: 1px solid #dce3dd; border-radius: 4px; background: #f8faf8; color: #52715a; }
+.aad-shortcuts svg { flex-shrink: 0; }
+@media (max-width: 1100px) { .aad-charts { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 800px) { .aad-event { align-items: start; flex-direction: column; gap: 16px; } .aad-event label { width: 100%; } }
+@media (max-width: 640px) { .aad-event, .aad-chart-panel { padding-inline: 16px; } .aad-shortcuts { grid-template-columns: minmax(0, 1fr); } }

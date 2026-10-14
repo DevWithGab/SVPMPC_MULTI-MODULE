@@ -1,0 +1,28 @@
+﻿.admin-backup > .backup-guidance,
+.admin-backup > div:not(.attendance-metric-grid) + div { margin-top: 24px; }
+.backup-section-title { margin-bottom: 14px; font-size: 16px; font-weight: 600; letter-spacing: -.2px; color: #17251d; }
+.backup-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: stretch; }
+.backup-card, .backup-restore-panel { min-width: 0; border: 1px solid #dce3dd; border-radius: 6px; background: white; padding: 22px 20px; }
+.backup-card { display: flex; flex-direction: column; }
+.backup-card-heading { display: flex; align-items: start; gap: 14px; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid #e2e7e3; }
+.backup-card-title { color: #17251d; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.backup-icon { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; background: #f8faf8; border: 1px solid #e2e7e3; border-radius: 5px; color: #52715a; }
+.backup-icon svg { width: 18px; height: 18px; color: inherit; }
+.admin-backup .text-slate-900 { color: #17251d; }
+.admin-backup :is(.text-slate-400, .text-slate-500) { color: #647069; }
+.backup-card .text-sm, .backup-restore-panel .text-sm, .backup-guidance .text-sm { font-size: 12px; line-height: 1.7; }
+.backup-card .text-xs, .backup-restore-panel .text-xs { line-height: 1.7; }
+.backup-card .font-semibold { font-variant-numeric: tabular-nums; }
+.backup-download { width: 100%; margin-top: auto; }
+.backup-restore-panel > .rounded-lg { border-radius: 5px; }
+.backup-file-picker { padding: 24px 20px; border: 1px dashed #aabdaf; border-radius: 5px; background: #f8faf8; text-align: center; margin-bottom: 20px; }
+.backup-file-label { display: inline-flex; padding: 10px 14px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; color: #245e32; font-size: 12px; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
+.backup-file-label:hover { background: #edf5ee; }
+.backup-file-picker input:focus-visible + label { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.backup-file-picker input:disabled + label { opacity: .5; cursor: not-allowed; }
+.backup-file-picker p { margin-top: 10px; color: #647069; font-size: 12px; line-height: 1.7; }
+.backup-confirm { background: #b45309; border-color: #b45309; color: white; }
+.backup-confirm:hover { background: #92400e; }
+.backup-guidance { border-top: 1px solid #dce3dd; padding: 24px 4px 0; }
+@media (max-width: 800px) { .backup-options { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .backup-card, .backup-restore-panel { padding-inline: 16px; } .backup-file-picker { padding-inline: 12px; } }

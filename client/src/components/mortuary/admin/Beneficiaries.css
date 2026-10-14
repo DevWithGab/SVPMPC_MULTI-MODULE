@@ -1,0 +1,16 @@
+﻿.admin-beneficiaries .beneficiary-filter-grid { grid-template-columns: minmax(0, 640px); }
+.admin-beneficiaries table { min-width: 1000px; }
+.admin-beneficiaries tbody tr { cursor: default; }
+.beneficiary-actions { display: flex; align-items: center; gap: 8px; }
+.beneficiary-contact { white-space: nowrap; }
+.beneficiary-unregistered { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.beneficiary-history-list { padding: 22px 20px; }
+.beneficiary-history-list > li { position: relative; padding: 0 0 20px 20px; overflow-wrap: anywhere; }
+.beneficiary-history-list > li + li { padding-top: 20px; border-top: 1px solid #edf0ed; }
+.beneficiary-history-list > li:last-child { padding-bottom: 0; }
+.beneficiary-history-dot { position: absolute; left: 0; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: #cbd5cb; }
+.beneficiary-history-list > li + li .beneficiary-history-dot { top: 26px; }
+.beneficiary-history-dot.is-current { background: #245e32; }
+.beneficiary-history-name { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 14px; font-weight: 600; color: #17251d; }
+.beneficiary-history-list p { color: #647069; font-size: 12px; margin-top: 7px; line-height: 1.7; }
+@media (max-width: 640px) { .beneficiary-history-list { padding-inline: 16px; } }

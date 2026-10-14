@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
-  Filter,
+  RefreshCw,
   Download,
   Eye,
   AlertCircle,
@@ -15,7 +15,10 @@ import {
 import { auditAPI } from "../../../services/api";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { formatDate, formatDateTime, formatTime } from "../../../utils/date";
-import StatCard from "../shared/StatCard";
+import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
+import "../treasurer/Dashboard.css";
+import "../treasurer/MemberBalances.css";
+import "./AuditLogs.css";
 
 // Plain-language labels so the log reads as a story of what happened to a
 // claim, not a dump of internal action codes.
@@ -204,8 +207,36 @@ const describeChanges = (changes) => {
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [selectedLog, setSelectedLog] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    if (!showDetails) return;
+    const previousFocus = document.activeElement;
+    const dialog = dialogRef.current;
+    dialog?.querySelector('button')?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setShowDetails(false);
+      if (event.key !== 'Tab' || !dialog) return;
+      const controls = dialog.querySelectorAll('button:not(:disabled), summary, a[href], [tabindex="0"]');
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [showDetails]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const [filters, setFilters] = useState({
@@ -230,6 +261,7 @@ const AuditLogs = () => {
   const fetchAuditLogs = useCallback(
     async () => {
       setLoading(true);
+      setError("");
       try {
         const response = await auditAPI.getLogs({
           ...filters,
@@ -240,6 +272,7 @@ const AuditLogs = () => {
         setLastUpdated(new Date());
       } catch (error) {
         console.error("Error fetching audit logs:", error);
+        setError(error.response?.data?.message || "Unable to load audit logs.");
       } finally {
         setLoading(false);
       }
@@ -294,7 +327,7 @@ const AuditLogs = () => {
     ]);
     const csvContent = [
       headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ...rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")),
     ].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -305,6 +338,7 @@ const AuditLogs = () => {
       `mortuary-audit-logs-${new Date().toISOString().split("T")[0]}.csv`,
     );
     link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   const getStatusIcon = (status) => {
@@ -320,177 +354,76 @@ const AuditLogs = () => {
     }
   };
 
+  const hasActiveFilters = Boolean(filters.action || filters.userRole || filters.startDate || filters.endDate);
+  const resetFilters = () => setFilters({ action: "", userRole: "", startDate: "", endDate: "", page: 1, limit: 50 });
+
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="treasurer-dashboard admin-audit-logs">
+      <header className="td-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Audit Logs
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Monitor and track all claim activity in the mortuary module
-          </p>
+          <p className="td-eyebrow">Mortuary management / Audit logs</p>
+          <h1>Audit logs</h1>
+          <p className="td-description">Monitor claim activity and review changes in the mortuary module.</p>
         </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          {lastUpdated && (
-            <p className="text-xs text-slate-400">
-              Last updated {formatTime(lastUpdated)}
-            </p>
-          )}
+        <div className="td-header-actions">
+          <button className="td-button" onClick={() => { fetchAuditLogs(); fetchStats(); }} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing?' : 'Refresh'}</button>
+          <button className="td-button td-primary" onClick={handleExportCSV} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />Export current page</button>
         </div>
-      </div>
+      </header>
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Actions"
-            value={stats.totalActions}
-            icon={Activity}
-            color="slate"
-          />
-          {stats.actionsByRole && stats.actionsByRole.length > 0 && (
-            <StatCard
-              title="Most Active Role"
-              value={stats.actionsByRole[0]._id}
-              subtitle={`${stats.actionsByRole[0].count} actions`}
-              icon={Users}
-              color="amber"
-            />
-          )}
-          {stats.actionsByStatus && (
-            <>
-              <StatCard
-                title="Successful"
-                value={
-                  stats.actionsByStatus.find((s) => s._id === "success")
-                    ?.count || 0
-                }
-                icon={CheckCircle}
-                color="emerald"
-              />
-              <StatCard
-                title="Failed"
-                value={
-                  stats.actionsByStatus.find((s) => s._id === "failed")
-                    ?.count || 0
-                }
-                icon={XCircle}
-                color="amber"
-              />
-            </>
-          )}
-        </div>
-      )}
+      {stats && filters.startDate && filters.endDate && <AttendanceMetricGrid label="Activity summary for the selected date range" items={[
+        ['Total actions', stats.totalActions ?? 0, 'Selected date range', Activity],
+        ...(stats.actionsByRole?.length ? [['Most active role', roleLabel(stats.actionsByRole[0]._id), `${stats.actionsByRole[0].count} actions`, Users]] : []),
+        ['Successful', stats.actionsByStatus?.find(s => s._id === 'success')?.count || 0, 'Selected date range', CheckCircle],
+        ['Failed', stats.actionsByStatus?.find(s => s._id === 'failed')?.count || 0, 'Selected date range', XCircle],
+      ]} />}
 
-      {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-4 h-4 text-coop-green" />
-          <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
+      <section className="mb-filters" aria-labelledby="audit-filter-title">
+        <div className="mb-filter-heading"><h2 id="audit-filter-title">Filter activity</h2><button className="mb-text-button" onClick={resetFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
+        <div className="mb-filter-grid audit-filter-grid">
+          <label>Start date<input type="date" value={filters.startDate} onChange={e => handleFilterChange('startDate', e.target.value)} /></label>
+          <label>End date<input type="date" value={filters.endDate} onChange={e => handleFilterChange('endDate', e.target.value)} /></label>
+          <label>Role<select value={filters.userRole} onChange={e => handleFilterChange('userRole', e.target.value)}><option value="">All roles</option><option value="admin">Admin</option><option value="treasurer">Treasurer</option><option value="super_admin">Super Admin</option></select></label>
+          <label>Action<select value={filters.action} onChange={e => handleFilterChange('action', e.target.value)}><option value="">All actions</option>{Object.entries(ACTION_LABELS).map(([action, label]) => <option key={action} value={action}>{label}</option>)}</select></label>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">
-              Start Date
-            </label>
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => handleFilterChange("startDate", e.target.value)}
-              className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">
-              End Date
-            </label>
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => handleFilterChange("endDate", e.target.value)}
-              className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">
-              Role
-            </label>
-            <select
-              value={filters.userRole}
-              onChange={(e) => handleFilterChange("userRole", e.target.value)}
-              className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-            >
-              <option value="">All Roles</option>
-              <option value="admin">Admin</option>
-              <option value="treasurer">Treasurer</option>
-              <option value="super_admin">Super Admin</option>
-            </select>
-          </div>
-          <div className="space-y-2 xl:col-span-2">
-            <label className="block text-sm font-medium text-slate-700">
-              Action
-            </label>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <select
-                value={filters.action}
-                onChange={(e) => handleFilterChange("action", e.target.value)}
-                className="w-full sm:flex-1 h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-              >
-                <option value="">All Actions</option>
-                <option value="claim_created">Claim Filed</option>
-                <option value="claim_approved">Claim Approved</option>
-                <option value="claim_rejected">Claim Rejected</option>
-                <option value="claim_deduction_processed">
-                  Deduction Processed
-                </option>
-                <option value="claim_released">Benefit Released</option>
-              </select>
-              <button
-                onClick={handleExportCSV}
-                className="inline-flex h-10 items-center justify-center gap-2 px-5 bg-coop-green text-white text-sm font-semibold rounded-lg hover:bg-coop-darkGreen transition-colors whitespace-nowrap sm:w-auto w-full"
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="mb-panel audit-register" aria-busy={loading}>
+        <div className="mb-register-heading"><div><h2>Activity register</h2><p>Open an entry to review its details and recorded changes.</p></div></div>
+        <div className="mb-scope"><span role="status">{loading ? 'Loading audit logs?' : error ? 'Audit logs unavailable' : `${(pagination.total || 0).toLocaleString()} matching records`}</span><span>{lastUpdated ? `Last updated ${formatTime(lastUpdated)} ? Philippine time` : 'Mortuary activity'}</span></div>
         {loading ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="mb-empty" role="status" aria-label="Loading audit logs">
             <div className="animate-spin">
               <Zap className="w-8 h-8 text-green-600" />
             </div>
           </div>
+        ) : error ? (
+          <div className="mb-empty"><p role="alert">{error}</p><button className="td-button" onClick={fetchAuditLogs}>Try again</button></div>
         ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+          <div className="mb-empty" role="status">
             <Activity className="w-12 h-12 mb-2 opacity-50" />
-            <p>No audit logs found</p>
+            <strong>No audit logs found</strong><p>{hasActiveFilters ? "Try a different date range, role, or action." : "Recorded mortuary activity will appear here."}</p>{hasActiveFilters && <button className="td-button" onClick={resetFilters}>Reset filters</button>}
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="mb-table-scroll" role="region" aria-label="Audit log records" tabIndex={0}>
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Activity
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -510,7 +443,7 @@ const AuditLogs = () => {
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleColor(log.userRole)}`}
+                            className={`px-3 py-1 rounded-md text-xs font-semibold ${getRoleColor(log.userRole)}`}
                           >
                             {roleLabel(log.userRole)}
                           </span>
@@ -518,7 +451,7 @@ const AuditLogs = () => {
                         <td className="px-6 py-4 text-sm">
                           <div className="flex flex-col gap-1">
                             <span
-                              className={`self-start px-3 py-1 rounded-full text-xs font-semibold ${getActionColor(log.action)}`}
+                              className={`self-start px-3 py-1 rounded-md text-xs font-semibold ${getActionColor(log.action)}`}
                             >
                               {actionLabel(log.action)}
                             </span>
@@ -541,7 +474,7 @@ const AuditLogs = () => {
                               setSelectedLog(log);
                               setShowDetails(true);
                             }}
-                            className="text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
+                            className="td-button" aria-haspopup="dialog" aria-label={`View ${actionLabel(log.action)} at ${formatDateTime(log.timestamp)}`}
                           >
                             <Eye className="w-4 h-4" />
                             View
@@ -554,7 +487,7 @@ const AuditLogs = () => {
               </table>
             </div>
 
-            <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="mb-pagination">
               <PaginationInfo currentPage={pagination.page} limit={pagination.limit} total={pagination.total} />
               <Pagination
                 currentPage={pagination.page}
@@ -575,37 +508,38 @@ const AuditLogs = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
             onClick={() => setShowDetails(false)}
           >
             <Motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+              ref={dialogRef}
+              className="audit-dialog" role="dialog" aria-modal="true" aria-labelledby="audit-detail-title"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="sticky top-0 bg-gradient-to-r from-green-50 to-green-100 border-b border-green-200 px-6 py-4 flex items-center justify-between">
+              <div className="audit-dialog-heading">
                 <div>
                   <span
-                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${getActionColor(selectedLog.action)}`}
+                    className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold ${getActionColor(selectedLog.action)}`}
                   >
                     {actionLabel(selectedLog.action)}
                   </span>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1">
+                  <h3 id="audit-detail-title" className="text-lg font-semibold text-slate-900 mt-1">
                     {selectedLog.description || actionLabel(selectedLog.action)}
                   </h3>
                 </div>
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="text-slate-500 hover:text-slate-700 shrink-0"
+                  className="td-button shrink-0" aria-label="Close audit details"
                 >
                   ✕
                 </button>
               </div>
 
               <div className="p-6 space-y-5">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase">
                       Date
@@ -619,7 +553,7 @@ const AuditLogs = () => {
                       By
                     </p>
                     <span
-                      className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${getRoleColor(selectedLog.userRole)}`}
+                      className={`inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold ${getRoleColor(selectedLog.userRole)}`}
                     >
                       {roleLabel(selectedLog.userRole)}
                     </span>
@@ -659,15 +593,15 @@ const AuditLogs = () => {
                           {rows.map((row) => (
                             <div
                               key={row.label}
-                              className="grid grid-cols-3 gap-2 px-3 py-2 text-sm"
+                              className="audit-change-row"
                             >
                               <span className="font-medium text-slate-700">
                                 {row.label}
                               </span>
-                              <span className="text-slate-500 truncate">
+                              <span className="text-slate-500 audit-value">
                                 {row.before}
                               </span>
-                              <span className="text-slate-900 font-medium truncate">
+                              <span className="text-slate-900 font-medium audit-value">
                                 → {row.after}
                               </span>
                             </div>
@@ -686,12 +620,12 @@ const AuditLogs = () => {
                         {rows.map((row) => (
                           <div
                             key={row.label}
-                            className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                            className="audit-snapshot-row"
                           >
                             <span className="font-medium text-slate-700">
                               {row.label}
                             </span>
-                            <span className="text-slate-900 text-right">
+                            <span className="text-slate-900 audit-value">
                               {row.value}
                             </span>
                           </div>

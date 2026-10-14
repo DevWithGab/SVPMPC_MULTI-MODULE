@@ -1,0 +1,44 @@
+﻿.fs-navigation { display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; border: 1px solid #dce3dd; border-radius: 6px; background: #fff; margin-bottom: 24px; }
+.fs-navigation button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px; border-radius: 4px; color: #647069; font-size: 12px; font-weight: 600; cursor: pointer; }
+.fs-navigation button:hover { background: #f3f6f3; color: #245e32; }
+.fs-navigation button[aria-pressed="true"] { background: #eaf0ea; color: #245e32; }
+.fs-section { display: grid; gap: 24px; min-width: 0; }
+.fs-section-description { color: #647069; font-size: 13px; line-height: 1.7; max-width: 850px; }
+.fs-panel { min-width: 0; background: white; border: 1px solid #dce3dd; border-radius: 6px; overflow: hidden; }
+.fs-current { padding: 22px 20px; }
+.fs-current-icon { width: 42px; height: 42px; display: grid; place-items: center; flex-shrink: 0; border: 1px solid #e2e7e3; border-radius: 5px; background: #f8faf8; color: #52715a; }
+.fs-current-icon svg { width: 20px; height: 20px; color: inherit; }
+.fs-value-label { font-size: 12px; font-weight: 600; color: #526058; }
+.fs-value { margin-top: 8px; color: #17251d; font-size: 30px; font-weight: 600; letter-spacing: -.5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fs-current .text-slate-500 { color: #647069; line-height: 1.7; }
+.fs-panel-heading { display: flex; align-items: center; gap: 10px; padding: 22px 20px; border-bottom: 1px solid #e2e7e3; }
+.fs-panel-heading p, .fs-notice-heading p { color: #17251d; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.fs-table-scroll { overflow-x: auto; }
+.fs-table-scroll:focus-visible { outline: 2px solid #2d7a3e; outline-offset: -3px; }
+.fs-history table { width: 100%; min-width: 650px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.fs-history th { padding: 13px 20px; background: #fcfdfc; color: #526058; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: normal; border-bottom: 1px solid #e2e7e3; }
+.fs-history td { padding: 17px 20px; font-size: 13px; color: #526058; border-bottom: 1px solid #edf0ed; }
+.fs-history tbody tr:last-child td { border-bottom: 0; }
+.fs-history tbody tr:hover { background: #f8faf8; }
+.fs-history td:first-child { color: #17251d; font-weight: 600; }
+.fs-history td > span { border-radius: 4px; font-size: 11px; white-space: nowrap; }
+.fs-history td > span.bg-green-50 { color: #245e32; background: #edf5ee; border-color: #cbdccd; }
+.fs-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 16px 20px; border-top: 1px solid #e2e7e3; }
+.fs-thresholds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 20px; margin-top: 22px; border-top: 1px solid #e2e7e3; }
+.fs-thresholds > div { border-radius: 5px; padding: 16px; }
+.fs-thresholds > div > p:first-child { text-transform: none; letter-spacing: normal; font-weight: 600; }
+.fs-notice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.fs-notice-card { padding: 22px 20px; }
+.fs-notice-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid #e2e7e3; }
+.fs-notice-preview { color: #526058; font-size: 13px; line-height: 1.8; white-space: pre-line; overflow-wrap: anywhere; }
+.fs-loading { display: flex; align-items: center; justify-content: center; min-height: 220px; color: #647069; border: 1px solid #dce3dd; border-radius: 6px; background: white; }
+@media (max-width: 1000px) { .fs-notice-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .fs-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fs-navigation button { padding: 10px 8px; font-size: 11px; }
+  .fs-navigation svg { flex-shrink: 0; }
+  .fs-thresholds { grid-template-columns: minmax(0, 1fr); }
+  .fs-current, .fs-panel-heading, .fs-pagination, .fs-notice-card { padding-inline: 16px; }
+  .fs-current > div:first-child > div { min-width: 0; }
+  .fs-value { font-size: 27px; }
+}

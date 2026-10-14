@@ -1,7 +1,10 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { Users, UserCheck, UserMinus, Heart, Search, FileText } from 'lucide-react';
+import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
+import '../treasurer/MemberBalances.css';
+import './MemberManagement.css';
 
 const MemberManagement = ({
   filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab
@@ -14,169 +17,126 @@ const MemberManagement = ({
 
   const totalMembers = filteredMembers.length;
   const totalPages = Math.ceil(totalMembers / limit) || 1;
-  const startIndex = (page - 1) * limit;
+  const visiblePage = Math.min(page, totalPages);
+  const startIndex = (visiblePage - 1) * limit;
   const paginatedMembers = filteredMembers.slice(startIndex, startIndex + limit);
+  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all';
+  const updateFilter = (setter, value) => { setter(value); setPage(1); };
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setPage(1);
+  };
 
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Member Management</h1>
-        <p className="text-slate-500 text-sm mt-1">Directory of all registered mortuary fund participants.</p>
-      </div>
+    <div className="member-balances admin-member-management">
+      <header className="mb-header">
+        <div>
+          <p className="mb-eyebrow">Mortuary management / Members</p>
+          <h1>Member management</h1>
+          <p className="mb-description">Review registered members, check balances, and access claims and beneficiaries.</p>
+        </div>
+      </header>
 
-      {/* Member Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-green-50 rounded-lg">
-            <Users className="w-5 h-5 text-coop-green" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Members</p>
-            <p className="text-xl font-bold text-slate-900">{members.length}</p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-green-50 rounded-lg">
-            <UserCheck className="w-5 h-5 text-coop-green" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Active</p>
-            <p className="text-xl font-bold text-slate-900">{members.filter((m) => m.status === 'active').length}</p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-amber-50 rounded-lg">
-            <UserMinus className="w-5 h-5 text-amber-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Inactive</p>
-            <p className="text-xl font-bold text-slate-900">{members.filter((m) => m.status === 'inactive').length}</p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-4">
-          <div className="p-3 bg-rose-50 rounded-lg">
-            <Heart className="w-5 h-5 text-rose-600" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Deceased</p>
-            <p className="text-xl font-bold text-slate-900">{members.filter((m) => m.status === 'deceased').length}</p>
-          </div>
-        </div>
-      </div>
+      <AttendanceMetricGrid label="Membership overview" items={[
+        ['Total members', members.length.toLocaleString(), 'Registered mortuary fund participants', Users],
+        ['Active', members.filter(m => m.status === 'active').length.toLocaleString(), 'Active memberships', UserCheck],
+        ['Inactive', members.filter(m => m.status === 'inactive').length.toLocaleString(), 'Inactive memberships', UserMinus],
+        ['Deceased', members.filter(m => m.status === 'deceased').length.toLocaleString(), 'Members recorded as deceased', Heart],
+      ]} />
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <p className="text-sm font-bold text-slate-900">Member Directory</p>
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-            <div className="flex bg-slate-100 p-0.5 rounded-lg w-full sm:w-auto">
-              {(['all', 'active', 'inactive', 'deceased']).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                    statusFilter === status
-                      ? 'bg-white text-coop-green shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
-            </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                placeholder="Search members..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-9 pr-3 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-              />
-            </div>
+      <section className="mb-filters" aria-labelledby="admin-member-filter-title">
+        <div className="mb-filter-heading">
+          <h2 id="admin-member-filter-title">Find a member</h2>
+          <button className="mb-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
+        </div>
+        <div className="mb-filter-grid admin-member-filters">
+          <label>
+            Search members
+            <span className="mb-search">
+              <Search size={16} aria-hidden="true" />
+              <input value={searchQuery} onChange={e => updateFilter(setSearchQuery, e.target.value)} placeholder="Name or Passbook No." />
+            </span>
+          </label>
+          <label>
+            Membership status
+            <select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}>
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="deceased">Deceased</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section className="mb-panel" aria-labelledby="admin-member-register-title">
+        <div className="mb-register-heading">
+          <div>
+            <h2 id="admin-member-register-title">Member directory</h2>
+            <p>Membership details and current balances for mortuary fund participants.</p>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="mb-scope">
+          <span role="status">{totalMembers.toLocaleString()} of {members.length.toLocaleString()} members</span>
+          <span>{statusFilter === 'all' ? 'All membership statuses' : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} members`}</span>
+        </div>
+        <div className="mb-table-scroll" role="region" aria-label="Member directory" tabIndex={0}>
+          <table>
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Passbook No.</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Name</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Contact</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Balance</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Join Date</th>
-                <th className="text-right px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+              <tr>
+                <th scope="col">Member / Passbook</th>
+                <th scope="col">Contact</th>
+                <th scope="col" className="mb-number">Balance</th>
+                <th scope="col">Status</th>
+                <th scope="col">Join date</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {paginatedMembers.map((member) => (
-                <tr key={member.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-3.5 text-xs font-medium text-slate-500">#{member.id}</td>
-                  <td className="px-6 py-3.5 text-sm font-semibold text-slate-900">{member.name}</td>
-                  <td className="px-6 py-3.5 text-xs text-slate-500 hidden md:table-cell">{member.contact}</td>
-                  <td className="px-6 py-3.5 text-sm font-semibold text-coop-green">
-                    ₱{(member.currentBalance || 0).toLocaleString()}
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border ${
-                        member.status === 'active'
-                          ? 'bg-green-50 text-coop-green border-green-200'
-                          : member.status === 'deceased'
-                            ? 'bg-rose-50 text-rose-600 border-rose-200'
-                            : 'bg-slate-100 text-slate-500 border-slate-200'
-                      }`}
-                    >
-                      {member.status}
+            <tbody>
+              {paginatedMembers.map(member => (
+                <tr key={member.id}>
+                  <td><strong>{member.name}</strong><span className="mb-secondary">#{String(member.id).padStart(6, '0')}</span></td>
+                  <td>{member.contact || '—'}</td>
+                  <td className="mb-number"><strong>₱{(Number(member.currentBalance) || 0).toLocaleString('en-PH')}</strong></td>
+                  <td>
+                    <span className={`mb-status${member.status === 'active' ? ' mb-status-active' : member.status === 'deceased' ? ' admin-member-deceased' : ''}`}>
+                      {member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : 'Unknown'}
                     </span>
                   </td>
-                  <td className="px-6 py-3.5 text-xs text-slate-500 hidden sm:table-cell">{member.join_date}</td>
-                  <td className="px-6 py-3.5">
-                    <div className="flex items-center justify-end gap-3">
-                      {setActiveTab && (
-                        <>
-                          <button
-                            onClick={() => setActiveTab('beneficiaries')}
-                            title="View beneficiaries"
-                            className="text-slate-400 hover:text-coop-green transition-colors"
-                          >
-                            <Heart className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setActiveTab('claims')}
-                            title="View claim history"
-                            className="text-slate-400 hover:text-coop-green transition-colors"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
+                  <td className="admin-member-join-date">{member.join_date || '—'}</td>
+                  <td>
+                    {setActiveTab && (
+                      <div className="admin-member-actions">
+                        <button className="mb-button mb-ledger-button" onClick={() => setActiveTab('beneficiaries')} aria-label="Open beneficiaries">
+                          <Heart size={14} aria-hidden="true" /> Beneficiaries
+                        </button>
+                        <button className="mb-button mb-ledger-button" onClick={() => setActiveTab('claims')} aria-label="Open claims">
+                          <FileText size={14} aria-hidden="true" /> Claims
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
-              {filteredMembers.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center py-12 text-sm text-slate-400">
-                    No members found.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
-        {totalMembers > 0 && (
-          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <PaginationInfo currentPage={page} limit={limit} total={totalMembers} />
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-              hasNextPage={page < totalPages}
-              hasPrevPage={page > 1}
-            />
+        {totalMembers === 0 && (
+          <div className="mb-empty" role="status">
+            <strong>{hasActiveFilters ? 'No members match these filters' : 'No members found'}</strong>
+            <p>{hasActiveFilters ? 'Try a different name, passbook number, or membership status.' : 'Registered mortuary fund participants will appear here when records are available.'}</p>
+            {hasActiveFilters && <button className="mb-button" onClick={clearFilters}>Reset filters</button>}
           </div>
         )}
-      </div>
+        <footer className="mb-pagination">
+          <PaginationInfo currentPage={visiblePage} limit={limit} total={totalMembers} />
+          {totalMembers > 0 && (
+            <Pagination currentPage={visiblePage} totalPages={totalPages} onPageChange={setPage} hasNextPage={visiblePage < totalPages} hasPrevPage={visiblePage > 1} />
+          )}
+        </footer>
+      </section>
+      <p className="mb-footnote">Manage claim requests and beneficiary records through their respective tabs.</p>
     </div>
   );
 };

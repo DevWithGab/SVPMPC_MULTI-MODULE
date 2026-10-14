@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Users, History, Pencil } from 'lucide-react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, Users, History, Pencil, RefreshCw } from 'lucide-react';
 import { beneficiaryAPI } from '../../../services/api';
 import BeneficiaryHistory from './BeneficiaryHistory';
 import UpdateBeneficiaryModal from './modals/UpdateBeneficiaryModal';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
+import '../treasurer/MemberBalances.css';
+import './Beneficiaries.css';
 
 export default function Beneficiaries({ user }) {
   const [beneficiaries, setBeneficiaries] = useState([]);
@@ -12,157 +14,122 @@ export default function Beneficiaries({ user }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const [historyMember, setHistoryMember] = useState(null); // { memberId, memberName }
-  const [editRecord, setEditRecord] = useState(null); // beneficiary record being edited (or null)
+  const [historyMember, setHistoryMember] = useState(null);
+  const [editRecord, setEditRecord] = useState(null);
+  const requestId = useRef(0);
 
   const load = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     setError('');
     try {
       const res = await beneficiaryAPI.getAllBeneficiaries({ page, limit: 10, search: search.trim() || undefined });
+      if (currentRequest !== requestId.current) return;
       setBeneficiaries(Array.isArray(res?.data) ? res.data : []);
       setPagination(res?.pagination || { page: 1, totalPages: 1, total: 0 });
     } catch (err) {
-      setError(err.response?.data?.message || 'Unable to load beneficiaries.');
+      if (currentRequest === requestId.current) setError(err.response?.data?.message || 'Unable to load beneficiaries.');
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, [page, search]);
 
   useEffect(() => {
     load();
+    return () => { requestId.current += 1; };
   }, [load]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
+  const updateSearch = (value) => { setSearch(value); setPage(1); };
 
   if (historyMember) {
-    return (
-      <BeneficiaryHistory
-        memberId={historyMember.memberId}
-        memberName={historyMember.memberName}
-        onBack={() => setHistoryMember(null)}
-      />
-    );
+    return <BeneficiaryHistory memberId={historyMember.memberId} memberName={historyMember.memberName} onBack={() => setHistoryMember(null)} />;
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Beneficiaries</h1>
-        <p className="text-slate-500 text-sm mt-1">Current beneficiary on file for each member.</p>
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by member or beneficiary name"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-          />
+    <div className="member-balances admin-beneficiaries">
+      <header className="mb-header">
+        <div>
+          <p className="mb-eyebrow">Mortuary management / Beneficiaries</p>
+          <h1>Beneficiaries</h1>
+          <p className="mb-description">Review the beneficiary on file for each member, update details, and track changes.</p>
         </div>
-      </div>
+        <button className="mb-button" onClick={load} disabled={loading}>
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </header>
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Member Name</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Beneficiary Name</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Relationship</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Contact Number</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-              <th className="text-right px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">Loading beneficiaries...</td>
-              </tr>
-            ) : beneficiaries.length > 0 ? (
-              beneficiaries.map((b) => (
-                <tr key={b.memberId} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-semibold text-slate-900">{b.memberName}</td>
-                  <td className="px-6 py-4 text-sm text-slate-700">{b.beneficiaryName || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-500 hidden sm:table-cell">{b.relationship || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-500 hidden md:table-cell">{b.contactNumber || '—'}</td>
-                  <td className="px-6 py-4">
-                    {b.isRegistered ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        Registered
-                      </span>
-                    ) : (
-                      <span
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200"
-                        title="Captured at sign-up only — no contact number or formal record on file yet"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        Not registered
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-3">
-                      <button
-                        onClick={() => setHistoryMember({ memberId: b.memberId, memberName: b.memberName })}
-                        className="text-slate-400 hover:text-coop-green transition-colors"
-                        title="View history"
-                      >
-                        <History className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditRecord(b)}
-                        className="text-slate-400 hover:text-coop-green transition-colors"
-                        title={b.isRegistered ? 'Update' : 'Register beneficiary'}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
+      <section className="mb-filters" aria-labelledby="beneficiary-filter-title">
+        <div className="mb-filter-heading">
+          <h2 id="beneficiary-filter-title">Find a beneficiary</h2>
+          <button className="mb-text-button" onClick={() => updateSearch('')} disabled={!search}>Reset search</button>
+        </div>
+        <div className="mb-filter-grid beneficiary-filter-grid">
+          <label>
+            Search members or beneficiaries
+            <span className="mb-search">
+              <Search size={16} aria-hidden="true" />
+              <input type="search" placeholder="Member or beneficiary name" value={search} onChange={e => updateSearch(e.target.value)} />
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section className="mb-panel" aria-labelledby="beneficiary-directory-title" aria-busy={loading}>
+        <div className="mb-register-heading">
+          <div><h2 id="beneficiary-directory-title">Beneficiary directory</h2><p>Register a beneficiary or update an existing record. Previous records remain in history.</p></div>
+        </div>
+        <div className="mb-scope">
+          <span role="status">{loading ? 'Loading beneficiary records…' : error ? 'Beneficiary records unavailable' : `${pagination.total.toLocaleString()} ${search.trim() ? 'matching' : 'member'} records`}</span>
+          <span>Current beneficiary on file</span>
+        </div>
+        <div className="mb-table-scroll" role="region" aria-label="Beneficiary directory" tabIndex={0}>
+          <table>
+            <thead><tr>
+              <th scope="col">Member</th><th scope="col">Beneficiary</th><th scope="col">Relationship</th><th scope="col">Contact number</th><th scope="col">Status</th><th scope="col">Actions</th>
+            </tr></thead>
+            <tbody>
+              {!loading && !error && beneficiaries.map(b => (
+                <tr key={b.memberId}>
+                  <td><strong>{b.memberName}</strong></td>
+                  <td>{b.beneficiaryName || '—'}</td>
+                  <td>{b.relationship || '—'}</td>
+                  <td className="beneficiary-contact">{b.contactNumber || '—'}</td>
+                  <td><span className={`mb-status ${b.isRegistered ? 'mb-status-active' : 'beneficiary-unregistered'}`}>
+                    {b.isRegistered ? 'Registered' : 'Not registered'}
+                  </span></td>
+                  <td><div className="beneficiary-actions">
+                    <button className="mb-button mb-ledger-button" onClick={() => setHistoryMember({ memberId: b.memberId, memberName: b.memberName })} aria-label={`View beneficiary history for ${b.memberName}`}>
+                      <History size={14} aria-hidden="true" /> History
+                    </button>
+                    <button className="mb-button mb-ledger-button" onClick={() => setEditRecord(b)} aria-label={`${b.isRegistered ? 'Update' : 'Register'} beneficiary for ${b.memberName}`}>
+                      <Pencil size={14} aria-hidden="true" /> {b.isRegistered ? 'Update' : 'Register'}
+                    </button>
+                  </div></td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">
-                  <div className="flex flex-col items-center gap-2">
-                    <Users className="w-8 h-8 text-slate-300" />
-                    {error || 'No active members found.'}
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {pagination.total > 0 && (
-        <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <PaginationInfo currentPage={page} limit={10} total={pagination.total} />
-          <Pagination
-            currentPage={page}
-            totalPages={pagination.totalPages}
-            onPageChange={setPage}
-            hasNextPage={page < pagination.totalPages}
-            hasPrevPage={page > 1}
-          />
+              ))}
+            </tbody>
+          </table>
         </div>
+        {loading ? (
+          <div className="mb-empty" role="status"><RefreshCw size={22} className="animate-spin" aria-hidden="true" /><p>Loading beneficiaries…</p></div>
+        ) : error ? (
+          <div className="mb-empty"><p role="alert">{error}</p><button className="mb-button" onClick={load}>Try again</button></div>
+        ) : beneficiaries.length === 0 && (
+          <div className="mb-empty" role="status">
+            <Users size={28} aria-hidden="true" />
+            <strong>{search.trim() ? 'No beneficiaries match your search' : 'No active members found'}</strong>
+            <p>{search.trim() ? 'Try a different member or beneficiary name.' : 'Beneficiary details will appear here when member records are available.'}</p>
+            {search && <button className="mb-button" onClick={() => updateSearch('')}>Reset search</button>}
+          </div>
         )}
-      </div>
+        {!loading && !error && <footer className="mb-pagination">
+          <PaginationInfo currentPage={page} limit={10} total={pagination.total} />
+          {pagination.total > 0 && <Pagination currentPage={page} totalPages={pagination.totalPages} onPageChange={setPage} hasNextPage={page < pagination.totalPages} hasPrevPage={page > 1} />}
+        </footer>}
+      </section>
+      <p className="mb-footnote">Not registered means the beneficiary was captured at sign-up and does not yet have a formal beneficiary record.</p>
 
-      <UpdateBeneficiaryModal
-        isOpen={Boolean(editRecord)}
-        onClose={() => setEditRecord(null)}
-        memberId={editRecord?.memberId}
-        memberName={editRecord?.memberName}
-        current={editRecord}
-        user={user}
-        onSaved={load}
-      />
+      <UpdateBeneficiaryModal isOpen={Boolean(editRecord)} onClose={() => setEditRecord(null)} memberId={editRecord?.memberId} memberName={editRecord?.memberName} current={editRecord} user={user} onSaved={load} />
     </div>
   );
 }

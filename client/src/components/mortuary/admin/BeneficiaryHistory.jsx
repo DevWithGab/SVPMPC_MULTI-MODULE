@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Loader2, History } from 'lucide-react';
 import { beneficiaryAPI } from '../../../services/api';
+import '../treasurer/MemberBalances.css';
+import './Beneficiaries.css';
 
 export default function BeneficiaryHistory({ memberId, memberName, onBack }) {
   const [history, setHistory] = useState([]);
@@ -25,50 +27,41 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack }) {
   }, [load]);
 
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-coop-green mb-2">
-          <ArrowLeft className="w-4 h-4" /> Back to Beneficiaries
-        </button>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Beneficiary History</h1>
-        <p className="text-slate-500 text-sm mt-1">{memberName}</p>
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
+    <div className="member-balances admin-beneficiaries">
+      <header className="mb-header">
+        <div>
+          <p className="mb-eyebrow">Mortuary management / Beneficiaries / History</p>
+          <h1>Beneficiary history</h1>
+          <p className="mb-description">Review current and previous beneficiary records for {memberName}.</p>
+        </div>
+        <button onClick={onBack} className="mb-button"><ArrowLeft size={15} aria-hidden="true" />Back to beneficiaries</button>
+      </header>
+      <section className="mb-panel" aria-labelledby="beneficiary-history-title" aria-busy={loading}>
+        <div className="mb-register-heading"><div><h2 id="beneficiary-history-title">Record history</h2><p>{memberName}</p></div></div>
+        <div className="mb-scope"><span>{loading ? 'Loading records?' : error ? 'History unavailable' : `${history.length} beneficiary records`}</span><span>Current and previous designations</span></div>
         {loading ? (
-          <div className="flex items-center justify-center py-12 text-slate-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
-          </div>
+          <div className="mb-empty" role="status"><Loader2 size={22} className="animate-spin" aria-hidden="true" /><p>Loading beneficiary history?</p></div>
+        ) : error ? (
+          <div className="mb-empty"><p role="alert">{error}</p><button className="mb-button" onClick={load}>Try again</button></div>
         ) : history.length > 0 ? (
-          <ol className="space-y-5">
-            {history.map((record) => (
-              <li key={record.beneficiaryId} className="relative pl-5 pb-5 border-b border-slate-100 last:border-0 last:pb-0">
-                <span className={`absolute left-0 top-1.5 w-2 h-2 rounded-full ${record.isActive ? 'bg-coop-green' : 'bg-slate-300'}`} />
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">{record.beneficiaryName}</p>
-                  {record.isActive && (
-                    <span className="text-[11px] font-semibold text-coop-green bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-                      Current
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">{record.relationship} • {record.contactNumber}</p>
-                {record.address && <p className="text-xs text-slate-400 mt-0.5">{record.address}</p>}
-                <p className="text-xs text-slate-400 mt-1.5">
-                  Effective {new Date(record.effectiveFrom).toLocaleDateString()}
-                  {record.effectiveTo ? ` – ${new Date(record.effectiveTo).toLocaleDateString()}` : ' – present'}
-                  {record.updatedBy ? ` • by ${record.updatedBy}` : ''}
+          <ol className="beneficiary-history-list">
+            {history.map(record => (
+              <li key={record.beneficiaryId}>
+                <span className={`beneficiary-history-dot${record.isActive ? ' is-current' : ''}`} aria-hidden="true" />
+                <div className="beneficiary-history-name"><strong>{record.beneficiaryName}</strong>{record.isActive && <span className="mb-status mb-status-active">Current</span>}</div>
+                <p>{record.relationship || '?'} ? {record.contactNumber || '?'}</p>
+                {record.address && <p>{record.address}</p>}
+                <p>Effective {new Date(record.effectiveFrom).toLocaleDateString()}
+                  {record.effectiveTo ? ` ? ${new Date(record.effectiveTo).toLocaleDateString()}` : ' ? present'}
+                  {record.updatedBy ? ` ? by ${record.updatedBy}` : ''}
                 </p>
               </li>
             ))}
           </ol>
         ) : (
-          <div className="flex flex-col items-center gap-2 py-12 text-slate-400">
-            <History className="w-7 h-7 text-slate-300" />
-            <p className="text-sm font-medium">{error || 'No beneficiary records for this member.'}</p>
-          </div>
+          <div className="mb-empty" role="status"><History size={28} aria-hidden="true" /><strong>No beneficiary records for this member</strong><p>Registered beneficiary records and subsequent changes will appear here.</p></div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

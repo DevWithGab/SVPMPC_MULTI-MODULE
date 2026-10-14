@@ -3,6 +3,7 @@ import { RefreshCw, CalendarOff } from "lucide-react";
 import { attendanceAPI, eventAPI } from "../../../services/api";
 import { formatDateTime, formatTime } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
+import LiveAttendanceView from "../secretary/LiveAttendanceView";
 
 const PAGE_SIZE = 10;
 const AUTO_REFRESH_MS = 45000;
@@ -38,6 +39,7 @@ export default function LiveAttendanceList({
   initialEvents = [],
   currentEvent = null,
   onRefresh,
+  variant = "default",
 }) {
   const attendanceLogsSource = propAttendanceLogs.length
     ? propAttendanceLogs
@@ -260,6 +262,27 @@ export default function LiveAttendanceList({
       ),
     [filteredAttendance, safePage],
   );
+
+  if (variant === "secretary" || variant === "admin") {
+    return <LiveAttendanceView
+      activeEvent={activeEvent}
+      selectedEventLabel={selectedEventLabel}
+      liveRows={liveRows}
+      filteredAttendance={filteredAttendance}
+      paginatedAttendance={paginatedAttendance}
+      selectedBarangay={selectedBarangay}
+      availableBarangays={availableBarangays}
+      onBarangayChange={(value) => { setSelectedBarangay(value); setCurrentPage(1); }}
+      loading={loading || loadingEvents}
+      error={error}
+      lastRefreshedAt={lastRefreshedAt}
+      onRefresh={handleRefresh}
+      currentPage={safePage}
+      totalPages={totalPages}
+      pageSize={PAGE_SIZE}
+      onPageChange={setCurrentPage}
+    />;
+  }
 
   return (
     <div className="space-y-6">

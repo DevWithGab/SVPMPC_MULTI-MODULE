@@ -1,0 +1,26 @@
+﻿.admin-audit-logs .audit-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.audit-filter-grid input { display: block; width: 100%; min-height: 40px; margin-top: 7px; padding: 8px 10px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; font-size: 13px; font-weight: 400; }
+.admin-audit-logs :is(input, select, [tabindex], summary):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.audit-register table { width: 100%; min-width: 900px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.audit-register th { padding: 13px 20px; background: #fcfdfc; color: #526058; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: normal; border-bottom: 1px solid #e2e7e3; }
+.audit-register td { padding: 17px 20px; font-size: 13px; border-bottom: 1px solid #edf0ed; vertical-align: middle; }
+.audit-register tbody tr:last-child td { border-bottom: 0; }
+.audit-register tbody tr:hover { background: #f8faf8; }
+.audit-register td:nth-child(3) { min-width: 250px; max-width: 480px; overflow-wrap: anywhere; }
+.audit-register td:nth-child(2) > span { white-space: nowrap; }
+.admin-audit-logs .text-slate-900 { color: #17251d; }
+.admin-audit-logs :is(.text-slate-400, .text-slate-500) { color: #647069; }
+.audit-dialog { width: 100%; max-width: 760px; max-height: 85vh; overflow-y: auto; border: 1px solid #dce3dd; border-radius: 8px; background: white; box-shadow: 0 24px 60px #17251d33; }
+.audit-dialog-heading { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 24px; border-bottom: 1px solid #e2e7e3; background: #f8faf8; z-index: 1; }
+.audit-dialog-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.audit-dialog .uppercase { text-transform: none; }
+.audit-change-row { display: grid; grid-template-columns: 1fr 1.25fr 1.25fr; gap: 12px; padding: 12px; font-size: 13px; }
+.audit-snapshot-row { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; padding: 12px; font-size: 13px; }
+.audit-value { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.7; }
+.audit-dialog details { overflow-wrap: anywhere; }
+@media (max-width: 1000px) { .admin-audit-logs .audit-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .admin-audit-logs .audit-filter-grid { grid-template-columns: minmax(0, 1fr); }
+  .audit-dialog-heading { padding: 16px; }
+  .audit-change-row, .audit-snapshot-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}

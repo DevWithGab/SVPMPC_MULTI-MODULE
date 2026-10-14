@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   UserPlus,
   Upload,
@@ -23,6 +23,9 @@ import {
 import { memberAPI, resolveQrAssetUrl } from "../../../services/api";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
+import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import "../secretary/Dashboard.css";
+import "./MemberManagement.css";
 
 // A member's QR is in exactly one of three states — this is the single
 // source of truth the whole screen (badges, filters, actions) reads from.
@@ -54,7 +57,7 @@ const MemberStatusBadge = ({ member }) => {
   const meta = MEMBER_STATUS_META[member?.status] || MEMBER_STATUS_META.inactive;
   return (
     <span
-      className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${meta.className}`}
+      className={`amq-badge px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${meta.className}`}
     >
       {meta.label}
     </span>
@@ -65,7 +68,7 @@ const QRStatusBadge = ({ member }) => {
   const meta = QR_STATE_META[qrState(member)];
   return (
     <span
-      className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${meta.className}`}
+      className={`amq-badge px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${meta.className}`}
     >
       {meta.label}
     </span>
@@ -211,12 +214,12 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative z-10 w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200"
+        className="amq-dialog relative z-10 w-full max-w-sm bg-white shadow-2xl border border-slate-200"
       >
         <div className="flex items-start justify-between px-6 py-4 border-b border-slate-100">
           <div>
@@ -374,7 +377,7 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
             </div>
           )}
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 };
@@ -550,95 +553,50 @@ const MemberManagement = () => {
     document.body.removeChild(link);
   };
 
+  const hasActiveFilters = searchTerm !== '' || selectedBarangay !== 'All';
+  const resetFilters = () => { setSearchTerm(''); setSelectedBarangay('All'); setPage(1); };
+
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="secretary-dashboard admin-member-qr">
+      <header className="sd-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            MEMBER QR MANAGEMENT
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Generate, print, and manage member QR codes used for attendance
-            scanning · {filteredMembers.length} of {members.length} members
-          </p>
+          <p className="sd-eyebrow">Attendance management / Member QR management</p>
+          <h1>Member QR management</h1>
+          <p className="sd-description">Generate, print, and manage QR codes used for attendance scanning.</p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => setIsImportModalOpen(true)}
-            className="inline-flex items-center h-11 px-5 bg-white border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Import CSV
+        <div className="amq-header-actions">
+          <button className="sd-button" onClick={() => setIsImportModalOpen(true)} aria-haspopup="dialog"><Upload size={15} aria-hidden="true" />Import CSV</button>
+          <button className="sd-button sd-primary" onClick={handleGenerateAllMissing} disabled={generatingAll}>
+            {generatingAll ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <QrCode size={15} aria-hidden="true" />}
+            {generatingAll ? 'Generating?' : 'Generate missing QR'}
           </button>
-          <button
-            onClick={handleGenerateAllMissing}
-            disabled={generatingAll}
-            className="inline-flex items-center h-11 px-5 bg-white border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-60"
-          >
-            {generatingAll ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <QrCode className="w-4 h-4 mr-2" />
-            )}
-            Generate Missing QR
-          </button>
-          <button
-            onClick={exportToCSV}
-            className="inline-flex items-center h-11 px-5 bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg font-semibold text-sm transition-colors"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </button>
+          <button className="sd-button" onClick={exportToCSV}><Download size={15} aria-hidden="true" />Export CSV</button>
         </div>
-      </div>
+      </header>
 
-      {/* Filters and View Toggle */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, Passbook No., or email..."
-                className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-              />
-            </div>
-          </div>
+      <AttendanceMetricGrid label="Loaded member QR overview" busy={loading} items={[
+        ['Members', loading ? '?' : members.length.toLocaleString(), 'Loaded member records', UserPlus],
+        ['Active QR codes', loading ? '?' : members.filter(member => qrState(member) === 'active').length.toLocaleString(), 'Among loaded members', CheckCircle2],
+        ['Inactive QR codes', loading ? '?' : members.filter(member => qrState(member) === 'inactive').length.toLocaleString(), 'Among loaded members', Ban],
+        ['Not generated', loading ? '?' : members.filter(member => qrState(member) === 'none').length.toLocaleString(), 'Among loaded members', QrCode],
+      ]} />
 
-          <div className="flex gap-3">
-            <select
-              value={selectedBarangay}
-              onChange={(e) => setSelectedBarangay(e.target.value)}
-              className="h-10 px-4 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none"
-            >
-              {barangays.map((barangay) => (
-                <option key={barangay} value={barangay}>
-                  {barangay}
-                </option>
-              ))}
-            </select>
+      <section className="amq-filters" aria-labelledby="amq-filter-title">
+        <div className="amq-filter-heading"><h2 id="amq-filter-title">Find a member</h2><button className="sd-link" disabled={!hasActiveFilters} onClick={resetFilters}>Reset filters</button></div>
+        <div className="amq-filter-grid">
+          <label>Search members<span className="amq-search"><Search size={16} aria-hidden="true" /><input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Name, Passbook No., or email" /></span></label>
+          <label>Barangay<select value={selectedBarangay} onChange={e => setSelectedBarangay(e.target.value)}>{barangays.map(barangay => <option key={barangay} value={barangay}>{barangay === 'All' ? 'All barangays' : barangay}</option>)}</select></label>
+        </div>
+      </section>
 
-            <div className="flex border border-slate-200 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setViewMode("table")}
-                className={`px-3 h-10 ${viewMode === "table" ? "bg-slate-100" : "bg-white"}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`px-3 h-10 border-l border-slate-200 ${viewMode === "grid" ? "bg-slate-100" : "bg-white"}`}
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+      <div className="amq-register-heading">
+        <div><h2>Member register</h2><p>{filteredMembers.length.toLocaleString()} of {members.length.toLocaleString()} loaded members</p></div>
+        <div className="amq-view-toggle" role="group" aria-label="Member display">
+          <button onClick={() => setViewMode('table')} aria-pressed={viewMode === 'table'}><List size={15} aria-hidden="true" />Table</button>
+          <button onClick={() => setViewMode('grid')} aria-pressed={viewMode === 'grid'}><Grid size={15} aria-hidden="true" />Grid</button>
         </div>
       </div>
+      {!loading && totalFilteredMembers === 0 && <div className="amq-empty" role="status"><strong>{hasActiveFilters ? 'No members match these filters' : 'No members found'}</strong><p>{hasActiveFilters ? 'Try another name, passbook number, email, or barangay.' : 'Member records will appear here when available.'}</p>{hasActiveFilters && <button className="sd-button" onClick={resetFilters}>Reset filters</button>}</div>}
 
       {/* Members Display */}
       {loading ? (
@@ -646,27 +604,27 @@ const MemberManagement = () => {
           <div className="w-8 h-8 border-4 border-slate-200 border-t-green-500 rounded-full animate-spin"></div>
         </div>
       ) : viewMode === "table" ? (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="sd-panel amq-register">
+          <div className="amq-table-scroll" role="region" aria-label="Member QR records" tabIndex={0}>
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Member
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Contact
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Barangay
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     QR Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -722,7 +680,7 @@ const MemberManagement = () => {
                         ) : (
                           <button
                             onClick={() => setManagingMember(member)}
-                            className="inline-flex items-center gap-1.5 text-green-700 hover:text-green-900 font-bold"
+                            className="sd-button" aria-haspopup="dialog" aria-label={`Manage QR for ${getMemberDisplayName(member)}`}
                           >
                             <QrCode className="w-4 h-4" />
                             {qrState(member) === "none"
@@ -743,12 +701,12 @@ const MemberManagement = () => {
           {paginatedMembers.map((member) => {
             const isDeceased = member?.status === "deceased";
             return (
-              <motion.div
+              <Motion.div
                 key={member._id}
                 layout
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 hover:border-green-200 transition-all"
+                className="amq-member-card"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex flex-col items-end gap-1.5">
@@ -789,21 +747,21 @@ const MemberManagement = () => {
                 ) : (
                   <button
                     onClick={() => setManagingMember(member)}
-                    className="w-full h-10 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                    className="sd-button sd-primary w-full" aria-haspopup="dialog" aria-label={`Manage QR for ${getMemberDisplayName(member)}`}
                     style={{ backgroundColor: "#2D7A3E" }}
                   >
                     <QrCode className="w-4 h-4" />
                     {qrState(member) === "none" ? "Generate QR" : "Manage QR"}
                   </button>
                 )}
-              </motion.div>
+              </Motion.div>
             );
           })}
         </div>
       )}
 
       {!loading && totalFilteredMembers > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="amq-pagination">
           <PaginationInfo currentPage={page} limit={limit} total={totalFilteredMembers} />
           <Pagination
             currentPage={page}
@@ -830,18 +788,18 @@ const MemberManagement = () => {
       <AnimatePresence>
         {isImportModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => !uploadProgress && setIsImportModalOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative z-10 border"
+              className="amq-dialog amq-import-dialog bg-white w-full max-w-md shadow-2xl relative z-10 border"
               style={{ borderColor: "#2D7A3E" }}
             >
               <div className="p-8">
@@ -857,7 +815,7 @@ const MemberManagement = () => {
                   {!uploadProgress && (
                     <button
                       onClick={() => setIsImportModalOpen(false)}
-                      className="rounded-full hover:bg-slate-100 p-2"
+                      className="rounded-full hover:bg-slate-100 p-2" aria-label="Close import dialog"
                     >
                       <XCircle className="w-6 h-6 text-slate-300" />
                     </button>
@@ -908,7 +866,7 @@ const MemberManagement = () => {
                         type="file"
                         accept=".csv"
                         onChange={handleFileSelect}
-                        className="hidden"
+                        className="sr-only"
                         id="csv-upload"
                       />
                       <label
@@ -941,7 +899,7 @@ const MemberManagement = () => {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>

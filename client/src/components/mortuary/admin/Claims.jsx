@@ -1,8 +1,12 @@
 import useUrlState from '../../../hooks/useUrlState';
 import { loadAllPages } from '../../../utils/loadAllPages';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle, ChevronRight } from 'lucide-react';
-import StatCard from '../shared/StatCard';
+import { Search, Plus, FileText, Clock, CheckCircle2, Banknote, XCircle, ChevronRight, RefreshCw } from 'lucide-react';
+import '../../attendance/shared/AttendanceMetricGrid.css';
+import '../treasurer/MemberBalances.css';
+import '../treasurer/Claims.css';
+import '../treasurer/Dashboard.css';
+import './Claims.css';
 import { claimAPI, mortuaryMemberAPI, mortuaryDashboardAPI } from '../../../services/api';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { getClaimStatusMeta, getClaimAction, CLAIM_STATUS_ORDER } from '../shared/claimMeta';
@@ -105,90 +109,58 @@ export default function Claims({ user }) {
     );
   }
 
-  return (
-    <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Claims Management</h1>
-          <p className="text-slate-500 text-sm mt-1">Register, verify, and process death benefit claims.</p>
-        </div>
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={() => setShowRegisterModal(true)}
-          className="inline-flex items-center justify-center gap-2 h-11 px-5 text-sm font-semibold bg-coop-green hover:bg-coop-darkGreen text-white rounded-xl shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green focus-visible:ring-offset-2 transition-all shrink-0 w-full sm:w-auto"
-        >
-          <Plus className="w-4 h-4" /> Register New Claim
-        </button>
-      </div>
+  const hasActiveFilters = search !== '' || statusFilter !== 'all';
+  const updateFilter = (setter, value) => { setter(value); setPage(1); };
+  const clearFilters = () => { setSearch(''); setStatusFilter('all'); setPage(1); };
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STAT_TILES.map(({ status, icon, color }) => {
+  return (
+    <div className="mortuary-claims admin-claims">
+      <header className="td-header">
+        <div>
+          <p className="td-eyebrow">Mortuary management / Claims</p>
+          <h1>Claims management</h1>
+          <p className="td-description">Register, verify, and process death benefit claims.</p>
+        </div>
+        <div className="td-header-actions">
+          <button className="td-button" onClick={handleChanged} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing?' : 'Refresh'}</button>
+          <button type="button" aria-haspopup="dialog" onClick={() => setShowRegisterModal(true)} className="td-button td-primary"><Plus size={15} aria-hidden="true" />Register new claim</button>
+        </div>
+      </header>
+
+      <section className="attendance-metric-grid" aria-label="Claim status overview">
+        {STAT_TILES.map(({ status, icon }) => {
           const meta = getClaimStatusMeta(status);
           return (
-            <StatCard
-              key={status}
-              title={meta.label}
-              value={claimCounts[status] ?? 0}
-              icon={icon}
-              color={color}
-              // These double as quick filters, which was discoverable only by
-              // hovering — spell it out on the card itself.
-              subtitle={statusFilter === status ? 'Filtering by this — click to clear' : 'Click to filter'}
-              active={statusFilter === status}
-              onClick={() => setStatusFilter(statusFilter === status ? 'all' : status)}
-            />
+            <button key={status} className="attendance-metric ac-metric" aria-pressed={statusFilter === status} onClick={() => updateFilter(setStatusFilter, statusFilter === status ? 'all' : status)}>
+              <div className="attendance-metric-heading"><p>{meta.label}</p><span className="attendance-metric-icon">{React.createElement(icon, { size: 15, 'aria-hidden': true })}</span></div>
+              <strong>{(claimCounts[status] ?? 0).toLocaleString()}</strong>
+              <span>{statusFilter === status ? 'Selected ? Click to clear' : 'Click to filter claims'}</span>
+            </button>
           );
         })}
-      </div>
+      </section>
 
-      {/* Filter bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="relative flex-1 w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search by claim ID, member, or beneficiary"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-10 pl-9 pr-4 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
-            />
-          </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-4 text-sm border border-slate-200 bg-white rounded-lg focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none"
-          >
-            <option value="all">All statuses</option>
-            {CLAIM_STATUS_ORDER.map((status) => (
-              <option key={status} value={status}>{getClaimStatusMeta(status).label}</option>
-            ))}
-          </select>
-
-          {(search || statusFilter !== 'all') && (
-            <button
-              onClick={() => { setSearch(''); setStatusFilter('all'); }}
-              className="text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-            >
-              Clear filters
-            </button>
-          )}
+      <section className="mb-filters" aria-labelledby="ac-filter-title">
+        <div className="mb-filter-heading"><h2 id="ac-filter-title">Find a claim</h2><button className="mb-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
+        <div className="mb-filter-grid ac-filter-grid">
+          <label>Search claims<span className="mb-search"><Search size={16} aria-hidden="true" /><input value={search} onChange={e => updateFilter(setSearch, e.target.value)} placeholder="Claim ID, member, or beneficiary" /></span></label>
+          <label>Claim status<select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}><option value="all">All statuses</option>{CLAIM_STATUS_ORDER.map(status => <option key={status} value={status}>{getClaimStatusMeta(status).label}</option>)}</select></label>
         </div>
-      </div>
+      </section>
 
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <section className="mc-register" aria-labelledby="ac-register-title" aria-busy={loading}>
+        <div className="mb-register-heading"><div><h2 id="ac-register-title">Claim register</h2><p>Review requirements, track progress, and open a claim to take action.</p></div></div>
+        <div className="mb-scope"><span role="status">{loading ? 'Loading claims?' : error ? 'Claims unavailable' : `${pagination.total.toLocaleString()} matching claims`}</span><span>Highlighted rows need admin action</span></div>
+        <div className="mc-table-scroll" role="region" aria-label="Claim register" tabIndex={0}>
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Claim ID</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Member</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Beneficiary</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Date Filed</th>
-              <th className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-              <th className="text-right px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Action</th>
+              <th scope="col" className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Claim ID</th>
+              <th scope="col" className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Member</th>
+              <th scope="col" className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Beneficiary</th>
+              <th scope="col" className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Date Filed</th>
+              <th scope="col" className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
+              <th scope="col" className="text-right px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -196,6 +168,8 @@ export default function Claims({ user }) {
               <tr>
                 <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">Loading claims...</td>
               </tr>
+            ) : error ? (
+              <tr><td colSpan={6}><div className="mb-empty"><p role="alert">{error}</p><button className="td-button" onClick={loadClaims}>Try again</button></div></td></tr>
             ) : claims.length > 0 ? (
               claims.map((claim) => {
                 const meta = getClaimStatusMeta(claim.status);
@@ -227,7 +201,7 @@ export default function Claims({ user }) {
                       {new Date(claim.dateFiled).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border ${meta.bg} ${meta.text} ${meta.border}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md border ${meta.bg} ${meta.text} ${meta.border}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                         {meta.label}
                       </span>
@@ -246,11 +220,7 @@ export default function Claims({ user }) {
                         type="button"
                         onClick={(e) => { e.stopPropagation(); open(); }}
                         aria-label={`${action.label} for the claim of ${claim.memberName}`}
-                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/40 ${
-                          needsAdmin
-                            ? 'bg-coop-green hover:bg-coop-darkGreen text-white'
-                            : 'border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-coop-green'
-                        }`}
+                        className={`td-button ${needsAdmin ? 'td-primary' : ''}`}
                       >
                         {action.label}
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -264,15 +234,17 @@ export default function Claims({ user }) {
                 <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">
                   <div className="flex flex-col items-center gap-2">
                     <FileText className="w-8 h-8 text-slate-300" />
-                    {error || 'No claims found.'}
+                    <strong>{hasActiveFilters ? 'No claims match these filters' : 'No claims found'}</strong>
+                    {hasActiveFilters && <button className="td-button" onClick={clearFilters}>Reset filters</button>}
                   </div>
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-        {pagination.total > 0 && (
-          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+        </div>
+        {!loading && !error && pagination.total > 0 && (
+          <div className="mc-pagination">
             <PaginationInfo currentPage={page} limit={10} total={pagination.total} />
             <Pagination
               currentPage={page}
@@ -283,7 +255,7 @@ export default function Claims({ user }) {
             />
           </div>
         )}
-      </div>
+      </section>
 
       <RegisterClaimModal
         isOpen={showRegisterModal}
