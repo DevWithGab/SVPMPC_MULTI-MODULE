@@ -37,7 +37,6 @@
 .amq-dialog .rounded-xl { border-radius: 5px; }
 .amq-dialog .uppercase { text-transform: none; letter-spacing: normal; }
 .amq-dialog input:focus-visible + label { outline: 2px solid #2d7a3e; outline-offset: 3px; }
-.amq-import-dialog > div { padding: 24px; }
 @media (max-width: 640px) {
   .amq-filter-grid { grid-template-columns: minmax(0, 1fr); }
   .amq-filters, .amq-pagination, .amq-member-card { padding-inline: 16px; }

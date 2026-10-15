@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   UserPlus,
-  Upload,
   Printer,
   Search,
   Grid,
@@ -389,9 +388,6 @@ const MemberManagement = () => {
   const [viewMode, setViewMode] = useState("table"); // 'table' or 'grid'
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBarangay, setSelectedBarangay] = useState("All");
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(null);
   const [managingMember, setManagingMember] = useState(null);
   const [generatingAll, setGeneratingAll] = useState(false);
 
@@ -467,38 +463,6 @@ const MemberManagement = () => {
   const getMemberDisplayName = (member) =>
     String(member?.memberName || member?.name || "Unknown Member");
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type === "text/csv") {
-      setUploadFile(file);
-    } else {
-      alert("Please select a valid CSV file");
-    }
-  };
-
-  const handleImportCSV = async () => {
-    if (!uploadFile) return;
-
-    setUploadProgress("uploading");
-    try {
-      const response = await memberAPI.uploadMembers(uploadFile);
-
-      if (response.members) {
-        setUploadProgress("success");
-        setTimeout(() => {
-          setIsImportModalOpen(false);
-          setUploadFile(null);
-          setUploadProgress(null);
-          fetchMembers();
-        }, 2000);
-      }
-    } catch (error) {
-      console.error("Error importing members:", error);
-      setUploadProgress("error");
-      alert("Failed to import members. Please check the CSV format.");
-    }
-  };
-
   const handleGenerateAllMissing = async () => {
     setGeneratingAll(true);
     try {
@@ -565,7 +529,6 @@ const MemberManagement = () => {
           <p className="sd-description">Generate, print, and manage QR codes used for attendance scanning.</p>
         </div>
         <div className="amq-header-actions">
-          <button className="sd-button" onClick={() => setIsImportModalOpen(true)} aria-haspopup="dialog"><Upload size={15} aria-hidden="true" />Import CSV</button>
           <button className="sd-button sd-primary" onClick={handleGenerateAllMissing} disabled={generatingAll}>
             {generatingAll ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <QrCode size={15} aria-hidden="true" />}
             {generatingAll ? 'Generating?' : 'Generate missing QR'}
@@ -784,125 +747,6 @@ const MemberManagement = () => {
         )}
       </AnimatePresence>
 
-      {/* Import CSV Modal */}
-      <AnimatePresence>
-        {isImportModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <Motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !uploadProgress && setIsImportModalOpen(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <Motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="amq-dialog amq-import-dialog bg-white w-full max-w-md shadow-2xl relative z-10 border"
-              style={{ borderColor: "#2D7A3E" }}
-            >
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900 tracking-tight uppercase">
-                      Import Members
-                    </h3>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mt-1">
-                      Upload CSV file
-                    </p>
-                  </div>
-                  {!uploadProgress && (
-                    <button
-                      onClick={() => setIsImportModalOpen(false)}
-                      className="rounded-full hover:bg-slate-100 p-2" aria-label="Close import dialog"
-                    >
-                      <XCircle className="w-6 h-6 text-slate-300" />
-                    </button>
-                  )}
-                </div>
-
-                {uploadProgress === "success" ? (
-                  <div className="text-center py-8">
-                    <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                    <p className="text-lg font-bold text-slate-900">
-                      Import Successful!
-                    </p>
-                    <p className="text-sm text-slate-500 mt-2">
-                      Members have been added to the system
-                    </p>
-                  </div>
-                ) : uploadProgress === "error" ? (
-                  <div className="text-center py-8">
-                    <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <p className="text-lg font-bold text-slate-900">
-                      Import Failed
-                    </p>
-                    <p className="text-sm text-slate-500 mt-2">
-                      Please check the CSV format and try again
-                    </p>
-                    <button
-                      onClick={() => setUploadProgress(null)}
-                      className="mt-4 px-6 py-2 bg-slate-100 rounded-xl font-bold text-sm"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                ) : uploadProgress === "uploading" ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 border-4 border-slate-200 border-t-green-500 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-lg font-bold text-slate-900">
-                      Importing Members...
-                    </p>
-                    <p className="text-sm text-slate-500 mt-2">
-                      Please wait while we process your file
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center">
-                      <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={handleFileSelect}
-                        className="sr-only"
-                        id="csv-upload"
-                      />
-                      <label
-                        htmlFor="csv-upload"
-                        className="cursor-pointer text-sm font-bold text-slate-600 hover:text-slate-900"
-                      >
-                        {uploadFile
-                          ? uploadFile.name
-                          : "Click to select CSV file"}
-                      </label>
-                    </div>
-
-                    <div className="pt-4 flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setIsImportModalOpen(false)}
-                        className="flex-1 h-14 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-900 hover:bg-slate-50"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleImportCSV}
-                        disabled={!uploadFile}
-                        className="flex-1 h-14 rounded-xl text-white font-bold text-xs uppercase tracking-wider shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ backgroundColor: "#2D7A3E" }}
-                      >
-                        Import Members
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
