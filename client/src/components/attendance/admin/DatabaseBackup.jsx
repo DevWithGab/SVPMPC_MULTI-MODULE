@@ -234,54 +234,69 @@ export default function DatabaseBackup({
         ['Attendance records', attendanceLogs.length.toLocaleString(), 'Attendance logs available to export', Activity],
       ]} />
 
-      <section className="sd-panel aab-full-backup" aria-labelledby="aab-full-title">
-        <div className="aab-full-description">
-          <span className="aab-icon"><Database size={20} aria-hidden="true" /></span>
-          <div>
-            <h2 id="aab-full-title">Complete backup</h2>
-            <p>Save members, events, and attendance records together in one JSON file.</p>
-            <span className="sd-secondary">Keep this file in a secure location. Upload it below when you need to restore.</span>
-          </div>
-        </div>
-        <button type="button" onClick={downloadFullBackup} className="sd-button sd-primary">
-          <FileText size={15} aria-hidden="true" /> Download JSON backup
-        </button>
-      </section>
-
-      <section className="sd-panel aab-exports" aria-labelledby="aab-exports-title">
-        <div className="sd-panel-heading">
-          <div>
-            <h2 id="aab-exports-title">Individual exports</h2>
-            <p>Download CSV files for review or reporting. Use a complete JSON backup to restore data.</p>
-          </div>
-        </div>
-        <div className="aab-export-list">
+      <section aria-labelledby="aab-backup-title">
+        <h2 id="aab-backup-title" className="aab-section-title">Backup</h2>
+        <div className="aab-options">
           {[
-            ['Members', 'Member profiles and contact details', members.length, Users, downloadMembersCSV],
-            ['Events', 'Event schedules, locations, and statuses', events.length, Calendar, downloadEventsCSV],
-            ['Attendance logs', 'Member attendance and scan records', attendanceLogs.length, Activity, downloadAttendanceCSV],
+            ['Members Database', 'Export all member records in CSV format', members.length, Users, downloadMembersCSV],
+            ['Events', 'Export all event records in CSV format', events.length, Calendar, downloadEventsCSV],
+            ['Attendance Logs', 'Export all attendance records in CSV format', attendanceLogs.length, Activity, downloadAttendanceCSV],
           ].map(([title, description, count, Icon, download]) => (
-            <div className="aab-export-row" key={title}>
-              <span className="aab-icon">{React.createElement(Icon, { size: 17, 'aria-hidden': true })}</span>
-              <div className="aab-export-description"><h3>{title}</h3><p>{description}</p></div>
-              <span className="aab-record-count">{count.toLocaleString()} records</span>
-              <button type="button" className="sd-button" onClick={download} aria-label={`Download ${title.toLowerCase()} CSV`}>
-                <FileText size={15} aria-hidden="true" /> Download CSV
-              </button>
+            <div className="aab-card" key={title}>
+              <div className="aab-card-heading">
+                <div className="aab-icon">{React.createElement(Icon, { size: 18, 'aria-hidden': true })}</div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="aab-card-title">{title}</h3>
+                  <p className="text-sm text-slate-500 mt-1">{description}</p>
+                </div>
+              </div>
+              <div className="space-y-2.5 mb-6 text-sm">
+                <div className="flex items-center justify-between"><span className="text-slate-500">Total Records</span><span className="font-semibold text-slate-900">{count.toLocaleString()}</span></div>
+                <div className="flex items-center justify-between"><span className="text-slate-500">Format</span><span className="font-semibold text-slate-900">CSV</span></div>
+              </div>
+              <button type="button" onClick={download} className="sd-button aab-download" aria-label={`Download ${title.toLowerCase()} CSV`}><FileText size={16} aria-hidden="true" />Download CSV</button>
             </div>
           ))}
+          <div className="aab-card">
+            <div className="aab-card-heading">
+              <div className="aab-icon"><Database size={18} aria-hidden="true" /></div>
+              <div className="flex-1 min-w-0"><h3 className="aab-card-title">Complete Backup</h3><p className="text-sm text-slate-500 mt-1">Full export in JSON — restorable from below</p></div>
+            </div>
+            <div className="space-y-2.5 mb-6 text-sm">
+              {[
+                ['Members', members.length],
+                ['Events', events.length],
+                ['Attendance records', attendanceLogs.length],
+              ].map(([label, count]) => (
+                <div className="flex items-center justify-between" key={label}><span className="text-slate-500">{label}</span><span className="font-semibold text-slate-900">{count.toLocaleString()}</span></div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 text-center mt-auto mb-2">Save this file somewhere safe and upload it below when you need to restore.</p>
+            <button type="button" onClick={downloadFullBackup} className="sd-button sd-primary aab-download"><FileText size={16} aria-hidden="true" />Download JSON Backup</button>
+          </div>
         </div>
       </section>
 
       {/* Restore */}
-      <section className="sd-panel aab-restore" aria-labelledby="aab-restore-title" aria-busy={restoring}>
-        <div className="sd-panel-heading">
-          <div>
-            <h2 id="aab-restore-title">Restore from backup</h2>
-            <p>Select a complete JSON backup, review its contents, and confirm the restore.</p>
+      <div>
+        <h2 className="aab-section-title">
+          Restore
+        </h2>
+        <div className="aab-restore-panel" aria-busy={restoring}>
+          <div className="aab-card-heading">
+            <div className="aab-icon">
+              <Upload className="w-6 h-6 text-slate-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="aab-card-title">
+                Restore from Backup
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Upload a "Complete Backup" .json file to restore
+                members, events, and attendance records.
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="aab-restore-body">
 
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-5 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -293,29 +308,31 @@ export default function DatabaseBackup({
             </p>
           </div>
 
-          <div className="aab-upload">
+          <div className="aab-file-picker">
             <input
               type="file"
               accept="application/json,.json"
               onChange={handleFileSelect}
-              className="aab-file-input"
-              id="restore-upload"
+              className="sr-only"
+              aria-describedby="aab-file-help"
+              id="attendance-restore-upload"
               disabled={restoring}
             />
             <label
-              htmlFor="restore-upload"
+              htmlFor="attendance-restore-upload"
               className="aab-file-label"
             >
-              <Upload size={22} aria-hidden="true" />
-              <strong>{restoreFile ? restoreFile.name : "Choose a JSON backup file"}</strong>
-              <span>{restoring ? "Restoring records. Please wait." : "Select a .json file exported from Complete backup."}</span>
+              {restoreFile
+                ? restoreFile.name
+                : "Click to select a backup .json file"}
             </label>
+            <p id="aab-file-help">Select a JSON backup to preview its records before confirming restore.</p>
           </div>
 
           {parseError && (
-            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4 flex items-start gap-2.5">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4 flex items-start gap-2.5">
               <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700">{parseError}</p>
+              <p className="text-xs text-red-700" role="alert">{parseError}</p>
             </div>
           )}
 
@@ -329,19 +346,13 @@ export default function DatabaseBackup({
                   <span>{pendingRestore.members.length} members</span>
                 )}
                 {Array.isArray(pendingRestore.events) && (
-                  <span>{pendingRestore.events.length} events</span>
-                )}
-                {Array.isArray(
-                  pendingRestore.attendanceLogs || pendingRestore.attendance,
-                ) && (
                   <span>
-                    {
-                      (
-                        pendingRestore.attendanceLogs ||
-                        pendingRestore.attendance
-                      ).length
-                    }{" "}
-                    attendance records
+                    {pendingRestore.events.length} events
+                  </span>
+                )}
+                {Array.isArray((pendingRestore.attendanceLogs || pendingRestore.attendance)) && (
+                  <span>
+                    {(pendingRestore.attendanceLogs || pendingRestore.attendance).length} attendance records
                   </span>
                 )}
               </div>
@@ -350,7 +361,7 @@ export default function DatabaseBackup({
                   type="button"
                   onClick={cancelRestore}
                   disabled={restoring}
-                  className="sd-button"
+                  className="sd-button flex-1"
                 >
                   Cancel
                 </button>
@@ -358,7 +369,7 @@ export default function DatabaseBackup({
                   type="button"
                   onClick={confirmRestore}
                   disabled={restoring}
-                  className="sd-button sd-primary"
+                  className="sd-button aab-confirm flex-1"
                 >
                   {restoring ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -372,9 +383,9 @@ export default function DatabaseBackup({
           )}
 
           {restoreResult?.summary && (
-            <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-start gap-2.5">
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-coop-green shrink-0 mt-0.5" />
-              <div className="text-xs text-green-800 space-y-1">
+              <div className="text-xs text-green-800 space-y-1" role="status">
                 <p className="font-bold">Restore complete.</p>
                 {summaryCounts("members") && (
                   <p>Members: {summaryCounts("members")}</p>
@@ -390,22 +401,67 @@ export default function DatabaseBackup({
           )}
 
           {restoreResult?.error && (
-            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
               <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700">{restoreResult.error}</p>
+              <p className="text-xs text-red-700" role="alert">{restoreResult.error}</p>
             </div>
           )}
         </div>
-      </section>
+      </div>
 
-      <aside className="aab-guidance" aria-labelledby="aab-guidance-title">
-        <h2 id="aab-guidance-title">Backup best practices</h2>
-        <div>
-          <p><strong>Keep backups current</strong><span>Download a backup weekly or after major data changes.</span></p>
-          <p><strong>Store copies securely</strong><span>Keep multiple copies in separate, secure locations.</span></p>
-          <p><strong>Check recovery</strong><span>Periodically test a backup in a test environment.</span></p>
+      {/* Backup Instructions */}
+      <div className="aab-guidance">
+        <div className="flex items-start gap-4">
+          <div className="aab-icon">
+            <AlertTriangle className="w-6 h-6 text-amber-700" />
+          </div>
+          <div className="flex-1">
+            <h3 className="aab-card-title mb-2">
+              Backup Best Practices
+            </h3>
+            <ul className="space-y-2 text-sm text-slate-600">
+              <li className="flex items-start gap-2">
+                <span className="text-coop-green font-bold mt-0.5">•</span>
+                <span>
+                  <strong className="font-bold text-slate-900">
+                    Regular Backups:
+                  </strong>{" "}
+                  Download backups weekly or after major data changes
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-coop-green font-bold mt-0.5">•</span>
+                <span>
+                  <strong className="font-bold text-slate-900">
+                    Secure Storage:
+                  </strong>{" "}
+                  Store backup files in a secure location (external drive, cloud
+                  storage)
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-coop-green font-bold mt-0.5">•</span>
+                <span>
+                  <strong className="font-bold text-slate-900">
+                    Multiple Copies:
+                  </strong>{" "}
+                  Keep at least 2-3 backup copies in different locations
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-coop-green font-bold mt-0.5">•</span>
+                <span>
+                  <strong className="font-bold text-slate-900">
+                    Test Recovery:
+                  </strong>{" "}
+                  Periodically restore a backup into a test environment to
+                  confirm it actually works
+                </span>
+              </li>
+            </ul>
+          </div>
         </div>
-      </aside>
+      </div>
     </div>
   );
 }

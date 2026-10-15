@@ -206,14 +206,7 @@ export default function ClaimIncomeReport() {
         )}
       </div>
 
-      {maxBenefit != null && (
-        <p className="text-xs text-slate-400">
-          Benefit cap is {peso(maxBenefit)} per claim. A claim that collects more than the cap releases the cap and
-          retains the rest as income; one that collects less releases everything and retains nothing. Collected money is
-          held until the disbursement is recorded — on release it splits into the benefit and the cooperative's income,
-          so the held figure returns to zero.
-        </p>
-      )}
+
     </div>
   );
 }
