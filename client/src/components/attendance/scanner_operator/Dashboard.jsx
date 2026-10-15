@@ -1,226 +1,130 @@
-import {
-  Activity,
-  ArrowRight,
-  CalendarDays,
-  CheckCircle2,
-  History,
-  QrCode,
-  Zap,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import { StatCard } from "../shared";
-import {
-  formatDateTime,
-  formatLongDate,
-  getManilaHour,
-} from "../../../utils/date";
+﻿import { Activity, ArrowRight, CalendarDays, CheckCircle2, History, MapPin, QrCode, Zap } from "lucide-react";
+import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import { formatDate, formatDateTime, formatLongDate, formatTimeRange, getManilaHour } from "../../../utils/date";
+import "../secretary/Dashboard.css";
+import "./Dashboard.css";
 
-export default function Dashboard({
-  user,
-  attendanceLogs,
-  events,
-  setActiveTab,
-}) {
-  const activeEventCount = Array.isArray(events)
-    ? events.filter((event) => event?.status === "active").length
-    : 0;
-  const scanCount = attendanceLogs?.length ?? 0;
-  const hasActiveEvent = activeEventCount > 0;
-  const scannerStatusLabel = hasActiveEvent ? "Ready" : "Standby";
+const getTimestamp = (record) => record.timestamp || record.date || record.scanTime || record.createdAt || "";
+const timestampMs = (record) => new Date(getTimestamp(record)).getTime() || 0;
 
-  const greeting = (() => {
-    const hour = getManilaHour();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  })();
-
-  const today = formatLongDate();
+export default function Dashboard({ user, attendanceLogs = [], events = [], setActiveTab }) {
+  const activeEvents = Array.isArray(events) ? events.filter(event => event?.status === "active") : [];
+  const records = Array.isArray(attendanceLogs) ? attendanceLogs : [];
+  const recentRecords = [...records].sort((a, b) => timestampMs(b) - timestampMs(a)).slice(0, 5);
+  const hasActiveEvent = activeEvents.length > 0;
+  const hour = getManilaHour();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header — same title style, size, and color as every other page */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="secretary-dashboard scanner-operator-dashboard">
+      <header className="sd-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            {greeting}, {user?.name || "Operator"}
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Scan member QR codes at the door to record attendance for
-            today&apos;s event · {today}
-          </p>
+          <p className="sd-eyebrow">Attendance management / Scanner operator</p>
+          <h1>Scanner dashboard</h1>
+          <p className="sd-description">{greeting}, {user?.name || "Operator"}. Scan member QR codes and monitor event attendance.</p>
+          <p className="sod-date">{formatLongDate()} &middot; Philippine time (PHT)</p>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("scanner")}
-          disabled={!hasActiveEvent}
-          className={`inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold shrink-0 transition-colors ${
-            hasActiveEvent
-              ? "bg-coop-green hover:bg-coop-darkGreen text-white"
-              : "bg-slate-100 text-slate-400 cursor-not-allowed"
-          }`}
-        >
-          <QrCode className="w-4 h-4" />
-          {hasActiveEvent ? "Start Scanning" : "No Active Event"}
-          <ArrowRight className="w-4 h-4" />
+        <button type="button" onClick={() => setActiveTab("scanner")} disabled={!hasActiveEvent} className="sd-button sd-primary">
+          <QrCode size={16} aria-hidden="true" />
+          {hasActiveEvent ? "Start scanning" : "No active event"}
+          <ArrowRight size={15} aria-hidden="true" />
         </button>
-      </div>
+      </header>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-in">
-        <StatCard
-          title="Active Events"
-          value={activeEventCount}
-          subtitle={activeEventCount > 0 ? "Ready for scanning" : "None active"}
-          icon={CalendarDays}
-        />
-        <StatCard
-          title="Scans This Session"
-          value={scanCount}
-          subtitle={scanCount > 0 ? "Recorded so far" : "No scans yet"}
-          icon={CheckCircle2}
-        />
-        <StatCard
-          title="Scanner Status"
-          value={scannerStatusLabel}
-          subtitle={hasActiveEvent ? "Scanning available" : "Awaiting event"}
-          icon={Zap}
-          accent={hasActiveEvent}
-        />
-      </div>
+      <AttendanceMetricGrid label="Scanner overview" items={[
+        ['Active events', activeEvents.length.toLocaleString(), hasActiveEvent ? 'Available for attendance scanning' : 'No events currently active', CalendarDays],
+        ['Attendance records', records.length.toLocaleString(), 'Records loaded in the attendance view', CheckCircle2],
+        ['Scanning availability', hasActiveEvent ? 'Ready' : 'Standby', hasActiveEvent ? 'An active event is available' : 'Waiting for an active event', Zap],
+      ]} />
 
-      {/* Quick links to the fuller attendance views */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <button
-          type="button"
-          onClick={() => setActiveTab("live")}
-          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-coop-green/40 hover:bg-green-50/40"
-        >
-          <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
-            <Activity className="w-5 h-5 text-coop-green" />
+      <section className="sd-panel sod-events" aria-labelledby="sod-events-title">
+        <div className="sd-panel-heading">
+          <div>
+            <h2 id="sod-events-title">Active event sessions</h2>
+            <p>{hasActiveEvent ? 'Choose an active event in the scanner to begin recording attendance.' : 'Scanning becomes available when an approved event is active.'}</p>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-900">
-              Attendance Summary
-            </p>
-            <p className="text-xs text-slate-400 truncate">
-              See everyone checked in to the active event
-            </p>
+          <span className={`sd-status ${hasActiveEvent ? 'sd-status-active' : 'sd-status-neutral'}`}>
+            {hasActiveEvent ? `${activeEvents.length} active` : 'Standby'}
+          </span>
+        </div>
+        {hasActiveEvent ? (
+          <ul className="sod-event-list">
+            {activeEvents.map((event, index) => (
+              <li key={event.eventId || event._id || event.id || index}>
+                <span className="sod-icon"><CalendarDays size={17} aria-hidden="true" /></span>
+                <div>
+                  <h3>{event.eventName || event.name || 'Untitled event'}</h3>
+                  <p>
+                    {event.eventDate || event.date ? formatDate(event.eventDate || event.date) : 'Date unavailable'}
+                    {(event.startTime || event.endTime) && ` / ${formatTimeRange(event.startTime, event.endTime)} PHT`}
+                  </p>
+                </div>
+                <span className="sod-location"><MapPin size={14} aria-hidden="true" />{event.location || 'Location not specified'}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="sd-data-state">
+            <CalendarDays size={26} aria-hidden="true" />
+            <strong>No active event right now</strong>
+            <p>Check with the Secretary or Admin about the event schedule. You can still review attendance and your scan history.</p>
           </div>
-          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-        </button>
+        )}
+      </section>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("myscans")}
-          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-coop-green/40 hover:bg-green-50/40"
-        >
-          <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
-            <History className="w-5 h-5 text-coop-green" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-900">My Scans</p>
-            <p className="text-xs text-slate-400 truncate">
-              Everything you've personally scanned in
-            </p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-        </button>
-      </div>
-
-      {/* Recent Attendance */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-        <CardHeader className="border-b border-slate-100 p-5">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <CardTitle className="text-sm font-bold text-slate-900">
-                Recent Attendance
-              </CardTitle>
-              <p className="text-slate-400 text-xs mt-1">
-                Latest records from this session
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-coop-green border border-green-200">
-                {scanCount} record{scanCount === 1 ? "" : "s"}
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveTab("myscans")}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-coop-green hover:text-coop-darkGreen transition-colors"
-              >
-                View All
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-[10px] font-semibold uppercase tracking-wide">
-                  <th className="px-5 py-3">Member</th>
-                  <th className="px-5 py-3">Event</th>
-                  <th className="px-5 py-3">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 stagger-in">
-                {attendanceLogs?.length > 0 ? (
-                  attendanceLogs.slice(0, 5).map((record, index) => {
-                    const memberName =
-                      record.member_name ||
-                      record.memberName ||
-                      record.name ||
-                      "Unknown member";
-                    const eventName =
-                      record.event || record.eventName || "Unknown event";
-                    const timestamp =
-                      record.timestamp ||
-                      record.date ||
-                      record.scanTime ||
-                      record.createdAt ||
-                      "";
-                    const formattedTime = timestamp
-                      ? formatDateTime(timestamp)
-                      : "Unknown time";
-
-                    return (
-                      <tr
-                        key={record.id ?? record._id ?? index}
-                        className="hover:bg-slate-50/70 transition-colors"
-                      >
-                        <td className="px-5 py-3 font-semibold text-slate-900">
-                          {memberName}
-                        </td>
-                        <td className="px-5 py-3 text-slate-600">
-                          {eventName}
-                        </td>
-                        <td className="px-5 py-3 text-slate-400">
-                          {formattedTime}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan="3" className="px-5 py-12 text-center">
-                      <div className="flex flex-col items-center gap-2 text-slate-400">
-                        <QrCode className="w-8 h-8 text-slate-300" />
-                        <p className="font-medium">No attendance records yet</p>
-                        <p className="text-xs">
-                          Start scanning to populate this list
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
+      <section className="sd-panel sod-recent" aria-labelledby="sod-recent-title">
+        <div className="sd-panel-heading">
+          <div><h2 id="sod-recent-title">Recent attendance</h2><p>Latest records from the shared attendance view.</p></div>
+          <button type="button" className="sd-link" onClick={() => setActiveTab("live")}>
+            View attendance <ArrowRight size={14} aria-hidden="true" />
+          </button>
+        </div>
+        {recentRecords.length ? (
+          <div className="sd-table-scroll">
+            <table className="sod-attendance-table" aria-label="Recent attendance records">
+              <thead><tr><th scope="col">Member</th><th scope="col">Event</th><th scope="col">Recorded at (PHT)</th></tr></thead>
+              <tbody>
+                {recentRecords.map((record, index) => {
+                  const memberName = record.member_name || record.memberName || record.name || 'Unknown member';
+                  const eventName = record.eventName || (typeof record.event === 'string' ? record.event : record.event?.eventName || record.event?.name) || 'Unknown event';
+                  const timestamp = getTimestamp(record);
+                  const formattedTime = timestamp && !Number.isNaN(new Date(timestamp).getTime()) ? formatDateTime(timestamp) : 'Unknown time';
+                  return (
+                    <tr key={record.id ?? record._id ?? index}>
+                      <td><strong>{memberName}</strong></td>
+                      <td>{eventName}</td>
+                      <td>{formattedTime}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <div className="sd-data-state">
+            <QrCode size={26} aria-hidden="true" />
+            <strong>No attendance records yet</strong>
+            <p>{hasActiveEvent ? 'Start scanning member QR codes to record attendance.' : 'Attendance records will appear here once scanning begins for an active event.'}</p>
+          </div>
+        )}
+        {recentRecords.length > 0 && <p className="sd-panel-footer">Showing {recentRecords.length} of {records.length.toLocaleString()} loaded records.</p>}
+      </section>
+
+      <nav className="sod-workspace" aria-label="Scanner workspace">
+        <h2>Workspace</h2>
+        <div className="sod-shortcuts">
+          <button type="button" onClick={() => setActiveTab("live")}>
+            <span className="sod-icon"><Activity size={17} aria-hidden="true" /></span>
+            <span><strong>Live attendance</strong><small>Review check-ins and event participation.</small></span>
+            <ArrowRight size={15} aria-hidden="true" />
+          </button>
+          <button type="button" onClick={() => setActiveTab("myscans")}>
+            <span className="sod-icon"><History size={17} aria-hidden="true" /></span>
+            <span><strong>My scans</strong><small>View records you personally scanned across events.</small></span>
+            <ArrowRight size={15} aria-hidden="true" />
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

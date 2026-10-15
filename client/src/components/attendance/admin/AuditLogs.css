@@ -1,0 +1,19 @@
+.attendance-audit-logs .aal-filters { margin-bottom: 24px; }
+.aal-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; padding: 20px; }
+.aal-filter-grid label { color: #526058; font-size: 12px; font-weight: 600; }
+.aal-filter-grid :is(input, select) { min-width: 0; border-color: #cdd6cf; border-radius: 5px; padding-inline: 10px; color: #24362a; font-size: 13px; }
+.aal-filter-grid :is(input, select):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.aal-table { min-width: 760px; }
+.attendance-audit-logs .aal-table th { letter-spacing: .05em; }
+.attendance-audit-logs .aal-table td { font-size: 13px; line-height: 1.6; }
+.aal-table td:nth-child(3) { width: 45%; overflow-wrap: anywhere; }
+.aal-table td:last-child { white-space: nowrap; }
+.aal-table tbody tr:hover { background: #f8faf8; }
+.attendance-audit-logs .rounded-full { border-radius: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; }
+.aal-data-state { min-height: 240px; justify-content: center; }
+.aal-modal-backdrop { background: rgb(17 32 23 / 45%); }
+.aal-modal { border: 1px solid #dce3dd; border-radius: 6px; box-shadow: 0 20px 60px rgb(17 32 23 / 18%); overflow-wrap: anywhere; }
+.aal-modal-heading { background: #f8faf8; border-bottom: 1px solid #e2e7e3; }
+.aal-modal-heading h3 { color: #17251d; font-size: 17px; font-weight: 600; }
+@media (max-width: 1000px) { .aal-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .aal-filter-grid { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px; } }

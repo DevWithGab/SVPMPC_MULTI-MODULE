@@ -263,8 +263,9 @@ export default function LiveAttendanceList({
     [filteredAttendance, safePage],
   );
 
-  if (variant === "secretary" || variant === "admin") {
+  if (variant === "secretary" || variant === "admin" || variant === "operator") {
     return <LiveAttendanceView
+      operatorView={variant === "operator"}
       activeEvent={activeEvent}
       selectedEventLabel={selectedEventLabel}
       liveRows={liveRows}

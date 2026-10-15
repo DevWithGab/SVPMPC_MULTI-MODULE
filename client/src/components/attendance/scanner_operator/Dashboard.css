@@ -1,0 +1,32 @@
+.scanner-operator-dashboard { min-width: 0; }
+.sod-date { margin-top: 8px; color: #647069; font-size: 11px; line-height: 1.6; }
+.scanner-operator-dashboard .sd-header > button { flex-shrink: 0; }
+.sod-events { margin-bottom: 24px; }
+.sod-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #dce3dd; border-radius: 4px; background: #f8faf8; color: #52715a; }
+.sod-event-list { list-style: none; padding: 0 20px; margin: 0; }
+.sod-event-list li { display: flex; align-items: center; gap: 14px; padding-block: 20px; border-bottom: 1px solid #edf0ed; }
+.sod-event-list li:last-child { border-bottom: 0; }
+.sod-event-list li > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sod-event-list h3 { font-size: 13px; font-weight: 600; color: #24362a; }
+.sod-event-list p { margin-top: 5px; color: #647069; font-size: 12px; line-height: 1.7; }
+.sod-location { display: flex; align-items: center; gap: 6px; max-width: 35%; color: #647069; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.sod-location svg { flex-shrink: 0; }
+.sod-attendance-table { min-width: 620px; }
+.sod-attendance-table td { width: 33.333%; overflow-wrap: anywhere; color: #526058; }
+.sod-attendance-table td:first-child { color: #24362a; }
+.sod-attendance-table tbody tr:hover { background: #f8faf8; }
+.sod-workspace { margin-top: 28px; }
+.sod-workspace h2 { color: #647069; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.sod-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; margin-top: 6px; }
+.sod-shortcuts button { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 18px 0; border-bottom: 1px solid #dce3dd; color: #34453a; cursor: pointer; }
+.sod-shortcuts button > span:nth-child(2) { flex: 1; min-width: 0; }
+.sod-shortcuts strong { font-size: 13px; font-weight: 600; }
+.sod-shortcuts small { display: block; margin-top: 5px; color: #647069; font-size: 12px; line-height: 1.6; }
+.sod-shortcuts button:hover strong { color: #245e32; text-decoration: underline; }
+.sod-shortcuts svg { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .sod-event-list { padding-inline: 16px; }
+  .sod-event-list li { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: start; gap: 10px 12px; }
+  .sod-location { grid-column: 2; max-width: 100%; }
+  .sod-shortcuts { grid-template-columns: minmax(0, 1fr); }
+}

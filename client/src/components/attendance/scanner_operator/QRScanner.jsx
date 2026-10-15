@@ -33,26 +33,9 @@ import { Modal } from "../../ui/modal";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import jsQR from "jsqr";
 import { formatDate, formatTime, formatDateTime } from "../../../utils/date";
-
-const METRIC_TONE = {
-  green: "bg-green-50 border-green-100 text-coop-green",
-  amber: "bg-amber-50 border-amber-100 text-amber-600",
-  slate: "bg-slate-50 border-slate-100 text-slate-500",
-};
-
-const MetricTile = ({ icon: Icon, value, label, tone = "slate" }) => (
-  <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3">
-    <div
-      className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${METRIC_TONE[tone]}`}
-    >
-      <Icon className="w-5 h-5" />
-    </div>
-    <div className="min-w-0">
-      <p className="text-xl font-bold text-slate-900 leading-none">{value}</p>
-      <p className="text-xs text-slate-400 mt-1">{label}</p>
-    </div>
-  </div>
-);
+import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import "../secretary/Dashboard.css";
+import "./QRScanner.css";
 
 export default function QRScanner({
   user,
@@ -797,23 +780,23 @@ export default function QRScanner({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="secretary-dashboard operator-qr-scanner">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <header className="sd-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Scan Member QR Code
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="sd-eyebrow">Attendance management / Scanner operator</p>
+          <h1>Scan attendance</h1>
+          <p className="sd-description">
             Point your phone's camera at a member's QR code to record
             attendance.
           </p>
         </div>
         <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${
+          role="status"
+          className={`oqs-status sd-status ${
             hasActiveEvent
-              ? "bg-green-50 text-coop-green border-green-200"
-              : "bg-amber-50 text-amber-600 border-amber-200"
+              ? "sd-status-active"
+              : "sd-status-neutral"
           }`}
         >
           <span
@@ -821,11 +804,11 @@ export default function QRScanner({
           />
           {statusMessage}
         </span>
-      </div>
+      </header>
 
       {/* Active Event */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-        <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap">
+      <Card className="sd-panel oqs-panel">
+        <CardContent className="oqs-event-details p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
               <Calendar className="w-5 h-5 text-coop-green" />
@@ -861,12 +844,12 @@ export default function QRScanner({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="oqs-workspace">
         {/* Scanner + stats - primary focus */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-            <CardHeader className="border-b border-slate-100 p-4 sm:p-5 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <Card className="sd-panel oqs-panel">
+            <CardHeader className="oqs-panel-heading border-b border-slate-100 p-4 sm:p-5 flex-row items-center justify-between space-y-0">
+              <CardTitle className="oqs-panel-title text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Camera className="w-4 h-4 text-coop-green" />
                 Scanner
               </CardTitle>
@@ -874,6 +857,7 @@ export default function QRScanner({
                 <button
                   type="button"
                   onClick={toggleFlash}
+                  aria-pressed={flashOn}
                   disabled={!isScanning || !flashSupported}
                   title={
                     !isScanning
@@ -894,6 +878,8 @@ export default function QRScanner({
                 <button
                   type="button"
                   onClick={() => setShowHelp((prev) => !prev)}
+                  aria-expanded={showHelp}
+                  aria-controls="oqs-help"
                   className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${
                     showHelp
                       ? "text-coop-green"
@@ -908,7 +894,7 @@ export default function QRScanner({
 
             <CardContent className="p-4 sm:p-6 space-y-5">
               {showHelp && (
-                <div className="relative rounded-lg border border-green-200 bg-green-50 p-4">
+                <div id="oqs-help" className="relative rounded-lg border border-green-200 bg-green-50 p-4">
                   <button
                     type="button"
                     onClick={() => setShowHelp(false)}
@@ -1030,7 +1016,7 @@ export default function QRScanner({
                 <Button
                   onClick={startScanning}
                   disabled={!selectedEventId}
-                  className={`w-full rounded-lg font-semibold py-3.5 text-base flex items-center justify-center gap-2 shadow-sm transition-colors ${
+                  className={`oqs-camera-action w-full rounded-lg font-semibold py-3.5 text-base flex items-center justify-center gap-2 shadow-sm transition-colors ${
                     selectedEventId
                       ? "bg-coop-green hover:bg-coop-darkGreen text-white"
                       : "bg-slate-100 text-slate-400 cursor-not-allowed"
@@ -1042,7 +1028,7 @@ export default function QRScanner({
               ) : (
                 <Button
                   onClick={stopScanning}
-                  className="w-full rounded-lg font-semibold py-3.5 text-base border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                  className="oqs-camera-action w-full rounded-lg font-semibold py-3.5 text-base border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
                 >
                   Stop Scanning
                 </Button>
@@ -1058,7 +1044,7 @@ export default function QRScanner({
 
               {/* Error */}
               {error && (
-                <div className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5">
+                <div role="alert" className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <p className="text-red-700 font-medium text-sm">{error}</p>
                 </div>
@@ -1066,7 +1052,7 @@ export default function QRScanner({
 
               {/* Success */}
               {scanResult && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div role="status" className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-3">
                     <CheckCircle2 className="w-5 h-5 text-coop-green" />
                     <p className="text-sm font-bold text-coop-darkGreen">
@@ -1103,36 +1089,21 @@ export default function QRScanner({
           </Card>
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
-            <MetricTile
-              icon={Users}
-              value={totalMembers}
-              label="Total Members"
-              tone="slate"
-            />
-            <MetricTile
-              icon={CheckCircle2}
-              value={presentCount}
-              label="Present"
-              tone="green"
-            />
-            <MetricTile
-              icon={Clock}
-              value={pendingCount}
-              label="Pending"
-              tone="amber"
-            />
-          </div>
+          <AttendanceMetricGrid label="Selected event attendance" busy={statsLoading} items={[
+            ['Total members', totalMembers.toLocaleString(), 'Registered members', Users],
+            ['Present', presentCount.toLocaleString(), 'Attendance recorded for this event', CheckCircle2],
+            ['Pending', pendingCount.toLocaleString(), 'Members not yet checked in', Clock],
+          ]} />
         </div>
 
-        {/* Recent Scans + Session Summary */}
+        {/* Recent scans + Session summary */}
         <div className="space-y-6">
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white h-fit">
-            <CardHeader className="border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
+          <Card className="sd-panel oqs-panel h-fit">
+            <CardHeader className="oqs-panel-heading border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
               <div>
-                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <CardTitle className="oqs-panel-title text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-coop-green" />
-                  Recent Scans
+                  Recent scans
                 </CardTitle>
                 <p className="text-slate-400 text-xs mt-1">This session</p>
               </div>
@@ -1196,12 +1167,12 @@ export default function QRScanner({
             )}
           </Card>
 
-          {/* Session Summary */}
-          <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-            <CardHeader className="border-b border-slate-100 p-5">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+          {/* Session summary */}
+          <Card className="sd-panel oqs-panel">
+            <CardHeader className="oqs-panel-heading border-b border-slate-100 p-5">
+              <CardTitle className="oqs-panel-title text-sm font-bold text-slate-900 flex items-center gap-2">
                 <PieChartIcon className="w-4 h-4 text-coop-green" />
-                Session Summary
+                Session summary
               </CardTitle>
               <p className="text-slate-400 text-xs mt-1">
                 Live attendance for this event
@@ -1297,10 +1268,12 @@ export default function QRScanner({
       </div>
 
       {/* Manual lookup - secondary, collapsed by default so scanning stays the focus */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+      <Card className="sd-panel oqs-panel">
         <button
           type="button"
           onClick={() => setShowManualLookup((prev) => !prev)}
+          aria-expanded={showManualLookup}
+          aria-controls="oqs-manual-lookup"
           className="w-full flex items-center justify-between gap-3 p-5 text-left"
         >
           <div className="flex items-center gap-2">
@@ -1320,8 +1293,9 @@ export default function QRScanner({
         </button>
 
         {showManualLookup && (
-          <CardContent className="p-5 pt-0 space-y-4 border-t border-slate-100">
+          <CardContent id="oqs-manual-lookup" className="p-5 pt-0 space-y-4 border-t border-slate-100">
             <Input
+              aria-label="Search members by name or passbook number"
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
               placeholder="Search by member name or Passbook No."
@@ -1401,10 +1375,11 @@ export default function QRScanner({
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+            <label htmlFor="oqs-manual-reason" className="block text-sm font-semibold text-slate-700 mb-1.5">
               Reason <span className="text-red-500">*</span>
             </label>
             <textarea
+              id="oqs-manual-reason"
               value={manualReason}
               onChange={(e) => setManualReason(e.target.value)}
               placeholder="Why can't this member be scanned? (e.g., QR won't scan, phone unavailable, damaged code)"

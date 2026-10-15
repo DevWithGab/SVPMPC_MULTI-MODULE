@@ -8,12 +8,13 @@ export default function LiveAttendanceView({
   activeEvent, selectedEventLabel, liveRows, filteredAttendance, paginatedAttendance,
   selectedBarangay, availableBarangays, onBarangayChange, loading, error,
   lastRefreshedAt, onRefresh, currentPage, totalPages, pageSize, onPageChange,
+  operatorView = false,
 }) {
   return (
     <div className="secretary-live-attendance">
       <header className="sla-header">
         <div>
-          <p className="sla-eyebrow">Attendance management / Live attendance</p>
+          <p className="sla-eyebrow">Attendance management / {operatorView ? 'Scanner operator' : 'Live attendance'}</p>
           <h1>Live attendance</h1>
           <p className="sla-description">Track member check-ins for the active event.</p>
         </div>
@@ -44,7 +45,7 @@ export default function LiveAttendanceView({
         <div className="sla-panel sla-empty" role="status">
           {loading ? <RefreshCw size={28} className="animate-spin" aria-hidden="true" /> : <CalendarOff size={28} aria-hidden="true" />}
           <strong>{loading ? 'Loading live attendance…' : error ? 'Unable to confirm the active event' : 'No active event right now'}</strong>
-          <p>{error ? 'Refresh to retry loading the event and its check-ins.' : 'Start an event from Event Management to see member check-ins here.'}</p>
+          <p>{error ? 'Refresh to retry loading the event and its check-ins.' : operatorView ? 'Check with the Secretary or Admin about the event schedule. Member check-ins will appear here once an event is active.' : 'Start an event from Event Management to see member check-ins here.'}</p>
         </div>
       ) : <>
         <section className="sla-filters" aria-labelledby="sla-filter-title">

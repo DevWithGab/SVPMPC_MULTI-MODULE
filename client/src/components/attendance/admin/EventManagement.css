@@ -1,0 +1,28 @@
+.attendance-admin-events { min-width: 0; }
+.aae-schedule-note { display: inline-flex; align-items: center; gap: 7px; color: #647069; font-size: 11px; line-height: 1.6; }
+.aae-schedule-note svg { flex-shrink: 0; }
+.attendance-admin-events .aae-panel { margin-top: 24px; border-color: #dce3dd; border-radius: 6px; box-shadow: none; }
+.attendance-admin-events .aae-panel-heading { padding: 22px 20px; border-bottom: 1px solid #e2e7e3; }
+.attendance-admin-events .aae-panel-heading h3 { color: #17251d; font-size: 16px; font-weight: 600; letter-spacing: -.2px; line-height: 1.5; flex-wrap: wrap; }
+.attendance-admin-events .aae-panel-heading h3 > svg { display: none; }
+.attendance-admin-events .aae-panel-heading p { margin-top: 5px; color: #647069; font-size: 12px; line-height: 1.6; }
+.aae-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 1px 7px; border: 1px solid #dce3dd; border-radius: 4px; background: #f8faf8; color: #526058; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.attendance-admin-events table { min-width: 760px; }
+.attendance-admin-events th { text-transform: none; letter-spacing: normal; }
+.attendance-admin-events td { vertical-align: middle; }
+.attendance-admin-events td:first-child { min-width: 190px; max-width: 340px; overflow-wrap: anywhere; }
+.attendance-admin-events td:nth-child(2) { min-width: 180px; }
+.attendance-admin-events td:last-child { width: 1%; white-space: nowrap; }
+.attendance-admin-events tbody tr:hover { background: #f8faf8; }
+.attendance-admin-events td .text-slate-900 { color: #24362a; font-size: 13px; }
+.attendance-admin-events td .text-slate-400 { color: #647069; }
+.attendance-admin-events td .rounded-full { border-radius: 4px; white-space: nowrap; }
+.attendance-admin-events td button { min-height: 34px; border-radius: 5px; font-size: 12px; box-shadow: none; }
+.attendance-admin-events td button.bg-coop-green { background: #245e32; }
+.attendance-admin-events td button.bg-coop-green:hover { background: #163a1e; }
+.attendance-admin-events td[colspan] { padding: 0; white-space: normal; }
+.attendance-admin-events .sd-data-state { padding: 36px 20px; }
+@media (max-width: 640px) {
+  .attendance-admin-events .aae-panel-heading { padding-inline: 16px; }
+  .aae-schedule-note { font-size: 12px; }
+}

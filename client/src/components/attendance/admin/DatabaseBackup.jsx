@@ -12,6 +12,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { backupAPI } from "../../../services/api";
+import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import "../secretary/Dashboard.css";
+import "./DatabaseBackup.css";
 
 const normalizeAttendanceRecord = (record) => ({
   ...record,
@@ -177,7 +180,7 @@ export default function DatabaseBackup({
         return;
       }
       setPendingRestore(parsed);
-    } catch (error) {
+    } catch {
       setParseError(
         "Couldn't read this file as JSON. Select a backup .json file exported from this page.",
       );
@@ -216,235 +219,69 @@ export default function DatabaseBackup({
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          BACKUP & RESTORE
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Export and restore your attendance system data for emergency recovery.
-        </p>
-      </div>
+    <div className="secretary-dashboard attendance-admin-backup">
+      <header className="sd-header">
+        <div>
+          <p className="sd-eyebrow">Attendance management / Data recovery</p>
+          <h1>Backup &amp; restore</h1>
+          <p className="sd-description">Export your attendance data and restore records from a saved backup.</p>
+        </div>
+      </header>
 
-      {/* Backup Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-green-50 rounded-xl">
-            <Users className="w-5 h-5 text-coop-green" />
-          </div>
+      <AttendanceMetricGrid label="Available backup records" items={[
+        ['Registered members', members.length.toLocaleString(), 'Member profiles available to export', Users],
+        ['Events', events.length.toLocaleString(), 'Event records available to export', Calendar],
+        ['Attendance records', attendanceLogs.length.toLocaleString(), 'Attendance logs available to export', Activity],
+      ]} />
+
+      <section className="sd-panel aab-full-backup" aria-labelledby="aab-full-title">
+        <div className="aab-full-description">
+          <span className="aab-icon"><Database size={20} aria-hidden="true" /></span>
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Total Members
-            </p>
-            <p className="text-xl font-bold text-slate-900">{members.length}</p>
+            <h2 id="aab-full-title">Complete backup</h2>
+            <p>Save members, events, and attendance records together in one JSON file.</p>
+            <span className="sd-secondary">Keep this file in a secure location. Upload it below when you need to restore.</span>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-xl">
-            <Calendar className="w-5 h-5 text-blue-700" />
-          </div>
+        <button type="button" onClick={downloadFullBackup} className="sd-button sd-primary">
+          <FileText size={15} aria-hidden="true" /> Download JSON backup
+        </button>
+      </section>
+
+      <section className="sd-panel aab-exports" aria-labelledby="aab-exports-title">
+        <div className="sd-panel-heading">
           <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Total Events
-            </p>
-            <p className="text-xl font-bold text-slate-900">{events.length}</p>
+            <h2 id="aab-exports-title">Individual exports</h2>
+            <p>Download CSV files for review or reporting. Use a complete JSON backup to restore data.</p>
           </div>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-purple-50 rounded-xl">
-            <Activity className="w-5 h-5 text-purple-700" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Attendance Records
-            </p>
-            <p className="text-xl font-bold text-slate-900">
-              {attendanceLogs.length}
-            </p>
-          </div>
+        <div className="aab-export-list">
+          {[
+            ['Members', 'Member profiles and contact details', members.length, Users, downloadMembersCSV],
+            ['Events', 'Event schedules, locations, and statuses', events.length, Calendar, downloadEventsCSV],
+            ['Attendance logs', 'Member attendance and scan records', attendanceLogs.length, Activity, downloadAttendanceCSV],
+          ].map(([title, description, count, Icon, download]) => (
+            <div className="aab-export-row" key={title}>
+              <span className="aab-icon">{React.createElement(Icon, { size: 17, 'aria-hidden': true })}</span>
+              <div className="aab-export-description"><h3>{title}</h3><p>{description}</p></div>
+              <span className="aab-record-count">{count.toLocaleString()} records</span>
+              <button type="button" className="sd-button" onClick={download} aria-label={`Download ${title.toLowerCase()} CSV`}>
+                <FileText size={15} aria-hidden="true" /> Download CSV
+              </button>
+            </div>
+          ))}
         </div>
-      </div>
-
-      {/* Backup Options */}
-      <div>
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">
-          Backup
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-green-50 rounded-xl shrink-0">
-                <Users className="w-6 h-6 text-coop-green" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Members Database
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Export all member records in CSV format
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2.5 mb-6 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Total Records</span>
-                <span className="font-semibold text-slate-900">
-                  {members.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Format</span>
-                <span className="font-semibold text-slate-900">CSV</span>
-              </div>
-            </div>
-            <button
-              onClick={downloadMembersCSV}
-              className="w-full h-11 px-4 mt-auto bg-white border-2 border-coop-green text-coop-green hover:bg-green-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              Download CSV
-            </button>
-          </div>
-
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-blue-50 rounded-xl shrink-0">
-                <Calendar className="w-6 h-6 text-blue-700" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Events Database
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Export all event records in CSV format
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2.5 mb-6 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Total Records</span>
-                <span className="font-semibold text-slate-900">
-                  {events.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Format</span>
-                <span className="font-semibold text-slate-900">CSV</span>
-              </div>
-            </div>
-            <button
-              onClick={downloadEventsCSV}
-              className="w-full h-11 px-4 mt-auto bg-white border-2 border-blue-600 text-blue-700 hover:bg-blue-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              Download CSV
-            </button>
-          </div>
-
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-purple-50 rounded-xl shrink-0">
-                <Activity className="w-6 h-6 text-purple-700" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Attendance Logs
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Export all attendance records in CSV format
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2.5 mb-6 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Total Records</span>
-                <span className="font-semibold text-slate-900">
-                  {attendanceLogs.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Format</span>
-                <span className="font-semibold text-slate-900">CSV</span>
-              </div>
-            </div>
-            <button
-              onClick={downloadAttendanceCSV}
-              className="w-full h-11 px-4 mt-auto bg-white border-2 border-purple-600 text-purple-700 hover:bg-purple-50 font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              Download CSV
-            </button>
-          </div>
-
-          <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 flex flex-col">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-green-50 rounded-xl shrink-0">
-                <Database className="w-6 h-6 text-coop-green" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Complete Backup
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Full export in JSON — restorable from below
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2.5 mb-6 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Members</span>
-                <span className="font-semibold text-slate-900">
-                  {members.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Events</span>
-                <span className="font-semibold text-slate-900">
-                  {events.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Attendance</span>
-                <span className="font-semibold text-slate-900">
-                  {attendanceLogs.length}
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-400 text-center mt-auto mb-2">
-              Don't open or edit this file — just save it somewhere safe and
-              upload it below if you ever need to restore.
-            </p>
-            <button
-              onClick={downloadFullBackup}
-              className="w-full h-11 px-4 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              Download JSON Backup
-            </button>
-          </div>
-        </div>
-      </div>
+      </section>
 
       {/* Restore */}
-      <div>
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">
-          Restore
-        </h2>
-        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-slate-100 rounded-xl shrink-0">
-              <Upload className="w-6 h-6 text-slate-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-bold text-slate-900">
-                Restore from Backup
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">
-                Upload a "Complete System Backup" .json file to restore members,
-                events, and attendance records.
-              </p>
-            </div>
+      <section className="sd-panel aab-restore" aria-labelledby="aab-restore-title" aria-busy={restoring}>
+        <div className="sd-panel-heading">
+          <div>
+            <h2 id="aab-restore-title">Restore from backup</h2>
+            <p>Select a complete JSON backup, review its contents, and confirm the restore.</p>
           </div>
+        </div>
+        <div className="aab-restore-body">
 
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-5 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -456,27 +293,27 @@ export default function DatabaseBackup({
             </p>
           </div>
 
-          <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center mb-4">
+          <div className="aab-upload">
             <input
               type="file"
               accept="application/json,.json"
               onChange={handleFileSelect}
-              className="hidden"
+              className="aab-file-input"
               id="restore-upload"
               disabled={restoring}
             />
             <label
               htmlFor="restore-upload"
-              className="cursor-pointer text-sm font-semibold text-slate-600 hover:text-slate-900"
+              className="aab-file-label"
             >
-              {restoreFile
-                ? restoreFile.name
-                : "Click to select a backup .json file"}
+              <Upload size={22} aria-hidden="true" />
+              <strong>{restoreFile ? restoreFile.name : "Choose a JSON backup file"}</strong>
+              <span>{restoring ? "Restoring records. Please wait." : "Select a .json file exported from Complete backup."}</span>
             </label>
           </div>
 
           {parseError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4 flex items-start gap-2.5">
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 mb-4 flex items-start gap-2.5">
               <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <p className="text-xs text-red-700">{parseError}</p>
             </div>
@@ -513,7 +350,7 @@ export default function DatabaseBackup({
                   type="button"
                   onClick={cancelRestore}
                   disabled={restoring}
-                  className="flex-1 h-10 rounded-lg border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 disabled:opacity-50"
+                  className="sd-button"
                 >
                   Cancel
                 </button>
@@ -521,7 +358,7 @@ export default function DatabaseBackup({
                   type="button"
                   onClick={confirmRestore}
                   disabled={restoring}
-                  className="flex-1 h-10 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                  className="sd-button sd-primary"
                 >
                   {restoring ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -535,7 +372,7 @@ export default function DatabaseBackup({
           )}
 
           {restoreResult?.summary && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-start gap-2.5">
+            <div role="status" className="rounded-lg border border-green-200 bg-green-50 p-4 flex items-start gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-coop-green shrink-0 mt-0.5" />
               <div className="text-xs text-green-800 space-y-1">
                 <p className="font-bold">Restore complete.</p>
@@ -553,67 +390,22 @@ export default function DatabaseBackup({
           )}
 
           {restoreResult?.error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2.5">
               <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <p className="text-xs text-red-700">{restoreResult.error}</p>
             </div>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* Backup Instructions */}
-      <div className="bg-amber-50/40 border border-slate-200 shadow-sm rounded-xl p-6">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-amber-100 rounded-xl">
-            <AlertTriangle className="w-6 h-6 text-amber-700" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">
-              Backup Best Practices
-            </h3>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li className="flex items-start gap-2">
-                <span className="text-coop-green font-bold mt-0.5">•</span>
-                <span>
-                  <strong className="font-bold text-slate-900">
-                    Regular Backups:
-                  </strong>{" "}
-                  Download backups weekly or after major data changes
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-coop-green font-bold mt-0.5">•</span>
-                <span>
-                  <strong className="font-bold text-slate-900">
-                    Secure Storage:
-                  </strong>{" "}
-                  Store backup files in a secure location (external drive, cloud
-                  storage)
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-coop-green font-bold mt-0.5">•</span>
-                <span>
-                  <strong className="font-bold text-slate-900">
-                    Multiple Copies:
-                  </strong>{" "}
-                  Keep at least 2-3 backup copies in different locations
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-coop-green font-bold mt-0.5">•</span>
-                <span>
-                  <strong className="font-bold text-slate-900">
-                    Test Recovery:
-                  </strong>{" "}
-                  Periodically restore a backup into a test environment to
-                  confirm it actually works
-                </span>
-              </li>
-            </ul>
-          </div>
+      <aside className="aab-guidance" aria-labelledby="aab-guidance-title">
+        <h2 id="aab-guidance-title">Backup best practices</h2>
+        <div>
+          <p><strong>Keep backups current</strong><span>Download a backup weekly or after major data changes.</span></p>
+          <p><strong>Store copies securely</strong><span>Keep multiple copies in separate, secure locations.</span></p>
+          <p><strong>Check recovery</strong><span>Periodically test a backup in a test environment.</span></p>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

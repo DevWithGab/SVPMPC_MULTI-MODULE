@@ -42,7 +42,7 @@ const SidebarItem = ({
         : "text-green-100/80 hover:bg-white/10 hover:text-white"
     }`}
   >
-    <Icon className="w-4.5 h-4.5 shrink-0" />
+    {React.createElement(Icon, { className: "w-4.5 h-4.5 shrink-0" })}
     {!collapsed && (
       <span className="text-sm font-semibold tracking-tight">{label}</span>
     )}
@@ -126,6 +126,7 @@ export default function AttendanceOperatorPortal({
       case "live":
         return (
           <LiveAttendanceList
+            variant="operator"
             attendanceLogs={attendanceLogs}
             events={events}
             onRefresh={refreshData}

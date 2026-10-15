@@ -1,0 +1,18 @@
+.operator-my-scans { min-width: 0; }
+.oms-operator { display: flex; align-items: start; gap: 14px; padding: 22px 20px; margin-bottom: 24px; }
+.oms-operator > div { min-width: 0; }
+.oms-operator h2 { margin-top: 5px; color: #17251d; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.oms-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #dce3dd; border-radius: 4px; background: #f8faf8; color: #52715a; }
+.oms-table { min-width: 760px; }
+.operator-my-scans td { color: #526058; font-size: 13px; }
+.operator-my-scans td:first-child { color: #24362a; min-width: 200px; max-width: 320px; overflow-wrap: anywhere; }
+.operator-my-scans td:nth-child(2) { max-width: 320px; overflow-wrap: anywhere; }
+.operator-my-scans td:last-child { min-width: 190px; }
+.operator-my-scans tbody tr:hover { background: #f8faf8; }
+.operator-my-scans td[colspan] { padding: 0; }
+.operator-my-scans .sd-status { align-self: center; }
+.oms-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-top: 1px solid #e2e7e3; }
+.oms-error { padding: 14px 20px; color: #9b3425; background: #fff5f3; border-bottom: 1px solid #ebc9c1; font-size: 13px; line-height: 1.6; }
+@media (max-width: 640px) {
+  .oms-operator, .oms-pagination, .oms-error { padding-inline: 16px; }
+}

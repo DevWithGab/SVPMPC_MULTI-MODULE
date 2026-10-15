@@ -9,7 +9,7 @@ import {
   CheckCircle,
   Clock,
   Zap,
-  Calendar,
+  RotateCcw,
   Users,
   XCircle,
 } from "lucide-react";
@@ -21,7 +21,9 @@ import {
   formatTime,
   formatTimeString,
 } from "../../../utils/date";
-import StatCard from "../shared/StatCard";
+import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import "../secretary/Dashboard.css";
+import "./AuditLogs.css";
 
 // Plain-language labels so the log reads as a story of what happened rather
 // than a dump of internal action codes and field names.
@@ -308,83 +310,56 @@ const AuditLogs = () => {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="secretary-dashboard attendance-audit-logs">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <header className="sd-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            AUDIT LOGS
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Monitor and track all activities in the attendance module
+          <p className="sd-eyebrow">Attendance management / Activity history</p>
+          <h1>Audit logs</h1>
+          <p className="sd-description">
+            Review attendance activity, record changes, and action outcomes.
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
+          <button onClick={handleExportCSV} disabled={loading || !logs.length} className="sd-button sd-primary">
+            <Download size={15} aria-hidden="true" /> Export CSV
+          </button>
           {lastUpdated && (
             <p className="text-xs text-slate-400">
               Last updated {formatTime(lastUpdated)}
             </p>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Actions"
-            value={stats.totalActions}
-            icon={Activity}
-            color="slate"
-          />
-          {stats.actionsByRole && stats.actionsByRole.length > 0 && (
-            <StatCard
-              title="Most Active Role"
-              value={stats.actionsByRole[0]._id}
-              subtitle={`${stats.actionsByRole[0].count} actions`}
-              icon={Users}
-              color="amber"
-            />
-          )}
-          {stats.actionsByStatus && (
-            <>
-              <StatCard
-                title="Successful"
-                value={
-                  stats.actionsByStatus.find((s) => s._id === "success")
-                    ?.count || 0
-                }
-                icon={CheckCircle}
-                color="emerald"
-              />
-              <StatCard
-                title="Failed"
-                value={
-                  stats.actionsByStatus.find((s) => s._id === "failed")
-                    ?.count || 0
-                }
-                icon={XCircle}
-                color="amber"
-              />
-            </>
-          )}
-        </div>
+      {stats && filters.startDate && filters.endDate && (
+        <AttendanceMetricGrid label="Attendance activity for the selected date range" items={[
+          ["Total actions", stats.totalActions ?? 0, "Attendance activity in date range", Activity],
+          ["Most active role", actionLabel(stats.actionsByRole?.[0]?._id) || "No activity", `${stats.actionsByRole?.[0]?.count || 0} actions in date range`, Users],
+          ["Successful", stats.actionsByStatus?.find((s) => s._id === "success")?.count || 0, "Completed actions in date range", CheckCircle],
+          ["Failed", stats.actionsByStatus?.find((s) => s._id === "failed")?.count || 0, "Failed actions in date range", XCircle],
+        ]} />
       )}
 
       {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-4 h-4 text-coop-green" />
-          <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
+      <section className="sd-panel aal-filters" aria-labelledby="aal-filter-title">
+        <div className="sd-panel-heading">
+          <div><h2 id="aal-filter-title" className="flex items-center gap-2"><Filter size={16} aria-hidden="true" />Filter activity</h2>
+          <p>Narrow the log by date, role, or action. Select both dates to view activity totals.</p></div>
+          <button className="sd-link" onClick={() => setFilters((current) => ({ ...current, startDate: "", endDate: "", userRole: "", action: "", page: 1 }))}>
+            <RotateCcw size={14} aria-hidden="true" /> Reset filters
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
+        <div className="aal-filter-grid">
           {/* Date Range */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">
+            <label htmlFor="aal-start-date" className="block text-sm font-medium text-slate-700">
               Start Date
             </label>
             <input
+              id="aal-start-date"
               type="date"
               value={filters.startDate}
               onChange={(e) => handleFilterChange("startDate", e.target.value)}
@@ -393,10 +368,11 @@ const AuditLogs = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">
+            <label htmlFor="aal-end-date" className="block text-sm font-medium text-slate-700">
               End Date
             </label>
             <input
+              id="aal-end-date"
               type="date"
               value={filters.endDate}
               onChange={(e) => handleFilterChange("endDate", e.target.value)}
@@ -406,10 +382,11 @@ const AuditLogs = () => {
 
           {/* Role Filter */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-700">
+            <label htmlFor="aal-role" className="block text-sm font-medium text-slate-700">
               Role
             </label>
             <select
+              id="aal-role"
               value={filters.userRole}
               onChange={(e) => handleFilterChange("userRole", e.target.value)}
               className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
@@ -424,12 +401,13 @@ const AuditLogs = () => {
           </div>
 
           {/* Action Filter */}
-          <div className="space-y-2 xl:col-span-2">
-            <label className="block text-sm font-medium text-slate-700">
+          <div className="space-y-2">
+            <label htmlFor="aal-action" className="block text-sm font-medium text-slate-700">
               Action
             </label>
             <div className="flex flex-col sm:flex-row gap-3">
               <select
+                id="aal-action"
                 value={filters.action}
                 onChange={(e) => handleFilterChange("action", e.target.value)}
                 className="w-full sm:flex-1 h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
@@ -443,42 +421,41 @@ const AuditLogs = () => {
                 <option value="qr_code_generated">QR Generated</option>
               </select>
 
-              <button
-                onClick={handleExportCSV}
-                className="inline-flex h-10 items-center justify-center gap-2 px-5 bg-coop-green text-white text-sm font-semibold rounded-lg hover:bg-coop-darkGreen transition-colors whitespace-nowrap sm:w-auto w-full"
-              >
-                <Download className="w-4 h-4" />
-                Export CSV
-              </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Audit Logs Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <section className="sd-panel aal-log-panel" aria-labelledby="aal-log-title" aria-busy={loading}>
+        <div className="sd-panel-heading">
+          <div><h2 id="aal-log-title">Activity history</h2><p>Inspect a record to see its details and changes. CSV export includes the current page.</p></div>
+          <span className="sd-status sd-status-neutral">{pagination.total || 0} records</span>
+        </div>
         {loading ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="sd-data-state aal-data-state" role="status">
             <div className="animate-spin">
               <Zap className="w-8 h-8 text-green-600" />
             </div>
+            <p>Loading attendance activity...</p>
           </div>
         ) : logs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+          <div className="sd-data-state aal-data-state">
             <Activity className="w-12 h-12 mb-2 opacity-50" />
             <p>No audit logs found</p>
+            <p>Try adjusting the filters to find attendance activity.</p>
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="aal-table" aria-label="Attendance audit logs">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      User
+                      Role
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Activity
@@ -537,7 +514,7 @@ const AuditLogs = () => {
                               setSelectedLog(log);
                               setShowDetails(true);
                             }}
-                            className="text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
+                            className="sd-link"
                           >
                             <Eye className="w-4 h-4" />
                             View
@@ -563,7 +540,7 @@ const AuditLogs = () => {
             </div>
           </>
         )}
-      </div>
+      </section>
 
       {/* Detail Modal */}
       <AnimatePresence>
@@ -572,17 +549,17 @@ const AuditLogs = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="aal-modal-backdrop fixed inset-0 flex items-center justify-center p-4 z-50"
             onClick={() => setShowDetails(false)}
           >
             <Motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+              className="aal-modal bg-white max-w-2xl w-full max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="sticky top-0 bg-gradient-to-r from-green-50 to-green-100 border-b border-green-200 px-6 py-4 flex items-center justify-between">
+              <div className="aal-modal-heading sticky top-0 px-6 py-4 flex items-center justify-between gap-4">
                 <div>
                   <span
                     className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${getActionColor(selectedLog.action)}`}
@@ -594,6 +571,7 @@ const AuditLogs = () => {
                   </h3>
                 </div>
                 <button
+                  aria-label="Close activity details"
                   onClick={() => setShowDetails(false)}
                   className="text-slate-500 hover:text-slate-700 shrink-0"
                 >
@@ -602,7 +580,7 @@ const AuditLogs = () => {
               </div>
 
               <div className="p-6 space-y-5">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase">
                       When

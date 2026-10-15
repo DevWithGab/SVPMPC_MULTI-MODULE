@@ -27,6 +27,9 @@ import {
 import { Toast } from "../../ui/toast";
 import { eventAPI } from "../../../services/api";
 import { formatDate, formatTimeRange } from "../../../utils/date";
+import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import "../secretary/Dashboard.css";
+import "./EventManagement.css";
 
 const getEventKey = (event) => event?.eventId || event?._id || event?.id;
 const getEventName = (event) =>
@@ -38,7 +41,7 @@ const statusLabels = {
   pending_approval: "Pending Approval",
   upcoming: "Upcoming",
   active: "Active",
-  closed: "Close",
+  closed: "Closed",
   rejected: "Rejected",
   cancelled: "Cancelled",
 };
@@ -337,15 +340,24 @@ const EventManagement = ({ events = [], setEvents }) => {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          EVENT APPROVALS
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Review Secretary submissions and manage approved attendance events.
-        </p>
-      </div>
+    <div className="secretary-dashboard attendance-admin-events">
+      <header className="sd-header">
+        <div>
+          <p className="sd-eyebrow">Attendance management / Events</p>
+          <h1>Event approvals</h1>
+          <p className="sd-description">
+            Review Secretary submissions and manage approved attendance events.
+          </p>
+        </div>
+        <span className="aae-schedule-note"><Clock size={15} aria-hidden="true" /> All schedules in Philippine time (PHT)</span>
+      </header>
+
+      <AttendanceMetricGrid label="Event approval overview" items={[
+        ['Pending approval', pendingEvents.length.toLocaleString(), 'Awaiting administrative review', Clock],
+        ['Approved events', approvedEvents.length.toLocaleString(), 'Upcoming and active sessions', CheckCircle2],
+        ['Active now', events.filter(event => event.status === 'active').length.toLocaleString(), 'Currently accepting attendance', Calendar],
+        ['Closed events', closedEvents.length.toLocaleString(), 'Completed event schedules', RotateCcw],
+      ]} />
 
       {notice && (
         <Toast
@@ -356,13 +368,13 @@ const EventManagement = ({ events = [], setEvents }) => {
       )}
 
       {/* Pending Approvals */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-        <CardHeader className="border-b border-slate-100 p-5">
+      <Card className="sd-panel aae-panel">
+        <CardHeader className="aae-panel-heading">
           <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-coop-green" />
-                Pending Event Approvals ({pendingEvents.length})
+                Pending approvals <span className="aae-count">{pendingEvents.length}</span>
               </CardTitle>
               <p className="text-xs text-slate-400 mt-1">
                 Events submitted by the Secretary for Admin review.
@@ -372,7 +384,7 @@ const EventManagement = ({ events = [], setEvents }) => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table aria-label="Pending event approvals">
               <TableHeader className="bg-slate-50">
                 <TableRow>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
@@ -449,9 +461,11 @@ const EventManagement = ({ events = [], setEvents }) => {
                           size="sm"
                           onClick={() => setEventToReject(event)}
                           title="Reject event"
+                          aria-label={`Reject ${eventDisplayName(event)}`}
                           className="border-red-200 text-red-700 hover:bg-red-50 rounded-lg"
                         >
-                          <XCircle className="w-4 h-4" />
+                          <XCircle className="w-4 h-4 mr-1.5" />
+                          Reject
                         </Button>
                         <Button
                           size="sm"
@@ -471,7 +485,11 @@ const EventManagement = ({ events = [], setEvents }) => {
                       colSpan={5}
                       className="text-center py-12 text-slate-400"
                     >
-                      No pending event approvals.
+                      <div className="sd-data-state">
+                        <CheckCircle2 size={24} aria-hidden="true" />
+                        <strong>You're all caught up</strong>
+                        <p>Events submitted by the Secretary will appear here for review.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}
@@ -482,11 +500,11 @@ const EventManagement = ({ events = [], setEvents }) => {
       </Card>
 
       {/* Approved Events */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-        <CardHeader className="border-b border-slate-100 p-5">
+      <Card className="sd-panel aae-panel">
+        <CardHeader className="aae-panel-heading">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-coop-green" />
-            Approved Events ({approvedEvents.length})
+            Approved events <span className="aae-count">{approvedEvents.length}</span>
           </CardTitle>
           <p className="text-xs text-slate-400 mt-1">
             Approved by the Admin — status updates to Active/Close automatically at their PHT schedule.
@@ -494,7 +512,7 @@ const EventManagement = ({ events = [], setEvents }) => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table aria-label="Approved events">
               <TableHeader className="bg-slate-50">
                 <TableRow>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
@@ -581,7 +599,11 @@ const EventManagement = ({ events = [], setEvents }) => {
                       colSpan={5}
                       className="text-center py-12 text-slate-400"
                     >
-                      No approved events yet.
+                      <div className="sd-data-state">
+                        <Calendar size={24} aria-hidden="true" />
+                        <strong>No approved events yet</strong>
+                        <p>Approved submissions will appear here with their current status and schedule.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}
@@ -592,16 +614,17 @@ const EventManagement = ({ events = [], setEvents }) => {
       </Card>
 
       {/* Closed Events */}
-      <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
-        <CardHeader className="border-b border-slate-100 p-5">
+      <Card className="sd-panel aae-panel">
+        <CardHeader className="aae-panel-heading">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-coop-green" />
-            Closed Events ({closedEvents.length})
+            Closed events <span className="aae-count">{closedEvents.length}</span>
           </CardTitle>
+          <p>Review past events or reopen a session with a new schedule.</p>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table aria-label="Closed events">
               <TableHeader className="bg-slate-50">
                 <TableRow>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
@@ -676,7 +699,11 @@ const EventManagement = ({ events = [], setEvents }) => {
                       colSpan={3}
                       className="text-center py-12 text-slate-400"
                     >
-                      No closed events.
+                      <div className="sd-data-state">
+                        <Clock size={24} aria-hidden="true" />
+                        <strong>No closed events</strong>
+                        <p>Events will move here once their scheduled sessions end.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}
