@@ -1,3 +1,4 @@
+import { importHeaderLabel, normalizeImportHeader } from '../../../utils/importHeaders';
 import './MemberLedger.css';
 import React, { useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
@@ -136,8 +137,8 @@ const MemberLedger = ({
       timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
     }).format(new Date());
     const csv = [
-      'memberId,transactionDate,credit,debit,description,transactionType,referenceId,paymentMethod',
-      `MEMBER-ID,${date},100.00,0.00,Member contribution,contribution,RECEIPT-001,cash`,
+      'Passbook No.,transactionDate,credit,debit,description,transactionType,referenceId,paymentMethod',
+      `000123,${date},100.00,0.00,Member contribution,contribution,RECEIPT-001,cash`,
     ].join('\r\n') + '\r\n';
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
@@ -170,7 +171,7 @@ const MemberLedger = ({
           result.push(current.trim());
           return result;
         };
-        const headers = parseCSVLine(lines[0]);
+        const headers = parseCSVLine(lines[0]).map(normalizeImportHeader);
         const preview = lines.slice(1, 6).map(line => {
           const values = parseCSVLine(line);
           return headers.reduce((obj, header, index) => {
@@ -203,7 +204,7 @@ const MemberLedger = ({
         result.push(current.trim());
         return result;
       };
-      const headers = parseCSVLine(lines[0]);
+      const headers = parseCSVLine(lines[0]).map(normalizeImportHeader);
       const ledgerEntries = lines.slice(1)
         .filter(line => line.trim())
         .map((line) => {
@@ -635,9 +636,9 @@ const MemberLedger = ({
           </>}
         >
           <UploadTemplateCard onDownload={downloadLedgerTemplate} disabled={loading}>
-            <p>Replace the sample row with actual member IDs and ledger entries. Keep leading zeros in member IDs and use YYYY-MM-DD dates.</p>
+            <p>Replace the sample row with actual passbook numbers and ledger entries. Keep leading zeros in passbook numbers and use YYYY-MM-DD dates.</p>
             <p>Credit adds to the balance; debit deducts from it. Enter a positive amount in one column and 0 in the other, without currency signs or thousands separators.</p>
-            <p>Columns: memberId, transactionDate, credit, debit, description, transactionType, referenceId, paymentMethod (cash). Keep the column headers unchanged.</p>
+            <p>Columns: Passbook No., transactionDate, credit, debit, description, transactionType, referenceId, paymentMethod (cash). Keep the column headers unchanged.</p>
           </UploadTemplateCard>
           <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading}
             hint="CSV only ? Review the first 5 entries before uploading" />
@@ -650,7 +651,7 @@ const MemberLedger = ({
               <div className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white">
                 <table className="w-full text-left text-sm">
                   <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                    <tr>{Object.keys(csvPreview[0]).map(key => <th key={key} className="px-3 py-3 font-medium whitespace-nowrap">{key}</th>)}</tr>
+                    <tr>{Object.keys(csvPreview[0]).map(key => <th key={key} className="px-3 py-3 font-medium whitespace-nowrap">{importHeaderLabel(key)}</th>)}</tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {csvPreview.map((row, idx) => (

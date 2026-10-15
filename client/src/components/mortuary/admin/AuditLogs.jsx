@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
@@ -13,9 +13,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { downloadAuditCsv, createAuditPdf } from "../../../utils/auditExport";
+import AuditLogDetails from '../../shared/AuditLogDetails';
+import { outcomeLabel } from '../../../utils/auditDetails';
 import { auditAPI } from "../../../services/api";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
-import { formatDate, formatDateTime, formatTime } from "../../../utils/date";
+import { formatDateTime, formatTime } from "../../../utils/date";
 import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
 import "../treasurer/Dashboard.css";
 import "../treasurer/MemberBalances.css";
@@ -68,176 +70,12 @@ const roleLabel = (role) =>
   ROLE_LABELS[role] ||
   (role || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-// Fields that are internal bookkeeping or already restated elsewhere (e.g.
-// statusHistory duplicates what the audit trail itself is showing).
-const INTERNAL_FIELDS = new Set([
-  "_id",
-  "__v",
-  "id",
-  "createdAt",
-  "updatedAt",
-  "statusHistory",
-]);
-
-const FIELD_LABELS = {
-  memberName: "Deceased Member",
-  memberId: "Passbook Number",
-  beneficiaryName: "Beneficiary",
-  beneficiaryRelationship: "Relationship",
-  beneficiaryContact: "Beneficiary Contact",
-  dateOfDeath: "Date of Death",
-  dateFiled: "Date Filed",
-  causeOfDeath: "Cause of Death",
-  remarks: "Remarks",
-  status: "Status",
-  requirements: "Requirements",
-  verification: "Verification",
-  approval: "Approval",
-  rejection: "Rejection",
-  deduction: "Deduction",
-  payout: "Payout",
-  createdBy: "Created By",
-  deductionSettingId: "Deduction Rate Used",
-  amountPerMember: "Amount Per Member",
-  membersCharged: "Members Charged",
-  totalCollected: "Total Collected",
-  processedBy: "Processed By",
-  processedAt: "Processed On",
-  verifiedBy: "Verified By",
-  verificationDate: "Verification Date",
-  approvedBy: "Approved By",
-  approvedAt: "Approved On",
-  rejectedBy: "Rejected By",
-  rejectedAt: "Rejected On",
-  reason: "Reason",
-  amount: "Amount",
-  paymentMethod: "Payment Method",
-  dvNumber: "DV Number",
-  releasedBy: "Released By",
-  releasedAt: "Released On",
-  ledgerId: "Ledger Reference",
-};
-
-const friendlyLabel = (key) =>
-  FIELD_LABELS[key] ||
-  key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (c) => c.toUpperCase())
-    .trim();
-
-// A claim's requirements checklist is itself {submitted, received, verified}
-// — summarized as one plain
-// status instead of "submitted: true, received: false, verified: false".
-const requirementStatus = (item) => {
-  if (!item || typeof item !== "object") return "Not submitted";
-  if (item.verified) return "Verified";
-  if (item.received) return "Received, not yet verified";
-  if (item.submitted) return "Submitted, not yet received";
-  return "Not submitted";
-};
-
-// Nested objects (deduction, payout, approval, requirements, ...) get
-// flattened into a readable line instead of rendering as "[object Object]"
-// or, worse, raw JSON — recurses so a nested object inside a nested object
-// (e.g. requirements.someDocument) never falls through to JSON.stringify.
-// Timestamp-shaped keys (processedAt, releasedAt, verificationDate, ...)
-// otherwise render as a raw ISO string — this catches any of them by name
-// pattern rather than needing every one listed individually.
-const DATE_KEY_PATTERN = /(At|Date)$/;
-
-const friendlyValue = (key, value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  if (key === "dateOfDeath" || key === "dateFiled") return formatDate(value);
-  if (
-    typeof value === "string" &&
-    DATE_KEY_PATTERN.test(key) &&
-    !Number.isNaN(new Date(value).getTime())
-  ) {
-    return formatDateTime(value);
-  }
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (key === "requirements" && value && typeof value === "object") {
-    return Object.entries(value)
-      .map(([k, v]) => `${friendlyLabel(k)}: ${requirementStatus(v)}`)
-      .join("; ");
-  }
-  if (Array.isArray(value))
-    return value.length ? `${value.length} item(s)` : "—";
-  if (typeof value === "object") {
-    const parts = Object.entries(value)
-      .filter(([, v]) => v !== null && v !== undefined && v !== "")
-      .map(([k, v]) => `${friendlyLabel(k)}: ${friendlyValue(k, v)}`);
-    return parts.length ? parts.join(", ") : "—";
-  }
-  return String(value);
-};
-
-// Turns a log's raw before/after snapshot into either a readable diff
-// (field changed from X to Y) or, for a create with only one side, a plain
-// list of that claim's key details — never the raw document.
-const describeChanges = (changes) => {
-  if (!changes) return { kind: null, rows: [] };
-  const { before, after } = changes;
-
-  if (before && after) {
-    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
-    const rows = keys
-      .filter((key) => !INTERNAL_FIELDS.has(key))
-      .filter(
-        (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
-      )
-      .map((key) => ({
-        label: friendlyLabel(key),
-        before: friendlyValue(key, before[key]),
-        after: friendlyValue(key, after[key]),
-      }));
-    return { kind: "diff", rows };
-  }
-
-  const snapshot = after || before;
-  if (!snapshot) return { kind: null, rows: [] };
-  const rows = Object.keys(snapshot)
-    .filter((key) => !INTERNAL_FIELDS.has(key))
-    .map((key) => ({
-      label: friendlyLabel(key),
-      value: friendlyValue(key, snapshot[key]),
-    }));
-  return { kind: "snapshot", rows };
-};
-
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedLog, setSelectedLog] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  const dialogRef = useRef(null);
-
-  useEffect(() => {
-    if (!showDetails) return;
-    const previousFocus = document.activeElement;
-    const dialog = dialogRef.current;
-    dialog?.querySelector('button')?.focus();
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setShowDetails(false);
-      if (event.key !== 'Tab' || !dialog) return;
-      const controls = dialog.querySelectorAll('button:not(:disabled), summary, a[href], [tabindex="0"]');
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first?.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      previousFocus?.focus();
-    };
-  }, [showDetails]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const [filters, setFilters] = useState({
@@ -347,7 +185,7 @@ const AuditLogs = () => {
           <p className="td-description">Monitor claim activity and review changes in the mortuary module.</p>
         </div>
         <div className="td-header-actions">
-          <button className="td-button" onClick={() => { fetchAuditLogs(); fetchStats(); }} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing?' : 'Refresh'}</button>
+          <button className="td-button" onClick={() => { fetchAuditLogs(); fetchStats(); }} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}</button>
           <button className="td-button td-primary" onClick={handleExportCSV} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />CSV (current page)</button>
           <button className="td-button" onClick={handleExportPDF} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />PDF (current page)</button>
         </div>
@@ -373,7 +211,7 @@ const AuditLogs = () => {
       {/* Table */}
       <div className="mb-panel audit-register" aria-busy={loading}>
         <div className="mb-register-heading"><div><h2>Activity register</h2><p>Open an entry to review its details and recorded changes.</p></div></div>
-        <div className="mb-scope"><span role="status">{loading ? 'Loading audit logs?' : error ? 'Audit logs unavailable' : `${(pagination.total || 0).toLocaleString()} matching records`}</span><span>{lastUpdated ? `Last updated ${formatTime(lastUpdated)} ? Philippine time` : 'Mortuary activity'}</span></div>
+        <div className="mb-scope"><span role="status">{loading ? 'Loading audit logs…' : error ? 'Audit logs unavailable' : `${(pagination.total || 0).toLocaleString()} matching records`}</span><span>{lastUpdated ? `Last updated ${formatTime(lastUpdated)} · Philippine time` : 'Mortuary activity'}</span></div>
         {loading ? (
           <div className="mb-empty" role="status" aria-label="Loading audit logs">
             <div className="animate-spin">
@@ -397,13 +235,13 @@ const AuditLogs = () => {
                       Date
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      User
+                      Performed by
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Activity
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Status
+                      Result
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Actions
@@ -424,6 +262,7 @@ const AuditLogs = () => {
                           {formatDateTime(log.timestamp)}
                         </td>
                         <td className="px-6 py-4 text-sm">
+                          {log.userName && <p className="font-medium text-slate-900 mb-1">{log.userName}</p>}
                           <span
                             className={`px-3 py-1 rounded-md text-xs font-semibold ${getRoleColor(log.userRole)}`}
                           >
@@ -447,7 +286,7 @@ const AuditLogs = () => {
                         <td className="px-6 py-4 text-sm">
                           <div className="flex items-center gap-1.5 capitalize text-slate-700">
                             {getStatusIcon(log.status)}
-                            {log.status}
+                            {outcomeLabel(log.status)}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
@@ -459,7 +298,7 @@ const AuditLogs = () => {
                             className="td-button" aria-haspopup="dialog" aria-label={`View ${actionLabel(log.action)} at ${formatDateTime(log.timestamp)}`}
                           >
                             <Eye className="w-4 h-4" />
-                            View
+                            View details
                           </button>
                         </td>
                       </Motion.tr>
@@ -483,154 +322,9 @@ const AuditLogs = () => {
         )}
       </div>
 
-      {/* Detail Modal */}
-      <AnimatePresence>
-        {showDetails && selectedLog && (
-          <Motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowDetails(false)}
-          >
-            <Motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              ref={dialogRef}
-              className="audit-dialog" role="dialog" aria-modal="true" aria-labelledby="audit-detail-title"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="audit-dialog-heading">
-                <div>
-                  <span
-                    className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-semibold ${getActionColor(selectedLog.action)}`}
-                  >
-                    {actionLabel(selectedLog.action)}
-                  </span>
-                  <h3 id="audit-detail-title" className="text-lg font-semibold text-slate-900 mt-1">
-                    {selectedLog.description || actionLabel(selectedLog.action)}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setShowDetails(false)}
-                  className="td-button shrink-0" aria-label="Close audit details"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="p-6 space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase">
-                      Date
-                    </p>
-                    <p className="text-sm text-slate-900 mt-1">
-                      {formatDateTime(selectedLog.timestamp)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase">
-                      By
-                    </p>
-                    <span
-                      className={`inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold ${getRoleColor(selectedLog.userRole)}`}
-                    >
-                      {roleLabel(selectedLog.userRole)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase">
-                      Status
-                    </p>
-                    <p className="text-sm text-slate-900 mt-1 capitalize flex items-center gap-2">
-                      {getStatusIcon(selectedLog.status)} {selectedLog.status}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedLog.errorMessage && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-red-700 uppercase">
-                      Error Message
-                    </p>
-                    <p className="text-sm text-red-600 mt-1">
-                      {selectedLog.errorMessage}
-                    </p>
-                  </div>
-                )}
-
-                {(() => {
-                  const { kind, rows } = describeChanges(selectedLog.changes);
-                  if (!rows.length) return null;
-
-                  if (kind === "diff") {
-                    return (
-                      <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                          What Changed
-                        </p>
-                        <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                          {rows.map((row) => (
-                            <div
-                              key={row.label}
-                              className="audit-change-row"
-                            >
-                              <span className="font-medium text-slate-700">
-                                {row.label}
-                              </span>
-                              <span className="text-slate-500 audit-value">
-                                {row.before}
-                              </span>
-                              <span className="text-slate-900 font-medium audit-value">
-                                → {row.after}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                        Details
-                      </p>
-                      <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                        {rows.map((row) => (
-                          <div
-                            key={row.label}
-                            className="audit-snapshot-row"
-                          >
-                            <span className="font-medium text-slate-700">
-                              {row.label}
-                            </span>
-                            <span className="text-slate-900 audit-value">
-                              {row.value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <details className="text-xs text-slate-400 pt-2 border-t border-slate-100">
-                  <summary className="cursor-pointer select-none font-medium text-slate-500 hover:text-slate-700">
-                    Technical details
-                  </summary>
-                  <div className="mt-2 space-y-1 pl-1">
-                    <p>IP Address: {selectedLog.ipAddress || "N/A"}</p>
-                    <p>Log ID: {selectedLog.logId}</p>
-                  </div>
-                </details>
-              </div>
-            </Motion.div>
-          </Motion.div>
-        )}
-      </AnimatePresence>
+      {showDetails && selectedLog && (
+        <AuditLogDetails log={selectedLog} module="mortuary" actionLabel={actionLabel} onClose={() => setShowDetails(false)} />
+      )}
     </div>
   );
 };

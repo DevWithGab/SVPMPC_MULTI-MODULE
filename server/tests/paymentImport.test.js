@@ -145,3 +145,19 @@ test('simultaneous uploads serialize payments for the same member and skip the s
   assert.equal(state.contributions.length, 2);
   assert.equal(state.ledgers.at(-1).balance, 110.25);
 });
+
+
+test('Passbook No. templates import with leading zeros and retain legacy header support', async () => {
+  for (const name of ['Passbook No.', 'Passbook Number', 'passbook_no', 'memberId', 'member_id']) {
+    const rows = parsePaymentCsv(header.replace('member_id', name) + '\n' + payment());
+    assert.equal(rows[0].entry.memberId, '001');
+    assert.deepEqual(rows[0].errors, []);
+    const { service, state } = database();
+    const result = await service.importRows(rows, 'treasurer-1');
+    assert.equal(result.rows[0].status, 'imported');
+    assert.equal(state.contributions[0].memberId, '001');
+  }
+  assert.throws(() => parsePaymentCsv('Passbook No.,member_id,amount,payment_date,reference_number\n001,001,10,2026-10-05,OR-1'), /duplicate column/);
+  assert.throws(() => parsePaymentCsv('amount,payment_date,reference_number\n10,2026-10-05,OR-1'), /Passbook No\./);
+  assert.match(parse(payment(''))[0].errors[0], /Passbook No\./);
+});

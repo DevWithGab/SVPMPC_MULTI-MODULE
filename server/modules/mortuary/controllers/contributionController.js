@@ -24,7 +24,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
 
     if (!memberId || !Number.isFinite(amount) || amount <= 0 || !referenceNumber?.trim()) {
       console.log('❌ Missing required fields:', { memberId, amount, referenceNumber });
-      return res.status(400).json({ message: 'Missing required fields: memberId, amount, and reference number' });
+      return res.status(400).json({ message: 'Missing required fields: Passbook No., amount, and reference number' });
     }
 
     // Verify member exists

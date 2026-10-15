@@ -149,7 +149,7 @@ const Contributions = ({
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900">{c.member_name}</span>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">ID: #{c.member_id}</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Passbook No.: {c.member_id}</span>
                     </div>
                   </TableCell>
                   <TableCell>

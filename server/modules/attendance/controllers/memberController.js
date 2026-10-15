@@ -126,7 +126,7 @@ const generateQRCodes = async (req, res) => {
     const { memberIds } = req.body;
 
     if (!memberIds || memberIds.length === 0) {
-      return res.status(400).json({ message: 'No member IDs provided' });
+      return res.status(400).json({ message: 'No passbook numbers provided' });
     }
 
     const members = await Member.find({ memberId: { $in: memberIds } });

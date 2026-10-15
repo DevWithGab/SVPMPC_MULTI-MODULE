@@ -1,0 +1,47 @@
+
+.audit-detail { width: calc(100% - 32px); max-width: 780px; max-height: 90dvh; padding: 0; margin: auto; border: 1px solid #dce3dd; border-radius: 12px; background: white; color: #24362a; box-shadow: 0 24px 70px #17251d40; overflow: auto; }
+.audit-detail::backdrop { background: #14231dcc; }
+.audit-detail-header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px; border-bottom: 1px solid #e2e7e3; background: white; }
+.audit-detail-header p { color: #647069; font-size: 12px; margin-bottom: 5px; }
+.audit-detail-header h2 { font-size: 21px; font-weight: 600; }
+.audit-detail-close { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 40px; padding: 9px 12px; border: 1px solid #cdd6cf; border-radius: 6px; background: white; color: #34453a; font-size: 13px; cursor: pointer; }
+.audit-detail-close:hover { background: #f3f6f3; }
+.audit-detail :is(button, summary):focus-visible { outline: 2px solid #2d7a3e; outline-offset: 3px; }
+.audit-detail-body { padding: 24px; display: grid; gap: 24px; }
+.audit-detail-summary { padding: 20px; border: 1px solid #e2e7e3; border-radius: 8px; background: #f8faf8; }
+.audit-outcome { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.audit-outcome-success { color: #226138; }
+.audit-outcome-failed { color: #b42318; }
+.audit-outcome-partial { color: #965308; }
+.audit-detail-story { margin-top: 10px; font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+.audit-detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #dce3dd; }
+.audit-detail dt, .audit-detail-pair span { color: #647069; font-size: 12px; }
+.audit-detail dd { font-size: 13px; margin: 5px 0 0; line-height: 1.7; }
+.audit-detail dd small { display: block; color: #647069; font-size: 12px; }
+.audit-detail h3 { font-size: 15px; font-weight: 600; }
+.audit-detail-hint { font-size: 12px; color: #647069; margin: 6px 0 14px; line-height: 1.7; }
+.audit-detail-changes { display: grid; gap: 12px; }
+.audit-detail-change { border: 1px solid #dce3dd; border-radius: 8px; overflow: hidden; }
+.audit-detail-change h4 { padding: 12px 16px; background: #f8faf8; border-bottom: 1px solid #e2e7e3; font-size: 13px; font-weight: 600; }
+.audit-detail-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.audit-detail-pair > div { padding: 12px 16px; }
+.audit-detail-pair > div + div { background: #f3f9f4; border-left: 1px solid #e2e7e3; }
+.audit-detail-pair p { margin-top: 5px; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+.audit-detail :is(dd, h4, .audit-detail-pair p) { overflow-wrap: anywhere; min-width: 0; }
+.audit-detail-list { border: 1px solid #e2e7e3; border-radius: 7px; overflow: hidden; }
+.audit-detail-list > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; padding: 12px 16px; }
+.audit-detail-list > div + div { border-top: 1px solid #edf0ed; }
+.audit-detail-list dd { margin: 0; white-space: pre-wrap; }
+.audit-detail-extra { border-top: 1px solid #e2e7e3; padding-top: 16px; }
+.audit-detail-extra summary { cursor: pointer; color: #526058; font-size: 13px; font-weight: 600; }
+.audit-detail-extra[open] summary { margin-bottom: 14px; }
+.audit-detail-error { border-left: 3px solid #b42318; padding: 14px 16px; background: #fef3f2; color: #912018; font-size: 13px; overflow-wrap: anywhere; }
+.audit-detail-error p { margin-top: 6px; line-height: 1.7; }
+.audit-detail-footer { display: flex; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid #e2e7e3; }
+@media (max-width: 540px) {
+  .audit-detail-header, .audit-detail-body { padding: 16px; }
+  .audit-detail-summary { padding: 16px; }
+  .audit-detail-facts, .audit-detail-pair, .audit-detail-list > div { grid-template-columns: minmax(0, 1fr); }
+  .audit-detail-pair > div + div { border-left: 0; border-top: 1px solid #e2e7e3; }
+  .audit-detail-list > div { gap: 5px; }
+}

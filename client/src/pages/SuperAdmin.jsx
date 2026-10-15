@@ -1,3 +1,4 @@
+import { importHeaderLabel, isPassbookHeader } from '../utils/importHeaders';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
@@ -443,7 +444,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
           };
           
           // Accept the new template header and legacy memberId templates.
-          const passbookIndex = headers.findIndex(header => ['passbookno', 'passbooknumber'].includes(header.toLowerCase().replace(/[\s._-]/g, '')));
+          const passbookIndex = headers.findIndex(isPassbookHeader);
           const memberIdIndex = passbookIndex !== -1 ? passbookIndex : headers.indexOf('memberId');
           if (memberIdIndex !== -1 && values[memberIdIndex]) {
             memberData.passbookNo = values[memberIdIndex];
@@ -1002,7 +1003,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                 <UploadTemplateCard onDownload={downloadMemberTemplate} disabled={loading}>
                   <p>Replace the sample row with your members. Keep the column headers and save as CSV UTF-8.</p>
                   <p><strong>Required:</strong> memberName, barangay, address.</p>
-                  <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, Passbook No. Email and phone number may be blank. Any email supplied must be unique. Enter a unique passbook number, or leave Passbook No. blank to generate one automatically. Older templates using memberId are also accepted.</p>
+                  <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, Passbook No. Email and phone number may be blank. Any email supplied must be unique. Enter a unique passbook number, or leave Passbook No. blank to generate one automatically. Older member templates are also accepted.</p>
                   <p>Use YYYY-MM-DD for dates and male, female, or other for gender. Blank gender defaults to male.</p>
                   <p>Format Passbook No. and phone columns as Text in your spreadsheet to keep leading zeros (for example, 000123 and 09123456789). Enclose addresses containing commas in double quotes.</p>
                   <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>
@@ -1016,7 +1017,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                         <thead className="bg-slate-50">
                           <tr>
                             {Object.keys(csvPreview[0]).map(key => (
-                              <th key={key} className="px-3 py-2 text-left font-bold text-slate-600 whitespace-nowrap">{key}</th>
+                              <th key={key} className="px-3 py-2 text-left font-bold text-slate-600 whitespace-nowrap">{importHeaderLabel(key)}</th>
                             ))}
                           </tr>
                         </thead>

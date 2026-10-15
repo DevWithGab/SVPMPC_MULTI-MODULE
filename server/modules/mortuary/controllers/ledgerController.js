@@ -166,7 +166,7 @@ const bulkUploadLedger = async (req, res) => {
           console.log(`❌ Missing required fields:`, entry);
           results.failed.push({
             entry,
-            reason: 'Missing required fields (memberId, transactionDate, credit/debit)'
+            reason: 'Missing required fields (Passbook No., transactionDate, credit/debit)'
           });
           continue;
         }

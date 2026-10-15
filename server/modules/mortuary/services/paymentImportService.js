@@ -23,7 +23,7 @@ function createPaymentImportService({ Member, Contribution, Ledger, PaymentImpor
       const member = members.find(item => item.memberId === row.entry.memberId);
       let status = 'ready';
       if (!errors.length) {
-        if (!member) errors.push('Member ID was not found');
+        if (!member) errors.push('Passbook No. was not found');
         const id = paymentId(row.entry);
         const reservation = reservations.find(item => item._id === id);
         const existing = contributions.filter(item => item.memberId === row.entry.memberId && item.referenceNumber === row.entry.referenceNumber);

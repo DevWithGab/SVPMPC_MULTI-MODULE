@@ -22,7 +22,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
 
   const downloadTemplate = () => {
     const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const contents = `member_id,amount,payment_date,reference_number,payment_method,notes\r\nMEMBER-ID,100.00,${date},RECEIPT-001,cash,Daily contribution\r\n`;
+    const contents = `Passbook No.,amount,payment_date,reference_number,payment_method,notes\r\n000123,100.00,${date},RECEIPT-001,cash,Daily contribution\r\n`;
     const url = URL.createObjectURL(new Blob(['\uFEFF', contents], { type: 'text/csv;charset=utf-8;' }));
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -77,10 +77,10 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
         {canImport && <Button type="button" disabled={busy} onClick={() => submit('import')} className="gap-2 bg-coop-green text-white hover:bg-coop-darkGreen"><Upload className="h-4 w-4" aria-hidden="true" />Import {summary.ready} Payments</Button>}
       </>}>
         <UploadTemplateCard onDownload={downloadTemplate} disabled={busy}>
-          <p><strong>Required columns:</strong> member_id, amount, payment_date (YYYY-MM-DD), reference_number.</p>
+          <p><strong>Required columns:</strong> Passbook No., amount, payment_date (YYYY-MM-DD), reference_number.</p>
           <p><strong>Optional:</strong> payment_method (cash), notes. Use positive amounts with up to two decimal places, without currency signs or thousands separators.</p>
           <p>Use a receipt or transaction reference for each payment. An already recorded payment with the same member and reference is skipped; conflicting amounts or dates must be corrected. Separate payments by the same member need different references.</p>
-          <p>Replace the sample row with actual member IDs and payment details. Keep leading zeros in member IDs when editing in a spreadsheet.</p>
+          <p>Replace the sample row with actual passbook numbers and payment details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>
         </UploadTemplateCard>
         <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only ? Up to 500 payments ? Maximum 1 MB" />
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
@@ -98,7 +98,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
             </tr></thead>
             <tbody className="divide-y divide-slate-100">{result.rows.map(row => <tr key={row.row}>
               <td className="px-3 py-3">{row.row}</td>
-              <td className="px-3 py-3"><p className="font-medium">{row.memberName || row.entry.memberId}</p><p className="text-xs text-slate-500">{row.entry.memberId}</p></td>
+              <td className="px-3 py-3"><p className="font-medium">{row.memberName || row.entry.memberId}</p><p className="text-xs text-slate-500">Passbook No.: {row.entry.memberId}</p></td>
               <td className="px-3 py-3 whitespace-nowrap">{row.entry.paymentDate}</td>
               <td className="px-3 py-3 break-all">{row.entry.referenceNumber}</td>
               <td className="px-3 py-3 whitespace-nowrap tabular-nums">{money(row.entry.amount)}</td>

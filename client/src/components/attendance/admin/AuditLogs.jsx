@@ -14,13 +14,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { downloadAuditCsv, createAuditPdf } from "../../../utils/auditExport";
+import AuditLogDetails from '../../shared/AuditLogDetails';
+import { readableLabel, outcomeLabel } from '../../../utils/auditDetails';
 import { auditAPI } from "../../../services/api";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import {
   formatDateTime,
-  formatDate,
   formatTime,
-  formatTimeString,
 } from "../../../utils/date";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "../secretary/Dashboard.css";
@@ -44,113 +44,6 @@ const ACTION_LABELS = {
 const actionLabel = (action) =>
   ACTION_LABELS[action] ||
   (action || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-const STATUS_VALUE_LABELS = {
-  draft: "Draft",
-  pending_approval: "Pending Approval",
-  upcoming: "Upcoming",
-  active: "Active",
-  closed: "Close",
-  rejected: "Rejected",
-  cancelled: "Cancelled",
-};
-
-// Fields that are internal bookkeeping (Mongo/document plumbing or values
-// already restated elsewhere) — never worth showing to an admin reviewing
-// what actually happened.
-const INTERNAL_FIELDS = new Set([
-  "_id",
-  "__v",
-  "id",
-  "createdAt",
-  "updatedAt",
-  "eventTime", // duplicates startTime
-]);
-
-const FIELD_LABELS = {
-  eventName: "Event Name",
-  eventDate: "Date",
-  startTime: "Start Time",
-  endTime: "End Time",
-  location: "Location",
-  description: "Description",
-  type: "Type",
-  status: "Status",
-  rejectionReason: "Rejection Reason",
-  createdBy: "Created By",
-  memberName: "Member Name",
-  memberId: "Passbook Number",
-  phoneNumber: "Phone Number",
-  barangay: "Barangay",
-  scanTime: "Scan Time",
-  entrySource: "Entry Source",
-  justification: "Justification",
-  eventLocation: "Event Location",
-};
-
-const friendlyLabel = (key) =>
-  FIELD_LABELS[key] ||
-  key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (c) => c.toUpperCase())
-    .trim();
-
-const friendlyValue = (key, value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  if (key === "status" && STATUS_VALUE_LABELS[value]) {
-    return STATUS_VALUE_LABELS[value];
-  }
-  if (key === "eventDate") return formatDate(value);
-  if (key === "scanTime") return formatDateTime(value);
-  if (key === "startTime" || key === "endTime") return formatTimeString(value);
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  return String(value);
-};
-
-// Turns a log's raw before/after snapshot into either a readable diff
-// (field changed from X to Y) or, for a create/delete with only one side,
-// a plain list of that record's key details — never the raw document.
-const describeChanges = (changes) => {
-  if (!changes) return { kind: null, rows: [] };
-  const { before, after } = changes;
-
-  if (before && after) {
-    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])];
-    const rows = keys
-      .filter((key) => !INTERNAL_FIELDS.has(key))
-      .filter(
-        (key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]),
-      )
-      .map((key) => ({
-        label: friendlyLabel(key),
-        before: friendlyValue(key, before[key]),
-        after: friendlyValue(key, after[key]),
-      }));
-    return { kind: "diff", rows };
-  }
-
-  const snapshot = after || before;
-  if (!snapshot) return { kind: null, rows: [] };
-  const rows = Object.keys(snapshot)
-    .filter((key) => !INTERNAL_FIELDS.has(key))
-    .map((key) => ({
-      label: friendlyLabel(key),
-      value: friendlyValue(key, snapshot[key]),
-    }));
-  return { kind: "snapshot", rows };
-};
-
-const describeMetadata = (metadata) => {
-  if (!metadata) return [];
-  return Object.entries(metadata)
-    .filter(
-      ([, value]) => value !== null && value !== undefined && value !== "",
-    )
-    .map(([key, value]) => ({
-      label: friendlyLabel(key),
-      value: friendlyValue(key, value),
-    }));
-};
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -436,13 +329,13 @@ const AuditLogs = () => {
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Role
+                      Performed by
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Activity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Status
+                      Result
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                       Actions
@@ -463,10 +356,11 @@ const AuditLogs = () => {
                           {formatDateTime(log.timestamp)}
                         </td>
                         <td className="px-6 py-4 text-sm">
+                          {log.userName && <p className="font-medium text-slate-900 mb-1">{log.userName}</p>}
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${getRoleColor(log.userRole)}`}
                           >
-                            {log.userRole}
+                            {readableLabel(log.userRole)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm">
@@ -486,7 +380,7 @@ const AuditLogs = () => {
                         <td className="px-6 py-4 text-sm">
                           <div className="flex items-center gap-1.5 capitalize text-slate-700">
                             {getStatusIcon(log.status)}
-                            {log.status}
+                            {outcomeLabel(log.status)}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
@@ -495,10 +389,10 @@ const AuditLogs = () => {
                               setSelectedLog(log);
                               setShowDetails(true);
                             }}
-                            className="sd-link"
+                            className="sd-button" aria-haspopup="dialog"
                           >
                             <Eye className="w-4 h-4" />
-                            View
+                            View details
                           </button>
                         </td>
                       </Motion.tr>
@@ -523,181 +417,9 @@ const AuditLogs = () => {
         )}
       </section>
 
-      {/* Detail Modal */}
-      <AnimatePresence>
-        {showDetails && selectedLog && (
-          <Motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="aal-modal-backdrop fixed inset-0 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowDetails(false)}
-          >
-            <Motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="aal-modal bg-white max-w-2xl w-full max-h-[85vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="aal-modal-heading sticky top-0 px-6 py-4 flex items-center justify-between gap-4">
-                <div>
-                  <span
-                    className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${getActionColor(selectedLog.action)}`}
-                  >
-                    {actionLabel(selectedLog.action)}
-                  </span>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1">
-                    {selectedLog.description || actionLabel(selectedLog.action)}
-                  </h3>
-                </div>
-                <button
-                  aria-label="Close activity details"
-                  onClick={() => setShowDetails(false)}
-                  className="text-slate-500 hover:text-slate-700 shrink-0"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="p-6 space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase">
-                      When
-                    </p>
-                    <p className="text-sm text-slate-900 mt-1">
-                      {formatDateTime(selectedLog.timestamp)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase">
-                      By
-                    </p>
-                    <span
-                      className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${getRoleColor(selectedLog.userRole)}`}
-                    >
-                      {selectedLog.userRole}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase">
-                      Status
-                    </p>
-                    <p className="text-sm text-slate-900 mt-1 capitalize flex items-center gap-2">
-                      {getStatusIcon(selectedLog.status)} {selectedLog.status}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedLog.errorMessage && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-red-700 uppercase">
-                      Error Message
-                    </p>
-                    <p className="text-sm text-red-600 mt-1">
-                      {selectedLog.errorMessage}
-                    </p>
-                  </div>
-                )}
-
-                {(() => {
-                  const { kind, rows } = describeChanges(selectedLog.changes);
-                  if (!rows.length) return null;
-
-                  if (kind === "diff") {
-                    return (
-                      <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                          What Changed
-                        </p>
-                        <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                          {rows.map((row) => (
-                            <div
-                              key={row.label}
-                              className="grid grid-cols-3 gap-2 px-3 py-2 text-sm"
-                            >
-                              <span className="font-medium text-slate-700">
-                                {row.label}
-                              </span>
-                              <span className="text-slate-500 truncate">
-                                {row.before}
-                              </span>
-                              <span className="text-slate-900 font-medium truncate">
-                                → {row.after}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                        Details
-                      </p>
-                      <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                        {rows.map((row) => (
-                          <div
-                            key={row.label}
-                            className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                          >
-                            <span className="font-medium text-slate-700">
-                              {row.label}
-                            </span>
-                            <span className="text-slate-900 text-right">
-                              {row.value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {(() => {
-                  const rows = describeMetadata(selectedLog.metadata);
-                  if (!rows.length) return null;
-                  return (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                        Additional Info
-                      </p>
-                      <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-                        {rows.map((row) => (
-                          <div
-                            key={row.label}
-                            className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                          >
-                            <span className="font-medium text-slate-700">
-                              {row.label}
-                            </span>
-                            <span className="text-slate-900 text-right">
-                              {row.value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <details className="text-xs text-slate-400 pt-2 border-t border-slate-100">
-                  <summary className="cursor-pointer select-none font-medium text-slate-500 hover:text-slate-700">
-                    Technical details
-                  </summary>
-                  <div className="mt-2 space-y-1 pl-1">
-                    <p>IP Address: {selectedLog.ipAddress || "N/A"}</p>
-                    <p>Log ID: {selectedLog.logId}</p>
-                  </div>
-                </details>
-              </div>
-            </Motion.div>
-          </Motion.div>
-        )}
-      </AnimatePresence>
+      {showDetails && selectedLog && (
+        <AuditLogDetails log={selectedLog} module="attendance" actionLabel={actionLabel} onClose={() => setShowDetails(false)} />
+      )}
     </div>
   );
 };
