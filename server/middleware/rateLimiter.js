@@ -1,16 +1,22 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
-// Login had no brute-force protection at all — anyone could hammer
-// /api/auth/login with unlimited password guesses against any username.
-// 10 attempts per 15 minutes per IP is generous for a genuine user
-// (who mistypes a password a handful of times) while making credential
-// stuffing / brute-forcing impractical.
+// Keep each login form's failed-attempt bucket independent. A failed
+// Attendance/admin login must not lock out a Mortuary/admin login or another
+// role using the same network.
+const loginKeyGenerator = (req) => {
+  const { username = 'unknown', expectedRole = 'unknown', module = 'unknown' } = req.body || {};
+  const ip = ipKeyGenerator(req.ip);
+  return `${ip}:${String(username).trim().toLowerCase()}:${String(module).trim().toLowerCase()}:${String(expectedRole).trim().toLowerCase()}`;
+};
+
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 5 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+  message: { message: 'Too many login attempts. Please try again in 5 minutes.' },
+  keyGenerator: loginKeyGenerator,
   // Failed logins consume the limit; a successful one doesn't count against
   // the user for the rest of the window.
   skipSuccessfulRequests: true,
@@ -27,4 +33,4 @@ const changePasswordLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-module.exports = { loginLimiter, changePasswordLimiter };
+module.exports = { loginLimiter, changePasswordLimiter, loginKeyGenerator };
