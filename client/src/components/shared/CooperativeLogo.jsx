@@ -34,7 +34,7 @@ export default function CooperativeLogo({ icon: IconComponent, showLogo = false 
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          Registry Authority • Central Portal
+          COOPERATIVE SERVICES PORTAL
         </motion.p>
       </div>
     </motion.div>

@@ -6,7 +6,7 @@ export default function TerminalFooter() {
       <div className="flex items-center gap-4 text-gray-300">
         <Database size={14} />
         <span className="text-[10px] font-mono font-bold tracking-widest uppercase">
-          Saint Vincent Registry Authority Database
+          SAINT VINCENT COOPERATIVE • MANAGEMENT SYSTEM
         </span>
       </div>
       <div className="mt-4 flex items-center gap-2 opacity-30">
