@@ -12,6 +12,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
+import { downloadAuditCsv, createAuditPdf } from "../../../utils/auditExport";
 import { auditAPI } from "../../../services/api";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { formatDate, formatDateTime, formatTime } from "../../../utils/date";
@@ -307,38 +308,18 @@ const AuditLogs = () => {
   const handlePageChange = (newPage) =>
     setFilters({ ...filters, page: newPage });
 
+  const exportRows = () => logs.map(log => [
+    formatDateTime(log.timestamp), roleLabel(log.userRole), actionLabel(log.action),
+    log.entityName || "-", log.status, log.description,
+  ]);
+  const exportFilename = (extension) => `mortuary-audit-logs-${new Date().toISOString().split("T")[0]}.${extension}`;
   const handleExportCSV = () => {
-    if (logs.length === 0) return;
-    const headers = [
-      "Timestamp",
-      "Role",
-      "Action",
-      "Entity Name",
-      "Status",
-      "Description",
-    ];
-    const rows = logs.map((log) => [
-      formatDateTime(log.timestamp),
-      roleLabel(log.userRole),
-      actionLabel(log.action),
-      log.entityName || "-",
-      log.status,
-      log.description,
-    ]);
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")),
-    ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `mortuary-audit-logs-${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    if (!logs.length) return;
+    downloadAuditCsv(exportRows(), exportFilename('csv'));
+  };
+  const handleExportPDF = () => {
+    if (!logs.length) return;
+    createAuditPdf({ rows: exportRows(), moduleName: 'Mortuary', filters }).save(exportFilename('pdf'));
   };
 
   const getStatusIcon = (status) => {
@@ -367,7 +348,8 @@ const AuditLogs = () => {
         </div>
         <div className="td-header-actions">
           <button className="td-button" onClick={() => { fetchAuditLogs(); fetchStats(); }} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing?' : 'Refresh'}</button>
-          <button className="td-button td-primary" onClick={handleExportCSV} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />Export current page</button>
+          <button className="td-button td-primary" onClick={handleExportCSV} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />CSV (current page)</button>
+          <button className="td-button" onClick={handleExportPDF} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />PDF (current page)</button>
         </div>
       </header>
 

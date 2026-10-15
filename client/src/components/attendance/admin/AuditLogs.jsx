@@ -13,6 +13,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
+import { downloadAuditCsv, createAuditPdf } from "../../../utils/auditExport";
 import { auditAPI } from "../../../services/api";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import {
@@ -234,41 +235,18 @@ const AuditLogs = () => {
     setFilters({ ...filters, page: newPage });
   };
 
+  const exportRows = () => logs.map(log => [
+    formatDateTime(log.timestamp), log.userRole, actionLabel(log.action),
+    log.entityName || "-", log.status, log.description,
+  ]);
+  const exportFilename = (extension) => `attendance-audit-logs-${new Date().toISOString().split("T")[0]}.${extension}`;
   const handleExportCSV = () => {
-    if (logs.length === 0) return;
-
-    const headers = [
-      "Timestamp",
-      "Role",
-      "Action",
-      "Entity Name",
-      "Status",
-      "Description",
-    ];
-
-    const rows = logs.map((log) => [
-      formatDateTime(log.timestamp),
-      log.userRole,
-      actionLabel(log.action),
-      log.entityName || "-",
-      log.status,
-      log.description,
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `audit-logs-${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    link.click();
+    if (!logs.length) return;
+    downloadAuditCsv(exportRows(), exportFilename('csv'));
+  };
+  const handleExportPDF = () => {
+    if (!logs.length) return;
+    createAuditPdf({ rows: exportRows(), moduleName: 'Attendance', filters }).save(exportFilename('pdf'));
   };
 
   const getStatusIcon = (status) => {
@@ -322,7 +300,10 @@ const AuditLogs = () => {
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <button onClick={handleExportCSV} disabled={loading || !logs.length} className="sd-button sd-primary">
-            <Download size={15} aria-hidden="true" /> Export CSV
+            <Download size={15} aria-hidden="true" /> CSV (current page)
+          </button>
+          <button onClick={handleExportPDF} disabled={loading || !logs.length} className="sd-button">
+            <Download size={15} aria-hidden="true" /> PDF (current page)
           </button>
           {lastUpdated && (
             <p className="text-xs text-slate-400">
