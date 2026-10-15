@@ -18,7 +18,7 @@ import { usePagination } from '../hooks/usePagination';
 import { UploadFilePicker, UploadTemplateCard } from '../components/mortuary/shared/BulkUploadDialog';
 import { validatePhPhone, sanitizePhoneInput } from '../utils/validation';
 
-const MEMBER_VALIDATION_FIELDS = ['memberName', 'email', 'phoneNumber', 'barangay', 'address', 'beneficiaryContactNumber'];
+const MEMBER_VALIDATION_FIELDS = ['passbookNo', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', 'beneficiaryContactNumber'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const validateMemberField = (name, rawValue) => {
@@ -113,6 +113,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
   
   // Form state
   const [newMember, setNewMember] = useState({
+    passbookNo: '',
     memberName: '',
     email: '',
     phoneNumber: '',
@@ -137,6 +138,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
   const memberFieldRefs = useRef({});
 
   const emptyMemberForm = {
+    passbookNo: '',
     memberName: '',
     email: '',
     phoneNumber: '',
@@ -309,7 +311,11 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
       fetchMembers();
     } catch (error) {
       const message = error.response?.data?.message || 'Error creating member';
-      if (/email/i.test(message)) {
+      if (/passbook/i.test(message)) {
+        setMemberErrors((prev) => ({ ...prev, passbookNo: message }));
+        setMemberTouched((prev) => ({ ...prev, passbookNo: true }));
+        memberFieldRefs.current.passbookNo?.focus();
+      } else if (/email/i.test(message)) {
         // Surface it right under the field that caused it, not just as a
         // toast the admin has to mentally map back to a field themselves.
         setMemberErrors((prev) => ({ ...prev, email: message }));
@@ -325,8 +331,8 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
 
   const downloadMemberTemplate = () => {
     const csv = [
-      'memberName,email,phoneNumber,barangay,address,beneficiaries,beneficiaryRelationship,beneficiaryContactNumber,dateOfBirth,gender,memberId',
-      'Juan Dela Cruz,juan.delacruz@example.com,09123456789,Sample Barangay,"123 Sample Street, Sample Barangay",Maria Dela Cruz,Spouse,09987654321,1990-01-15,male,',
+      'memberName,email,phoneNumber,barangay,address,beneficiaries,beneficiaryRelationship,beneficiaryContactNumber,dateOfBirth,gender,Passbook No.',
+      'Juan Dela Cruz,juan.delacruz@example.com,09123456789,Sample Barangay,"123 Sample Street, Sample Barangay",Maria Dela Cruz,Spouse,09987654321,1990-01-15,male,000123',
     ].join('\r\n') + '\r\n';
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
@@ -436,10 +442,11 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
             modules: ['attendance', 'mortuary']
           };
           
-          // Include memberId if provided in CSV
-          const memberIdIndex = headers.indexOf('memberId');
+          // Accept the new template header and legacy memberId templates.
+          const passbookIndex = headers.findIndex(header => ['passbookno', 'passbooknumber'].includes(header.toLowerCase().replace(/[\s._-]/g, '')));
+          const memberIdIndex = passbookIndex !== -1 ? passbookIndex : headers.indexOf('memberId');
           if (memberIdIndex !== -1 && values[memberIdIndex]) {
-            memberData.memberId = values[memberIdIndex];
+            memberData.passbookNo = values[memberIdIndex];
           }
           
           console.log(`Parsed member ${index + 1}:`, memberData);
@@ -646,7 +653,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search members..."
+              placeholder="Search by name, email, or passbook no..."
               className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
             />
           </div>
@@ -711,7 +718,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                       <td className="px-6 py-4">
                         <div>
                           <p className="font-bold text-slate-900">{member.memberName}</p>
-                          <p className="text-sm text-slate-500">{member.memberId}</p>
+                          <p className="text-sm text-slate-500">Passbook No.: {member.memberId}</p>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -807,7 +814,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                   {createdMember.memberName} was added successfully.
                 </p>
                 <p className="text-xs text-emerald-700 mt-1">
-                  The member record is ready for attendance and mortuary management.
+                  Passbook No.: {createdMember.memberId}. The member record is ready for attendance and mortuary management.
                 </p>
               </div>
             </div>
@@ -827,6 +834,17 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
             </p>
 
             <div className="grid grid-cols-2 gap-4">
+              <FormField
+                label="Passbook No."
+                name="passbookNo"
+                value={newMember.passbookNo}
+                onChange={(value) => handleMemberFieldChange('passbookNo', value)}
+                onBlur={() => handleMemberFieldBlur('passbookNo')}
+                error={memberTouched.passbookNo ? memberErrors.passbookNo : ''}
+                placeholder="000123"
+                hint="Enter the unique passbook number. Leave blank to generate one automatically."
+                ref={(el) => (memberFieldRefs.current.passbookNo = el)}
+              />
               <FormField
                 label="Full Name"
                 name="memberName"
@@ -984,9 +1002,9 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                 <UploadTemplateCard onDownload={downloadMemberTemplate} disabled={loading}>
                   <p>Replace the sample row with your members. Keep the column headers and save as CSV UTF-8.</p>
                   <p><strong>Required:</strong> memberName, barangay, address.</p>
-                  <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, memberId. Email and phone number may be blank. Any email supplied must be unique. Leave memberId blank to generate it automatically, or enter a unique existing passbook ID.</p>
+                  <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, Passbook No. Email and phone number may be blank. Any email supplied must be unique. Enter a unique passbook number, or leave Passbook No. blank to generate one automatically. Older templates using memberId are also accepted.</p>
                   <p>Use YYYY-MM-DD for dates and male, female, or other for gender. Blank gender defaults to male.</p>
-                  <p>Format phone columns as Text in your spreadsheet to keep the leading zero (for example, 09123456789). Enclose addresses containing commas in double quotes.</p>
+                  <p>Format Passbook No. and phone columns as Text in your spreadsheet to keep leading zeros (for example, 000123 and 09123456789). Enclose addresses containing commas in double quotes.</p>
                   <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>
                 </UploadTemplateCard>
                 <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading} hint="Upload your completed member CSV, then review the first five rows below." />

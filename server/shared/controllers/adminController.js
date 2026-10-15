@@ -81,8 +81,12 @@ const createMember = async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
-    // Generate unique memberId
-    const memberId = `MEM-${Date.now()}`;
+    // Keep the shared memberId key so attendance and mortuary links stay compatible.
+    const passbookNo = normalizeContact(req.body.passbookNo ?? req.body.memberId);
+    const memberId = passbookNo || `MEM-${uuidv4()}`;
+    if (passbookNo && await Member.findOne({ memberId })) {
+      return res.status(400).json({ message: 'Passbook No. already exists' });
+    }
 
     // Create member
     const member = new Member({
@@ -124,6 +128,9 @@ const createMember = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating member:', error);
+    if (error.code === 11000 && (error.keyPattern?.memberId || error.keyValue?.memberId)) {
+      return res.status(400).json({ message: 'Passbook No. already exists' });
+    }
     res.status(500).json({ message: 'Error creating member', error: error.message });
   }
 };
@@ -163,7 +170,7 @@ const bulkCreateMembers = async (req, res) => {
         }
 
         // Use provided memberId or generate unique one
-        const memberId = memberData.memberId || `MEM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const memberId = normalizeContact(memberData.passbookNo ?? memberData.memberId) || `MEM-${uuidv4()}`;
         console.log(`🆔 Using memberId: ${memberId}`);
 
         // Check if memberId already exists
@@ -173,7 +180,7 @@ const bulkCreateMembers = async (req, res) => {
           results.failed.push({
             email: memberData.email,
             memberName: memberData.memberName,
-            reason: `MemberId ${memberId} already exists`,
+            reason: `Passbook No. ${memberId} already exists`,
           });
           continue;
         }
@@ -216,7 +223,9 @@ const bulkCreateMembers = async (req, res) => {
         results.failed.push({
           email: memberData.email,
           memberName: memberData.memberName || 'Unknown',
-          reason: error.message,
+          reason: error.code === 11000 && (error.keyPattern?.memberId || error.keyValue?.memberId)
+            ? 'Passbook No. already exists'
+            : error.message,
         });
       }
     }

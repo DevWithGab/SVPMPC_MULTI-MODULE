@@ -42,6 +42,37 @@ function controllerHarness() {
 
 const member = { memberName: 'Sample Member', barangay: 'Sample Barangay', address: 'Sample Address' };
 
+test('manual passbook numbers preserve leading zeros and reject duplicates across creation flows', async () => {
+  const { rows, invoke } = controllerHarness();
+  const created = await invoke('createMember', { ...member, passbookNo: ' 000123 ' });
+  assert.equal(created.code, 201);
+  assert.equal(created.data.member.memberId, '000123');
+  const duplicate = await invoke('createMember', { ...member, passbookNo: '000123' });
+  assert.equal(duplicate.code, 400);
+  assert.match(duplicate.data.message, /Passbook No.*already exists/);
+  const bulk = await invoke('bulkCreateMembers', { members: [
+    { ...member, passbookNo: '000123' },
+    { ...member, passbookNo: ' 000124 ' },
+    { ...member, memberId: '000125' },
+    { ...member, passbookNo: '000124' },
+  ] });
+  assert.equal(bulk.data.summary.successful, 2);
+  assert.equal(bulk.data.summary.failed, 2);
+  assert.deepEqual(rows.members.map(row => row.memberId), ['000123', '000124', '000125']);
+  assert.ok(bulk.data.results.failed.every(row => /Passbook No.*already exists/.test(row.reason)));
+});
+
+test('single creation accepts legacy identifiers and generates unique identifiers for blank passbooks', async () => {
+  const { invoke } = controllerHarness();
+  const legacy = await invoke('createMember', { ...member, memberId: '000100' });
+  assert.equal(legacy.data.member.memberId, '000100');
+  const first = await invoke('createMember', { ...member, passbookNo: ' ' });
+  const second = await invoke('createMember', { ...member, passbookNo: '' });
+  assert.equal(first.code, 201);
+  assert.equal(second.code, 201);
+  assert.notEqual(first.data.member.memberId, second.data.member.memberId);
+});
+
 test('single member creation accepts omitted, empty, and whitespace contact details', async () => {
   for (const contact of [{}, { email: '', phoneNumber: '' }, { email: '  ', phoneNumber: '  ' }]) {
     const { rows, invoke } = controllerHarness();
