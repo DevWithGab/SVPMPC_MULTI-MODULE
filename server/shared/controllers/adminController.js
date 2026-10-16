@@ -8,6 +8,12 @@ const { v4: uuidv4 } = require('uuid');
 // called directly.
 const PH_PHONE_REGEX = /^09\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Same escaping used throughout the mortuary controllers (e.g.
+// claimController.js, treasurerClaimController.js) — a search term typed
+// into this box is user input, not a trusted regex pattern. Left
+// un-escaped, a crafted search string could cause catastrophic-backtracking
+// (ReDoS) on this collection-wide query.
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalizeContact = value => typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim();
 const contactError = (email, phoneNumber) => {
   if (email && !EMAIL_REGEX.test(email)) return 'Enter a valid email address.';
@@ -261,10 +267,11 @@ const getAllMembers = async (req, res) => {
     }
 
     if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
       query.$or = [
-        { memberName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { memberId: { $regex: search, $options: 'i' } },
+        { memberName: searchRegex },
+        { email: searchRegex },
+        { memberId: searchRegex },
       ];
     }
 
@@ -292,14 +299,42 @@ const getAllMembers = async (req, res) => {
   }
 };
 
+// Fields an Admin editing a member record may actually change. Anything else
+// in the request body — qrCode/qrCodeUrl/qrCodeGenerated/qrCodeActive (owned
+// exclusively by the generate/regenerate/deactivate/reactivate endpoints in
+// memberController.js, which apply their own rules, e.g. refusing QR changes
+// for a deceased member), Mongoose internals like _id/__v/createdAt, or any
+// other schema field — is silently dropped instead of being passed straight
+// into the update.
+const MEMBER_UPDATE_FIELDS = [
+  'memberName',
+  'email',
+  'phoneNumber',
+  'barangay',
+  'address',
+  'beneficiaries',
+  'beneficiaryRelationship',
+  'dateOfBirth',
+  'gender',
+  'emergencyContact',
+  'status',
+  'modules',
+];
+
 // Update member
 const updateMember = async (req, res) => {
   try {
     const { memberId } = req.params;
-    const updateData = req.body;
+    const updateData = {};
+    for (const field of MEMBER_UPDATE_FIELDS) {
+      if (Object.hasOwn(req.body, field)) updateData[field] = req.body[field];
+    }
 
-    // Don't allow updating memberId
-    delete updateData.memberId;
+    // Same "validate only when supplied" rule as createMember above.
+    if (Object.hasOwn(updateData, 'email')) updateData.email = normalizeContact(updateData.email);
+    if (Object.hasOwn(updateData, 'phoneNumber')) updateData.phoneNumber = normalizeContact(updateData.phoneNumber);
+    const invalidContact = contactError(updateData.email, updateData.phoneNumber);
+    if (invalidContact) return res.status(400).json({ message: invalidContact });
 
     const member = await Member.findOneAndUpdate(
       { memberId },

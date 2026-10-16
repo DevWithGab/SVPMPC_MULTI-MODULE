@@ -224,6 +224,7 @@ const AdminPortal = ({ onBack, user }) => {
             members={members}
             setActiveTab={setActiveSection}
             user={user}
+            showToast={addToast}
           />
         );
     }

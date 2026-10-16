@@ -42,8 +42,23 @@ function makeClaim(overrides = {}) {
 // which falls back to the module's own DEFAULT_MAX_BENEFIT_AMOUNT).
 function controllerFor(claim, { cap = 50000 } = {}) {
   const ledgers = [];
+  // Mirrors real Mongoose findOneAndUpdate semantics closely enough for
+  // these tests: only transitions (and returns the doc) if the current
+  // status matches the query's status precondition, otherwise returns null
+  // — same atomic-lock behavior releaseClaim relies on in production.
+  const FakeClaim = {
+    findOne: async () => claim,
+    findOneAndUpdate: async (query, update) => {
+      if (claim.status !== query.status) return null;
+      claim.status = update.$set.status;
+      return claim;
+    },
+    updateOne: async (query, update) => {
+      if (claim.status === query.status) claim.status = update.$set.status;
+    },
+  };
   const treasurerClaimController = load('../modules/mortuary/controllers/treasurerClaimController', {
-    '../models/Claim': { findOne: async () => claim },
+    '../models/Claim': FakeClaim,
     '../models/DeductionSetting': { findOne: async () => null },
     '../models/BenefitCapSetting': { findOne: async () => (cap === null ? null : { amount: cap }) },
     '../models/Ledger': class {

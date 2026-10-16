@@ -70,7 +70,15 @@ const claimSchema = new mongoose.Schema(
         'pending_requirements',
         'approved',
         'pending_deduction',
+        // Transient lock states: a claim sits here only for the duration of
+        // processClaimDeduction/releaseClaim's own request — claiming one
+        // atomically (findOneAndUpdate with the prior status as the filter)
+        // is what stops two concurrent requests from both doing the money
+        // math for the same claim. Reverted back on failure; see those
+        // functions in treasurerClaimController.js for why this exists.
+        'deduction_processing',
         'deduction_processed',
+        'releasing',
         'released',
         'rejected',
       ],

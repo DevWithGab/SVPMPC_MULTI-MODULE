@@ -46,7 +46,29 @@ const recordAttendance = async (req, res) => {
       return res.status(400).json({ message: 'Attendance can only be recorded while the event is active' });
     }
 
-    // Check if member already marked present for this event
+    // Fast-path check so a plain double-click gets this friendly message
+    // without ever reaching the database's own constraint. It is NOT the
+    // real guard — two near-simultaneous scans (same member, two scanner
+    // stations, or just enough network jitter) can both pass this findOne
+    // before either has saved. The unique index on {memberId, eventId}
+    // (see Attendance.js) backed by the duplicate-key catch below the save
+    // is what actually prevents a second "present" row from ever existing.
+    const logDuplicateScan = () => createAuditLog({
+      userId: scannedBy || 'scanner',
+      userName: scannedBy || 'Scanner Device',
+      userRole: 'scanner',
+      action: 'attendance_recorded',
+      module: 'attendance',
+      entityType: 'attendance',
+      entityId: `${memberId}-${eventId}`,
+      entityName: member.memberName,
+      description: `Duplicate scan attempt for member "${member.memberName}" at event "${event.eventName}"`,
+      status: 'failed',
+      errorMessage: 'Member already marked present for this event',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
     const existingAttendance = await Attendance.findOne({
       memberId,
       eventId,
@@ -54,23 +76,7 @@ const recordAttendance = async (req, res) => {
     });
 
     if (existingAttendance) {
-      // Log duplicate scan attempt
-      await createAuditLog({
-        userId: scannedBy || 'scanner',
-        userName: scannedBy || 'Scanner Device',
-        userRole: 'scanner',
-        action: 'attendance_recorded',
-        module: 'attendance',
-        entityType: 'attendance',
-        entityId: `${memberId}-${eventId}`,
-        entityName: member.memberName,
-        description: `Duplicate scan attempt for member "${member.memberName}" at event "${event.eventName}"`,
-        status: 'failed',
-        errorMessage: 'Member already marked present for this event',
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      });
-
+      await logDuplicateScan();
       return res.status(400).json({
         message: 'Member already marked present for this event',
       });
@@ -92,7 +98,19 @@ const recordAttendance = async (req, res) => {
       justification: justification || undefined,
     });
 
-    const saved = await newAttendance.save();
+    let saved;
+    try {
+      saved = await newAttendance.save();
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      // Lost the race: another request's insert landed between the
+      // findOne above and this save. The unique index just caught what the
+      // findOne couldn't.
+      await logDuplicateScan();
+      return res.status(400).json({
+        message: 'Member already marked present for this event',
+      });
+    }
 
     // Log audit event
     await createAuditLog({

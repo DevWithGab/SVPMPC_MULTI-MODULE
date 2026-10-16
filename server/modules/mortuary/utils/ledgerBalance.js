@@ -25,6 +25,22 @@ const getLatestBalance = async (memberId) => {
   return latest ? latest.balance : 0;
 };
 
+// Batch version of getLatestBalance — one aggregation instead of one
+// findOne() per member, for hot paths (e.g. the treasurer dashboard) that
+// need every member's current balance at once. $sort before $group so each
+// group's $first is that member's most-recently-posted row, same ordering
+// LATEST_FIRST gives findOne(). Members with no ledger rows are simply
+// absent from the returned map — callers treat a missing entry as 0, same
+// as getLatestBalance's own fallback.
+const getLatestBalancesByMember = async (memberIds) => {
+  const rows = await Ledger.aggregate([
+    { $match: { memberId: { $in: memberIds } } },
+    { $sort: { memberId: 1, createdAt: -1, _id: -1 } },
+    { $group: { _id: '$memberId', balance: { $first: '$balance' } } },
+  ]);
+  return new Map(rows.map((row) => [row._id, row.balance]));
+};
+
 // Rewrites every `balance` for a member as the running total in posting order.
 // Returns what would change so callers can dry-run before committing; pass
 // { apply: true } to actually write. Used to repair rows saved while the old
@@ -47,4 +63,4 @@ const recomputeMemberBalances = async (memberId, { apply = false } = {}) => {
   return { memberId, rows: rows.length, finalBalance: running, changes };
 };
 
-module.exports = { POSTING_ORDER, LATEST_FIRST, getLatestBalance, recomputeMemberBalances };
+module.exports = { POSTING_ORDER, LATEST_FIRST, getLatestBalance, getLatestBalancesByMember, recomputeMemberBalances };

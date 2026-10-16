@@ -14,25 +14,25 @@ const payoutController = {
         transactionType: { $in: ['payout', 'claim_payout'] },
       }).sort({ transactionDate: -1 });
 
-      const formattedPayouts = [];
+      // One batch lookup for every member name instead of a Member.findOne()
+      // per payout row in the loop below.
+      const memberIds = [...new Set(payouts.map((payout) => payout.memberId))];
+      const members = await Member.find({ memberId: { $in: memberIds } }).select('memberId memberName').lean();
+      const memberNameById = new Map(members.map((member) => [member.memberId, member.memberName]));
 
-      for (const payout of payouts) {
-        const member = await Member.findOne({ memberId: payout.memberId });
-
-        formattedPayouts.push({
-          id: payout._id,
-          payout_date: payout.transactionDate.toISOString().split('T')[0],
-          member_name: member?.memberName || 'Unknown',
-          member_id: payout.memberId,
-          beneficiary: payout.beneficiary || 'Not specified',
-          // claim_payout rows are recorded credit-in/debit-out on the same
-          // row (see treasurerClaimController.releaseClaim) so the member's
-          // own balance is untouched — debit is still the released amount.
-          amount: Math.abs(payout.debit),
-          payment_method: payout.paymentMethod || 'Cash',
-          description: payout.description
-        });
-      }
+      const formattedPayouts = payouts.map((payout) => ({
+        id: payout._id,
+        payout_date: payout.transactionDate.toISOString().split('T')[0],
+        member_name: memberNameById.get(payout.memberId) || 'Unknown',
+        member_id: payout.memberId,
+        beneficiary: payout.beneficiary || 'Not specified',
+        // claim_payout rows are recorded credit-in/debit-out on the same
+        // row (see treasurerClaimController.releaseClaim) so the member's
+        // own balance is untouched — debit is still the released amount.
+        amount: Math.abs(payout.debit),
+        payment_method: payout.paymentMethod || 'Cash',
+        description: payout.description
+      }));
 
       res.json({
         success: true,

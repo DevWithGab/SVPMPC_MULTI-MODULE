@@ -1,6 +1,12 @@
 const { Member } = require('../../../shared/models');
 const { Ledger } = require('../models');
 
+// Same escaping used throughout the other mortuary controllers (e.g.
+// claimController.js, treasurerClaimController.js) — a search term is user
+// input, not a trusted regex pattern; left un-escaped it can cause
+// catastrophic-backtracking (ReDoS) on this collection-wide query.
+const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const adminController = {
   // Get all members for admin - with pagination
   getAllMembers: async (req, res) => {
@@ -17,9 +23,10 @@ const adminController = {
 
       // Search by name or memberId if provided
       if (search) {
+        const searchRegex = new RegExp(escapeRegex(search), 'i');
         query.$or = [
-          { memberName: { $regex: search, $options: 'i' } },
-          { memberId: { $regex: search, $options: 'i' } }
+          { memberName: searchRegex },
+          { memberId: searchRegex }
         ];
       }
 

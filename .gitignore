@@ -39,8 +39,15 @@ Thumbs.db
 
 # Uploads (if local)
 uploads/
+tmp-uploads/
 
 # Temporary files
 /tmp/pdfs/runtime/
 *.tmp
 *.temp
+
+# Real member/financial data dumps — these are DB exports (member IDs, names,
+# contribution/deduction/payout amounts), never placeholders, and must never
+# be committed.
+server/backups/
+*backup*.json

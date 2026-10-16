@@ -367,7 +367,6 @@ export default function QRScanner({
   // Store current state in refs to avoid dependency issues in requestAnimationFrame loop
   const stateRef = useRef({
     isScanning: false,
-    isProcessing: false,
     events: [],
     selectedEventId: "",
     user: null,
@@ -377,7 +376,6 @@ export default function QRScanner({
   useEffect(() => {
     stateRef.current = {
       isScanning,
-      isProcessing: isProcessingRef.current,
       events,
       selectedEventId,
       user,

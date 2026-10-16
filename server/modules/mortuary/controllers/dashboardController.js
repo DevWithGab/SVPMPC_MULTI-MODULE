@@ -2,7 +2,7 @@ const Ledger = require('../models/Ledger');
 const Contribution = require('../models/Contribution');
 const Claim = require('../models/Claim');
 const { Member } = require('../../../shared/models');
-const { LATEST_FIRST } = require('../utils/ledgerBalance');
+const { LATEST_FIRST, getLatestBalancesByMember } = require('../utils/ledgerBalance');
 
 const getClaimFinancialTotals = async (match) => {
   const collected = { $ifNull: ['$deduction.totalCollected', 0] };
@@ -97,21 +97,23 @@ const getTreasurerDashboard = async (req, res) => {
     const deceasedMembers = await Member.countDocuments({ status: 'deceased' });
 
     // Get fund balance and member standing (sum of all member balances from latest ledger entries)
-    const members = await Member.find({ status: 'active' });
+    const members = await Member.find({ status: 'active' }).select('memberId').lean();
     let fundBalance = 0;
     let lowBalanceCount = 0;
     let goodStandingCount = 0;
     let excellentStandingCount = 0;
-    
+
     const MINIMUM_BALANCE = 1000;
     const GOOD_STANDING_THRESHOLD = 5000;
     const EXCELLENT_STANDING_THRESHOLD = 10000;
-    
+
+    // One aggregation for every active member's current balance instead of a
+    // Ledger.findOne() per member in the loop below (was an N+1 query on
+    // every treasurer dashboard load).
+    const balancesByMember = await getLatestBalancesByMember(members.map((member) => member.memberId));
+
     for (const member of members) {
-      const latestLedger = await Ledger.findOne({ memberId: member.memberId })
-        .sort(LATEST_FIRST);
-      
-      const balance = latestLedger ? latestLedger.balance : 0;
+      const balance = balancesByMember.get(member.memberId) || 0;
       fundBalance += balance;
       
       // Categorize member standing

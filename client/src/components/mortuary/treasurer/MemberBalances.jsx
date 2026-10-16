@@ -4,7 +4,7 @@ import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import './MemberBalances.css';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
-import { treasurerAPI, resolveQrAssetUrl } from '../../../services/api';
+import { treasurerAPI } from '../../../services/api';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 
 // Above this, generating the batch PDF is handed off to a background server
@@ -150,7 +150,15 @@ const MemberBalances = ({
         const status = await treasurerAPI.getNoticeBatchStatus(batchJob.jobId);
         if (status.status === 'completed') {
           clearInterval(batchPollRef.current);
-          const url = resolveQrAssetUrl(status.downloadUrl);
+          // The PDF is behind auth now, so it has to be fetched through the
+          // authenticated client (not just resolved to a static URL) and
+          // turned into a blob URL the <a download> link can point to.
+          let url;
+          try {
+            url = await treasurerAPI.downloadNoticeBatchPdf(batchJob.jobId);
+          } catch (downloadError) {
+            console.error('Error fetching notice batch PDF:', downloadError);
+          }
           if (!url) {
             showToast?.('The PDF download link is unavailable. Please try again.', 'error');
             setBatchJob(null);
@@ -177,6 +185,16 @@ const MemberBalances = ({
     return () => clearInterval(batchPollRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchJob?.jobId]);
+
+  // readyDownload.url is a blob: URL (see downloadNoticeBatchPdf) — release it
+  // once replaced by a newer one or on unmount, so the PDF's memory isn't
+  // held onto after the Treasurer is done with it.
+  useEffect(() => {
+    const url = readyDownload?.url;
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [readyDownload?.url]);
 
   const filteredMembers = members
     .filter(m => (memberFilter === 'low' ? m.balance < targetBalance : true))

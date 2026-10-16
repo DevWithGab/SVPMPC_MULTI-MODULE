@@ -25,6 +25,19 @@ const createClaim = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 
+    // A rejected claim can be re-filed (that's the whole point of rejecting
+    // one — e.g. wrong requirements, filed on the wrong member), but any
+    // other still-live claim on this member must block a second filing:
+    // approving/deducting/releasing two claims for one death would charge
+    // every other member twice and could pay out twice.
+    const existingClaim = await Claim.findOne({ memberId, status: { $ne: 'rejected' } });
+    if (existingClaim) {
+      return res.status(409).json({
+        success: false,
+        message: `This member already has an active claim (${existingClaim.claimId}, status: ${existingClaim.status}). Reject it before filing a new one.`,
+      });
+    }
+
     const beneficiary = await Beneficiary.findOne({ beneficiaryId, memberId });
     if (!beneficiary) {
       return res.status(404).json({

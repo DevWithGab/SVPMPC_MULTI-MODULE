@@ -1,11 +1,20 @@
 const path = require('path');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const NoticeBatchJob = require('../models/NoticeBatchJob');
 const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const { getMemberBalanceSnapshots } = require('./deductionController');
 const { generateNoticeBatchPdf, NOTICE_LEVEL_LABELS, DEFAULT_NOTICE_THRESHOLDS } = require('../services/noticeLetterPdfService');
 
-const BATCH_DIR = path.join(__dirname, '..', '..', '..', 'uploads', 'notice-batches');
+// These PDFs contain member names and financial standing, and (unlike the
+// CSV imports) persist indefinitely once generated — they must never sit
+// under uploads/, which server.js serves statically with no auth. Anyone who
+// learned or guessed a jobId could otherwise download it forever.
+// downloadNoticeBatch below is the only way to read these back out.
+const BATCH_DIR = path.join(__dirname, '..', '..', '..', 'tmp-uploads', 'notice-batches');
+if (!fs.existsSync(BATCH_DIR)) {
+  fs.mkdirSync(BATCH_DIR, { recursive: true });
+}
 
 // Fire-and-forget worker — same shape as bulkImportService.processBulkImport,
 // called from startNoticeBatch without awaiting it so the HTTP request can
@@ -100,7 +109,11 @@ const getNoticeBatchStatus = async (req, res) => {
       status: job.status,
       totalMembers: job.totalMembers,
       error: job.error || undefined,
-      downloadUrl: job.status === 'completed' ? `/uploads/notice-batches/${job.fileName}` : undefined,
+      // An authenticated API route, not a static file path — the file itself
+      // lives outside uploads/ now (see BATCH_DIR above) and is only ever
+      // read back through downloadNoticeBatch, which this request already
+      // had to pass the same auth/module middleware to reach.
+      downloadUrl: job.status === 'completed' ? `/mortuary/treasurer/notices/batch/${job.jobId}/download` : undefined,
     });
   } catch (error) {
     console.error('Error fetching notice batch status:', error);
@@ -108,7 +121,36 @@ const getNoticeBatchStatus = async (req, res) => {
   }
 };
 
+// Streams a completed batch's PDF. Reachable only through treasurerRoutes.js,
+// which sits behind the same authenticateToken/authorizeModule('mortuary')
+// middleware as the rest of the treasurer API (see server.js) — this is the
+// gate that replaces the old public /uploads/notice-batches/ static path.
+const downloadNoticeBatch = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const job = await NoticeBatchJob.findOne({ jobId });
+    if (!job) {
+      return res.status(404).json({ success: false, message: 'Notice batch job not found' });
+    }
+    if (job.status !== 'completed' || !job.fileName) {
+      return res.status(400).json({ success: false, message: `This batch is not ready to download (status: ${job.status})` });
+    }
+
+    const filePath = path.join(BATCH_DIR, job.fileName);
+    res.download(filePath, job.fileName, (error) => {
+      if (error && !res.headersSent) {
+        console.error(`Error downloading notice batch ${jobId}:`, error);
+        res.status(404).json({ success: false, message: 'The generated PDF could not be found. Please regenerate this batch.' });
+      }
+    });
+  } catch (error) {
+    console.error('Error downloading notice batch:', error);
+    res.status(500).json({ success: false, message: 'Error downloading notice batch', error: error.message });
+  }
+};
+
 module.exports = {
   startNoticeBatch,
   getNoticeBatchStatus,
+  downloadNoticeBatch,
 };

@@ -2,10 +2,18 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const connectDB = async () => {
-  try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/samahang-kooperatibo';
+  // Fail loudly here instead of silently connecting to a guessed local
+  // default — an unset MONGODB_URI used to fall back to
+  // mongodb://localhost:27017/..., which just produces a confusing
+  // ECONNREFUSED later (or worse, silently connects to the wrong local
+  // database) instead of pointing straight at the actual problem.
+  if (!process.env.MONGODB_URI) {
+    console.error('✗ MONGODB_URI is not set. Copy .env.example to .env and set it to your MongoDB connection string before starting the server.');
+    process.exit(1);
+  }
 
-    await mongoose.connect(mongoURI);
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
 
     console.log('✓ MongoDB connected successfully');
   } catch (error) {

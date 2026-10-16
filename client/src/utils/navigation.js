@@ -1,10 +1,7 @@
-const roles = {
-  mortuary: ['admin', 'treasurer'],
-  attendance: ['admin', 'secretary', 'scanner_operator'],
-};
+import { MODULE_ROLES } from './constants';
 
 export function portalPath(module, role) {
-  return roles[module]?.includes(role) ? `/${module}/${role}` : '/';
+  return MODULE_ROLES[module]?.includes(role) ? `/${module}/${role}` : '/';
 }
 
 export function readSession(storage = localStorage) {

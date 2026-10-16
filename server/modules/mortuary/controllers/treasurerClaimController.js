@@ -366,75 +366,100 @@ const processClaimDeduction = async (req, res) => {
       });
     }
 
-    const claim = await Claim.findOne({ claimId });
+    // Atomically claim this request's exclusive right to process the
+    // deduction. If two requests for the same claim arrive together
+    // (double-click, a retried request, two open tabs), only the one that
+    // actually flips pending_deduction -> deduction_processing here wins —
+    // the other gets null back and is rejected below, instead of both
+    // charging every active member.
+    const claim = await Claim.findOneAndUpdate(
+      { claimId, status: 'pending_deduction' },
+      { $set: { status: 'deduction_processing' } },
+      { new: true }
+    );
     if (!claim) {
-      return res.status(404).json({ success: false, message: 'Claim not found' });
-    }
-    if (claim.status !== 'pending_deduction') {
+      const existing = await Claim.findOne({ claimId });
+      if (!existing) {
+        return res.status(404).json({ success: false, message: 'Claim not found' });
+      }
       return res.status(400).json({
         success: false,
-        message: `Claim cannot be processed for deduction from status "${claim.status}"`,
+        message: `Claim cannot be processed for deduction from status "${existing.status}"`,
       });
     }
 
-    const { amount: deductionAmount, settingId: deductionSettingId } = await resolveDeductionRate();
+    // Declared here (not inside the try below) because the audit log and
+    // response built after that try block still need to read them.
+    let before, deductionAmount, totalCollected = 0, membersCharged = 0;
 
-    if (isNaN(deductionAmount) || deductionAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Invalid deduction amount' });
-    }
+    try {
+      let deductionSettingId;
+      ({ amount: deductionAmount, settingId: deductionSettingId } = await resolveDeductionRate());
 
-    const { members } = await getMemberBalanceSnapshots();
-
-    let totalCollected = 0;
-    let membersCharged = 0;
-
-    for (const member of members) {
-      try {
-        const currentBalance = member.balance || 0;
-        const newBalance = currentBalance - deductionAmount;
-
-        const ledgerEntry = new Ledger({
-          ledgerId: uuidv4(),
-          memberId: member.memberId,
-          transactionType: 'automatic_deduction',
-          description: `Death fund assessment for ${claim.memberName}`,
-          debit: deductionAmount,
-          credit: 0,
-          balance: newBalance,
-          referenceId: jvNumber,
-          transactionDate: new Date(),
-          recordedBy: processedBy,
-        });
-        await ledgerEntry.save();
-
-        totalCollected += deductionAmount;
-        membersCharged += 1;
-
-      } catch (memberError) {
-        console.error(`Error processing deduction for member ${member.memberId}:`, memberError);
+      if (isNaN(deductionAmount) || deductionAmount <= 0) {
+        throw Object.assign(new Error('Invalid deduction amount'), { statusCode: 400 });
       }
+
+      const { members } = await getMemberBalanceSnapshots();
+
+      for (const member of members) {
+        try {
+          const currentBalance = member.balance || 0;
+          const newBalance = currentBalance - deductionAmount;
+
+          const ledgerEntry = new Ledger({
+            ledgerId: uuidv4(),
+            memberId: member.memberId,
+            transactionType: 'automatic_deduction',
+            description: `Death fund assessment for ${claim.memberName}`,
+            debit: deductionAmount,
+            credit: 0,
+            balance: newBalance,
+            referenceId: jvNumber,
+            transactionDate: new Date(),
+            recordedBy: processedBy,
+          });
+          await ledgerEntry.save();
+
+          totalCollected += deductionAmount;
+          membersCharged += 1;
+
+        } catch (memberError) {
+          console.error(`Error processing deduction for member ${member.memberId}:`, memberError);
+        }
+      }
+
+      before = claim.toObject();
+      const now = new Date();
+      claim.status = 'deduction_processed';
+      claim.deduction = {
+        deductionSettingId,
+        jvNumber,
+        amountPerMember: deductionAmount,
+        membersCharged,
+        totalCollected,
+        processedBy,
+        processedAt: now,
+      };
+      claim.statusHistory.push({
+        status: 'deduction_processed',
+        changedBy: processedBy,
+        changedAt: now,
+        notes: `JV ${jvNumber}: charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total)`,
+      });
+
+      await claim.save();
+    } catch (error) {
+      // Release the lock so this claim isn't stuck in "deduction_processing"
+      // forever just because the rate lookup, member snapshot, or final save
+      // failed partway through — the Treasurer can retry from the same
+      // pending_deduction state.
+      await Claim.updateOne({ claimId, status: 'deduction_processing' }, { $set: { status: 'pending_deduction' } });
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({ success: false, message: error.message });
+      }
+      throw error;
     }
-
-    const before = claim.toObject();
-    const now = new Date();
-    claim.status = 'deduction_processed';
-    claim.deduction = {
-      deductionSettingId,
-      jvNumber,
-      amountPerMember: deductionAmount,
-      membersCharged,
-      totalCollected,
-      processedBy,
-      processedAt: now,
-    };
-    claim.statusHistory.push({
-      status: 'deduction_processed',
-      changedBy: processedBy,
-      changedAt: now,
-      notes: `JV ${jvNumber}: charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total)`,
-    });
-
-    await claim.save();
 
     await createAuditLog({
       userId: req.user?.id,
@@ -481,95 +506,118 @@ const releaseClaim = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A DV (Disbursement Voucher) number is required' });
     }
 
-    const claim = await Claim.findOne({ claimId });
+    // Atomically claim this request's exclusive right to release the
+    // benefit — same reasoning as processClaimDeduction above: if two
+    // requests for the same claim arrive together, only the one that
+    // actually flips deduction_processed -> releasing here wins, so only
+    // one payout ledger entry can ever be created.
+    const claim = await Claim.findOneAndUpdate(
+      { claimId, status: 'deduction_processed' },
+      { $set: { status: 'releasing' } },
+      { new: true }
+    );
     if (!claim) {
-      return res.status(404).json({ success: false, message: 'Claim not found' });
-    }
-    if (claim.status !== 'deduction_processed') {
+      const existing = await Claim.findOne({ claimId });
+      if (!existing) {
+        return res.status(404).json({ success: false, message: 'Claim not found' });
+      }
       return res.status(400).json({
         success: false,
-        message: `Claim cannot be released from status "${claim.status}"`,
+        message: `Claim cannot be released from status "${existing.status}"`,
       });
     }
 
-    // The death benefit is the pool collected from the other members for this
-    // claim, capped at the Admin-configured benefit cap. The Treasurer may
-    // type a lower amount to release (e.g. a partial disbursement), but
-    // never more than that cap-bound ceiling — maxPayout is resolved
-    // server-side so the request can only ever request LESS, never more.
-    const cap = await resolveBenefitCap();
-    const totalCollected = claim.deduction?.totalCollected ?? 0;
-    const maxPayout = resolvePayoutAmount(claim, cap);
+    // Declared here (not inside the try below) because the audit log and
+    // response built after that try block still need to read them.
+    let before, payoutAmount, totalCollected, retainedAmount;
 
-    const hasRequestedAmount = req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '';
-    const requestedAmount = hasRequestedAmount ? Number(req.body.amount) : maxPayout;
+    try {
+      // The death benefit is the pool collected from the other members for this
+      // claim, capped at the Admin-configured benefit cap. The Treasurer may
+      // type a lower amount to release (e.g. a partial disbursement), but
+      // never more than that cap-bound ceiling — maxPayout is resolved
+      // server-side so the request can only ever request LESS, never more.
+      const cap = await resolveBenefitCap();
+      totalCollected = claim.deduction?.totalCollected ?? 0;
+      const maxPayout = resolvePayoutAmount(claim, cap);
 
-    if (isNaN(requestedAmount) || requestedAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Invalid payout amount' });
-    }
-    if (requestedAmount > maxPayout) {
-      return res.status(400).json({
-        success: false,
-        message: `Amount to release cannot exceed ₱${maxPayout.toLocaleString('en-PH')} (the benefit cap applied to this claim).`,
+      const hasRequestedAmount = req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '';
+      const requestedAmount = hasRequestedAmount ? Number(req.body.amount) : maxPayout;
+
+      if (isNaN(requestedAmount) || requestedAmount <= 0) {
+        throw Object.assign(new Error('Invalid payout amount'), { statusCode: 400 });
+      }
+      if (requestedAmount > maxPayout) {
+        throw Object.assign(new Error(`Amount to release cannot exceed ₱${maxPayout.toLocaleString('en-PH')} (the benefit cap applied to this claim).`), { statusCode: 400 });
+      }
+
+      payoutAmount = Math.round(requestedAmount * 100) / 100;
+      // Surplus never released — whether withheld by the cap or by the
+      // Treasurer releasing less than the ceiling — is the cooperative's
+      // income. getClaimFinancialTotals reads claim.payout.amount directly, so
+      // it already agrees with whatever amount actually gets released here.
+      retainedAmount = Math.round((totalCollected - payoutAmount) * 100) / 100;
+
+      const parsedReleaseDate = releaseDate ? new Date(releaseDate) : new Date();
+      const effectiveReleaseDate = isNaN(parsedReleaseDate.getTime()) ? new Date() : parsedReleaseDate;
+
+      const currentBalance = await getLatestBalance(claim.memberId);
+      before = claim.toObject();
+
+      // The payout passes THROUGH the deceased member's ledger rather than out of
+      // it: the money came from the assessment charged to the other members, so it
+      // is recorded credit-in/debit-out on the same row and leaves the deceased
+      // member's own contribution balance untouched. Only the released benefit is
+      // recorded here — the retained surplus is cooperative income and belongs to
+      // no member's ledger.
+      const ledgerEntry = new Ledger({
+        ledgerId: uuidv4(),
+        memberId: claim.memberId,
+        transactionType: 'claim_payout',
+        description: `Death benefit payout to ${claim.beneficiaryName} from death fund assessment (DV# ${dvNumber.trim()})`,
+        credit: payoutAmount,
+        debit: payoutAmount,
+        balance: currentBalance,
+        referenceId: claimId,
+        beneficiary: claim.beneficiaryName,
+        paymentMethod: paymentMethod || 'cash',
+        transactionDate: effectiveReleaseDate,
+        recordedBy: releasedBy,
       });
+      await ledgerEntry.save();
+
+      const now = new Date();
+      claim.status = 'released';
+      claim.payout = {
+        amount: payoutAmount,
+        paymentMethod: paymentMethod || 'cash',
+        dvNumber: dvNumber.trim(),
+        remarks: remarks?.trim() || undefined,
+        releasedBy,
+        releasedAt: effectiveReleaseDate,
+        ledgerId: ledgerEntry.ledgerId,
+      };
+      claim.statusHistory.push({
+        status: 'released',
+        changedBy: releasedBy,
+        changedAt: now,
+        notes: retainedAmount > 0
+          ? `₱${payoutAmount} released to ${claim.beneficiaryName} (DV# ${dvNumber.trim()}); ₱${retainedAmount} of the ₱${totalCollected} collected retained as cooperative income`
+          : `₱${payoutAmount} released to ${claim.beneficiaryName} (DV# ${dvNumber.trim()})`,
+      });
+
+      await claim.save();
+    } catch (error) {
+      // Release the lock so this claim isn't stuck in "releasing" forever
+      // just because a validation check or the final save failed partway
+      // through — the Treasurer can retry from the same deduction_processed
+      // state.
+      await Claim.updateOne({ claimId, status: 'releasing' }, { $set: { status: 'deduction_processed' } });
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({ success: false, message: error.message });
+      }
+      throw error;
     }
-
-    const payoutAmount = Math.round(requestedAmount * 100) / 100;
-    // Surplus never released — whether withheld by the cap or by the
-    // Treasurer releasing less than the ceiling — is the cooperative's
-    // income. getClaimFinancialTotals reads claim.payout.amount directly, so
-    // it already agrees with whatever amount actually gets released here.
-    const retainedAmount = Math.round((totalCollected - payoutAmount) * 100) / 100;
-
-    const parsedReleaseDate = releaseDate ? new Date(releaseDate) : new Date();
-    const effectiveReleaseDate = isNaN(parsedReleaseDate.getTime()) ? new Date() : parsedReleaseDate;
-
-    const currentBalance = await getLatestBalance(claim.memberId);
-    const before = claim.toObject();
-
-    // The payout passes THROUGH the deceased member's ledger rather than out of
-    // it: the money came from the assessment charged to the other members, so it
-    // is recorded credit-in/debit-out on the same row and leaves the deceased
-    // member's own contribution balance untouched. Only the released benefit is
-    // recorded here — the retained surplus is cooperative income and belongs to
-    // no member's ledger.
-    const ledgerEntry = new Ledger({
-      ledgerId: uuidv4(),
-      memberId: claim.memberId,
-      transactionType: 'claim_payout',
-      description: `Death benefit payout to ${claim.beneficiaryName} from death fund assessment (DV# ${dvNumber.trim()})`,
-      credit: payoutAmount,
-      debit: payoutAmount,
-      balance: currentBalance,
-      referenceId: claimId,
-      beneficiary: claim.beneficiaryName,
-      paymentMethod: paymentMethod || 'cash',
-      transactionDate: effectiveReleaseDate,
-      recordedBy: releasedBy,
-    });
-    await ledgerEntry.save();
-
-    const now = new Date();
-    claim.status = 'released';
-    claim.payout = {
-      amount: payoutAmount,
-      paymentMethod: paymentMethod || 'cash',
-      dvNumber: dvNumber.trim(),
-      remarks: remarks?.trim() || undefined,
-      releasedBy,
-      releasedAt: effectiveReleaseDate,
-      ledgerId: ledgerEntry.ledgerId,
-    };
-    claim.statusHistory.push({
-      status: 'released',
-      changedBy: releasedBy,
-      changedAt: now,
-      notes: retainedAmount > 0
-        ? `₱${payoutAmount} released to ${claim.beneficiaryName} (DV# ${dvNumber.trim()}); ₱${retainedAmount} of the ₱${totalCollected} collected retained as cooperative income`
-        : `₱${payoutAmount} released to ${claim.beneficiaryName} (DV# ${dvNumber.trim()})`,
-    });
-
-    await claim.save();
 
     await createAuditLog({
       userId: req.user?.id,

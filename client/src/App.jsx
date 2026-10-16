@@ -11,13 +11,32 @@ import AttendanceAdminPortal from "./pages/attendance/AdminPortal";
 
 import { BrowserRouter, Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { readSession, portalPath } from './utils/navigation';
-const portals = {
+import { MODULE_ROLES } from './utils/constants';
+
+// Which component renders for each (module, role) pair. The set of pairs
+// that actually exist is defined once in constants.js (ROLE_MODULES) — this
+// map only has to say WHAT to render for each one, not which ones are valid.
+const PORTAL_COMPONENTS = {
   '/mortuary/admin': MortuaryAdminPortal,
   '/mortuary/treasurer': MortuaryTreasurerPortal,
   '/attendance/secretary': AttendanceSecretaryPortal,
   '/attendance/scanner_operator': AttendanceOperatorPortal,
   '/attendance/admin': AttendanceAdminPortal,
 };
+
+// Derived from MODULE_ROLES so a role/module added in constants.js without a
+// matching entry here is a loud dev-console warning instead of a silent
+// login-routing dead end.
+const portals = Object.fromEntries(
+  Object.entries(MODULE_ROLES).flatMap(([module, roles]) => roles.map(role => {
+    const path = portalPath(module, role);
+    const Component = PORTAL_COMPONENTS[path];
+    if (!Component && import.meta.env.DEV) {
+      console.warn(`No portal component registered for "${path}" in App.jsx's PORTAL_COMPONENTS — add one, or this role can never reach a portal after login.`);
+    }
+    return [path, Component];
+  })).filter(([, Component]) => Component)
+);
 
 function AppRoutes() {
   const [session, setSession] = useState(readSession);

@@ -24,7 +24,8 @@ api.interceptors.request.use((config) => {
 });
 
 // Handle 401 errors by clearing the invalid session and sending the user
-// back to login — matching services/attendance/admin.js and secretary.js.
+// back to login — matching services/attendance/secretary.js's own interceptor
+// (the only other service module still in use; see its own axios instance).
 // Without the redirect, a missing/expired token left the portal silently
 // half-working: read-only screens kept rendering (several still go through
 // legacy unauthenticated endpoints) while every authenticated action, like
@@ -123,9 +124,23 @@ export const bulkImportAPI = {
 // ATTENDANCE - MEMBER API
 // ============================================
 export const memberAPI = {
+  // The server now caps /attendance/members at 100 per request (it used to
+  // return the entire, ever-growing collection in one unbounded query) — every
+  // screen here still wants the full roster for client-side search/filter, so
+  // this pages through the capped endpoint and concatenates. Callers keep
+  // seeing the same { count, members } shape as before; nothing downstream
+  // needs to change.
   getAllMembers: async () => {
-    const response = await api.get('/attendance/members');
-    return response.data;
+    let page = 1;
+    let members = [];
+    let pagination;
+    do {
+      const response = await api.get('/attendance/members', { params: { page, limit: 100 } });
+      members = members.concat(response.data.members);
+      pagination = response.data.pagination;
+      page += 1;
+    } while (pagination?.hasNextPage);
+    return { count: members.length, members };
   },
 
   getMemberById: async (memberId) => {
@@ -882,6 +897,15 @@ export const treasurerAPI = {
   getNoticeBatchStatus: async (jobId) => {
     const response = await api.get(`/mortuary/treasurer/notices/batch/${jobId}`);
     return response.data;
+  },
+
+  // The PDF itself is behind auth now (no more public /uploads/notice-batches/
+  // path) — fetch it through the authenticated client and hand back a blob
+  // URL the <a download> link can point to. Caller is responsible for
+  // URL.revokeObjectURL once it's no longer needed.
+  downloadNoticeBatchPdf: async (jobId) => {
+    const response = await api.get(`/mortuary/treasurer/notices/batch/${jobId}/download`, { responseType: 'blob' });
+    return URL.createObjectURL(response.data);
   },
 
   releaseClaim: async (claimId, data = {}) => {

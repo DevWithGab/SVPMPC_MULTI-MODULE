@@ -1,6 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const { AppError } = require('../../middleware/errorHandler');
 const authController = require('../controllers/authController');
 const bulkImportController = require('../controllers/bulkImportController');
 const { loginLimiter, changePasswordLimiter } = require('../../middleware');
@@ -9,23 +11,39 @@ const { authenticateToken, requirePasswordChange, authorizeAdminOnly } = require
 const ownAccount = (req, res, next) => req.params.userId === req.user.userId ? next() : res.status(403).json({ message: 'Access denied' });
 const router = express.Router();
 
+// A bulk-import CSV briefly contains real member PII before the controller
+// parses it and deletes it. It must never land under uploads/ — that whole
+// tree is served statically with no auth (server.js), so a guessable
+// `${Date.now()}_name.csv` filename there would be downloadable by anyone
+// during that window. tmp-uploads/ sits outside the static-served tree.
+const CSV_UPLOAD_DIR = path.join(__dirname, '../..', 'tmp-uploads');
+if (!fs.existsSync(CSV_UPLOAD_DIR)) {
+  fs.mkdirSync(CSV_UPLOAD_DIR, { recursive: true });
+}
+
 // Configure multer for CSV uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads'));
+    cb(null, CSV_UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}_${file.originalname}`);
   },
 });
 
+// .env documents this (10MB default) but server.js/the multer configs never
+// actually read it — without a limit, multer buffers an upload of any size
+// to disk before fileFilter/the controller ever get a chance to reject it.
+const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
+
 const upload = multer({
   storage,
+  limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
     } else {
-      cb(new Error('Only CSV files are allowed'));
+      cb(new AppError('Only CSV files are allowed', 400));
     }
   },
 });

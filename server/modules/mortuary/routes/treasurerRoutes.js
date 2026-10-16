@@ -50,7 +50,7 @@ const {
 const { getCurrentRate } = require('../controllers/deductionSettingController');
 const { getCurrentThresholds } = require('../controllers/noticeThresholdSettingController');
 const { getCurrentCap } = require('../controllers/benefitCapSettingController');
-const { startNoticeBatch, getNoticeBatchStatus } = require('../controllers/noticeBatchController');
+const { startNoticeBatch, getNoticeBatchStatus, downloadNoticeBatch } = require('../controllers/noticeBatchController');
 
 const router = express.Router();
 const { bulkUploadPayments } = require('../controllers/paymentImportController');
@@ -94,6 +94,7 @@ router.get('/balances/low-balance-check', checkLowBalanceMembers);
 // build in the browser (see LARGE_BATCH_THRESHOLD in MemberBalances.jsx).
 router.post('/notices/:level/batch', startNoticeBatch);
 router.get('/notices/batch/:jobId', getNoticeBatchStatus);
+router.get('/notices/batch/:jobId/download', downloadNoticeBatch);
 
 // Ledger management routes
 router.get('/ledger', getAllLedger);

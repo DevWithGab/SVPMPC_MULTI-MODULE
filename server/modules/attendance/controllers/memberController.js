@@ -4,6 +4,7 @@ const { generateQRCode } = require('../services/qrCodeService');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
 
 // Upload members from CSV
 const uploadMembers = async (req, res) => {
@@ -276,13 +277,34 @@ const generateAllQRCodes = async (req, res) => {
   }
 };
 
-// Get all members
+// Scanner Operator — the lowest-privilege Attendance role — hits this same
+// endpoint only to manually search/match a member when a QR scan fails (see
+// QRScanner.jsx's normalizedMembers/filteredMembers). It reads memberId,
+// memberName, barangay and qrCode and nothing else; the actual attendance
+// submission only ever sends memberId, which the server re-validates against
+// its own Member record anyway. Admin/Secretary's own roster screens hitting
+// this same route genuinely need the rest (email, phone, status, etc.), so
+// the narrower field set is gated by role here rather than applied globally.
+const SCANNER_OPERATOR_PROJECTION = 'memberId memberName barangay qrCode';
+
+// Get all members — bounded via the same pagination utility used elsewhere
+// (shared/utils/pagination), so a single request can never again return the
+// entire, ever-growing collection. No screen here asks for a specific page —
+// memberAPI.getAllMembers() on the client pages through this and
+// concatenates, so the "give me the whole roster" contract these callers
+// rely on is unchanged.
 const getAllMembers = async (req, res) => {
   try {
-    const members = await Member.find();
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const projection = req.user?.role === 'scanner_operator' ? SCANNER_OPERATOR_PROJECTION : null;
+    const [members, total] = await Promise.all([
+      Member.find({}, projection).skip(skip).limit(limit),
+      Member.countDocuments(),
+    ]);
     res.status(200).json({
       count: members.length,
       members: members,
+      pagination: buildPaginationMeta(total, page, limit),
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching members', error: error.message });

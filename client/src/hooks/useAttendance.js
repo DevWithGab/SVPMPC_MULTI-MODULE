@@ -53,40 +53,12 @@ export const useAttendance = () => {
     fetchAttendanceData();
   }, [fetchAttendanceData]);
 
-  const recordAttendance = async (eventId, scanData) => {
-    setLoading(true);
-    try {
-      const response = await attendanceAPI.recordAttendance(
-        user.memberId,
-        eventId,
-        new Date().toISOString()
-      );
-      
-      // Add new attendance record to local state
-      const newRecord = {
-        id: Date.now(),
-        member_name: user.name,
-        event: scanData.eventName,
-        timestamp: scanData.timestamp,
-      };
-      
-      setAttendanceLogs(prev => [newRecord, ...prev]);
-      return { success: true, data: response };
-    } catch (error) {
-      console.error('Error recording attendance:', error);
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return {
     attendanceLogs,
     loadError,
     hasLoaded,
     events,
     loading,
-    recordAttendance,
     refreshData: fetchAttendanceData,
   };
 };

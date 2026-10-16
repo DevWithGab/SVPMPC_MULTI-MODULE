@@ -4,8 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Pagination, PaginationInfo } from '../ui/pagination';
 import { usePagination } from '../../hooks/usePagination';
-
-const roleModules = { admin: ['attendance', 'mortuary'], secretary: ['attendance'], scanner_operator: ['attendance'], treasurer: ['mortuary'] };
+import { ROLE_MODULES as roleModules } from '../../utils/constants';
 const empty = { fullName: '', username: '', role: 'secretary', modules: ['attendance'], status: 'active' };
 const label = value => value.replaceAll('_', ' ');
 

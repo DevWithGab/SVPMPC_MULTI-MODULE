@@ -281,6 +281,7 @@ const Dashboard = ({
   members = [],
   setActiveTab,
   user,
+  showToast,
 }) => {
   const [adminData, setAdminData] = useState(null);
 
@@ -291,10 +292,20 @@ const Dashboard = ({
       .then((res) => {
         if (!cancelled) setAdminData(res?.data || null);
       })
-      .catch(() => {});
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Error fetching mortuary admin dashboard data:", error);
+        showToast?.(
+          "Couldn't load claims and fund activity. Please refresh the page.",
+          "error"
+        );
+      });
     return () => {
       cancelled = true;
     };
+    // showToast (addToast from useToast()) isn't memoized by its caller, so a
+    // new reference every render must not re-trigger this fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const claimCounts = adminData?.claims || {};
