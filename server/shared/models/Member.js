@@ -95,7 +95,18 @@ const memberSchema = new mongoose.Schema(
 
 // Index for faster queries
 // Note: memberId already has unique index from schema definition
-memberSchema.index({ email: 1 });
+// email is optional (members can be created with none, stored as '') — a
+// plain unique index would reject the second member ever created with a
+// blank email, so uniqueness is only enforced among members that actually
+// have a non-blank one. This is what actually prevents two concurrent
+// create-member requests for the same email from both succeeding — the
+// findOne precheck in adminController.js is just a faster, friendlier first
+// pass that can lose that race (same class of bug already closed for staff
+// usernames via User.username's own unique index).
+memberSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { email: { $type: 'string', $gt: '' } } }
+);
 memberSchema.index({ status: 1 });
 memberSchema.index({ memberName: 1 }); // For search and sorting
 memberSchema.index({ barangay: 1 }); // For barangay filtering

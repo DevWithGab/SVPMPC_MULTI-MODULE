@@ -33,7 +33,13 @@ const getAllAuditLogs = async (req, res) => {
       limit,
     });
 
-    if (result.logs.length === 0) {
+    // Only fall back to the synthetic feed when NO real logs exist for this
+    // filter at all (pagination.total, independent of page/limit) — logs.length
+    // alone is also 0 for a real, non-empty result when the caller just asked
+    // for a page past the last one, which used to swap in the unrelated
+    // derived dataset (different total, different rows) instead of the real
+    // (correctly empty) page.
+    if (result.pagination.total === 0) {
       const derivedResult = await getDerivedActivityFeed({
         userId,
         action,

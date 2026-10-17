@@ -745,11 +745,6 @@ export const payoutAPI = {
     return response.data;
   },
 
-  recordPayout: async (payoutData) => {
-    const response = await api.post('/mortuary/admin/payouts', payoutData);
-    return response.data;
-  },
-
   getPayoutById: async (payoutId) => {
     const response = await api.get(`/mortuary/admin/payouts/${payoutId}`);
     return response.data;

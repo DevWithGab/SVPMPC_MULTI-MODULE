@@ -134,8 +134,18 @@ const createMember = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating member:', error);
-    if (error.code === 11000 && (error.keyPattern?.memberId || error.keyValue?.memberId)) {
-      return res.status(400).json({ message: 'Passbook No. already exists' });
+    if (error.code === 11000) {
+      if (error.keyPattern?.memberId || error.keyValue?.memberId) {
+        return res.status(400).json({ message: 'Passbook No. already exists' });
+      }
+      // The findOne check above is a friendly first pass, not the real
+      // guard — two concurrent requests for the same email can both pass it
+      // before either saves. Member.email's partial unique index is what
+      // actually stops the second one; this just turns that into the same
+      // clean message instead of a raw 500.
+      if (error.keyPattern?.email || error.keyValue?.email) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
     }
     res.status(500).json({ message: 'Error creating member', error: error.message });
   }
@@ -226,12 +236,19 @@ const bulkCreateMembers = async (req, res) => {
         });
       } catch (error) {
         console.error(`❌ Error processing ${memberData.email}:`, error.message);
+        // Same findOne-isn't-the-real-guard situation as createMember above
+        // — two rows (in this upload or a concurrent one) racing on the same
+        // email both pass the check above before either saves; the partial
+        // unique index on Member.email is what actually catches the loser.
+        let reason = error.message;
+        if (error.code === 11000) {
+          if (error.keyPattern?.memberId || error.keyValue?.memberId) reason = 'Passbook No. already exists';
+          else if (error.keyPattern?.email || error.keyValue?.email) reason = 'Email already exists';
+        }
         results.failed.push({
           email: memberData.email,
           memberName: memberData.memberName || 'Unknown',
-          reason: error.code === 11000 && (error.keyPattern?.memberId || error.keyValue?.memberId)
-            ? 'Passbook No. already exists'
-            : error.message,
+          reason,
         });
       }
     }

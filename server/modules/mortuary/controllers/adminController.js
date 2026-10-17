@@ -1,11 +1,47 @@
 const { Member } = require('../../../shared/models');
-const { Ledger } = require('../models');
+const { Ledger, Beneficiary, Claim } = require('../models');
 
 // Same escaping used throughout the other mortuary controllers (e.g.
 // claimController.js, treasurerClaimController.js) — a search term is user
 // input, not a trusted regex pattern; left un-escaped it can cause
 // catastrophic-backtracking (ReDoS) on this collection-wide query.
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// This module hands out plain 6-digit sequential memberIds. Member docs
+// created elsewhere (the shared admin controller's MEM-<uuid> passbook
+// numbers, TEST- fixtures, etc.) sort AFTER any 6-digit number
+// lexicographically, so a plain memberId-descending sort could pick one of
+// those up as "last" and compute parseInt(...) + 1 = NaN — confirmed live,
+// this created a real member with memberId "000NaN". Matching only 6-digit
+// IDs keeps this generator entirely within its own numbering space.
+const SEQUENTIAL_MEMBER_ID_PATTERN = /^\d{6}$/;
+const nextSequentialMemberId = async () => {
+  const lastMember = await Member.findOne({ memberId: SEQUENTIAL_MEMBER_ID_PATTERN }).sort({ memberId: -1 });
+  const nextId = lastMember ? parseInt(lastMember.memberId, 10) + 1 : 1;
+  return nextId.toString().padStart(6, '0');
+};
+
+// Builds and saves a Member with a freshly generated sequential ID,
+// retrying if a concurrent request's insert claims the same ID first.
+// memberId's unique index is the real guard; this just keeps that benign
+// race from surfacing as a raw 500 (createMember) or an ugly per-row error
+// (bulkCreateMembers) instead of quietly retrying with the next ID.
+const MAX_MEMBER_ID_RETRIES = 5;
+const createMemberWithRetry = async (buildMemberDoc) => {
+  let lastError;
+  for (let attempt = 0; attempt < MAX_MEMBER_ID_RETRIES; attempt++) {
+    const memberId = await nextSequentialMemberId();
+    const member = buildMemberDoc(memberId);
+    try {
+      await member.save();
+      return member;
+    } catch (error) {
+      lastError = error;
+      if (error.code !== 11000 || !(error.keyPattern?.memberId || error.keyValue?.memberId)) throw error;
+    }
+  }
+  throw lastError;
+};
 
 const adminController = {
   // Get all members for admin - with pagination
@@ -88,12 +124,7 @@ const adminController = {
         });
       }
 
-      // Generate unique member ID
-      const lastMember = await Member.findOne().sort({ memberId: -1 });
-      const nextId = lastMember ? parseInt(lastMember.memberId) + 1 : 1;
-      const memberId = nextId.toString().padStart(6, '0');
-
-      const member = new Member({
+      const member = await createMemberWithRetry((memberId) => new Member({
         memberId,
         memberName: name,
         phoneNumber: contact,
@@ -102,14 +133,12 @@ const adminController = {
         address: address.trim(),
         status,
         joinDate: new Date()
-      });
-
-      await member.save();
+      }));
 
       // Create initial ledger entry
       const ledger = new Ledger({
         ledgerId: `L${Date.now()}`,
-        memberId,
+        memberId: member.memberId,
         transactionType: 'contribution',
         description: 'Initial member registration',
         credit: 0,
@@ -202,6 +231,28 @@ const adminController = {
         });
       }
 
+      // Deleting a member whose memberId is still referenced elsewhere would
+      // leave those records pointing at nothing — check every place that
+      // references it, not just the ledger, before allowing it.
+      const [claimCount, beneficiaryCount] = await Promise.all([
+        Claim.countDocuments({ memberId }),
+        Beneficiary.countDocuments({ memberId }),
+      ]);
+
+      if (claimCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot delete member with existing claim records'
+        });
+      }
+
+      if (beneficiaryCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot delete member with a registered beneficiary'
+        });
+      }
+
       // Check if member has any transactions
       const ledgerEntries = await Ledger.find({ memberId });
 
@@ -245,10 +296,11 @@ const adminController = {
       const createdMembers = [];
       const errors = [];
 
-      // Get the last member ID for sequential numbering
-      const lastMember = await Member.findOne().sort({ memberId: -1 });
-      let nextId = lastMember ? parseInt(lastMember.memberId) + 1 : 1;
-
+      // Each row asks createMemberWithRetry for a fresh ID at save time,
+      // rather than reserving a block of IDs up front — a pre-computed
+      // nextId/nextId++ here would go stale (and silently collide) against
+      // a concurrent single createMember call or another bulk upload
+      // running at the same time, with no way to recover mid-loop.
       for (const memberData of members) {
         try {
           const { name, contact, barangay, address, status = 'active' } = memberData;
@@ -258,9 +310,7 @@ const adminController = {
             continue;
           }
 
-          const memberId = nextId.toString().padStart(6, '0');
-
-          const member = new Member({
+          const member = await createMemberWithRetry((memberId) => new Member({
             memberId,
             memberName: name,
             phoneNumber: contact,
@@ -269,14 +319,12 @@ const adminController = {
             address: address.trim(),
             status,
             joinDate: new Date()
-          });
-
-          await member.save();
+          }));
 
           // Create initial ledger entry
           const ledger = new Ledger({
-            ledgerId: `L${Date.now()}_${memberId}`,
-            memberId,
+            ledgerId: `L${Date.now()}_${member.memberId}`,
+            memberId: member.memberId,
             transactionType: 'contribution',
             description: 'Initial member registration',
             credit: 0,
@@ -296,8 +344,6 @@ const adminController = {
             status: member.status,
             join_date: member.joinDate.toISOString().split('T')[0]
           });
-
-          nextId++;
         } catch (error) {
           errors.push(`Error creating member ${memberData.name}: ${error.message}`);
         }

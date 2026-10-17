@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
 import StaffAccounts from '../components/shared/StaffAccounts';
+import StaffAuditLog from '../components/shared/StaffAuditLog';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -596,8 +597,9 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-3 mb-6"><Button variant={section === 'members' ? 'default' : 'outline'} onClick={() => setSection('members')}>Members</Button><Button variant={section === 'staff' ? 'default' : 'outline'} onClick={() => setSection('staff')}>Staff Accounts</Button></div>
+        <div className="flex gap-3 mb-6"><Button variant={section === 'members' ? 'default' : 'outline'} onClick={() => setSection('members')}>Members</Button><Button variant={section === 'staff' ? 'default' : 'outline'} onClick={() => setSection('staff')}>Staff Accounts</Button><Button variant={section === 'auditlogs' ? 'default' : 'outline'} onClick={() => setSection('auditlogs')}>Audit Logs</Button></div>
         {section === 'staff' && <StaffAccounts />}
+        {section === 'auditlogs' && <StaffAuditLog />}
         <div hidden={section !== 'members'}>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

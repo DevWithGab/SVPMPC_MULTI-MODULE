@@ -125,12 +125,15 @@ const getMemberBalance = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    const balance = await getLatestBalance(memberId);
+    // Need the full latest row, not just the balance number, so this reads
+    // lastUpdated off it too — getLatestBalance (used elsewhere in this
+    // file) only returns the balance.
+    const latestLedger = await Ledger.findOne({ memberId }).sort(LATEST_FIRST);
 
     res.status(200).json({
       memberId,
       memberName: member.memberName,
-      balance,
+      balance: latestLedger ? latestLedger.balance : 0,
       currency: 'PHP',
       lastUpdated: latestLedger ? latestLedger.transactionDate : null,
     });

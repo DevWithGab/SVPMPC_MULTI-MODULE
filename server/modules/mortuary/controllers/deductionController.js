@@ -1,11 +1,30 @@
 const Member = require('../../../shared/models/Member');
 const Ledger = require('../models/Ledger');
+const DeductionSetting = require('../models/DeductionSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
+const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 
 // Constants
-const DEDUCTION_AMOUNT = 25; // 25 pesos per death
 const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
+// Matches FALLBACK_DEDUCTION_AMOUNT in treasurerClaimController.js /
+// DEFAULT_DEDUCTION_AMOUNT in deductionSettingController.js — used only if
+// no rate row exists yet (the Admin screen auto-seeds one on first view).
+const FALLBACK_DEDUCTION_AMOUNT = 25;
+
+// Same resolver as treasurerClaimController.js's resolveDeductionRate: the
+// per-member amount is set by the Admin in Deduction Settings and is not the
+// Treasurer's to choose, so this blanket action must resolve it here rather
+// than trust anything off the request — processAutomaticDeduction used to
+// accept a client-supplied customAmount and otherwise fell back to a
+// hardcoded ₱25, silently ignoring whatever rate the Admin had actually
+// configured. Kept as its own small copy rather than imported from
+// treasurerClaimController.js, since that file already imports
+// getMemberBalanceSnapshots FROM this one — importing back would be circular.
+const resolveDeductionRate = async () => {
+  const setting = await DeductionSetting.findOne({ status: 'active' });
+  return setting?.amount ?? FALLBACK_DEDUCTION_AMOUNT;
+};
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -263,28 +282,26 @@ const getAllMemberBalances = async (req, res) => {
   }
 };
 
-// Process automatic deduction for all members (triggered when someone dies)
+// Process automatic deduction for all members (triggered when someone dies).
+// A blanket, non-claim-linked counterpart to processClaimDeduction in
+// treasurerClaimController.js — see this module's header comment there
+// ("Flow A") for how the two relate. Real money movement across every
+// active member, so it resolves the Admin-configured rate the same way the
+// claim-linked flow does, and is audit-logged the same way too.
 const processAutomaticDeduction = async (req, res) => {
   try {
-    const { deceasedMemberName, recordedBy, customAmount } = req.body;
-    
+    const { deceasedMemberName, recordedBy } = req.body;
+
     if (!deceasedMemberName) {
       return res.status(400).json({
         success: false,
         message: 'Deceased member name is required'
       });
     }
-    
-    // Use custom amount if provided, otherwise use default
-    const deductionAmount = customAmount ? parseFloat(customAmount) : DEDUCTION_AMOUNT;
-    
-    if (isNaN(deductionAmount) || deductionAmount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid deduction amount'
-      });
-    }
-    
+
+    const deductionAmount = await resolveDeductionRate();
+    const actor = recordedBy || req.user?.username || 'treasurer';
+
     const { members } = await getMemberBalanceSnapshots();
     
     const deductionResults = [];
@@ -338,6 +355,20 @@ const processAutomaticDeduction = async (req, res) => {
       }
     }
     
+    await createAuditLog({
+      userId: req.user?.id,
+      userName: actor,
+      userRole: req.user?.role || 'treasurer',
+      action: 'automatic_deduction_processed',
+      module: 'mortuary',
+      entityType: 'member',
+      entityName: deceasedMemberName,
+      description: `Blanket death-fund deduction for ${deceasedMemberName}: charged ${deductionResults.length} active members ₱${deductionAmount} each`,
+      status: 'success',
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    });
+
     res.status(200).json({
       success: true,
       message: `Automatic deduction processed for ${deductionResults.length} members`,
@@ -350,7 +381,7 @@ const processAutomaticDeduction = async (req, res) => {
         lowBalanceList: lowBalanceMembers
       }
     });
-    
+
   } catch (error) {
     console.error('Error processing automatic deduction:', error);
     res.status(500).json({ 

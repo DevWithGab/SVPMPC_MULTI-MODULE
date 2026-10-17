@@ -1,6 +1,7 @@
 const DeductionSetting = require('../models/DeductionSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
+const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 
 // Default rate used to auto-seed the first DeductionSetting row, matching the
 // value the hardcoded DEDUCTION_AMOUNT constant in deductionController.js used
@@ -72,24 +73,14 @@ const updateRate = async (req, res) => {
       });
     }
 
-    const newSetting = new DeductionSetting({
+    const newSetting = await supersedeAndInsert(DeductionSetting, () => new DeductionSetting({
       settingId: uuidv4(),
       amount: parsedAmount,
       effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
       status: 'active',
       description,
       createdBy: updatedBy,
-    });
-
-    const currentActive = await DeductionSetting.findOne({ status: 'active' });
-    if (currentActive) {
-      currentActive.status = 'superseded';
-      currentActive.supersededBy = newSetting.settingId;
-      currentActive.supersededAt = new Date();
-      await currentActive.save();
-    }
-
-    await newSetting.save();
+    }));
 
     res.status(201).json({
       success: true,

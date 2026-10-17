@@ -2,6 +2,7 @@ const BenefitCapSetting = require('../models/BenefitCapSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { DEFAULT_MAX_BENEFIT_AMOUNT } = require('../config/claimBenefit');
+const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 
 // Get the currently active benefit cap. Auto-seeds a default row (matching
 // the value the hardcoded constant used before this settings screen
@@ -69,24 +70,14 @@ const updateCap = async (req, res) => {
       });
     }
 
-    const newSetting = new BenefitCapSetting({
+    const newSetting = await supersedeAndInsert(BenefitCapSetting, () => new BenefitCapSetting({
       settingId: uuidv4(),
       amount: parsedAmount,
       effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
       status: 'active',
       description,
       createdBy: updatedBy,
-    });
-
-    const currentActive = await BenefitCapSetting.findOne({ status: 'active' });
-    if (currentActive) {
-      currentActive.status = 'superseded';
-      currentActive.supersededBy = newSetting.settingId;
-      currentActive.supersededAt = new Date();
-      await currentActive.save();
-    }
-
-    await newSetting.save();
+    }));
 
     res.status(201).json({
       success: true,

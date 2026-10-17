@@ -283,10 +283,33 @@ const transitionEvent = async (req, res, nextStatus, allowedStatuses, message) =
   const event = await Event.findOne(getEventFilter(eventId));
   if (!event) return res.status(404).json({ message: 'Event not found' });
   if (!allowedStatuses.includes(event.status)) return res.status(400).json({ message: `Event cannot be ${message.toLowerCase()} from its current status` });
+  const before = event.toObject();
   event.status = nextStatus;
   if (nextStatus !== 'rejected') event.rejectionReason = undefined;
   if (req.body?.reason) event.rejectionReason = req.body.reason;
   await event.save();
+
+  // Covers submit/cancel/resubmit/reject (approveEvent logs its own, below)
+  // — same action reopenEvent already uses for this same kind of change,
+  // so no new AuditLog.action enum value is needed.
+  await createAuditLog({
+    userId: req.user?.id,
+    userName: req.user?.name || 'Unknown',
+    userRole: req.user?.role || 'admin',
+    action: 'event_status_changed',
+    module: 'attendance',
+    entityType: 'event',
+    entityId: event.eventId,
+    entityName: event.eventName,
+    description: event.rejectionReason
+      ? `Event "${event.eventName}" ${message.toLowerCase()}: ${event.rejectionReason}`
+      : `Event "${event.eventName}" ${message.toLowerCase()}`,
+    changes: { before, after: event.toObject() },
+    status: 'success',
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   return res.json({ message: `Event ${message.toLowerCase()} successfully`, event });
 };
 
@@ -298,8 +321,26 @@ const approveEvent = async (req, res) => {
   const event = await Event.findOne(getEventFilter(eventId));
   if (!event) return res.status(404).json({ message: 'Event not found' });
   if (!['draft', 'pending_approval'].includes(event.status)) return res.status(400).json({ message: 'Only pending events can be approved' });
+  const before = event.toObject();
   event.status = 'upcoming';
   await event.save();
+
+  await createAuditLog({
+    userId: req.user?.id,
+    userName: req.user?.name || 'Unknown',
+    userRole: req.user?.role || 'admin',
+    action: 'event_status_changed',
+    module: 'attendance',
+    entityType: 'event',
+    entityId: event.eventId,
+    entityName: event.eventName,
+    description: `Event "${event.eventName}" approved`,
+    changes: { before, after: event.toObject() },
+    status: 'success',
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   return res.json({ message: 'Event approved successfully', event });
 };
 const rejectEvent = (req, res) => {

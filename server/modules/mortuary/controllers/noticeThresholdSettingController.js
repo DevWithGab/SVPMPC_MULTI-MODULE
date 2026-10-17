@@ -1,6 +1,7 @@
 const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
+const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 
 // noticeBodyTemplate/finalNoticeBodyTemplate now hold HTML straight from the
 // admin's in-app document editor — the client already strips dangerous
@@ -134,7 +135,11 @@ const updateThresholds = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Notice 1 maximum must be greater than or equal to its minimum' });
     }
 
-    const newSetting = new NoticeThresholdSetting({
+    // Only re-validate the fields actually being changed when superseding —
+    // a row saved before a schema change (e.g. before noticeBodyTemplate/
+    // finalNoticeBodyTemplate existed) must still be supersede-able even
+    // though it wouldn't pass full-document validation today.
+    const newSetting = await supersedeAndInsert(NoticeThresholdSetting, () => new NoticeThresholdSetting({
       settingId: uuidv4(),
       ...parsed,
       noticeBodyTemplate: sanitizeNoticeHtml(noticeBodyTemplate.trim()),
@@ -143,21 +148,7 @@ const updateThresholds = async (req, res) => {
       status: 'active',
       description,
       createdBy: updatedBy,
-    });
-
-    const currentActive = await NoticeThresholdSetting.findOne({ status: 'active' });
-    if (currentActive) {
-      currentActive.status = 'superseded';
-      currentActive.supersededBy = newSetting.settingId;
-      currentActive.supersededAt = new Date();
-      // Only re-validate the fields actually being changed — a row saved
-      // before a schema change (e.g. before noticeBodyTemplate/
-      // finalNoticeBodyTemplate existed) must still be supersede-able even
-      // though it wouldn't pass full-document validation today.
-      await currentActive.save({ validateModifiedOnly: true });
-    }
-
-    await newSetting.save();
+    }), { validateModifiedOnly: true });
 
     res.status(201).json({
       success: true,

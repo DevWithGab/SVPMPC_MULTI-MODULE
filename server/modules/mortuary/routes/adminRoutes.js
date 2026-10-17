@@ -39,7 +39,6 @@ router.post('/contributions', contributionController.recordContribution);
 
 // Payout management routes (admin only)
 router.get('/payouts', payoutController.getAllPayouts);
-router.post('/payouts', payoutController.recordPayout);
 router.get('/payouts/:payoutId', payoutController.getPayoutById);
 
 // Ledger management routes

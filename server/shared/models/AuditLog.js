@@ -45,6 +45,7 @@ const auditLogSchema = new mongoose.Schema(
         'claim_rejected',
         'claim_deduction_processed',
         'claim_released',
+        'automatic_deduction_processed',
         'scanner_registered',
         'scanner_status_changed',
         'scan_processed',

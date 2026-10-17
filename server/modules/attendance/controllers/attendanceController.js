@@ -219,7 +219,11 @@ const getAttendanceStats = async (req, res) => {
       status: 'present',
     });
 
-    const totalMembers = await Member.countDocuments();
+    // "Expected attendee" means an active member — same rule already applied
+    // in EventAttendeesPanel.jsx's absentee list. Counting deceased/inactive/
+    // staff members here inflated the expected total, which understated
+    // Present% and overstated Pending% on this screen.
+    const totalMembers = await Member.countDocuments({ status: 'active' });
     const absentCount = totalMembers - presentCount;
     const attendanceRate = totalMembers > 0 ? ((presentCount / totalMembers) * 100).toFixed(2) : 0;
 
@@ -251,7 +255,8 @@ const generateReport = async (req, res) => {
     }
 
     const attendanceRecords = await Attendance.find({ eventId });
-    const totalMembers = await Member.countDocuments();
+    // Same "expected attendee = active member" rule as getAttendanceStats above.
+    const totalMembers = await Member.countDocuments({ status: 'active' });
     const presentCount = attendanceRecords.length;
     const absentCount = totalMembers - presentCount;
     const attendanceRate = totalMembers > 0 ? ((presentCount / totalMembers) * 100).toFixed(2) : 0;

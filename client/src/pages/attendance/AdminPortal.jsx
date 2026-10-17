@@ -23,6 +23,7 @@ import {
 } from "../../components/attendance/admin";
 import { LiveAttendanceList } from "../../components/attendance/shared";
 import { memberAPI, eventAPI, attendanceAPI } from "../../services/api";
+import { loadDashboardRecords } from "../../utils/attendanceDashboard";
 
 const SidebarItem = ({
   id,
@@ -119,10 +120,13 @@ const AdminPortal = ({ onBack, user }) => {
 
   const fetchAttendanceLogs = useCallback(async () => {
     try {
-      const attendanceRes = await attendanceAPI.getAllAttendance();
-      if (attendanceRes.attendance) {
-        setAttendanceLogs(normalizeAttendanceRecords(attendanceRes.attendance));
-      }
+      // getAllAttendance() alone caps at the server's default page size (10)
+      // — loadDashboardRecords pages through every record, same fix already
+      // applied to Secretary's own Dashboard/Reports screens. Without this,
+      // the dashboard's present/absent counts and charts silently undercount
+      // as soon as an event has more than 10 total scans system-wide.
+      const allAttendance = await loadDashboardRecords(attendanceAPI.getAllAttendance, 'attendance');
+      setAttendanceLogs(normalizeAttendanceRecords(allAttendance));
     } catch (error) {
       console.error("Error refreshing attendance logs:", error);
     }
@@ -144,11 +148,12 @@ const AdminPortal = ({ onBack, user }) => {
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all data in parallel
-      const [membersRes, eventsRes, attendanceRes] = await Promise.all([
+      // Fetch all data in parallel — attendance pages through every record
+      // (see fetchAttendanceLogs above for why getAllAttendance() alone isn't enough).
+      const [membersRes, eventsRes, allAttendance] = await Promise.all([
         memberAPI.getAllMembers(),
         eventAPI.getAllEvents(),
-        attendanceAPI.getAllAttendance(),
+        loadDashboardRecords(attendanceAPI.getAllAttendance, 'attendance'),
       ]);
 
       if (membersRes.members) {
@@ -162,9 +167,7 @@ const AdminPortal = ({ onBack, user }) => {
         setCurrentEvent(activeEvent || eventsRes.events[0] || null);
       }
 
-      if (attendanceRes.attendance) {
-        setAttendanceLogs(normalizeAttendanceRecords(attendanceRes.attendance));
-      }
+      setAttendanceLogs(normalizeAttendanceRecords(allAttendance));
       setHasLoaded(true);
       setLoadError(null);
     } catch (error) {
