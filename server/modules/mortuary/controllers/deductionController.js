@@ -2,9 +2,20 @@ const Member = require('../../../shared/models/Member');
 const Ledger = require('../models/Ledger');
 const DeductionSetting = require('../models/DeductionSetting');
 const { v4: uuidv4 } = require('uuid');
+const { createHash } = require('node:crypto');
 const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+
+// Same deterministic-id dedup pattern as contributionController's
+// manualPaymentId: a double-click, a retried request, or a second treasurer
+// tab resubmitting the same "deceased member" run must not post a second
+// debit to every active member. Ledger.ledgerId is unique, so a repeat call
+// for the same (deceasedMemberName, memberId) upserts onto the same row
+// instead of creating a new one — confirmed this was previously unguarded
+// (no key at all) and would re-debit every active member on every retry.
+const autoDeductionId = (deceasedMemberName, memberId) =>
+  `AUTO-DEDUCT-${createHash('sha256').update(JSON.stringify([deceasedMemberName.trim().toLowerCase(), memberId])).digest('hex')}`;
 
 // Constants
 const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
@@ -310,42 +321,58 @@ const processAutomaticDeduction = async (req, res) => {
     
     for (const member of members) {
       try {
+        const id = autoDeductionId(deceasedMemberName, member.memberId);
         const currentBalance = member.balance || 0;
-        const newBalance = currentBalance - deductionAmount;
-        
-        // Create ledger entry for deduction
-        const ledgerEntry = new Ledger({
-          ledgerId: uuidv4(),
-          memberId: member.memberId,
-          transactionType: 'automatic_deduction',
-          description: `Automatic deduction for death of ${deceasedMemberName}`,
-          debit: deductionAmount,
-          credit: 0,
-          balance: newBalance,
-          transactionDate: new Date(),
-          recordedBy: recordedBy || 'system'
-        });
-        
-        await ledgerEntry.save();
-        
-        
+        const newBalance = Math.round((currentBalance - deductionAmount) * 100) / 100;
+
+        // Same two-step check-then-reserve shape as recordContribution: a
+        // plain pre-check first (cheap, covers the common case — an admin
+        // re-running the same deceased-member deduction after it already
+        // went through), backed by the unique ledgerId index + an 11000
+        // catch for the rare race where two requests land at the same time.
+        let ledgerEntry = await Ledger.findOne({ ledgerId: id });
+        let alreadyProcessed = Boolean(ledgerEntry);
+        if (!ledgerEntry) {
+          try {
+            ledgerEntry = await new Ledger({
+              ledgerId: id,
+              memberId: member.memberId,
+              transactionType: 'automatic_deduction',
+              description: `Automatic deduction for death of ${deceasedMemberName}`,
+              debit: deductionAmount,
+              credit: 0,
+              balance: newBalance,
+              transactionDate: new Date(),
+              recordedBy: recordedBy || 'system',
+            }).save();
+          } catch (error) {
+            if (error.code !== 11000) throw error;
+            ledgerEntry = await Ledger.findOne({ ledgerId: id });
+            alreadyProcessed = true;
+          }
+        }
+
         const result = {
           memberId: member.memberId,
           memberName: member.memberName,
           phoneNumber: member.phoneNumber,
           previousBalance: currentBalance,
-          newBalance: newBalance,
+          // Report what's actually posted, not a fresh (and on a repeat
+          // call, wrong) recomputation — mirrors recordContribution
+          // returning existingLedger.balance for an already-posted row.
+          newBalance: ledgerEntry.balance,
           deductionAmount: deductionAmount,
-          isLowBalance: newBalance < MINIMUM_BALANCE
+          isLowBalance: ledgerEntry.balance < MINIMUM_BALANCE,
+          alreadyProcessed,
         };
-        
+
         deductionResults.push(result);
-        
+
         // Track members with low balance after deduction
-        if (newBalance < MINIMUM_BALANCE) {
+        if (ledgerEntry.balance < MINIMUM_BALANCE) {
           lowBalanceMembers.push(result);
         }
-        
+
       } catch (memberError) {
         console.error(`Error processing deduction for member ${member.memberId}:`, memberError);
         deductionResults.push({

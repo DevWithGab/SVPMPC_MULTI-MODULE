@@ -181,4 +181,5 @@ module.exports = {
   getCurrentThresholds,
   getThresholdHistory,
   updateThresholds,
+  sanitizeNoticeHtml,
 };

@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { sanitizeNoticeHtml } from './sanitizeHtml';
+import { sanitizeNoticeHtml } from './sanitizeHtml.js';
 
 // Balance-threshold notices — shared between the per-member "Print Notice"
 // action on the Member Ledger and the bulk "print all by threshold" action

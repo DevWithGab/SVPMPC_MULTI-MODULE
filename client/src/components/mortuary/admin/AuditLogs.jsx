@@ -23,8 +23,8 @@ import "../treasurer/Dashboard.css";
 import "../treasurer/MemberBalances.css";
 import "./AuditLogs.css";
 
-// Plain-language labels so the log reads as a story of what happened to a
-// claim, not a dump of internal action codes.
+/*Plain-language labels so the log reads as a story of what happened to a
+claim, not a dump of internal action codes.*/
 const ACTION_LABELS = {
   claim_created: "Claim Filed",
   claim_approved: "Claim Approved",
@@ -63,9 +63,9 @@ const ROLE_LABELS = {
   secretary: "Secretary",
   member: "Member",
 };
-// CSS `capitalize` only affects the first letter of each space-separated
-// word, so a raw role like "super_admin" rendered as "Super_admin" — the
-// underscore stayed visible. This gives every role a real display name.
+/*CSS `capitalize` only affects the first letter of each space-separated
+word, so a raw role like "super_admin" rendered as "Super_admin" — the
+underscore stayed visible. This gives every role a real display name.*/
 const roleLabel = (role) =>
   ROLE_LABELS[role] ||
   (role || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -95,8 +95,8 @@ const AuditLogs = () => {
   });
   const [stats, setStats] = useState(null);
 
-  // This screen only ever shows the Mortuary module's own trail — module
-  // is fixed, not a user-editable filter.
+  /*This screen only ever shows the Mortuary module's own trail — module
+  is fixed, not a user-editable filter.*/
   const fetchAuditLogs = useCallback(async () => {
     setLoading(true);
     setError("");

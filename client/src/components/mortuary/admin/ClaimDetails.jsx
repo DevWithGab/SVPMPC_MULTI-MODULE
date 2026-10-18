@@ -18,15 +18,18 @@ import { claimAPI } from "../../../services/api";
 import { getClaimStatusMeta, isClaimFullySubmitted } from "../shared/claimMeta";
 import ApproveRejectClaimModal from "./modals/ApproveRejectClaimModal";
 
-// One checkbox column, but the underlying data still has separate
-// `submitted`/`verified` booleans on the schema (no combined field exists) —
-// so toggling it flips both together instead of pointing at a fictional key.
-const COMBINED_COLUMN = { label: "Submitted & Verified" };
+/* One checkbox column, but the underlying data still has separate
+`submitted`/`verified` booleans on the schema (no combined field exists) —
+so toggling it flips both together instead of pointing at a fictional key.
+const COMBINED_COLUMN = { label: "Submitted & Verified" };*/
 
-// Older claims may contain keys from the former global checklist. Keep those
-// readable while new claim-specific requirements use their stored label.
+/*Older claims may contain keys from the former global checklist. Keep those
+readable while new claim-specific requirements use their stored label.*/
 const fallbackLabel = (key) =>
-  key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
+  key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
 
 // Quick-add suggestions for the most commonly required documents, so the
 // Admin isn't retyping the same handful of labels on every claim.
@@ -115,7 +118,9 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
       setData((prev) => ({ ...prev, claim: res?.data || prev.claim }));
       setNewRequirement("");
     } catch (err) {
-      setError(err.response?.data?.message || "Unable to add this requirement.");
+      setError(
+        err.response?.data?.message || "Unable to add this requirement.",
+      );
     } finally {
       setAddingRequirement(false);
     }
@@ -123,7 +128,9 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
 
   const existingRequirementLabels = new Set(
     Object.keys(claim?.requirements || {}).map((key) =>
-      (claim.requirements[key]?.label || fallbackLabel(key)).trim().toLowerCase(),
+      (claim.requirements[key]?.label || fallbackLabel(key))
+        .trim()
+        .toLowerCase(),
     ),
   );
 
@@ -177,16 +184,11 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
     <div className="treasurer-dashboard admin-claim-details space-y-6">
       <div className="td-header">
         <div>
-          <button
-            onClick={onBack}
-            className="td-button mb-3"
-          >
+          <button onClick={onBack} className="td-button mb-3">
             <ArrowLeft className="w-4 h-4" /> Back to Claims
           </button>
           <p className="td-eyebrow">Mortuary management / Claims / Details</p>
-          <h1>
-            {claim.memberName}
-          </h1>
+          <h1>{claim.memberName}</h1>
           <p className="td-description ac-claim-id">
             Claim ID: {claim.claimId}
           </p>
@@ -306,7 +308,8 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   Physical Requirements Checklist
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Add the physical documents required for this individual claim, then track their status.
+                  Add the physical documents required for this individual claim,
+                  then track their status.
                 </p>
                 {canDecide && (
                   <form onSubmit={addRequirement} className="flex gap-2 mt-3">
@@ -316,8 +319,16 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                       placeholder="e.g. Barangay Certificate"
                       className="flex-1 min-w-0 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
                     />
-                    <Button type="submit" size="sm" disabled={addingRequirement || !newRequirement.trim()}>
-                      {addingRequirement ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={addingRequirement || !newRequirement.trim()}
+                    >
+                      {addingRequirement ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="w-3.5 h-3.5" />
+                      )}
                       Add
                     </Button>
                   </form>
@@ -325,7 +336,8 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 {canDecide && (
                   <div className="flex flex-wrap gap-1.5 mt-2.5">
                     {COMMON_REQUIREMENTS.filter(
-                      (label) => !existingRequirementLabels.has(label.toLowerCase()),
+                      (label) =>
+                        !existingRequirementLabels.has(label.toLowerCase()),
                     ).map((label) => (
                       <button
                         key={label}
@@ -345,10 +357,16 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
+                    <th
+                      scope="col"
+                      className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide"
+                    >
                       Requirement
                     </th>
-                    <th scope="col" className="text-center px-3 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
+                    <th
+                      scope="col"
+                      className="text-center px-3 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide"
+                    >
                       {COMBINED_COLUMN.label}
                     </th>
                   </tr>
@@ -362,7 +380,8 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                     return (
                       <tr key={reqKey}>
                         <td className="px-5 py-3 font-medium text-slate-700">
-                          {claim.requirements?.[reqKey]?.label || fallbackLabel(reqKey)}
+                          {claim.requirements?.[reqKey]?.label ||
+                            fallbackLabel(reqKey)}
                         </td>
                         <td className="px-3 py-3 text-center">
                           <input
@@ -380,8 +399,12 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   })}
                   {Object.keys(claim.requirements || {}).length === 0 && (
                     <tr>
-                      <td colSpan={2} className="px-5 py-5 text-sm text-slate-400 text-center">
-                        No requirements added yet. Add at least one requirement before approval.
+                      <td
+                        colSpan={2}
+                        className="px-5 py-5 text-sm text-slate-400 text-center"
+                      >
+                        No requirements added yet. Add at least one requirement
+                        before approval.
                       </td>
                     </tr>
                   )}

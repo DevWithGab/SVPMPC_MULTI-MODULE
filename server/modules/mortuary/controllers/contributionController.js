@@ -34,6 +34,8 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
     const finalPaymentMethod = paymentMethod || payment_method || 'cash';
     const trimmedReference = referenceNumber?.trim();
 
+    const recordedBy = req.body.recordedBy || req.user?.username || 'admin';
+
     console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
 
     // typeof check closes a NoSQL operator-injection hole: a crafted body
@@ -122,7 +124,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
           credit: amount,
           balance: computedBalance,
           referenceId: contribution.referenceNumber,
-          recordedBy: 'admin',
+          recordedBy,
           paymentMethod: finalPaymentMethod,
           // Always stamp the actual posting time (matches recordPayout,
           // processAutomaticDeduction, releaseClaim, etc). Using the

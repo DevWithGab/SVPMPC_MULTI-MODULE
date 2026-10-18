@@ -13,4 +13,10 @@ import DOMPurify from 'dompurify';
 // every render sink, since content stored before this fix (or written
 // directly via the API) must not be trusted just because it's already in
 // the database.
+//
+// DOMPurify's browser build self-initializes against the global `window`,
+// which the app always has. Running this file under plain Node (its own
+// test suite) needs that same global provided before this module loads —
+// see tests/setup-dom.mjs, preloaded via package.json's test script —
+// rather than branching on environment here.
 export const sanitizeNoticeHtml = (html) => DOMPurify.sanitize(String(html || ''));

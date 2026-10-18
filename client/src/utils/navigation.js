@@ -1,4 +1,4 @@
-import { MODULE_ROLES } from './constants';
+import { MODULE_ROLES } from './constants.js';
 
 export function portalPath(module, role) {
   return MODULE_ROLES[module]?.includes(role) ? `/${module}/${role}` : '/';
