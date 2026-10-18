@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Upload members from CSV
 const uploadMembers = async (req, res) => {
@@ -62,7 +63,7 @@ const uploadMembers = async (req, res) => {
       } catch (error) {
         errors.push({
           memberId: memberData.memberId,
-          error: error.message,
+          error: safeErrorMessage(error),
         });
       }
     }
@@ -117,7 +118,7 @@ const uploadMembers = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ message: 'Error uploading members', error: error.message });
+    res.status(500).json({ message: 'Error uploading members', error: safeErrorMessage(error) });
   }
 };
 
@@ -170,7 +171,7 @@ const generateQRCodes = async (req, res) => {
       } catch (error) {
         errors.push({
           memberId: member.memberId,
-          error: error.message,
+          error: safeErrorMessage(error),
         });
       }
     }
@@ -217,7 +218,7 @@ const generateQRCodes = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ message: 'Error generating QR codes', error: error.message });
+    res.status(500).json({ message: 'Error generating QR codes', error: safeErrorMessage(error) });
   }
 };
 
@@ -260,7 +261,7 @@ const generateAllQRCodes = async (req, res) => {
       } catch (error) {
         errors.push({
           memberId: member.memberId,
-          error: error.message,
+          error: safeErrorMessage(error),
         });
       }
     }
@@ -273,7 +274,7 @@ const generateAllQRCodes = async (req, res) => {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error generating QR codes', error: error.message });
+    res.status(500).json({ message: 'Error generating QR codes', error: safeErrorMessage(error) });
   }
 };
 
@@ -307,7 +308,7 @@ const getAllMembers = async (req, res) => {
       pagination: buildPaginationMeta(total, page, limit),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching members', error: error.message });
+    res.status(500).json({ message: 'Error fetching members', error: safeErrorMessage(error) });
   }
 };
 
@@ -323,7 +324,7 @@ const getMemberById = async (req, res) => {
 
     res.status(200).json(member);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching member', error: error.message });
+    res.status(500).json({ message: 'Error fetching member', error: safeErrorMessage(error) });
   }
 };
 
@@ -342,7 +343,7 @@ const regenerateQRCode = async (req, res) => {
 
     const qrResult = await generateQRCode(member);
     if (!qrResult.success) {
-      return res.status(500).json({ message: 'Error regenerating QR code', error: qrResult.error });
+      return res.status(500).json({ message: 'Error regenerating QR code', error: safeErrorMessage(qrResult.error) });
     }
 
     member.qrCode = qrResult.qrCode;
@@ -368,7 +369,7 @@ const regenerateQRCode = async (req, res) => {
 
     res.status(200).json({ message: 'QR code regenerated successfully', member });
   } catch (error) {
-    res.status(500).json({ message: 'Error regenerating QR code', error: error.message });
+    res.status(500).json({ message: 'Error regenerating QR code', error: safeErrorMessage(error) });
   }
 };
 
@@ -408,7 +409,7 @@ const deactivateQRCode = async (req, res) => {
 
     res.status(200).json({ message: 'QR code deactivated successfully', member });
   } catch (error) {
-    res.status(500).json({ message: 'Error deactivating QR code', error: error.message });
+    res.status(500).json({ message: 'Error deactivating QR code', error: safeErrorMessage(error) });
   }
 };
 
@@ -449,7 +450,7 @@ const reactivateQRCode = async (req, res) => {
 
     res.status(200).json({ message: 'QR code reactivated successfully', member });
   } catch (error) {
-    res.status(500).json({ message: 'Error reactivating QR code', error: error.message });
+    res.status(500).json({ message: 'Error reactivating QR code', error: safeErrorMessage(error) });
   }
 };
 
@@ -471,7 +472,7 @@ const getQRStatus = async (req, res) => {
       qrCodeUrl: member.qrCodeUrl,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error checking QR status', error: error.message });
+    res.status(500).json({ message: 'Error checking QR status', error: safeErrorMessage(error) });
   }
 };
 

@@ -1,5 +1,6 @@
 const SMSNotification = require('../models/SMSNotification');
 const { getNotificationHistory, getPendingNotifications } = require('../services/thresholdNotificationService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Get notification history for a member
 const getMemberNotificationHistory = async (req, res) => {
@@ -21,7 +22,7 @@ const getMemberNotificationHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error getting notification history',
-      error: error.message
+      error: safeErrorMessage(error)
     });
   }
 };
@@ -58,7 +59,7 @@ const getAllNotifications = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error getting notifications',
-      error: error.message
+      error: safeErrorMessage(error)
     });
   }
 };
@@ -80,7 +81,7 @@ const getPending = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error getting pending notifications',
-      error: error.message
+      error: safeErrorMessage(error)
     });
   }
 };
@@ -124,7 +125,7 @@ const getNotificationStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error getting notification stats',
-      error: error.message
+      error: safeErrorMessage(error)
     });
   }
 };

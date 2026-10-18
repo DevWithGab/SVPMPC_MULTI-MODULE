@@ -119,8 +119,27 @@ const catchAsync = (fn) => {
   };
 };
 
+// Many controllers catch their own errors locally and respond directly
+// (res.status(500).json({..., error: error.message})) instead of calling
+// next(error) — so globalErrorHandler's NODE_ENV gating above never runs for
+// them, in any environment. Confirmed live: a crafted login payload
+// surfaced a raw bcrypt internal error string this way. Rewiring every one
+// of those call sites through next(error) would be the "proper" fix, but is
+// a much larger, riskier change; gating just the leaked value at each site
+// closes the actual hole without touching status codes, messages, or
+// control flow otherwise. Mirrors globalErrorHandler's own convention
+// above: anything other than the literal 'development' is treated as
+// unsafe-to-show, the same fail-safe default used there.
+// Accepts either an Error-like object (reads .message) or an already-plain
+// string (e.g. a service function's own `{ success: false, error: '...' }`
+// return value, passed straight into a response) — either way, nothing but
+// development ever sees it.
+const safeErrorMessage = (error) =>
+  process.env.NODE_ENV === 'development' ? (error?.message ?? error) : undefined;
+
 module.exports = {
   AppError,
   globalErrorHandler,
-  catchAsync
+  catchAsync,
+  safeErrorMessage
 };

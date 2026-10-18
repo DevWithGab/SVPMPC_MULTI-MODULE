@@ -5,6 +5,7 @@ const NoticeBatchJob = require('../models/NoticeBatchJob');
 const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const { getMemberBalanceSnapshots } = require('./deductionController');
 const { generateNoticeBatchPdf, NOTICE_LEVEL_LABELS, DEFAULT_NOTICE_THRESHOLDS } = require('../services/noticeLetterPdfService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // These PDFs contain member names and financial standing, and (unlike the
 // CSV imports) persist indefinitely once generated — they must never sit
@@ -89,7 +90,7 @@ const startNoticeBatch = async (req, res) => {
     });
   } catch (error) {
     console.error('Error starting notice batch:', error);
-    res.status(500).json({ success: false, message: 'Error starting notice batch', error: error.message });
+    res.status(500).json({ success: false, message: 'Error starting notice batch', error: safeErrorMessage(error) });
   }
 };
 
@@ -117,7 +118,7 @@ const getNoticeBatchStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching notice batch status:', error);
-    res.status(500).json({ success: false, message: 'Error fetching notice batch status', error: error.message });
+    res.status(500).json({ success: false, message: 'Error fetching notice batch status', error: safeErrorMessage(error) });
   }
 };
 
@@ -145,7 +146,7 @@ const downloadNoticeBatch = async (req, res) => {
     });
   } catch (error) {
     console.error('Error downloading notice batch:', error);
-    res.status(500).json({ success: false, message: 'Error downloading notice batch', error: error.message });
+    res.status(500).json({ success: false, message: 'Error downloading notice batch', error: safeErrorMessage(error) });
   }
 };
 

@@ -538,6 +538,11 @@ export const beneficiaryAPI = {
     const response = await api.put(`/mortuary/admin/beneficiaries/${memberId}`, beneficiaryData);
     return response.data;
   },
+
+  bulkUploadBeneficiaries: async (csv, action = 'preview') => {
+    const response = await api.post('/mortuary/admin/beneficiaries/bulk-upload', { csv, action });
+    return response.data;
+  },
 };
 
 // ============================================

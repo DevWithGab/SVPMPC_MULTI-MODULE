@@ -5,6 +5,7 @@ const { createHash } = require('node:crypto');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { getLatestBalance } = require('../utils/ledgerBalance');
 const { withMemberPaymentLock } = require('../utils/paymentLock');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Same dedup-key/upsert pattern as paymentImportService.js's CSV import path
 // (see paymentId/samePayment there). A deterministic id from
@@ -35,7 +36,15 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
 
     console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
 
-    if (!memberId || !Number.isFinite(amount) || amount <= 0 || !trimmedReference) {
+    // typeof check closes a NoSQL operator-injection hole: a crafted body
+    // like {"memberId":{"$ne":null},...} passes the !memberId truthiness
+    // check (a non-empty object is truthy) and turns the findOne below into
+    // a real query operator, matching whichever member Mongo's query
+    // planner returns first. The String(...) cast on line 25 only protects
+    // the in-memory lock key, not this query — memberId is never
+    // legitimately anything but a string, so rejecting the wrong type here
+    // is exactly as correct as rejecting a missing one.
+    if (!memberId || typeof memberId !== 'string' || !Number.isFinite(amount) || amount <= 0 || !trimmedReference) {
       console.log('❌ Missing required fields:', { memberId, amount, referenceNumber });
       return res.status(400).json({ message: 'Missing required fields: Passbook No., amount, and reference number' });
     }
@@ -141,7 +150,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
       newBalance: ledgerEntry.balance,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error recording contribution', error: error.message });
+    res.status(500).json({ message: 'Error recording contribution', error: safeErrorMessage(error) });
   }
 });
 
@@ -174,7 +183,7 @@ const getContributionHistory = async (req, res) => {
       contributions: contributions,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching contributions', error: error.message });
+    res.status(500).json({ message: 'Error fetching contributions', error: safeErrorMessage(error) });
   }
 };
 
@@ -226,7 +235,7 @@ const getAllContributions = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching contributions', 
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };

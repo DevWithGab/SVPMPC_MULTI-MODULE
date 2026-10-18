@@ -2,18 +2,30 @@ const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // noticeBodyTemplate/finalNoticeBodyTemplate now hold HTML straight from the
-// admin's in-app document editor — the client already strips dangerous
-// content before sending, but the server shouldn't trust that alone. A
-// regex pass is enough here (not a full sanitizer) since this only needs to
-// catch script injection, not produce clean markup.
+// admin's in-app document editor — the client now runs this through
+// DOMPurify (a real HTML parser, allowlist-based) before ever sending it,
+// but the server shouldn't trust that alone. This regex pass is a
+// defense-in-depth backstop, not the primary defense — it previously
+// required a literal space before `on\w+=` and a quoted value, which let
+// unquoted (`onerror=alert(1)`) or slash-separated (`<img/onerror=...>`)
+// attributes straight through. Regex can't fully replicate an HTML parser,
+// so this still isn't a substitute for DOMPurify; it just needs to not have
+// known holes.
 const sanitizeNoticeHtml = (html) =>
   String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
-    .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
-    .replace(/(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, '$1=$2#$2');
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<(iframe|object|embed|form|base|meta)\b[^>]*>/gi, '')
+    // Event-handler attributes — separator before `on\w+=` can be
+    // whitespace OR a slash (`<img/onerror=...>` is valid HTML), and the
+    // value can be double-quoted, single-quoted, or unquoted.
+    .replace(/[\s/]+on\w+\s*=\s*"[^"]*"/gi, '')
+    .replace(/[\s/]+on\w+\s*=\s*'[^']*'/gi, '')
+    .replace(/[\s/]+on\w+\s*=\s*[^\s"'`>/]+/gi, '')
+    .replace(/(href|src|data|action)\s*=\s*(["'])\s*(javascript|data):[^"']*\2/gi, '$1=$2#$2');
 
 // Defaults matching the hardcoded values the balance-notice letter used
 // before this settings collection existed (client/src/utils/balanceNotice.js).
@@ -59,7 +71,7 @@ const getCurrentThresholds = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching current notice thresholds',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -81,7 +93,7 @@ const getThresholdHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching notice threshold history',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -160,7 +172,7 @@ const updateThresholds = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating notice thresholds',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };

@@ -4,13 +4,22 @@ const Event = require('../models/Event');
 const AttendanceReport = require('../models/AttendanceReport');
 const { v4: uuidv4 } = require('uuid');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Record attendance via QR scan
 const recordAttendance = async (req, res) => {
   try {
     const { memberId, eventId, scannedBy, entrySource, justification } = req.body;
 
-    if (!memberId || !eventId) {
+    // typeof check closes a NoSQL operator-injection hole: a crafted body
+    // like {"memberId":{"$ne":null},"eventId":{"$ne":null}} passes the
+    // !memberId truthiness check (a non-empty object is truthy) and turns
+    // the findOne calls below into real query operators, matching
+    // whichever member/event Mongo's query planner returns first instead
+    // of the one actually scanned. Neither field is ever legitimately
+    // anything but a string, so rejecting the wrong type here is exactly
+    // as correct as rejecting a missing one.
+    if (!memberId || !eventId || typeof memberId !== 'string' || typeof eventId !== 'string') {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
@@ -160,7 +169,7 @@ const recordAttendance = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ message: 'Error recording attendance', error: error.message });
+    res.status(500).json({ message: 'Error recording attendance', error: safeErrorMessage(error) });
   }
 };
 
@@ -200,7 +209,7 @@ const getAttendanceByEvent = async (req, res) => {
     const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
     res.status(200).json(buildPaginatedResponse(attendance, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching attendance', error: error.message });
+    res.status(500).json({ message: 'Error fetching attendance', error: safeErrorMessage(error) });
   }
 };
 
@@ -236,7 +245,7 @@ const getAttendanceStats = async (req, res) => {
       attendanceRate: `${attendanceRate}%`,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching attendance stats', error: error.message });
+    res.status(500).json({ message: 'Error fetching attendance stats', error: safeErrorMessage(error) });
   }
 };
 
@@ -245,7 +254,9 @@ const generateReport = async (req, res) => {
   try {
     const { eventId, generatedBy } = req.body;
 
-    if (!eventId || !generatedBy) {
+    // Same NoSQL operator-injection guard as recordAttendance above — eventId
+    // is never legitimately anything but a string.
+    if (!eventId || !generatedBy || typeof eventId !== 'string') {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
@@ -281,7 +292,7 @@ const generateReport = async (req, res) => {
       report: saved,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error generating report', error: error.message });
+    res.status(500).json({ message: 'Error generating report', error: safeErrorMessage(error) });
   }
 };
 
@@ -308,7 +319,7 @@ const getAllAttendance = async (req, res) => {
     const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
     res.status(200).json(buildPaginatedResponse(attendance, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching attendance', error: error.message });
+    res.status(500).json({ message: 'Error fetching attendance', error: safeErrorMessage(error) });
   }
 };
 

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Event = require('../models/Event');
 const { v4: uuidv4 } = require('uuid');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const getPhtParts = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -132,7 +133,7 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ message: 'Error creating event', error: error.message });
+    res.status(500).json({ message: 'Error creating event', error: safeErrorMessage(error) });
   }
 };
 
@@ -182,7 +183,7 @@ const getAllEvents = async (req, res) => {
     const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
     res.status(200).json(buildPaginatedResponse(events, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching events', error: error.message });
+    res.status(500).json({ message: 'Error fetching events', error: safeErrorMessage(error) });
   }
 };
 
@@ -199,7 +200,7 @@ const getEventById = async (req, res) => {
 
     res.status(200).json(event);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching event', error: error.message });
+    res.status(500).json({ message: 'Error fetching event', error: safeErrorMessage(error) });
   }
 };
 
@@ -274,7 +275,7 @@ const updateEvent = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ message: 'Error updating event', error: error.message });
+    res.status(500).json({ message: 'Error updating event', error: safeErrorMessage(error) });
   }
 };
 
@@ -455,7 +456,7 @@ const deleteEvent = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ message: 'Error deleting event', error: error.message });
+    res.status(500).json({ message: 'Error deleting event', error: safeErrorMessage(error) });
   }
 };
 

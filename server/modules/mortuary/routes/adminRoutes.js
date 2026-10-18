@@ -1,7 +1,8 @@
 const express = require('express');
 const {
   authenticateToken,
-  authorizeAdminOnly
+  authorizeAdminOnly,
+  bulkUploadLimiter
 } = require('../../../middleware');
 
 // Import existing controllers
@@ -29,7 +30,7 @@ router.get('/dashboard', dashboardController.getAdminDashboard);
 // Member management routes (admin only)
 router.get('/members', adminController.getAllMembers);
 router.post('/members/create', adminController.createMember);
-router.post('/members/bulk-create', adminController.bulkCreateMembers);
+router.post('/members/bulk-create', bulkUploadLimiter, adminController.bulkCreateMembers);
 router.put('/members/:memberId', adminController.updateMember);
 router.delete('/members/:memberId', adminController.deleteMember);
 
@@ -57,6 +58,7 @@ router.put('/claims/:claimId/reject', authenticateToken, authorizeAdminOnly, cla
 
 // Beneficiaries routes
 router.get('/beneficiaries', authenticateToken, authorizeAdminOnly, beneficiaryController.getAllBeneficiaries);
+router.post('/beneficiaries/bulk-upload', authenticateToken, authorizeAdminOnly, bulkUploadLimiter, beneficiaryController.bulkUploadBeneficiaries);
 router.get('/beneficiaries/:memberId/history', authenticateToken, authorizeAdminOnly, beneficiaryController.getBeneficiaryHistory);
 router.put('/beneficiaries/:memberId', authenticateToken, authorizeAdminOnly, beneficiaryController.updateBeneficiary);
 

@@ -4,6 +4,7 @@ const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -13,7 +14,18 @@ const createClaim = async (req, res) => {
     const { memberId, beneficiaryId, dateOfDeath, causeOfDeath, remarks } = req.body;
     const createdBy = req.body.createdBy || req.user?.username || 'admin';
 
-    if (!memberId || !beneficiaryId || !dateOfDeath) {
+    // typeof check closes a NoSQL operator-injection hole: a crafted body
+    // like {"memberId":{"$ne":null},"beneficiaryId":{"$ne":null},...} passes
+    // the !memberId truthiness check (a non-empty object is truthy) and
+    // turns the findOne calls below into real query operators, matching
+    // whichever member/claim/beneficiary Mongo's query planner returns
+    // first instead of the one actually named. Neither field is ever
+    // legitimately anything but a string, so rejecting the wrong type here
+    // is exactly as correct as rejecting a missing one.
+    if (
+      !memberId || !beneficiaryId || !dateOfDeath ||
+      typeof memberId !== 'string' || typeof beneficiaryId !== 'string'
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Member, beneficiary, and date of death are required',
@@ -107,7 +119,7 @@ const createClaim = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error creating claim',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -143,7 +155,7 @@ const getAllClaims = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching claims',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -172,7 +184,7 @@ const getClaimById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching claim',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -218,7 +230,7 @@ const updateRequirements = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating requirements checklist',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -268,7 +280,7 @@ const addRequirement = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error adding claim requirement',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -302,7 +314,7 @@ const updateVerification = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating verification information',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -378,7 +390,7 @@ const approveClaim = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error approving claim',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -440,7 +452,7 @@ const rejectClaim = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error rejecting claim',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };

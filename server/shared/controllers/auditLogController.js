@@ -1,3 +1,4 @@
+const { safeErrorMessage } = require('../../middleware/errorHandler');
 const {
   getAuditLogs,
   getEntityAuditTrail,
@@ -65,7 +66,7 @@ const getAllAuditLogs = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching audit logs',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -96,7 +97,7 @@ const getAuditTrail = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching audit trail',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -127,7 +128,7 @@ const getAuditLogStats = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching audit logs summary',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -161,7 +162,7 @@ const getUserActivity = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching user activity',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -195,7 +196,7 @@ const getRoleActivity = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching role activity',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };

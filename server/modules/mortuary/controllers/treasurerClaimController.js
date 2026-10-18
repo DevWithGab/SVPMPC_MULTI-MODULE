@@ -26,6 +26,7 @@ const { getMemberBalanceSnapshots } = require('./deductionController');
 const { getClaimFinancialTotals } = require('./dashboardController');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { getLatestBalance } = require('../utils/ledgerBalance');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const {
   DEFAULT_MAX_BENEFIT_AMOUNT,
   benefitPayoutFor,
@@ -99,7 +100,7 @@ const listAllClaims = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching claims',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -125,7 +126,7 @@ const listPendingDeduction = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching pending-deduction claims',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -162,7 +163,7 @@ const listAwaitingRelease = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching claims awaiting release',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -194,7 +195,7 @@ const listReleasedClaims = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching disbursement report',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -275,7 +276,7 @@ const listClaimFinancials = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching claim income report',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -297,7 +298,7 @@ const getClaimById = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching claim',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -346,7 +347,7 @@ const previewClaimDeduction = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error previewing claim deduction',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -487,7 +488,7 @@ const processClaimDeduction = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error processing claim deduction',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -645,7 +646,7 @@ const releaseClaim = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error releasing claim',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };

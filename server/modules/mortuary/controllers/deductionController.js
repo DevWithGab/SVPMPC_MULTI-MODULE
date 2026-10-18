@@ -4,6 +4,7 @@ const DeductionSetting = require('../models/DeductionSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Constants
 const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
@@ -277,7 +278,7 @@ const getAllMemberBalances = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching member balances', 
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };
@@ -387,7 +388,7 @@ const processAutomaticDeduction = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error processing automatic deduction', 
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };
@@ -422,7 +423,7 @@ const checkLowBalanceMembers = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error checking low balance members', 
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };

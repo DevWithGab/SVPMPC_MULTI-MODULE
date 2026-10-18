@@ -2,6 +2,19 @@ const Beneficiary = require('../models/Beneficiary');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { parseBeneficiaryCsv } = require('../utils/beneficiaryCsv');
+const { createBeneficiaryImportService } = require('../services/beneficiaryImportService');
+
+const beneficiaryImportService = createBeneficiaryImportService({ Member, Beneficiary });
+
+const summarizeBeneficiaryImport = rows => ({
+  total: rows.length,
+  ready: rows.filter(row => row.status === 'ready').length,
+  invalid: rows.filter(row => row.status === 'error').length,
+  imported: rows.filter(row => row.status === 'imported').length,
+  failed: rows.filter(row => row.status === 'failed').length,
+});
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -90,7 +103,7 @@ const getAllBeneficiaries = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching beneficiaries',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -108,7 +121,7 @@ const getBeneficiaryHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching beneficiary history',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -174,8 +187,37 @@ const updateBeneficiary = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating beneficiary',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
+  }
+};
+
+// Bulk Register Beneficiaries — same preview-then-import CSV contract as
+// the treasurer's bulk payment/ledger uploads (action: 'preview' | 'import').
+const bulkUploadBeneficiaries = async (req, res) => {
+  let rows;
+  try {
+    if (!['preview', 'import'].includes(req.body.action)) throw new Error('Choose preview or import.');
+    rows = parseBeneficiaryCsv(req.body.csv);
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  try {
+    const updatedBy = req.body.updatedBy || req.user?.username || 'admin';
+    if (req.body.action === 'preview') {
+      const checked = await beneficiaryImportService.preview(rows);
+      return res.json({ success: true, rows: checked, summary: summarizeBeneficiaryImport(checked) });
+    }
+    const result = await beneficiaryImportService.importRows(rows, updatedBy);
+    return res.status(result.blocked ? 400 : 200).json({
+      success: !result.blocked,
+      rows: result.rows,
+      summary: summarizeBeneficiaryImport(result.rows),
+      message: result.blocked ? 'Fix the listed errors before importing. No beneficiaries were registered.' : 'Beneficiary import processed.',
+    });
+  } catch (error) {
+    console.error('Bulk beneficiary request failed:', error.message);
+    return res.status(500).json({ success: false, message: 'Unable to process the CSV. Retry with the same file; completed rows will register again as an update.' });
   }
 };
 
@@ -183,4 +225,5 @@ module.exports = {
   getAllBeneficiaries,
   getBeneficiaryHistory,
   updateBeneficiary,
+  bulkUploadBeneficiaries,
 };

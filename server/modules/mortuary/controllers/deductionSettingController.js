@@ -2,6 +2,7 @@ const DeductionSetting = require('../models/DeductionSetting');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Default rate used to auto-seed the first DeductionSetting row, matching the
 // value the hardcoded DEDUCTION_AMOUNT constant in deductionController.js used
@@ -31,7 +32,7 @@ const getCurrentRate = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching current deduction rate',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -53,7 +54,7 @@ const getRateHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching deduction rate history',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -92,7 +93,7 @@ const updateRate = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating deduction rate',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };

@@ -2,6 +2,7 @@ const ImportOperation = require('../models/ImportOperation');
 const { parseCSV, validateMemberData } = require('../../modules/attendance/services/csvParserService');
 const { processBulkImport } = require('../services/bulkImportService');
 const fs = require('fs');
+const { safeErrorMessage } = require('../../middleware/errorHandler');
 
 // Step 1: Upload and preview CSV
 const uploadAndPreviewCSV = async (req, res) => {
@@ -63,7 +64,7 @@ const uploadAndPreviewCSV = async (req, res) => {
     if (req.file) {
       fs.unlinkSync(req.file.path);
     }
-    res.status(500).json({ message: 'Error processing CSV', error: error.message });
+    res.status(500).json({ message: 'Error processing CSV', error: safeErrorMessage(error) });
   }
 };
 
@@ -72,7 +73,12 @@ const confirmAndStartImport = async (req, res) => {
   try {
     const { operationId } = req.body;
 
-    if (!operationId) {
+    // typeof check closes a NoSQL operator-injection hole: a crafted body
+    // like {"operationId":{"$ne":null}} passes the !operationId truthiness
+    // check (a non-empty object is truthy) and turns the findOne below into
+    // a real query operator, matching whichever import operation Mongo's
+    // query planner returns first instead of the one actually named.
+    if (!operationId || typeof operationId !== 'string') {
       return res.status(400).json({ message: 'Operation ID required' });
     }
 
@@ -111,7 +117,7 @@ const confirmAndStartImport = async (req, res) => {
       note: 'Check status endpoint for progress',
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error starting import', error: error.message });
+    res.status(500).json({ message: 'Error starting import', error: safeErrorMessage(error) });
   }
 };
 
@@ -141,7 +147,7 @@ const getImportStatus = async (req, res) => {
       completedAt: importOp.completedAt,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching status', error: error.message });
+    res.status(500).json({ message: 'Error fetching status', error: safeErrorMessage(error) });
   }
 };
 
@@ -157,7 +163,7 @@ const getImportDetails = async (req, res) => {
 
     res.status(200).json(importOp);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching details', error: error.message });
+    res.status(500).json({ message: 'Error fetching details', error: safeErrorMessage(error) });
   }
 };
 
@@ -180,7 +186,7 @@ const getAllImportOperations = async (req, res) => {
       operations: operations,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching operations', error: error.message });
+    res.status(500).json({ message: 'Error fetching operations', error: safeErrorMessage(error) });
   }
 };
 

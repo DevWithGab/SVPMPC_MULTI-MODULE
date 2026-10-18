@@ -4,15 +4,20 @@ import { formatDate, formatTime } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
 
-// Shows who actually showed up to an event vs. who didn't — rendered as the
-// body of its own page (not a modal, not a cramped scroll box inside a
-// card). "Absent" is every active member without a present log for this
-// event — there's no separate "invited/expected" roster in this app, so
-// active membership is the whole pool compared against. A name/ID search
-// sits alongside the All/Present/Absent filter so a specific member can be
-// found quickly, and the list itself is paginated instead of a single long
-// scroll.
-export default function EventAttendeesPanel({ event, presentLogs, allMembers, onClose }) {
+/* Shows who actually showed up to an event vs. who didn't — rendered as the
+body of its own page (not a modal, not a cramped scroll box inside a
+card). "Absent" is every active member without a present log for this
+event — there's no separate "invited/expected" roster in this app, so
+active membership is the whole pool compared against. A name/ID search
+sits alongside the All/Present/Absent filter so a specific member can be
+found quickly, and the list itself is paginated instead of a single long scroll.*/
+
+export default function EventAttendeesPanel({
+  event,
+  presentLogs,
+  allMembers,
+  onClose,
+}) {
   const [filter, setFilter] = useState("all"); // 'all' | 'present' | 'absent'
   const [search, setSearch] = useState("");
   const { page, limit, setPage } = usePagination(1, 10);
@@ -52,14 +57,22 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
   }, [presentLogs, allMembers]);
 
   const byFilter =
-    filter === "present" ? presentList : filter === "absent" ? absentList : [...presentList, ...absentList];
+    filter === "present"
+      ? presentList
+      : filter === "absent"
+        ? absentList
+        : [...presentList, ...absentList];
 
   const query = search.trim().toLowerCase();
   const visibleList = query
     ? byFilter.filter(
         (m) =>
-          String(m.memberName || "").toLowerCase().includes(query) ||
-          String(m.memberId || "").toLowerCase().includes(query),
+          String(m.memberName || "")
+            .toLowerCase()
+            .includes(query) ||
+          String(m.memberId || "")
+            .toLowerCase()
+            .includes(query),
       )
     : byFilter;
 
@@ -67,8 +80,8 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
   const totalPages = Math.ceil(total / limit) || 1;
   const pagedList = visibleList.slice((page - 1) * limit, page * limit);
 
-  // The result set's size changes whenever the filter or search changes —
-  // reset to page 1 so pagination doesn't strand the viewer on an empty page.
+  /* The result set's size changes whenever the filter or search changes —
+  reset to page 1 so pagination doesn't strand the viewer on an empty page.*/
   useEffect(() => {
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,7 +95,9 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
         <div>
           <h4 className="text-lg font-bold text-slate-900">{event.name}</h4>
           <p className="text-xs text-slate-500 mt-0.5">
-            {event.date ? `${formatDate(event.date)} • ${formatTime(event.date)}` : "No date"}
+            {event.date
+              ? `${formatDate(event.date)} • ${formatTime(event.date)}`
+              : "No date"}
           </p>
         </div>
         {onClose && (
@@ -110,7 +125,11 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
 
         <div className="flex items-center gap-2">
           {[
-            { key: "all", label: "All", count: presentList.length + absentList.length },
+            {
+              key: "all",
+              label: "All",
+              count: presentList.length + absentList.length,
+            },
             { key: "present", label: "Present", count: presentList.length },
             { key: "absent", label: "Absent", count: absentList.length },
           ].map((tab) => (
@@ -139,21 +158,35 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
       <div className="divide-y divide-slate-100">
         {pagedList.length > 0 ? (
           pagedList.map((m) => {
-            const isPresent = presentList.some((p) => p.memberId === m.memberId);
+            const isPresent = presentList.some(
+              (p) => p.memberId === m.memberId,
+            );
             return (
-              <div key={m.memberId} className="px-6 py-3.5 flex items-center gap-3">
+              <div
+                key={m.memberId}
+                className="px-6 py-3.5 flex items-center gap-3"
+              >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">{m.memberName}</p>
+                  <p className="text-sm font-semibold text-slate-900 truncate">
+                    {m.memberName}
+                  </p>
                   <p className="text-xs text-slate-400 truncate">
-                    {m.barangay || "—"} {m.memberId ? `• Passbook No.: ${m.memberId}` : ""}
+                    {m.barangay || "—"}{" "}
+                    {m.memberId ? `• Passbook No.: ${m.memberId}` : ""}
                   </p>
                 </div>
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
-                    isPresent ? "bg-green-50 text-coop-green" : "bg-slate-100 text-slate-500"
+                    isPresent
+                      ? "bg-green-50 text-coop-green"
+                      : "bg-slate-100 text-slate-500"
                   }`}
                 >
-                  {isPresent ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                  {isPresent ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5" />
+                  )}
                   {isPresent ? "Present" : "Absent"}
                 </span>
               </div>
@@ -162,7 +195,9 @@ export default function EventAttendeesPanel({ event, presentLogs, allMembers, on
         ) : (
           <div className="py-16 text-center text-sm text-slate-400">
             <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-            {query ? `No member matching "${search}" in this filter.` : "No members to show for this filter."}
+            {query
+              ? `No member matching "${search}" in this filter.`
+              : "No members to show for this filter."}
           </div>
         )}
       </div>

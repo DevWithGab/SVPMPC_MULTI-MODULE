@@ -2,6 +2,7 @@ const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { LATEST_FIRST, getLatestBalance } = require('../utils/ledgerBalance');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Get member ledger - with pagination
 const getMemberLedger = async (req, res) => {
@@ -64,7 +65,7 @@ const getMemberLedger = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching ledger', 
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };
@@ -109,7 +110,7 @@ const getAllLedger = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching ledger', 
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };
@@ -138,7 +139,7 @@ const getMemberBalance = async (req, res) => {
       lastUpdated: latestLedger ? latestLedger.transactionDate : null,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching balance', error: error.message });
+    res.status(500).json({ message: 'Error fetching balance', error: safeErrorMessage(error) });
   }
 };
 
@@ -267,7 +268,7 @@ const bulkUploadLedger = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Failed to bulk upload ledger entries',
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };

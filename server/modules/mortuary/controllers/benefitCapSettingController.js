@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { DEFAULT_MAX_BENEFIT_AMOUNT } = require('../config/claimBenefit');
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Get the currently active benefit cap. Auto-seeds a default row (matching
 // the value the hardcoded constant used before this settings screen
@@ -28,7 +29,7 @@ const getCurrentCap = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching current benefit cap',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -49,7 +50,7 @@ const getCapHistory = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching benefit cap history',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };
@@ -89,7 +90,7 @@ const updateCap = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error updating benefit cap',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };

@@ -163,7 +163,7 @@ const Dashboard = ({
   }).length;
 
   // Real last-scan time for the Present card, scoped to the same event the
-  // present/absent counts above are for — was a hardcoded "Just now".
+  // present/absent counts above are for.
   const currentEventLogs = currentEvent
     ? attendanceLogs.filter(
         (log) =>
@@ -181,7 +181,7 @@ const Dashboard = ({
   const quickActions = [
     {
       label: "Live Attendance",
-      desc: "Open the live scan view",
+      desc: "Open the live attendance view",
       icon: ScanLine,
       section: "live",
     },
@@ -211,39 +211,103 @@ const Dashboard = ({
         <div>
           <p className="sd-eyebrow">Attendance management / Overview</p>
           <h1>Attendance dashboard</h1>
-          <p className="sd-description">Review event participation, attendance trends, and administrative tasks.</p>
+          <p className="sd-description">
+            Review event participation, attendance trends, and administrative
+            tasks.
+          </p>
         </div>
-        <button className="sd-button sd-primary" onClick={() => setActiveSection?.('live')}>Live attendance <ArrowRight size={15} aria-hidden="true" /></button>
+        <button
+          className="sd-button sd-primary"
+          onClick={() => setActiveSection?.("live")}
+        >
+          Live attendance <ArrowRight size={15} aria-hidden="true" />
+        </button>
       </header>
 
       <section className="sd-panel aad-event" aria-labelledby="aad-event-title">
-        <div><h2 id="aad-event-title">Active event session</h2><p>{currentEvent ? `${getEventName(currentEvent)} ? ${getEventDate(currentEvent)}` : 'No active event. Attendance counts will appear when an event is active.'}</p></div>
-        <label>Choose an active event
-          <select value={String(getEventKey(currentEvent) || '')} disabled={!activeEvents.length} onChange={e => setCurrentEvent(activeEvents.find(event => String(getEventKey(event)) === e.target.value) || null)}>
+        <div>
+          <h2 id="aad-event-title">Active event session</h2>
+          <p>
+            {currentEvent
+              ? `${getEventName(currentEvent)} ? ${getEventDate(currentEvent)}`
+              : "No active event. Attendance counts will appear when an event is active."}
+          </p>
+        </div>
+        <label>
+          Choose an active event
+          <select
+            value={String(getEventKey(currentEvent) || "")}
+            disabled={!activeEvents.length}
+            onChange={(e) =>
+              setCurrentEvent(
+                activeEvents.find(
+                  (event) => String(getEventKey(event)) === e.target.value,
+                ) || null,
+              )
+            }
+          >
             {!activeEvents.length && <option value="">No active event</option>}
-            {activeEvents.length > 0 && !currentEvent && <option value="" disabled>Select an event</option>}
-            {activeEvents.map(event => <option key={getEventKey(event)} value={String(getEventKey(event))}>{getEventName(event)} ? {getEventDate(event)}</option>)}
+            {activeEvents.length > 0 && !currentEvent && (
+              <option value="" disabled>
+                Select an event
+              </option>
+            )}
+            {activeEvents.map((event) => (
+              <option
+                key={getEventKey(event)}
+                value={String(getEventKey(event))}
+              >
+                {getEventName(event)} ? {getEventDate(event)}
+              </option>
+            ))}
           </select>
         </label>
       </section>
 
-      <AttendanceMetricGrid label="Attendance overview" items={[
-        ['Registered members', totalMembers.toLocaleString(), newMembersThisWeek > 0 ? `+${newMembersThisWeek} new this week` : 'No new members this week', Users],
-        ['Present', currentEvent ? presentMembers.toLocaleString() : '?', !currentEvent ? 'No active event' : lastScanTime ? `Last scan: ${formatTime(lastScanTime)}` : 'No scans recorded yet', CheckCircle2],
-        ['Absent', currentEvent ? absentMembers.toLocaleString() : '?', currentEvent ? `For ${getEventName(currentEvent)}` : 'No active event', History],
-        ['Attendance rate', `${attendancePercentage}%`, 'Share of registered members present', Target],
-      ]} />
+      <AttendanceMetricGrid
+        label="Attendance overview"
+        items={[
+          [
+            "Registered members",
+            totalMembers.toLocaleString(),
+            newMembersThisWeek > 0
+              ? `+${newMembersThisWeek} new this week`
+              : "No new members this week",
+            Users,
+          ],
+          [
+            "Present",
+            currentEvent ? presentMembers.toLocaleString() : "?",
+            !currentEvent
+              ? "No active event"
+              : lastScanTime
+                ? `Last scan: ${formatTime(lastScanTime)}`
+                : "No scans recorded yet",
+            CheckCircle2,
+          ],
+          [
+            "Absent",
+            currentEvent ? absentMembers.toLocaleString() : "?",
+            currentEvent
+              ? `For ${getEventName(currentEvent)}`
+              : "No active event",
+            History,
+          ],
+          [
+            "Attendance rate",
+            `${attendancePercentage}%`,
+            "Share of registered members present",
+            Target,
+          ],
+        ]}
+      />
 
       {/* Attendance Overview */}
       <div className="aad-charts">
         <div className="sd-panel aad-chart-panel">
           <div className="aad-chart-heading">
             <div>
-              <h3
-                className="aad-chart-title"
-              >
-                Attendance Overview
-              </h3>
+              <h3 className="aad-chart-title">Attendance Overview</h3>
               <p className="aad-chart-caption">
                 Present and absent members by event
               </p>
@@ -293,14 +357,10 @@ const Dashboard = ({
         <div className="sd-panel aad-chart-panel">
           <div className="aad-chart-heading">
             <div>
-              <h3
-                className="aad-chart-title"
-              >
-                Attendance Trend
-              </h3>
+              <h3 className="aad-chart-title">Attendance Trend</h3>
               <p className="aad-chart-caption">
                 {attendanceChartData.length > 1
-                  ? `${trendIsUp ? "Increasing" : "Decreasing"} over time`
+                  ? `${trendIsUp ? "Increasing" : "Decreasing"} `
                   : "Attendance rate over time"}
               </p>
             </div>
@@ -356,14 +416,25 @@ const Dashboard = ({
         </div>
       </div>
 
-
       <nav className="aad-workspace" aria-label="Attendance workspace">
-        <div className="aad-workspace-heading"><h2>Workspace</h2><p>Open common attendance tasks.</p></div>
+        <div className="aad-workspace-heading">
+          <h2>Workspace</h2>
+          <p>Open common attendance tasks.</p>
+        </div>
         <div className="aad-shortcuts">
-          {quickActions.map(action => (
-            <button key={action.section} type="button" onClick={() => setActiveSection?.(action.section)}>
-              <span className="aad-shortcut-icon"><action.icon size={17} aria-hidden="true" /></span>
-              <span><strong>{action.label}</strong><small>{action.desc}</small></span>
+          {quickActions.map((action) => (
+            <button
+              key={action.section}
+              type="button"
+              onClick={() => setActiveSection?.(action.section)}
+            >
+              <span className="aad-shortcut-icon">
+                <action.icon size={17} aria-hidden="true" />
+              </span>
+              <span>
+                <strong>{action.label}</strong>
+                <small>{action.desc}</small>
+              </span>
               <ArrowRight size={15} aria-hidden="true" />
             </button>
           ))}

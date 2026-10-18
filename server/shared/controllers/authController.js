@@ -2,13 +2,25 @@ const User = require('../models/User');
 const CredentialLog = require('../models/CredentialLog');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const { safeErrorMessage } = require('../../middleware/errorHandler');
 
 // Login
 const login = async (req, res) => {
   try {
     const { username, password, expectedRole, module } = req.body;
 
-    if (!username || !password) {
+    // typeof check closes a real NoSQL operator-injection hole: without it,
+    // a crafted body like {"username":{"$ne":null},...} passes the !username
+    // truthiness check (a non-empty object is truthy) and turns the $or
+    // below into a real query operator, matching whichever user Mongo's
+    // query planner returns first instead of the one actually named.
+    // bcrypt.compare already throws on a non-string password, so this was
+    // never a full auth bypass today, but the filter itself was broken —
+    // confirmed live, {"$ne":null}/{"$gt":""} both matched a real user at
+    // the query level. Neither value is ever legitimately anything but a
+    // string, so rejecting the wrong type here is exactly as correct as
+    // rejecting a missing one.
+    if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ message: 'Username and password required' });
     }
 
@@ -101,7 +113,7 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error logging in', error: error.message });
+    res.status(500).json({ message: 'Error logging in', error: safeErrorMessage(error) });
   }
 };
 
@@ -160,7 +172,7 @@ const changePassword = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error changing password', error: error.message });
+    res.status(500).json({ message: 'Error changing password', error: safeErrorMessage(error) });
   }
 };
 
@@ -189,7 +201,7 @@ const getUserProfile = async (req, res) => {
       createdAt: user.createdAt,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching profile', error: error.message });
+    res.status(500).json({ message: 'Error fetching profile', error: safeErrorMessage(error) });
   }
 };
 
@@ -209,7 +221,7 @@ const getCredentialHistory = async (req, res) => {
       logs: logs,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching history', error: error.message });
+    res.status(500).json({ message: 'Error fetching history', error: safeErrorMessage(error) });
   }
 };
 
@@ -235,7 +247,7 @@ const verifyToken = async (req, res) => {
       decoded,
     });
   } catch (error) {
-    res.status(401).json({ message: 'Invalid token', error: error.message });
+    res.status(401).json({ message: 'Invalid token', error: safeErrorMessage(error) });
   }
 };
 

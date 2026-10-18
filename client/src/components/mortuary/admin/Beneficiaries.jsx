@@ -1,8 +1,9 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Users, History, Pencil, RefreshCw } from 'lucide-react';
+import { Search, Users, History, Pencil, RefreshCw, Upload } from 'lucide-react';
 import { beneficiaryAPI } from '../../../services/api';
 import BeneficiaryHistory from './BeneficiaryHistory';
 import UpdateBeneficiaryModal from './modals/UpdateBeneficiaryModal';
+import BulkBeneficiaryUpload from './modals/BulkBeneficiaryUpload';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import '../treasurer/MemberBalances.css';
 import './Beneficiaries.css';
@@ -16,6 +17,7 @@ export default function Beneficiaries({ user }) {
   const [error, setError] = useState('');
   const [historyMember, setHistoryMember] = useState(null);
   const [editRecord, setEditRecord] = useState(null);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const requestId = useRef(0);
 
   const load = useCallback(async () => {
@@ -53,9 +55,14 @@ export default function Beneficiaries({ user }) {
           <h1>Beneficiaries</h1>
           <p className="mb-description">Review the beneficiary on file for each member, update details, and track changes.</p>
         </div>
-        <button className="mb-button" onClick={load} disabled={loading}>
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="mb-header-actions">
+          <button className="mb-button" onClick={() => setBulkUploadOpen(true)}>
+            <Upload size={15} aria-hidden="true" />Bulk register
+          </button>
+          <button className="mb-button" onClick={load} disabled={loading}>
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </header>
 
       <section className="mb-filters" aria-labelledby="beneficiary-filter-title">
@@ -130,6 +137,7 @@ export default function Beneficiaries({ user }) {
       <p className="mb-footnote">Not registered means the beneficiary was captured at sign-up and does not yet have a formal beneficiary record.</p>
 
       <UpdateBeneficiaryModal isOpen={Boolean(editRecord)} onClose={() => setEditRecord(null)} memberId={editRecord?.memberId} memberName={editRecord?.memberName} current={editRecord} user={user} onSaved={load} />
+      {bulkUploadOpen && <BulkBeneficiaryUpload onClose={() => setBulkUploadOpen(false)} onImported={load} />}
     </div>
   );
 }

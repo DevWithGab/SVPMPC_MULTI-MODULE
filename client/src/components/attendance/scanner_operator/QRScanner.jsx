@@ -69,9 +69,9 @@ export default function QRScanner({
   const [statsLoading, setStatsLoading] = useState(false);
   const [lastStatsUpdate, setLastStatsUpdate] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  // Brief on-camera flash shown right after a code is processed —
-  // null | 'success' | 'duplicate' | 'invalid'. Mirrors the playScanSound
-  // outcomes so the visual and audio feedback always agree.
+  /* Brief on-camera flash shown right after a code is processed —
+  null | 'success' | 'duplicate' | 'invalid'. Mirrors the playScanSound
+  outcomes so the visual and audio feedback always agree.*/
   const [scanFeedback, setScanFeedback] = useState(null);
 
   const videoRef = useRef(null);
@@ -83,11 +83,8 @@ export default function QRScanner({
   const lastValueRef = useRef("");
   const isProcessingRef = useRef(false);
   const scanCooldownRef = useRef(null);
-  // Timestamp (Date.now()-based) until which the scan loop skips decoding
-  // entirely. The camera frame the code was just read from is usually still
-  // in view for the next several frames (or longer, if it's held there) —
-  // without this, that same still-visible code gets re-detected and
-  // re-processed on every single animation frame.
+  /* May temporary cooldown ang scanner para maiwasan ang paulit-ulit na 
+  pag-detect at pag-process ng parehong QR code habang nakikita pa ito ng camera.*/
   const pauseDetectionUntilRef = useRef(0);
 
   const activeEventCount = Array.isArray(events)
@@ -410,12 +407,12 @@ export default function QRScanner({
       }
 
       if (memberId === lastValueRef.current && scanCooldownRef.current) {
-        // lastValueRef is only ever set after a genuine successful scan (see
-        // the success branch below), so reaching here always means: this
-        // exact code was already recorded a moment ago and is still sitting
-        // in front of the camera. That's not an error, so no red alert box —
-        // just a calm status update, and a longer breather before the loop
-        // looks again so this doesn't repeat every single frame.
+        /*Ang lastValueRef ay nase-set lang kapag successful ang scan. 
+        // Kaya kapag umabot dito, ibig sabihin ay na-scan na ang parehong 
+        // QR code kamakailan at nakikita pa rin ito ng camera. Hindi ito 
+        // error, kaya status update lang ang ipapakita sa halip na red alert, 
+        // at maghihintay muna nang mas matagal bago muling mag-scan para 
+        maiwasan ang paulit-ulit na detection.*/
         setError("");
         setStatusMessage("Already recorded — move to the next member.");
         playScanSound("duplicate");
@@ -516,19 +513,19 @@ export default function QRScanner({
         setStatusMessage(status);
       } finally {
         isProcessingRef.current = false;
-        // Give the operator a beat to move the code away before the loop
-        // starts decoding frames again — covers success and every error
-        // path here, so nothing gets re-processed while still in view.
+        /* Give the operator a beat to move the code away before the loop
+        starts decoding frames again — covers success and every error
+        path here, so nothing gets re-processed while still in view.*/
         pauseDetectionUntilRef.current = Date.now() + 1500;
       }
     },
     [onScanSuccess, playScanSound, refreshStats, triggerScanFeedback],
   );
 
-  // Manually adding a member (no camera involved) always requires a typed
-  // reason and is recorded with entrySource: 'manual' — the server's
-  // existing audit logging on every recordAttendance call then captures it
-  // with this operator's name, timestamp, and reason.
+  /*Manually adding a member (no camera involved) always requires a typed
+  reason and is recorded with entrySource: 'manual' — the server's
+  existing audit logging on every recordAttendance call then captures it
+  with this operator's name, timestamp, and reason.*/
   const handleManualMemberAdd = useCallback(
     (member) => {
       const memberId = member?.memberId;
@@ -583,7 +580,7 @@ export default function QRScanner({
       return;
     }
 
-    // Check if video has data to read
+    // Check if video has data to read before attempting to draw it to the canvas
     if (
       video.readyState !== video.HAVE_FUTURE_DATA &&
       video.readyState !== video.HAVE_ENOUGH_DATA
@@ -792,9 +789,7 @@ export default function QRScanner({
         <span
           role="status"
           className={`oqs-status sd-status ${
-            hasActiveEvent
-              ? "sd-status-active"
-              : "sd-status-neutral"
+            hasActiveEvent ? "sd-status-active" : "sd-status-neutral"
           }`}
         >
           <span
@@ -892,7 +887,10 @@ export default function QRScanner({
 
             <CardContent className="p-4 sm:p-6 space-y-5">
               {showHelp && (
-                <div id="oqs-help" className="relative rounded-lg border border-green-200 bg-green-50 p-4">
+                <div
+                  id="oqs-help"
+                  className="relative rounded-lg border border-green-200 bg-green-50 p-4"
+                >
                   <button
                     type="button"
                     onClick={() => setShowHelp(false)}
@@ -951,7 +949,9 @@ export default function QRScanner({
                         {!scanFeedback && (
                           <Motion.div
                             className="absolute left-1 right-1 h-1 rounded-full bg-linear-to-r from-transparent via-coop-green to-transparent"
-                            style={{ boxShadow: "0 0 8px 2px rgba(45,122,62,0.7)" }}
+                            style={{
+                              boxShadow: "0 0 8px 2px rgba(45,122,62,0.7)",
+                            }}
                             animate={{ y: [8, 176, 8] }}
                             transition={{
                               duration: 2.2,
@@ -986,7 +986,11 @@ export default function QRScanner({
                           initial={{ scale: 0.4, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.6, opacity: 0 }}
-                          transition={{ type: "spring", stiffness: 320, damping: 18 }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 320,
+                            damping: 18,
+                          }}
                           className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg ${
                             scanFeedback === "success"
                               ? "bg-coop-green"
@@ -1035,14 +1039,17 @@ export default function QRScanner({
               <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2.5">
                 <Info className="w-4 h-4 text-coop-green shrink-0" />
                 <p className="text-xs text-coop-darkGreen font-medium">
-                  Hold the phone steady — attendance is recorded
-                  automatically once the code is detected.
+                  Hold the phone steady — attendance is recorded automatically
+                  once the code is detected.
                 </p>
               </div>
 
               {/* Error */}
               {error && (
-                <div role="alert" className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5">
+                <div
+                  role="alert"
+                  className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5"
+                >
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <p className="text-red-700 font-medium text-sm">{error}</p>
                 </div>
@@ -1050,7 +1057,10 @@ export default function QRScanner({
 
               {/* Success */}
               {scanResult && (
-                <div role="status" className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div
+                  role="status"
+                  className="p-4 bg-green-50 border border-green-200 rounded-lg"
+                >
                   <div className="flex items-center gap-2 mb-3">
                     <CheckCircle2 className="w-5 h-5 text-coop-green" />
                     <p className="text-sm font-bold text-coop-darkGreen">
@@ -1087,11 +1097,30 @@ export default function QRScanner({
           </Card>
 
           {/* Stats row */}
-          <AttendanceMetricGrid label="Selected event attendance" busy={statsLoading} items={[
-            ['Total members', totalMembers.toLocaleString(), 'Registered members', Users],
-            ['Present', presentCount.toLocaleString(), 'Attendance recorded for this event', CheckCircle2],
-            ['Pending', pendingCount.toLocaleString(), 'Members not yet checked in', Clock],
-          ]} />
+          <AttendanceMetricGrid
+            label="Selected event attendance"
+            busy={statsLoading}
+            items={[
+              [
+                "Total members",
+                totalMembers.toLocaleString(),
+                "Registered members",
+                Users,
+              ],
+              [
+                "Present",
+                presentCount.toLocaleString(),
+                "Attendance recorded for this event",
+                CheckCircle2,
+              ],
+              [
+                "Pending",
+                pendingCount.toLocaleString(),
+                "Members not yet checked in",
+                Clock,
+              ],
+            ]}
+          />
         </div>
 
         {/* Recent scans + Session summary */}
@@ -1120,7 +1149,10 @@ export default function QRScanner({
                 <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                   {recentScansDisplay.map((scan) => {
                     return (
-                      <div key={scan.id} className="flex items-center gap-3 p-4">
+                      <div
+                        key={scan.id}
+                        className="flex items-center gap-3 p-4"
+                      >
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-slate-900 truncate">
                             {scan.memberName}
@@ -1291,7 +1323,10 @@ export default function QRScanner({
         </button>
 
         {showManualLookup && (
-          <CardContent id="oqs-manual-lookup" className="p-5 pt-0 space-y-4 border-t border-slate-100">
+          <CardContent
+            id="oqs-manual-lookup"
+            className="p-5 pt-0 space-y-4 border-t border-slate-100"
+          >
             <Input
               aria-label="Search members by name or passbook number"
               value={memberSearch}
@@ -1373,7 +1408,10 @@ export default function QRScanner({
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="oqs-manual-reason" className="block text-sm font-semibold text-slate-700 mb-1.5">
+            <label
+              htmlFor="oqs-manual-reason"
+              className="block text-sm font-semibold text-slate-700 mb-1.5"
+            >
               Reason <span className="text-red-500">*</span>
             </label>
             <textarea

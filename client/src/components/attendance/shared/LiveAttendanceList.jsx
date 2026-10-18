@@ -7,8 +7,8 @@ import LiveAttendanceView from "../secretary/LiveAttendanceView";
 
 const PAGE_SIZE = 10;
 const AUTO_REFRESH_MS = 45000;
-// Server caps each attendance page at 100 rows, so an event with more
-// attendees than that needs multiple requests to see everyone.
+/*Server caps each attendance page at 100 rows, so an event with more
+attendees than that needs multiple requests to see everyone.*/
 const ATTENDANCE_FETCH_PAGE_SIZE = 100;
 
 const getEventKey = (event) =>
@@ -24,14 +24,17 @@ const getAttendanceKey = (record) =>
 
 const getMemberDisplayName = (record) =>
   String(
-    record?.memberName || record?.member_name || record?.name || "Unknown member",
+    record?.memberName ||
+      record?.member_name ||
+      record?.name ||
+      "Unknown member",
   );
 
-// Tracks who has actually checked in to the active event — not a full
-// member roster with synthesized "Absent" rows for everyone who hasn't
-// scanned yet. A present/absent breakdown against the whole membership
-// belongs on the event's own report (see EventAttendeesPanel), not here;
-// this is purely a live feed of real check-ins as they happen.
+/*Tracks who has actually checked in to the active event — not a full
+member roster with synthesized "Absent" rows for everyone who hasn't
+scanned yet. A present/absent breakdown against the whole membership
+belongs on the event's own report (see EventAttendeesPanel), not here;
+this is purely a live feed of real check-ins as they happen.*/
 export default function LiveAttendanceList({
   attendanceLogs: propAttendanceLogs = [],
   initialLogs = [],
@@ -55,9 +58,9 @@ export default function LiveAttendanceList({
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const isRefreshingRef = useRef(false);
 
-  // Returns the fetched events so handleRefresh can resolve "which event is
-  // active" synchronously, instead of reading back from `events` state
-  // (which wouldn't reflect this fetch until the next render).
+  /*Returns the fetched events so handleRefresh can resolve "which event is
+  active" synchronously, instead of reading back from `events` state
+  (which wouldn't reflect this fetch until the next render).*/
   const fetchEventsFromDB = useCallback(async () => {
     setLoadingEvents(true);
     try {
@@ -80,12 +83,12 @@ export default function LiveAttendanceList({
     }
   }, []);
 
-  // Pulls every attendance record for one event via the dedicated per-event
-  // endpoint, paging through it in full — the generic "all attendance"
-  // endpoint (and the attendanceLogs prop, sourced from it) only ever
-  // returns the 10 most recent records *across every event combined*, so
-  // any event with more than a handful of check-ins would have its older
-  // attendees quietly fall out of view.
+  /*Pulls every attendance record for one event via the dedicated per-event
+  endpoint, paging through it in full — the generic "all attendance"
+  endpoint (and the attendanceLogs prop, sourced from it) only ever
+  returns the 10 most recent records *across every event combined*, so
+  any event with more than a handful of check-ins would have its older
+  attendees quietly fall out of view.*/
   const fetchEventAttendance = useCallback(async (eventId) => {
     if (!eventId) return [];
     let page = 1;
@@ -112,8 +115,8 @@ export default function LiveAttendanceList({
     return allRecords;
   }, []);
 
-  // Seed events from props (attendance is refetched per-event below, so it
-  // doesn't need the same treatment — the prop is still capped at 10).
+  /* Seed events from props (attendance is refetched per-event below, so it
+  doesn't need the same treatment — the prop is still capped at 10).*/
   useEffect(() => {
     if (eventsSource.length > 0) {
       setEvents(eventsSource);
@@ -128,8 +131,8 @@ export default function LiveAttendanceList({
     try {
       const fetchedEvents = await fetchEventsFromDB();
 
-      // Mirrors the activeEvent memo below, but resolved from the events we
-      // just fetched rather than state (which hasn't re-rendered yet).
+      /*Mirrors the activeEvent memo below, but resolved from the events we
+      just fetched rather than state (which hasn't re-rendered yet).*/
       const currentEventKey = String(getEventKey(currentEvent) || "").trim();
       const resolvedEvent = currentEventKey
         ? currentEvent
@@ -263,26 +266,35 @@ export default function LiveAttendanceList({
     [filteredAttendance, safePage],
   );
 
-  if (variant === "secretary" || variant === "admin" || variant === "operator") {
-    return <LiveAttendanceView
-      operatorView={variant === "operator"}
-      activeEvent={activeEvent}
-      selectedEventLabel={selectedEventLabel}
-      liveRows={liveRows}
-      filteredAttendance={filteredAttendance}
-      paginatedAttendance={paginatedAttendance}
-      selectedBarangay={selectedBarangay}
-      availableBarangays={availableBarangays}
-      onBarangayChange={(value) => { setSelectedBarangay(value); setCurrentPage(1); }}
-      loading={loading || loadingEvents}
-      error={error}
-      lastRefreshedAt={lastRefreshedAt}
-      onRefresh={handleRefresh}
-      currentPage={safePage}
-      totalPages={totalPages}
-      pageSize={PAGE_SIZE}
-      onPageChange={setCurrentPage}
-    />;
+  if (
+    variant === "secretary" ||
+    variant === "admin" ||
+    variant === "operator"
+  ) {
+    return (
+      <LiveAttendanceView
+        operatorView={variant === "operator"}
+        activeEvent={activeEvent}
+        selectedEventLabel={selectedEventLabel}
+        liveRows={liveRows}
+        filteredAttendance={filteredAttendance}
+        paginatedAttendance={paginatedAttendance}
+        selectedBarangay={selectedBarangay}
+        availableBarangays={availableBarangays}
+        onBarangayChange={(value) => {
+          setSelectedBarangay(value);
+          setCurrentPage(1);
+        }}
+        loading={loading || loadingEvents}
+        error={error}
+        lastRefreshedAt={lastRefreshedAt}
+        onRefresh={handleRefresh}
+        currentPage={safePage}
+        totalPages={totalPages}
+        pageSize={PAGE_SIZE}
+        onPageChange={setCurrentPage}
+      />
+    );
   }
 
   return (
@@ -426,7 +438,8 @@ export default function LiveAttendanceList({
                               {row.memberName}
                             </div>
                             <div className="text-xs text-slate-400">
-                              Passbook No.: {row.memberId || row.memberKey || "N/A"}
+                              Passbook No.:{" "}
+                              {row.memberId || row.memberKey || "N/A"}
                             </div>
                           </div>
                         </td>

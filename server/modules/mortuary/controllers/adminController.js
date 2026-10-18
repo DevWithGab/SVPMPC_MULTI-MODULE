@@ -1,5 +1,6 @@
 const { Member } = require('../../../shared/models');
 const { Ledger, Beneficiary, Claim } = require('../models');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Same escaping used throughout the other mortuary controllers (e.g.
 // claimController.js, treasurerClaimController.js) — a search term is user
@@ -104,7 +105,7 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to fetch members',
-        error: error.message
+        error: safeErrorMessage(error)
       });
     }
   },
@@ -167,7 +168,7 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to create member',
-        error: error.message
+        error: safeErrorMessage(error)
       });
     }
   },
@@ -213,7 +214,7 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to update member',
-        error: error.message
+        error: safeErrorMessage(error)
       });
     }
   },
@@ -276,7 +277,7 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to delete member',
-        error: error.message
+        error: safeErrorMessage(error)
       });
     }
   },
@@ -360,7 +361,7 @@ const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to bulk create members',
-        error: error.message
+        error: safeErrorMessage(error)
       });
     }
   }

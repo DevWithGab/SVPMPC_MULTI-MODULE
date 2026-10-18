@@ -33,4 +33,42 @@ const changePasswordLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-module.exports = { loginLimiter, changePasswordLimiter, loginKeyGenerator };
+// These run after authenticateToken, so req.user is always set — keying on
+// the account itself (not just IP) stops a stolen/compromised token from
+// hammering these endpoints from a shared office IP without throttling every
+// other admin behind the same address. IP is only a fallback for the
+// theoretical case this runs before auth.
+const accountKeyGenerator = (req) => req.user?.userId || ipKeyGenerator(req.ip);
+
+// Staff creation and password reset were previously unbounded — a
+// compromised super_admin token (or a buggy client retry loop) could spam
+// account creation or repeatedly force-reset another staffer's credentials
+// with no limit at all.
+const staffActionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many staff account changes. Please try again in 15 minutes.' },
+  keyGenerator: accountKeyGenerator,
+});
+
+// Bulk CSV imports (members, contributions, ledger) are heavy, rare,
+// deliberate admin actions — unlike staff changes they also cost real
+// processing time per request, so the cap is tighter.
+const bulkUploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many bulk upload attempts. Please try again in 15 minutes.' },
+  keyGenerator: accountKeyGenerator,
+});
+
+module.exports = {
+  loginLimiter,
+  changePasswordLimiter,
+  loginKeyGenerator,
+  staffActionLimiter,
+  bulkUploadLimiter,
+};

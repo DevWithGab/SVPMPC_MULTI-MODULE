@@ -1,5 +1,6 @@
 const { Member } = require('../../../shared/models');
 const { Ledger } = require('../models');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const payoutController = {
   // Get all payouts — both the legacy manual "Record Payout" ledger entries
@@ -42,7 +43,7 @@ const payoutController = {
       res.status(500).json({
         success: false,
         message: 'Failed to fetch payouts',
-        error: error.message
+        error: safeErrorMessage(error)
       });
     }
   },
@@ -85,7 +86,7 @@ const payoutController = {
       res.status(500).json({
         success: false,
         message: 'Failed to fetch payout',
-        error: error.message
+        error: safeErrorMessage(error)
       });
     }
   }

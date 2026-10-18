@@ -236,7 +236,9 @@ const EventManagement = ({ events = [], setEvents }) => {
       return `${hours.padStart(2, "0")}:${minutes}`;
     }
 
-    const match12Hour = /^([0-1]?\d|2[0-3]):([0-5]\d)\s*(AM|PM)$/i.exec(trimmed);
+    const match12Hour = /^([0-1]?\d|2[0-3]):([0-5]\d)\s*(AM|PM)$/i.exec(
+      trimmed,
+    );
     if (match12Hour) {
       let [, hour, minute, period] = match12Hour;
       hour = parseInt(hour, 10);
@@ -245,7 +247,9 @@ const EventManagement = ({ events = [], setEvents }) => {
       return `${hour.toString().padStart(2, "0")}:${minute}`;
     }
 
-    const matchSeconds = /^([0-1]?\d|2[0-3]):([0-5]\d):([0-5]\d)$/.exec(trimmed);
+    const matchSeconds = /^([0-1]?\d|2[0-3]):([0-5]\d):([0-5]\d)$/.exec(
+      trimmed,
+    );
     if (matchSeconds) {
       const [, hour, minute] = matchSeconds;
       return `${hour.padStart(2, "0")}:${minute}`;
@@ -254,12 +258,12 @@ const EventManagement = ({ events = [], setEvents }) => {
     return "";
   };
 
-  // Admin can edit any approved or closed event — including a closed
-  // (time-exceeded) one, which it couldn't touch at all before. Date/time
-  // stay off-limits for a closed event here: the status-refresh timer only
-  // watches upcoming/active events, so editing a closed event's schedule
-  // through this form wouldn't bring it back out of 'closed' — that's what
-  // the dedicated Reopen flow is for.
+  /* Admin can edit any approved or closed event — including a closed
+  (time-exceeded) one, which it couldn't touch at all before. Date/time 
+  stay off-limits for a closed event here: the status-refresh timer only
+   watches upcoming/active events, so editing a closed event's schedule
+  through this form wouldn't bring it back out of 'closed' — that's what
+   the dedicated Reopen flow is for.*/
   const openEditModal = (event) => {
     const parsedDate = new Date(event.eventDate || event.date);
     setEditingEvent(event);
@@ -349,15 +353,43 @@ const EventManagement = ({ events = [], setEvents }) => {
             Review Secretary submissions and manage approved attendance events.
           </p>
         </div>
-        <span className="aae-schedule-note"><Clock size={15} aria-hidden="true" /> All schedules in Philippine time (PHT)</span>
+        <span className="aae-schedule-note">
+          <Clock size={15} aria-hidden="true" /> All schedules in Philippine
+          time (PHT)
+        </span>
       </header>
 
-      <AttendanceMetricGrid label="Event approval overview" items={[
-        ['Pending approval', pendingEvents.length.toLocaleString(), 'Awaiting administrative review', Clock],
-        ['Approved events', approvedEvents.length.toLocaleString(), 'Upcoming and active sessions', CheckCircle2],
-        ['Active now', events.filter(event => event.status === 'active').length.toLocaleString(), 'Currently accepting attendance', Calendar],
-        ['Closed events', closedEvents.length.toLocaleString(), 'Completed event schedules', RotateCcw],
-      ]} />
+      <AttendanceMetricGrid
+        label="Event approval overview"
+        items={[
+          [
+            "Pending approval",
+            pendingEvents.length.toLocaleString(),
+            "Awaiting administrative review",
+            Clock,
+          ],
+          [
+            "Approved events",
+            approvedEvents.length.toLocaleString(),
+            "Upcoming and active sessions",
+            CheckCircle2,
+          ],
+          [
+            "Active now",
+            events
+              .filter((event) => event.status === "active")
+              .length.toLocaleString(),
+            "Currently accepting attendance",
+            Calendar,
+          ],
+          [
+            "Closed events",
+            closedEvents.length.toLocaleString(),
+            "Completed event schedules",
+            RotateCcw,
+          ],
+        ]}
+      />
 
       {notice && (
         <Toast
@@ -374,7 +406,8 @@ const EventManagement = ({ events = [], setEvents }) => {
             <div>
               <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-coop-green" />
-                Pending approvals <span className="aae-count">{pendingEvents.length}</span>
+                Pending approvals{" "}
+                <span className="aae-count">{pendingEvents.length}</span>
               </CardTitle>
               <p className="text-xs text-slate-400 mt-1">
                 Events submitted by the Secretary for Admin review.
@@ -488,7 +521,10 @@ const EventManagement = ({ events = [], setEvents }) => {
                       <div className="sd-data-state">
                         <CheckCircle2 size={24} aria-hidden="true" />
                         <strong>You're all caught up</strong>
-                        <p>Events submitted by the Secretary will appear here for review.</p>
+                        <p>
+                          Events submitted by the Secretary will appear here for
+                          review.
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -504,10 +540,12 @@ const EventManagement = ({ events = [], setEvents }) => {
         <CardHeader className="aae-panel-heading">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-coop-green" />
-            Approved events <span className="aae-count">{approvedEvents.length}</span>
+            Approved events{" "}
+            <span className="aae-count">{approvedEvents.length}</span>
           </CardTitle>
           <p className="text-xs text-slate-400 mt-1">
-            Approved by the Admin — status updates to Active/Close automatically at their PHT schedule.
+            Approved by the Admin — status updates to Active/Close automatically
+            at their PHT schedule.
           </p>
         </CardHeader>
         <CardContent className="p-0">
@@ -602,7 +640,10 @@ const EventManagement = ({ events = [], setEvents }) => {
                       <div className="sd-data-state">
                         <Calendar size={24} aria-hidden="true" />
                         <strong>No approved events yet</strong>
-                        <p>Approved submissions will appear here with their current status and schedule.</p>
+                        <p>
+                          Approved submissions will appear here with their
+                          current status and schedule.
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -618,7 +659,8 @@ const EventManagement = ({ events = [], setEvents }) => {
         <CardHeader className="aae-panel-heading">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Calendar className="w-4 h-4 text-coop-green" />
-            Closed events <span className="aae-count">{closedEvents.length}</span>
+            Closed events{" "}
+            <span className="aae-count">{closedEvents.length}</span>
           </CardTitle>
           <p>Review past events or reopen a session with a new schedule.</p>
         </CardHeader>
@@ -702,7 +744,10 @@ const EventManagement = ({ events = [], setEvents }) => {
                       <div className="sd-data-state">
                         <Clock size={24} aria-hidden="true" />
                         <strong>No closed events</strong>
-                        <p>Events will move here once their scheduled sessions end.</p>
+                        <p>
+                          Events will move here once their scheduled sessions
+                          end.
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -949,7 +994,9 @@ const EventManagement = ({ events = [], setEvents }) => {
                 type="button"
                 onClick={submitEditEvent}
                 disabled={
-                  savingEdit || !editForm.name.trim() || !editForm.location.trim()
+                  savingEdit ||
+                  !editForm.name.trim() ||
+                  !editForm.location.trim()
                 }
                 className="flex-1 bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg font-semibold disabled:opacity-50"
               >
@@ -1032,8 +1079,8 @@ const EventManagement = ({ events = [], setEvents }) => {
             <span className="font-semibold text-slate-700">
               {eventDisplayName(eventToReopen)}
             </span>{" "}
-            already closed on its original schedule. Set a new date and time
-            so it reactivates correctly, and note why it's being reopened.
+            already closed on its original schedule. Set a new date and time so
+            it reactivates correctly, and note why it's being reopened.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>

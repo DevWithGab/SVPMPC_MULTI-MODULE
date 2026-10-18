@@ -1,7 +1,8 @@
 const express = require('express');
-const { 
-  authenticateToken, 
-  authorizeTreasurerOnly
+const {
+  authenticateToken,
+  authorizeTreasurerOnly,
+  bulkUploadLimiter
 } = require('../../../middleware');
 
 const { 
@@ -64,7 +65,7 @@ router.get('/dashboard', getTreasurerDashboard);
 
 // Contribution management routes (Treasurer can manage all contributions)
 router.post('/contributions/record', recordContribution);
-router.post('/contributions/bulk-upload', bulkUploadPayments);
+router.post('/contributions/bulk-upload', bulkUploadLimiter, bulkUploadPayments);
 router.get('/contributions/:memberId', getContributionHistory);
 router.get('/contributions', getAllContributions);
 
@@ -100,7 +101,7 @@ router.get('/notices/batch/:jobId/download', downloadNoticeBatch);
 router.get('/ledger', getAllLedger);
 router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
-router.post('/ledger/bulk-upload', bulkUploadLedger);
+router.post('/ledger/bulk-upload', bulkUploadLimiter, bulkUploadLedger);
 
 // Read-only historical notification records; no send or retry endpoints.
 router.get('/notifications/history/:memberId', getMemberNotificationHistory);

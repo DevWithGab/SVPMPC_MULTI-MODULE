@@ -26,12 +26,12 @@ import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "../secretary/Dashboard.css";
 import "./MemberManagement.css";
 
-// A member's QR is in exactly one of three states — this is the single
-// source of truth the whole screen (badges, filters, actions) reads from.
+/* A member's QR is in exactly one of three states — this is the single
+source of truth the whole screen (badges, filters, actions) reads from.*/
 const qrState = (member) => {
   if (!member?.qrCodeGenerated) return "none";
-  // A deceased member's QR must never read as "active" here even if the
-  // qrCodeActive flag itself was never flipped off.
+  /* A deceased member's QR must never read as "active" here even if the
+   qrCodeActive flag itself was never flipped off.*/
   if (member.status === "deceased") return "inactive";
   return member.qrCodeActive === false ? "inactive" : "active";
 };
@@ -42,18 +42,25 @@ const QR_STATE_META = {
   inactive: { label: "QR Inactive", className: "bg-amber-100 text-amber-800" },
 };
 
-// Member.status is shared with the Mortuary module — filing a death claim
-// there flips a member to 'deceased', which this screen needs to surface
-// (and gate QR issuance on) instead of treating every member as active.
+/*Member.status is shared with the Mortuary module — filing a death claim
+ there flips a member to 'deceased', which this screen needs to surface
+(and gate QR issuance on) instead of treating every member as active.*/
 const MEMBER_STATUS_META = {
   active: { label: "Member Active", className: "bg-green-100 text-green-800" },
-  deceased: { label: "Member Deceased", className: "bg-rose-100 text-rose-700" },
-  inactive: { label: "Member Inactive", className: "bg-slate-100 text-slate-600" },
+  deceased: {
+    label: "Member Deceased",
+    className: "bg-rose-100 text-rose-700",
+  },
+  inactive: {
+    label: "Member Inactive",
+    className: "bg-slate-100 text-slate-600",
+  },
   staff: { label: "Staff", className: "bg-blue-100 text-blue-700" },
 };
 
 const MemberStatusBadge = ({ member }) => {
-  const meta = MEMBER_STATUS_META[member?.status] || MEMBER_STATUS_META.inactive;
+  const meta =
+    MEMBER_STATUS_META[member?.status] || MEMBER_STATUS_META.inactive;
   return (
     <span
       className={`amq-badge px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${meta.className}`}
@@ -143,10 +150,10 @@ const downloadQRCode = async (member) => {
   URL.revokeObjectURL(url);
 };
 
-// The QR management console for one member — every admin action from the
+/*The QR management console for one member — every admin action from the
 // spec (generate, view, download, print, regenerate, deactivate,
 // reactivate, check status) lives here so a table/grid row only ever needs
-// one entry point instead of a wall of icon buttons.
+one entry point instead of a wall of icon buttons.*/
 const QRManagerModal = ({ member, onClose, onUpdated }) => {
   const [current, setCurrent] = useState(member);
   const [busy, setBusy] = useState(null); // which action is in flight
@@ -170,8 +177,8 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
       if (response.member) {
         applyUpdate(response.member);
       } else {
-        // generateMemberQR (bulk endpoint under the hood) doesn't echo the
-        // updated member back — pull its fresh state explicitly instead.
+        /* generateMemberQR (bulk endpoint under the hood) doesn't echo the
+         updated member back — pull its fresh state explicitly instead.*/
         const status = await memberAPI.getMemberQRStatus(current.memberId);
         applyUpdate({ ...current, ...status });
       }
@@ -225,7 +232,9 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
             <h3 className="font-bold text-slate-900">
               {current.memberName || current.name}
             </h3>
-            <p className="text-xs text-slate-500">Passbook No.: {current.memberId}</p>
+            <p className="text-xs text-slate-500">
+              Passbook No.: {current.memberId}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -417,8 +426,8 @@ const MemberManagement = () => {
     }
   };
 
-  // Keep the roster and the open modal (if any) in sync with a single
-  // member's updated QR state, without a full refetch.
+  /* Keep the roster and the open modal (if any) in sync with a single
+   member's updated QR state, without a full refetch.*/
   const patchMember = (updated) => {
     setMembers((prev) =>
       prev.map((m) =>
@@ -458,7 +467,10 @@ const MemberManagement = () => {
   const totalFilteredMembers = filteredMembers.length;
   const totalPages = Math.ceil(totalFilteredMembers / limit) || 1;
   const pageStartIndex = (page - 1) * limit;
-  const paginatedMembers = filteredMembers.slice(pageStartIndex, pageStartIndex + limit);
+  const paginatedMembers = filteredMembers.slice(
+    pageStartIndex,
+    pageStartIndex + limit,
+  );
 
   const getMemberDisplayName = (member) =>
     String(member?.memberName || member?.name || "Unknown Member");
@@ -517,49 +529,175 @@ const MemberManagement = () => {
     document.body.removeChild(link);
   };
 
-  const hasActiveFilters = searchTerm !== '' || selectedBarangay !== 'All';
-  const resetFilters = () => { setSearchTerm(''); setSelectedBarangay('All'); setPage(1); };
+  const hasActiveFilters = searchTerm !== "" || selectedBarangay !== "All";
+  const resetFilters = () => {
+    setSearchTerm("");
+    setSelectedBarangay("All");
+    setPage(1);
+  };
 
   return (
     <div className="secretary-dashboard admin-member-qr">
       <header className="sd-header">
         <div>
-          <p className="sd-eyebrow">Attendance management / Member QR management</p>
+          <p className="sd-eyebrow">
+            Attendance management / Member QR management
+          </p>
           <h1>Member QR management</h1>
-          <p className="sd-description">Generate, print, and manage QR codes used for attendance scanning.</p>
+          <p className="sd-description">
+            Generate, print, and manage QR codes used for attendance scanning.
+          </p>
         </div>
         <div className="amq-header-actions">
-          <button className="sd-button sd-primary" onClick={handleGenerateAllMissing} disabled={generatingAll}>
-            {generatingAll ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <QrCode size={15} aria-hidden="true" />}
-            {generatingAll ? 'Generating?' : 'Generate missing QR'}
+          <button
+            className="sd-button sd-primary"
+            onClick={handleGenerateAllMissing}
+            disabled={generatingAll}
+          >
+            {generatingAll ? (
+              <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <QrCode size={15} aria-hidden="true" />
+            )}
+            {generatingAll ? "Generating?" : "Generate missing QR"}
           </button>
-          <button className="sd-button" onClick={exportToCSV}><Download size={15} aria-hidden="true" />Export CSV</button>
+          <button className="sd-button" onClick={exportToCSV}>
+            <Download size={15} aria-hidden="true" />
+            Export CSV
+          </button>
         </div>
       </header>
 
-      <AttendanceMetricGrid label="Loaded member QR overview" busy={loading} items={[
-        ['Members', loading ? '?' : members.length.toLocaleString(), 'Loaded member records', UserPlus],
-        ['Active QR codes', loading ? '?' : members.filter(member => qrState(member) === 'active').length.toLocaleString(), 'Among loaded members', CheckCircle2],
-        ['Inactive QR codes', loading ? '?' : members.filter(member => qrState(member) === 'inactive').length.toLocaleString(), 'Among loaded members', Ban],
-        ['Not generated', loading ? '?' : members.filter(member => qrState(member) === 'none').length.toLocaleString(), 'Among loaded members', QrCode],
-      ]} />
+      <AttendanceMetricGrid
+        label="Loaded member QR overview"
+        busy={loading}
+        items={[
+          [
+            "Members",
+            loading ? "?" : members.length.toLocaleString(),
+            "Loaded member records",
+            UserPlus,
+          ],
+          [
+            "Active QR codes",
+            loading
+              ? "?"
+              : members
+                  .filter((member) => qrState(member) === "active")
+                  .length.toLocaleString(),
+            "Among loaded members",
+            CheckCircle2,
+          ],
+          [
+            "Inactive QR codes",
+            loading
+              ? "?"
+              : members
+                  .filter((member) => qrState(member) === "inactive")
+                  .length.toLocaleString(),
+            "Among loaded members",
+            Ban,
+          ],
+          [
+            "Not generated",
+            loading
+              ? "?"
+              : members
+                  .filter((member) => qrState(member) === "none")
+                  .length.toLocaleString(),
+            "Among loaded members",
+            QrCode,
+          ],
+        ]}
+      />
 
       <section className="amq-filters" aria-labelledby="amq-filter-title">
-        <div className="amq-filter-heading"><h2 id="amq-filter-title">Find a member</h2><button className="sd-link" disabled={!hasActiveFilters} onClick={resetFilters}>Reset filters</button></div>
+        <div className="amq-filter-heading">
+          <h2 id="amq-filter-title">Find a member</h2>
+          <button
+            className="sd-link"
+            disabled={!hasActiveFilters}
+            onClick={resetFilters}
+          >
+            Reset filters
+          </button>
+        </div>
         <div className="amq-filter-grid">
-          <label>Search members<span className="amq-search"><Search size={16} aria-hidden="true" /><input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Name, Passbook No., or email" /></span></label>
-          <label>Barangay<select value={selectedBarangay} onChange={e => setSelectedBarangay(e.target.value)}>{barangays.map(barangay => <option key={barangay} value={barangay}>{barangay === 'All' ? 'All barangays' : barangay}</option>)}</select></label>
+          <label>
+            Search members
+            <span className="amq-search">
+              <Search size={16} aria-hidden="true" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Name, Passbook No., or email"
+              />
+            </span>
+          </label>
+          <label>
+            Barangay
+            <select
+              value={selectedBarangay}
+              onChange={(e) => setSelectedBarangay(e.target.value)}
+            >
+              {barangays.map((barangay) => (
+                <option key={barangay} value={barangay}>
+                  {barangay === "All" ? "All barangays" : barangay}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 
       <div className="amq-register-heading">
-        <div><h2>Member register</h2><p>{filteredMembers.length.toLocaleString()} of {members.length.toLocaleString()} loaded members</p></div>
-        <div className="amq-view-toggle" role="group" aria-label="Member display">
-          <button onClick={() => setViewMode('table')} aria-pressed={viewMode === 'table'}><List size={15} aria-hidden="true" />Table</button>
-          <button onClick={() => setViewMode('grid')} aria-pressed={viewMode === 'grid'}><Grid size={15} aria-hidden="true" />Grid</button>
+        <div>
+          <h2>Member register</h2>
+          <p>
+            {filteredMembers.length.toLocaleString()} of{" "}
+            {members.length.toLocaleString()} loaded members
+          </p>
+        </div>
+        <div
+          className="amq-view-toggle"
+          role="group"
+          aria-label="Member display"
+        >
+          <button
+            onClick={() => setViewMode("table")}
+            aria-pressed={viewMode === "table"}
+          >
+            <List size={15} aria-hidden="true" />
+            Table
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            aria-pressed={viewMode === "grid"}
+          >
+            <Grid size={15} aria-hidden="true" />
+            Grid
+          </button>
         </div>
       </div>
-      {!loading && totalFilteredMembers === 0 && <div className="amq-empty" role="status"><strong>{hasActiveFilters ? 'No members match these filters' : 'No members found'}</strong><p>{hasActiveFilters ? 'Try another name, passbook number, email, or barangay.' : 'Member records will appear here when available.'}</p>{hasActiveFilters && <button className="sd-button" onClick={resetFilters}>Reset filters</button>}</div>}
+      {!loading && totalFilteredMembers === 0 && (
+        <div className="amq-empty" role="status">
+          <strong>
+            {hasActiveFilters
+              ? "No members match these filters"
+              : "No members found"}
+          </strong>
+          <p>
+            {hasActiveFilters
+              ? "Try another name, passbook number, email, or barangay."
+              : "Member records will appear here when available."}
+          </p>
+          {hasActiveFilters && (
+            <button className="sd-button" onClick={resetFilters}>
+              Reset filters
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Members Display */}
       {loading ? (
@@ -568,26 +706,49 @@ const MemberManagement = () => {
         </div>
       ) : viewMode === "table" ? (
         <div className="sd-panel amq-register">
-          <div className="amq-table-scroll" role="region" aria-label="Member QR records" tabIndex={0}>
+          <div
+            className="amq-table-scroll"
+            role="region"
+            aria-label="Member QR records"
+            tabIndex={0}
+          >
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                  >
                     Member
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                  >
                     Contact
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                  >
                     Barangay
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                  >
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                  >
                     QR Status
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                  >
                     Actions
                   </th>
                 </tr>
@@ -643,7 +804,9 @@ const MemberManagement = () => {
                         ) : (
                           <button
                             onClick={() => setManagingMember(member)}
-                            className="sd-button" aria-haspopup="dialog" aria-label={`Manage QR for ${getMemberDisplayName(member)}`}
+                            className="sd-button"
+                            aria-haspopup="dialog"
+                            aria-label={`Manage QR for ${getMemberDisplayName(member)}`}
                           >
                             <QrCode className="w-4 h-4" />
                             {qrState(member) === "none"
@@ -710,7 +873,9 @@ const MemberManagement = () => {
                 ) : (
                   <button
                     onClick={() => setManagingMember(member)}
-                    className="sd-button sd-primary w-full" aria-haspopup="dialog" aria-label={`Manage QR for ${getMemberDisplayName(member)}`}
+                    className="sd-button sd-primary w-full"
+                    aria-haspopup="dialog"
+                    aria-label={`Manage QR for ${getMemberDisplayName(member)}`}
                     style={{ backgroundColor: "#2D7A3E" }}
                   >
                     <QrCode className="w-4 h-4" />
@@ -725,7 +890,11 @@ const MemberManagement = () => {
 
       {!loading && totalFilteredMembers > 0 && (
         <div className="amq-pagination">
-          <PaginationInfo currentPage={page} limit={limit} total={totalFilteredMembers} />
+          <PaginationInfo
+            currentPage={page}
+            limit={limit}
+            total={totalFilteredMembers}
+          />
           <Pagination
             currentPage={page}
             totalPages={totalPages}
@@ -746,7 +915,6 @@ const MemberManagement = () => {
           />
         )}
       </AnimatePresence>
-
     </div>
   );
 };

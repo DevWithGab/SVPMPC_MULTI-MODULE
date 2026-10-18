@@ -2,6 +2,7 @@ const { Member } = require('../../../shared/models');
 const Contribution = require('../models/Contribution');
 const Ledger = require('../models/Ledger');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // A member's balance is never a field on the Member document — it's derived
 // from their latest Ledger entry (see shared/utils understanding throughout
@@ -16,7 +17,7 @@ const getLedgerExport = async (req, res) => {
     res.status(200).json({ success: true, data: ledgers });
   } catch (error) {
     console.error('Error exporting ledger for backup:', error);
-    res.status(500).json({ success: false, message: 'Error exporting ledger', error: error.message });
+    res.status(500).json({ success: false, message: 'Error exporting ledger', error: safeErrorMessage(error) });
   }
 };
 
@@ -50,7 +51,7 @@ const upsertMany = async (Model, key, records) => {
         result.created += 1;
       }
     } catch (error) {
-      result.errors.push({ [key]: keyValue, error: error.message });
+      result.errors.push({ [key]: keyValue, error: safeErrorMessage(error) });
     }
   }
 
@@ -127,7 +128,7 @@ const restoreBackup = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ success: false, message: 'Error restoring backup', error: error.message });
+    res.status(500).json({ success: false, message: 'Error restoring backup', error: safeErrorMessage(error) });
   }
 };
 

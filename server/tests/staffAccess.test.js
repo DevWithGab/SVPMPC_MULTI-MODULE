@@ -117,6 +117,46 @@ test('HTTP staff routes deny non-superadmins for listing, creation, editing, and
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
+test('HTTP member routes under /admin deny non-superadmins (cross-module IDOR regression)', async () => {
+  // Regression test for a confirmed cross-module IDOR: /api/admin/members*
+  // used to only require authorizeAdminOnly (role 'admin' OR 'super_admin'),
+  // with no module check — letting an attendance-only or mortuary-only
+  // admin read/write members outside their own module (including rewriting
+  // a member's own `modules` array) through this shared, unscoped path.
+  // Every module-scoped admin already has their own properly-restricted
+  // member endpoints under /api/attendance/admin and /api/mortuary/admin,
+  // so this tree is now super_admin-only, same as /staff above.
+  const routes = require('../shared/routes/adminRoutes');
+  const app = express();
+  app.use(express.json());
+  app.use((req, res, next) => { req.user = { role: req.headers['x-test-role'], isTemporaryPassword: false }; next(); });
+  app.use('/admin', routes);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  try {
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const memberRoutes = [
+      ['GET', '/members'],
+      ['POST', '/members/create'],
+      ['POST', '/members/bulk-create'],
+      ['PUT', '/members/test'],
+      ['DELETE', '/members/test'],
+      ['POST', '/members/test/toggle-status'],
+    ];
+    // 'admin' is deliberately included: this is exactly the role an
+    // attendance-only or mortuary-only admin has — the whole point of this
+    // regression test is that holding that role alone must not be enough.
+    for (const role of ['admin', 'secretary', 'treasurer', 'scanner_operator']) {
+      for (const [method, path] of memberRoutes) {
+        const result = await fetch(base + '/admin' + path, { method, headers: { 'x-test-role': role } });
+        assert.equal(result.status, 403, `${role} ${method} ${path}`);
+      }
+    }
+    const result = await fetch(base + '/admin/members/create', { method: 'POST', headers: { 'x-test-role': 'super_admin', 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal(result.status, 400); // Authorized, then rejected by input validation.
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
 test('password change checks current password and clears the first-login requirement', async () => {
   const user = { userId: 'staff', role: 'secretary', isTemporaryPassword: true, comparePassword: async value => value === 'temporary-password', save: async () => {} };
   const controller = load('../shared/controllers/authController', {

@@ -5,7 +5,7 @@ const fs = require('fs');
 const { AppError } = require('../../middleware/errorHandler');
 const authController = require('../controllers/authController');
 const bulkImportController = require('../controllers/bulkImportController');
-const { loginLimiter, changePasswordLimiter } = require('../../middleware');
+const { loginLimiter, changePasswordLimiter, bulkUploadLimiter } = require('../../middleware');
 
 const { authenticateToken, requirePasswordChange, authorizeAdminOnly } = require('../../middleware/auth');
 const ownAccount = (req, res, next) => req.params.userId === req.user.userId ? next() : res.status(403).json({ message: 'Access denied' });
@@ -58,8 +58,8 @@ router.get('/verify-token', authController.verifyToken);
 router.use('/bulk-import', authenticateToken, requirePasswordChange, authorizeAdminOnly);
 
 // Bulk import routes
-router.post('/bulk-import/upload', upload.single('file'), bulkImportController.uploadAndPreviewCSV);
-router.post('/bulk-import/confirm', bulkImportController.confirmAndStartImport);
+router.post('/bulk-import/upload', bulkUploadLimiter, upload.single('file'), bulkImportController.uploadAndPreviewCSV);
+router.post('/bulk-import/confirm', bulkUploadLimiter, bulkImportController.confirmAndStartImport);
 router.get('/bulk-import/status/:operationId', bulkImportController.getImportStatus);
 router.get('/bulk-import/details/:operationId', bulkImportController.getImportDetails);
 router.get('/bulk-import/operations', bulkImportController.getAllImportOperations);

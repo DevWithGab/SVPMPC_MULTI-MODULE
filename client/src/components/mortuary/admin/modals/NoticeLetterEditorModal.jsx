@@ -4,6 +4,7 @@ import Modal from '../../shared/Modal';
 import Button from '../../../shared/ui/Button';
 import { noticeThresholdSettingAPI } from '../../../../services/api';
 import { legacyPlainTextToHtml, substitutePlaceholders } from '../../../../utils/balanceNotice';
+import { sanitizeNoticeHtml as sanitizeHtml } from '../../../../utils/sanitizeHtml';
 
 // Sample data shown when the admin toggles "Preview" — lets them see the
 // document the way a member would receive it without leaving the editor.
@@ -31,24 +32,6 @@ const FIELD_OPTIONS = [
   { token: 'managerName', label: 'Manager Name' },
 ];
 
-// Strips <script> tags and inline event-handler attributes before saving.
-// This content is admin-authored through a controlled toolbar, but a paste
-// from elsewhere could still carry something dangerous — cheap insurance
-// before it's stored and later rendered into a real print window.
-const sanitizeHtml = (html) => {
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  container.querySelectorAll('script').forEach((el) => el.remove());
-  container.querySelectorAll('*').forEach((el) => {
-    [...el.attributes].forEach((attr) => {
-      if (/^on/i.test(attr.name) || (attr.name === 'href' && /^javascript:/i.test(attr.value))) {
-        el.removeAttribute(attr.name);
-      }
-    });
-  });
-  return container.innerHTML;
-};
-
 export default function NoticeLetterEditorModal({ isOpen, onClose, level, current, user, onSaved }) {
   const editorRef = useRef(null);
   const [mode, setMode] = useState('edit'); // 'edit' | 'preview'
@@ -64,7 +47,10 @@ export default function NoticeLetterEditorModal({ isOpen, onClose, level, curren
   useEffect(() => {
     if (isOpen && editorRef.current) {
       const raw = current?.[fieldKey] || '';
-      editorRef.current.innerHTML = legacyPlainTextToHtml(raw);
+      // Re-sanitize on load too, not just on save — content already stored
+      // (from before this fix, or written directly via the API) must not be
+      // trusted just because it made it into the database.
+      editorRef.current.innerHTML = sanitizeHtml(legacyPlainTextToHtml(raw));
       document.execCommand('defaultParagraphSeparator', false, 'p');
       setMode('edit');
       setError('');
@@ -85,7 +71,7 @@ export default function NoticeLetterEditorModal({ isOpen, onClose, level, curren
   const switchToPreview = () => {
     const liveHtml = editorRef.current?.innerHTML || '';
     const samples = SAMPLE_VALUES_BY_LEVEL[level] || SAMPLE_VALUES_BY_LEVEL[1];
-    setPreviewHtml(substitutePlaceholders(liveHtml, samples));
+    setPreviewHtml(sanitizeHtml(substitutePlaceholders(liveHtml, samples)));
     setMode('preview');
   };
 

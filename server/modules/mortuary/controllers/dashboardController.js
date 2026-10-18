@@ -3,6 +3,7 @@ const Contribution = require('../models/Contribution');
 const Claim = require('../models/Claim');
 const { Member } = require('../../../shared/models');
 const { LATEST_FIRST, getLatestBalancesByMember } = require('../utils/ledgerBalance');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const getClaimFinancialTotals = async (match) => {
   const collected = { $ifNull: ['$deduction.totalCollected', 0] };
@@ -83,7 +84,7 @@ const getDashboard = async (req, res) => {
       recentContributions: contributionHistory.slice(0, 5),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching dashboard', error: error.message });
+    res.status(500).json({ message: 'Error fetching dashboard', error: safeErrorMessage(error) });
   }
 };
 
@@ -186,7 +187,7 @@ const getTreasurerDashboard = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching treasurer dashboard', 
-      error: error.message 
+      error: safeErrorMessage(error) 
     });
   }
 };
@@ -288,7 +289,7 @@ const getAdminDashboard = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching admin dashboard',
-      error: error.message,
+      error: safeErrorMessage(error),
     });
   }
 };

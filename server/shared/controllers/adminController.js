@@ -1,6 +1,7 @@
 const { Member } = require('../models');
 const Beneficiary = require('../../modules/mortuary/models/Beneficiary');
 const { v4: uuidv4 } = require('uuid');
+const { safeErrorMessage } = require('../../middleware/errorHandler');
 
 // PH mobile numbers: 11 digits, starting with 09 (e.g. 09171234567). Mirrors
 // the client's utils/validation.js and beneficiaryController.js — the
@@ -147,7 +148,7 @@ const createMember = async (req, res) => {
         return res.status(400).json({ message: 'Email already exists' });
       }
     }
-    res.status(500).json({ message: 'Error creating member', error: error.message });
+    res.status(500).json({ message: 'Error creating member', error: safeErrorMessage(error) });
   }
 };
 
@@ -264,7 +265,7 @@ const bulkCreateMembers = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in bulk member creation:', error);
-    res.status(500).json({ message: 'Error creating members', error: error.message });
+    res.status(500).json({ message: 'Error creating members', error: safeErrorMessage(error) });
   }
 };
 
@@ -312,7 +313,7 @@ const getAllMembers = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching members:', error);
-    res.status(500).json({ message: 'Error fetching members', error: error.message });
+    res.status(500).json({ message: 'Error fetching members', error: safeErrorMessage(error) });
   }
 };
 
@@ -369,7 +370,7 @@ const updateMember = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating member:', error);
-    res.status(500).json({ message: 'Error updating member', error: error.message });
+    res.status(500).json({ message: 'Error updating member', error: safeErrorMessage(error) });
   }
 };
 
@@ -394,7 +395,7 @@ const deleteMember = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting member:', error);
-    res.status(500).json({ message: 'Error deleting member', error: error.message });
+    res.status(500).json({ message: 'Error deleting member', error: safeErrorMessage(error) });
   }
 };
 
@@ -425,7 +426,7 @@ const toggleMemberStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Error toggling member status:', error);
-    res.status(500).json({ message: 'Error toggling member status', error: error.message });
+    res.status(500).json({ message: 'Error toggling member status', error: safeErrorMessage(error) });
   }
 };
 

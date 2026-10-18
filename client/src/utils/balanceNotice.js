@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { sanitizeNoticeHtml } from './sanitizeHtml';
 
 // Balance-threshold notices — shared between the per-member "Print Notice"
 // action on the Member Ledger and the bulk "print all by threshold" action
@@ -120,7 +121,13 @@ const buildNoticeBodyHtml = (member, managerName, thresholds) => {
     ? (thresholds?.finalNoticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.finalNoticeBodyTemplate)
     : (thresholds?.noticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.noticeBodyTemplate);
 
-  const html = substitutePlaceholders(legacyPlainTextToHtml(template), {
+  // The template itself is the untrusted part here (admin-authored, stored
+  // HTML — see substitutePlaceholders' own comment on why the substituted
+  // member VALUES don't need this, they're already esc()'d). Sanitizing
+  // post-substitution covers both consumers of this function in one place:
+  // the print path below (document.write) and the native PDF path's
+  // parseRichTextBody.
+  const html = sanitizeNoticeHtml(substitutePlaceholders(legacyPlainTextToHtml(template), {
     noticeLabel: NOTICE_LEVEL_LABELS[level].toUpperCase(),
     name: member.name,
     address: member.address,
@@ -129,7 +136,7 @@ const buildNoticeBodyHtml = (member, managerName, thresholds) => {
     amountNeeded: formatPeso(Math.max(targetBalance - (member.balance || 0), 0)),
     targetBalanceText: formatPeso(targetBalance),
     managerName: managerName || 'Name of Manager',
-  });
+  }));
 
   return { level, html };
 };

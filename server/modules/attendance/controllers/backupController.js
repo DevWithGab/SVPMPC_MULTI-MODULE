@@ -2,6 +2,7 @@ const { Member } = require('../../../shared/models');
 const Event = require('../models/Event');
 const Attendance = require('../models/Attendance');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Restoring from a backup upserts by each collection's natural key — an
 // existing record with the same id gets its fields overwritten, a new one
@@ -32,7 +33,7 @@ const upsertMany = async (Model, key, records) => {
         result.created += 1;
       }
     } catch (error) {
-      result.errors.push({ [key]: keyValue, error: error.message });
+      result.errors.push({ [key]: keyValue, error: safeErrorMessage(error) });
     }
   }
 
@@ -109,7 +110,7 @@ const restoreBackup = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    res.status(500).json({ message: 'Error restoring backup', error: error.message });
+    res.status(500).json({ message: 'Error restoring backup', error: safeErrorMessage(error) });
   }
 };
 

@@ -13,8 +13,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { downloadAuditCsv, createAuditPdf } from "../../../utils/auditExport";
-import AuditLogDetails from '../../shared/AuditLogDetails';
-import { outcomeLabel } from '../../../utils/auditDetails';
+import AuditLogDetails from "../../shared/AuditLogDetails";
+import { outcomeLabel } from "../../../utils/auditDetails";
 import { auditAPI } from "../../../services/api";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { formatDateTime, formatTime } from "../../../utils/date";
@@ -97,27 +97,24 @@ const AuditLogs = () => {
 
   // This screen only ever shows the Mortuary module's own trail — module
   // is fixed, not a user-editable filter.
-  const fetchAuditLogs = useCallback(
-    async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await auditAPI.getLogs({
-          ...filters,
-          module: "mortuary",
-        });
-        setLogs(response.logs || []);
-        setPagination(response.pagination || {});
-        setLastUpdated(new Date());
-      } catch (error) {
-        console.error("Error fetching audit logs:", error);
-        setError(error.response?.data?.message || "Unable to load audit logs.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [filters],
-  );
+  const fetchAuditLogs = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await auditAPI.getLogs({
+        ...filters,
+        module: "mortuary",
+      });
+      setLogs(response.logs || []);
+      setPagination(response.pagination || {});
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      setError(error.response?.data?.message || "Unable to load audit logs.");
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -146,18 +143,28 @@ const AuditLogs = () => {
   const handlePageChange = (newPage) =>
     setFilters({ ...filters, page: newPage });
 
-  const exportRows = () => logs.map(log => [
-    formatDateTime(log.timestamp), roleLabel(log.userRole), actionLabel(log.action),
-    log.entityName || "-", log.status, log.description,
-  ]);
-  const exportFilename = (extension) => `mortuary-audit-logs-${new Date().toISOString().split("T")[0]}.${extension}`;
+  const exportRows = () =>
+    logs.map((log) => [
+      formatDateTime(log.timestamp),
+      roleLabel(log.userRole),
+      actionLabel(log.action),
+      log.entityName || "-",
+      log.status,
+      log.description,
+    ]);
+  const exportFilename = (extension) =>
+    `mortuary-audit-logs-${new Date().toISOString().split("T")[0]}.${extension}`;
   const handleExportCSV = () => {
     if (!logs.length) return;
-    downloadAuditCsv(exportRows(), exportFilename('csv'));
+    downloadAuditCsv(exportRows(), exportFilename("csv"));
   };
   const handleExportPDF = () => {
     if (!logs.length) return;
-    createAuditPdf({ rows: exportRows(), moduleName: 'Mortuary', filters }).save(exportFilename('pdf'));
+    createAuditPdf({
+      rows: exportRows(),
+      moduleName: "Mortuary",
+      filters,
+    }).save(exportFilename("pdf"));
   };
 
   const getStatusIcon = (status) => {
@@ -173,8 +180,18 @@ const AuditLogs = () => {
     }
   };
 
-  const hasActiveFilters = Boolean(filters.action || filters.userRole || filters.startDate || filters.endDate);
-  const resetFilters = () => setFilters({ action: "", userRole: "", startDate: "", endDate: "", page: 1, limit: 50 });
+  const hasActiveFilters = Boolean(
+    filters.action || filters.userRole || filters.startDate || filters.endDate,
+  );
+  const resetFilters = () =>
+    setFilters({
+      action: "",
+      userRole: "",
+      startDate: "",
+      endDate: "",
+      page: 1,
+      limit: 50,
+    });
 
   return (
     <div className="treasurer-dashboard admin-audit-logs">
@@ -182,68 +199,233 @@ const AuditLogs = () => {
         <div>
           <p className="td-eyebrow">Mortuary management / Audit logs</p>
           <h1>Audit logs</h1>
-          <p className="td-description">Monitor claim activity and review changes in the mortuary module.</p>
+          <p className="td-description">
+            Monitor claim activity and review changes in the mortuary module.
+          </p>
         </div>
         <div className="td-header-actions">
-          <button className="td-button" onClick={() => { fetchAuditLogs(); fetchStats(); }} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}</button>
-          <button className="td-button td-primary" onClick={handleExportCSV} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />CSV (current page)</button>
-          <button className="td-button" onClick={handleExportPDF} disabled={loading || Boolean(error) || logs.length === 0}><Download size={15} aria-hidden="true" />PDF (current page)</button>
+          <button
+            className="td-button"
+            onClick={() => {
+              fetchAuditLogs();
+              fetchStats();
+            }}
+            disabled={loading}
+          >
+            <RefreshCw
+              size={15}
+              className={loading ? "animate-spin" : ""}
+              aria-hidden="true"
+            />
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+          <button
+            className="td-button td-primary"
+            onClick={handleExportCSV}
+            disabled={loading || Boolean(error) || logs.length === 0}
+          >
+            <Download size={15} aria-hidden="true" />
+            CSV (current page)
+          </button>
+          <button
+            className="td-button"
+            onClick={handleExportPDF}
+            disabled={loading || Boolean(error) || logs.length === 0}
+          >
+            <Download size={15} aria-hidden="true" />
+            PDF (current page)
+          </button>
         </div>
       </header>
 
-      {stats && filters.startDate && filters.endDate && <AttendanceMetricGrid label="Activity summary for the selected date range" items={[
-        ['Total actions', stats.totalActions ?? 0, 'Selected date range', Activity],
-        ...(stats.actionsByRole?.length ? [['Most active role', roleLabel(stats.actionsByRole[0]._id), `${stats.actionsByRole[0].count} actions`, Users]] : []),
-        ['Successful', stats.actionsByStatus?.find(s => s._id === 'success')?.count || 0, 'Selected date range', CheckCircle],
-        ['Failed', stats.actionsByStatus?.find(s => s._id === 'failed')?.count || 0, 'Selected date range', XCircle],
-      ]} />}
+      {stats && filters.startDate && filters.endDate && (
+        <AttendanceMetricGrid
+          label="Activity summary for the selected date range"
+          items={[
+            [
+              "Total actions",
+              stats.totalActions ?? 0,
+              "Selected date range",
+              Activity,
+            ],
+            ...(stats.actionsByRole?.length
+              ? [
+                  [
+                    "Most active role",
+                    roleLabel(stats.actionsByRole[0]._id),
+                    `${stats.actionsByRole[0].count} actions`,
+                    Users,
+                  ],
+                ]
+              : []),
+            [
+              "Successful",
+              stats.actionsByStatus?.find((s) => s._id === "success")?.count ||
+                0,
+              "Selected date range",
+              CheckCircle,
+            ],
+            [
+              "Failed",
+              stats.actionsByStatus?.find((s) => s._id === "failed")?.count ||
+                0,
+              "Selected date range",
+              XCircle,
+            ],
+          ]}
+        />
+      )}
 
       <section className="mb-filters" aria-labelledby="audit-filter-title">
-        <div className="mb-filter-heading"><h2 id="audit-filter-title">Filter activity</h2><button className="mb-text-button" onClick={resetFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
+        <div className="mb-filter-heading">
+          <h2 id="audit-filter-title">Filter activity</h2>
+          <button
+            className="mb-text-button"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters}
+          >
+            Reset filters
+          </button>
+        </div>
         <div className="mb-filter-grid audit-filter-grid">
-          <label>Start date<input type="date" value={filters.startDate} onChange={e => handleFilterChange('startDate', e.target.value)} /></label>
-          <label>End date<input type="date" value={filters.endDate} onChange={e => handleFilterChange('endDate', e.target.value)} /></label>
-          <label>Role<select value={filters.userRole} onChange={e => handleFilterChange('userRole', e.target.value)}><option value="">All roles</option><option value="admin">Admin</option><option value="treasurer">Treasurer</option><option value="super_admin">Super Admin</option></select></label>
-          <label>Action<select value={filters.action} onChange={e => handleFilterChange('action', e.target.value)}><option value="">All actions</option>{Object.entries(ACTION_LABELS).map(([action, label]) => <option key={action} value={action}>{label}</option>)}</select></label>
+          <label>
+            Start date
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => handleFilterChange("startDate", e.target.value)}
+            />
+          </label>
+          <label>
+            End date
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => handleFilterChange("endDate", e.target.value)}
+            />
+          </label>
+          <label>
+            Role
+            <select
+              value={filters.userRole}
+              onChange={(e) => handleFilterChange("userRole", e.target.value)}
+            >
+              <option value="">All roles</option>
+              <option value="admin">Admin</option>
+              <option value="treasurer">Treasurer</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
+          </label>
+          <label>
+            Action
+            <select
+              value={filters.action}
+              onChange={(e) => handleFilterChange("action", e.target.value)}
+            >
+              <option value="">All actions</option>
+              {Object.entries(ACTION_LABELS).map(([action, label]) => (
+                <option key={action} value={action}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 
       {/* Table */}
       <div className="mb-panel audit-register" aria-busy={loading}>
-        <div className="mb-register-heading"><div><h2>Activity register</h2><p>Open an entry to review its details and recorded changes.</p></div></div>
-        <div className="mb-scope"><span role="status">{loading ? 'Loading audit logs…' : error ? 'Audit logs unavailable' : `${(pagination.total || 0).toLocaleString()} matching records`}</span><span>{lastUpdated ? `Last updated ${formatTime(lastUpdated)} · Philippine time` : 'Mortuary activity'}</span></div>
+        <div className="mb-register-heading">
+          <div>
+            <h2>Activity register</h2>
+            <p>Open an entry to review its details and recorded changes.</p>
+          </div>
+        </div>
+        <div className="mb-scope">
+          <span role="status">
+            {loading
+              ? "Loading audit logs…"
+              : error
+                ? "Audit logs unavailable"
+                : `${(pagination.total || 0).toLocaleString()} matching records`}
+          </span>
+          <span>
+            {lastUpdated
+              ? `Last updated ${formatTime(lastUpdated)}`
+              : "Mortuary activity"}
+          </span>
+        </div>
         {loading ? (
-          <div className="mb-empty" role="status" aria-label="Loading audit logs">
+          <div
+            className="mb-empty"
+            role="status"
+            aria-label="Loading audit logs"
+          >
             <div className="animate-spin">
               <Zap className="w-8 h-8 text-green-600" />
             </div>
           </div>
         ) : error ? (
-          <div className="mb-empty"><p role="alert">{error}</p><button className="td-button" onClick={fetchAuditLogs}>Try again</button></div>
+          <div className="mb-empty">
+            <p role="alert">{error}</p>
+            <button className="td-button" onClick={fetchAuditLogs}>
+              Try again
+            </button>
+          </div>
         ) : logs.length === 0 ? (
           <div className="mb-empty" role="status">
             <Activity className="w-12 h-12 mb-2 opacity-50" />
-            <strong>No audit logs found</strong><p>{hasActiveFilters ? "Try a different date range, role, or action." : "Recorded mortuary activity will appear here."}</p>{hasActiveFilters && <button className="td-button" onClick={resetFilters}>Reset filters</button>}
+            <strong>No audit logs found</strong>
+            <p>
+              {hasActiveFilters
+                ? "Try a different date range, role, or action."
+                : "Recorded mortuary activity will appear here."}
+            </p>
+            {hasActiveFilters && (
+              <button className="td-button" onClick={resetFilters}>
+                Reset filters
+              </button>
+            )}
           </div>
         ) : (
           <>
-            <div className="mb-table-scroll" role="region" aria-label="Audit log records" tabIndex={0}>
+            <div
+              className="mb-table-scroll"
+              role="region"
+              aria-label="Audit log records"
+              tabIndex={0}
+            >
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                    >
                       Date
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                    >
                       Performed by
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                    >
                       Activity
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                    >
                       Result
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
+                    >
                       Actions
                     </th>
                   </tr>
@@ -262,7 +444,11 @@ const AuditLogs = () => {
                           {formatDateTime(log.timestamp)}
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          {log.userName && <p className="font-medium text-slate-900 mb-1">{log.userName}</p>}
+                          {log.userName && (
+                            <p className="font-medium text-slate-900 mb-1">
+                              {log.userName}
+                            </p>
+                          )}
                           <span
                             className={`px-3 py-1 rounded-md text-xs font-semibold ${getRoleColor(log.userRole)}`}
                           >
@@ -295,7 +481,9 @@ const AuditLogs = () => {
                               setSelectedLog(log);
                               setShowDetails(true);
                             }}
-                            className="td-button" aria-haspopup="dialog" aria-label={`View ${actionLabel(log.action)} at ${formatDateTime(log.timestamp)}`}
+                            className="td-button"
+                            aria-haspopup="dialog"
+                            aria-label={`View ${actionLabel(log.action)} at ${formatDateTime(log.timestamp)}`}
                           >
                             <Eye className="w-4 h-4" />
                             View details
@@ -309,7 +497,11 @@ const AuditLogs = () => {
             </div>
 
             <div className="mb-pagination">
-              <PaginationInfo currentPage={pagination.page} limit={pagination.limit} total={pagination.total} />
+              <PaginationInfo
+                currentPage={pagination.page}
+                limit={pagination.limit}
+                total={pagination.total}
+              />
               <Pagination
                 currentPage={pagination.page}
                 totalPages={pagination.pages}
@@ -323,7 +515,12 @@ const AuditLogs = () => {
       </div>
 
       {showDetails && selectedLog && (
-        <AuditLogDetails log={selectedLog} module="mortuary" actionLabel={actionLabel} onClose={() => setShowDetails(false)} />
+        <AuditLogDetails
+          log={selectedLog}
+          module="mortuary"
+          actionLabel={actionLabel}
+          onClose={() => setShowDetails(false)}
+        />
       )}
     </div>
   );
