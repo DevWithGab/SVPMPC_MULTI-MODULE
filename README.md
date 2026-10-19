@@ -191,6 +191,8 @@ Start the API from `server/`:
 npm run dev
 ```
 
+The backend uses Node.js's built-in watch mode to restart when its code changes. For production, run `npm start` without the development watcher.
+
 Create staff accounts through the Super Admin staff management screen. New staff receive a random temporary password and must change it on first sign-in.
 
 ### Frontend
