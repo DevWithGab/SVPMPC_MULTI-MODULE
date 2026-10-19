@@ -162,7 +162,7 @@ export default function AttendanceSecretaryPortal({
 
   const sidebarItems = [
     { id: "home", label: "Dashboard", icon: LayoutGrid },
-    { id: "events", label: "EVENT CREATION", icon: Calendar },
+    { id: "events", label: "Event Creation", icon: Calendar },
     { id: "reports", label: "Reports", icon: BarChart3 },
     { id: "live", label: "Live Attendance", icon: Activity },
     { id: "directory", label: "Member Directory", icon: Users },

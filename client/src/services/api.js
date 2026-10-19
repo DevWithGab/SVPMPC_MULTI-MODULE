@@ -12,7 +12,7 @@ const api = axios.create({
 // Add token to requests if it exists (except for login)
 api.interceptors.request.use((config) => {
   // Don't add token to login requests
-  if (config.url === '/auth/login') {
+  if (config.url === '/auth/login' || config.url === '/auth/community-stats') {
     return config;
   }
   
@@ -49,6 +49,11 @@ api.interceptors.response.use(
 // AUTHENTICATION API
 // ============================================
 export const authAPI = {
+  getCommunityStats: async (signal) => {
+    const response = await api.get('/auth/community-stats', { signal });
+    return response.data;
+  },
+
   login: async (username, password) => {
     const response = await api.post('/auth/login', { username, password });
     return response.data;

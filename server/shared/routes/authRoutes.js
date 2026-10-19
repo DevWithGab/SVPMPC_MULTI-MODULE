@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { AppError } = require('../../middleware/errorHandler');
 const authController = require('../controllers/authController');
+const { getCommunityStats } = require('../controllers/communityController');
 const bulkImportController = require('../controllers/bulkImportController');
 const { loginIpLimiter, loginLimiter, changePasswordLimiter, bulkUploadLimiter } = require('../../middleware');
 
@@ -49,6 +50,7 @@ const upload = multer({
 });
 
 // Auth routes
+router.get('/community-stats', getCommunityStats);
 router.post('/login', loginIpLimiter, loginLimiter, authController.login);
 router.put('/change-password/:userId', changePasswordLimiter, authenticateToken, ownAccount, authController.changePassword);
 router.get('/profile/:userId', authenticateToken, ownAccount, authController.getUserProfile);

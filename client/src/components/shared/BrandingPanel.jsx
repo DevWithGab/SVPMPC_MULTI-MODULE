@@ -1,8 +1,28 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Users, Award } from 'lucide-react';
 import { FeatureCard, ImageCard } from './ui';
+import { authAPI } from '../../services/api';
 
 export default function BrandingPanel() {
+  const [memberCount, setMemberCount] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    authAPI.getCommunityStats(controller.signal)
+      .then(({ totalMembers }) => {
+        if (!controller.signal.aborted && Number.isSafeInteger(totalMembers) && totalMembers >= 0) {
+          setMemberCount(totalMembers);
+        }
+      })
+      .catch(() => { /* Keep the general community message if unavailable. */ });
+    return () => controller.abort();
+  }, []);
+
+  const communitySubtitle = memberCount === null
+    ? 'Join our members in shaping our cooperative'
+    : `Join ${memberCount.toLocaleString('en-PH')} ${memberCount === 1 ? 'member' : 'members'} in shaping our cooperative`;
+
   const features = [
     { icon: Lock, label: 'Secure', description: 'Your data is protected with enterprise-grade security.' },
     { icon: Users, label: 'Transparent', description: 'Open and accountable systems you can trust.' },
@@ -82,7 +102,7 @@ export default function BrandingPanel() {
           src="/images/backgrounds/right-panel-hero.png"
           alt="Community members voting"
           title="Active Community Participation"
-          subtitle="Join 7,000+ members in shaping our cooperative"
+          subtitle={communitySubtitle}
         />
       </motion.div>
 
@@ -93,7 +113,7 @@ export default function BrandingPanel() {
         transition={{ duration: 0.6, delay: 0.5 }}
       >
         <p className="text-white/40 text-sm">
-          © 2024 Saint Vincent Parish Multi-Purpose Cooperative. All rights reserved.
+          © 2026 Saint Vincent Parish Multi-Purpose Cooperative. All rights reserved.
         </p>
       </motion.div>
     </div>
