@@ -27,7 +27,7 @@ const recordAttendance = async (req, res) => {
     return res.status(401).json({ message: 'Authentication required' });
   }
   try {
-    const { memberId, eventId, entrySource, justification } = req.body;
+    const { memberId, eventId, qrId, entrySource, justification } = req.body;
 
     /* using typeof checks para maiwasan ang NoSQL operator injection attacks.
        kasi for example ah, kung walang typeof check, puwede magpadala ang attacker ng:
@@ -46,8 +46,8 @@ const recordAttendance = async (req, res) => {
     const manualReason = entrySource === 'manual' ? justification.trim() : undefined;
 
     // Verify member exists
-    const member = await Member.findOne({ memberId });
-    if (!member) {
+    const member = await Member.findOne({ memberId, modules: 'attendance' });
+    if (!member || !member.modules?.includes('attendance')) {
       return res.status(404).json({ message: 'Member not found' });
     }
 
@@ -66,6 +66,9 @@ const recordAttendance = async (req, res) => {
     already handles irregular entries.*/
     if (entrySource !== 'manual' && (!member.qrCodeGenerated || member.qrCodeActive === false)) {
       return res.status(400).json({ message: 'This member\'s QR code is not active. Generate or reactivate it before scanning.' });
+    }
+    if (entrySource !== 'manual' && (typeof qrId !== 'string' || !qrId || qrId !== member.qrCode)) {
+      return res.status(400).json({ message: 'This QR code is invalid or has been replaced. Use the current card or manual entry with a reason.' });
     }
 
     // Verify event exists

@@ -45,7 +45,7 @@ function fixture() {
     toObject() { return { ...this }; }
   }
   const controller = load('../modules/attendance/controllers/attendanceController', {
-    '../models': { Member: { findOne: async () => ({ ...row, qrCodeGenerated: true, qrCodeActive: true }), countDocuments: async () => 2 } },
+    '../models': { Member: { findOne: async () => ({ ...row, modules: ['attendance'], qrCode: 'qr-M1', qrCodeGenerated: true, qrCodeActive: true }), countDocuments: async () => 2 } },
     '../models/Attendance': Attendance, '../models/AttendanceReport': Report,
     '../models/Event': { findOne: async () => ({ eventId: 'E1', eventName: 'Synthetic Event', status: 'active' }) },
     '../controllers/eventController': { refreshEventStatus: async () => {} },
@@ -58,7 +58,7 @@ test('scanner scan/list/event responses exclude private fields while staff retai
   for (const role of ['scanner_operator', 'secretary', 'admin', 'super_admin']) {
     const { controller, saved, audit } = fixture();
     const request = { user: { role, userId: 'staff-id', username: 'staff.username' }, query: {}, params: { eventId: 'E1' },
-      body: { memberId: 'M1', eventId: 'E1' }, get: () => '', ip: '127.0.0.1' };
+      body: { memberId: 'M1', eventId: 'E1', qrId: 'qr-M1' }, get: () => '', ip: '127.0.0.1' };
     const scanned = response();
     await controller.recordAttendance(request, scanned);
     assert.equal(scanned.code, 201);
@@ -107,6 +107,16 @@ test('direct HTTP calls through legacy and member routes cannot expose contact f
         const result = await fetch(base + prefix + suffix);
         assert.equal(result.status, 200);
         assert.deepEqual(Object.keys((await result.json()).data[0]).sort(), allowedAttendance);
+      }
+      for (const [qrId, expected] of [['stale-qr', 400], ['qr-M1', 201]]) {
+        const recorded = await fetch(base + prefix + '/attendance/record', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberId: 'M1', eventId: 'E1', qrId }),
+        });
+        assert.equal(recorded.status, expected);
+        if (expected === 201) {
+          assert.deepEqual(Object.keys((await recorded.json()).attendance).sort(), allowedAttendance);
+        }
       }
     }
   } finally { await new Promise(resolve => server.close(resolve)); }

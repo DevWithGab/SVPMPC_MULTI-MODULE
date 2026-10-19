@@ -453,7 +453,12 @@ export default function QRScanner({
           activeEvent.eventId,
           new Date().toISOString(),
           scannedBy,
-          recordOptions,
+          {
+            ...recordOptions,
+            qrId: recordOptions.entrySource === 'manual'
+              ? undefined
+              : qrPayload?.qrId ?? qrPayload?.qrCode,
+          },
         );
 
         const attendance = result?.attendance || {

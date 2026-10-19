@@ -360,6 +360,7 @@ export const attendanceAPI = {
       scanTime,
       scannedBy,
       entrySource: options.entrySource,
+      qrId: options.qrId,
       justification: options.justification,
     };
 
