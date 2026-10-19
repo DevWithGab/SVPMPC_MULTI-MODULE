@@ -6,6 +6,20 @@ const { v4: uuidv4 } = require('uuid');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
+// Use an allowlist so new model fields cannot silently become scanner data.
+const SCANNER_ATTENDANCE_FIELDS = ['attendanceId', 'memberId', 'memberName', 'eventId',
+  'eventName', 'barangay', 'scanTime', 'status', 'entrySource'];
+const SCANNER_REPORT_FIELDS = ['reportId', 'eventId', 'eventName', 'reportDate',
+  'totalMembers', 'presentCount', 'absentCount', 'attendanceRate'];
+const scannerProjection = req => req.user?.role === 'scanner_operator'
+  ? `${SCANNER_ATTENDANCE_FIELDS.join(' ')} -_id`
+  : null;
+const restrictScannerResponse = (req, record, fields = SCANNER_ATTENDANCE_FIELDS) => {
+  if (req.user?.role !== 'scanner_operator') return record;
+  const data = typeof record.toObject === 'function' ? record.toObject() : record;
+  return Object.fromEntries(fields.filter(field => Object.hasOwn(data, field)).map(field => [field, data[field]]));
+};
+
 // Record attendance via QR scan
 const recordAttendance = async (req, res) => {
   try {
@@ -143,7 +157,7 @@ const recordAttendance = async (req, res) => {
 
     res.status(201).json({
       message: 'Attendance recorded successfully',
-      attendance: saved,
+      attendance: restrictScannerResponse(req, saved),
     });
   } catch (error) {
     // Log failed attempt
@@ -175,7 +189,7 @@ const getAttendanceByEvent = async (req, res) => {
     const total = await Attendance.countDocuments({ eventId });
 
     // Get paginated attendance
-    const attendance = await Attendance.find({ eventId })
+    const attendance = await Attendance.find({ eventId }, scannerProjection(req))
       .sort({ scanTime: -1 })
       .skip(skip)
       .limit(limit);
@@ -199,7 +213,7 @@ const getAttendanceByEvent = async (req, res) => {
     }
 
     const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
-    res.status(200).json(buildPaginatedResponse(attendance, total, page, limit));
+    res.status(200).json(buildPaginatedResponse(attendance.map(record => restrictScannerResponse(req, record)), total, page, limit));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching attendance', error: safeErrorMessage(error) });
   }
@@ -279,7 +293,7 @@ const generateReport = async (req, res) => {
 
     res.status(201).json({
       message: 'Report generated successfully',
-      report: saved,
+      report: restrictScannerResponse(req, saved, SCANNER_REPORT_FIELDS),
     });
   } catch (error) {
     res.status(500).json({ message: 'Error generating report', error: safeErrorMessage(error) });
@@ -301,13 +315,13 @@ const getAllAttendance = async (req, res) => {
     const total = await Attendance.countDocuments(filter);
 
     // Get paginated attendance
-    const attendance = await Attendance.find(filter)
+    const attendance = await Attendance.find(filter, scannerProjection(req))
       .sort({ scanTime: -1 })
       .skip(skip)
       .limit(limit);
 
     const { buildPaginatedResponse } = require('../../../shared/utils/pagination');
-    res.status(200).json(buildPaginatedResponse(attendance, total, page, limit));
+    res.status(200).json(buildPaginatedResponse(attendance.map(record => restrictScannerResponse(req, record)), total, page, limit));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching attendance', error: safeErrorMessage(error) });
   }

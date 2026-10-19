@@ -232,7 +232,7 @@ test('password changes revoke all old tokens; only a fresh login with the new pa
 test('audit routes deny cross-module requests and scope unfiltered requests to assigned modules', async () => {
   const showScope = (req, res) => res.json({ scope: req.auditModule });
   const router = load('../shared/routes/auditLogRoutes', {
-    '../../middleware': { authenticateToken: (req, res, next) => { req.user = { role: req.headers['x-role'] || 'admin', modules: ['attendance'] }; next(); } },
+    '../../middleware': { authorizeRoles: middleware.authorizeRoles, authenticateToken: (req, res, next) => { req.user = { role: req.headers['x-role'] || 'admin', modules: ['attendance'] }; next(); } },
     '../../shared/controllers/auditLogController': Object.fromEntries(['getAllAuditLogs', 'getAuditTrail', 'getAuditLogStats', 'getUserActivity', 'getRoleActivity'].map(name => [name, showScope])),
   });
   const app = express(); app.use(router);
