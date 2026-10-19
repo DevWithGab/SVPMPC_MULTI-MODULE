@@ -9,12 +9,6 @@ const { safeErrorMessage } = require('../../middleware/errorHandler');
 // called directly.
 const PH_PHONE_REGEX = /^09\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// Same escaping used throughout the mortuary controllers (e.g.
-// claimController.js, treasurerClaimController.js) — a search term typed
-// into this box is user input, not a trusted regex pattern. Left
-// un-escaped, a crafted search string could cause catastrophic-backtracking
-// (ReDoS) on this collection-wide query.
-const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalizeContact = value => typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim();
 const contactError = (email, phoneNumber) => {
   if (email && !EMAIL_REGEX.test(email)) return 'Enter a valid email address.';
@@ -285,12 +279,15 @@ const getAllMembers = async (req, res) => {
     }
 
     if (search) {
-      const searchRegex = new RegExp(escapeRegex(search), 'i');
-      query.$or = [
-        { memberName: searchRegex },
-        { email: searchRegex },
-        { memberId: searchRegex },
-      ];
+      // Member.js's text index (member_search_text) — whole-token match
+      // across memberName/memberId/email/phoneNumber/address/beneficiaries,
+      // replacing an unanchored $regex $or that was a full collection scan
+      // regardless of the single-field indexes on this model (confirmed via
+      // explain(): COLLSCAN, 10,000 docs examined to return 20 at 10k
+      // members). Matches whole tokens, not substrings — "mar" no longer
+      // matches "Maria"; a partial memberId/phone fragment no longer
+      // matches either.
+      query.$text = { $search: search };
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);

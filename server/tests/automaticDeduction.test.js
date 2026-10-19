@@ -22,34 +22,33 @@ const response = () => ({ status(code) { this.code = code; return this; }, json(
 
 // Fakes just enough of Member/Ledger/DeductionSetting to exercise
 // processAutomaticDeduction's real control flow, including its unique-
-// ledgerId-backed dedup guard — the aggregation pipeline's own correctness
-// (getMemberBalanceSnapshots) is a separate, already-flagged gap, so this
-// fake answers with the behaviorally-correct result for the pipeline's
-// intent (active members + each one's latest-by-insertion-order ledger
-// balance) without reinterpreting Mongo aggregation syntax.
+// ledgerId-backed dedup guard. getMemberBalanceSnapshots now computes
+// "active members" via Member.find().select().lean() and each member's
+// latest balance via one Ledger.aggregate() grouped by memberId (see
+// deductionController.js for why — replaced a per-member $lookup that
+// measured ~7s at 10k members with this two-query-plus-merge approach,
+// ~10x faster at the same volume). This fake answers both calls with the
+// behaviorally-correct result (active members; each one's latest-by-
+// insertion-order ledger balance) without reinterpreting Mongo query/
+// aggregation syntax.
 function database(members) {
   const state = { members, ledgers: [] };
   const latestBalance = memberId => {
     const rows = state.ledgers.filter(row => row.memberId === memberId);
-    return rows.length ? rows[rows.length - 1].balance : 0;
+    return rows.length ? rows[rows.length - 1] : null;
   };
   const Member = {
-    // Real Mongoose: await Member.aggregate(pipeline).allowDiskUse(true) —
-    // chainable before the await, so the fake must match that shape.
-    aggregate: () => ({
-      allowDiskUse: async () => [{
-        members: state.members
-          .filter(member => member.status === 'active')
-          .map(member => ({ ...member, balance: latestBalance(member.memberId) })),
-      }],
+    // Real Mongoose: await Member.find(query).select(...).lean() — chained
+    // off find(), so the fake must match that shape. Every caller in this
+    // test uses the default (no search/barangay/memberIds) filter, which
+    // buildBalanceMatch renders as exactly { status: 'active' }.
+    find: (query) => ({
+      select: () => ({
+        lean: async () => state.members.filter(member => !query?.status || member.status === query.status),
+      }),
     }),
   };
   class Ledger {
-    // getMemberBalanceSnapshots builds its $lookup stage from
-    // Ledger.collection.name while constructing the pipeline, before this
-    // fake's aggregate() ever ignores that pipeline's contents — so the
-    // real controller code still needs this property to exist.
-    static collection = { name: 'ledgers' };
     constructor(data) { Object.assign(this, data); }
     async save() {
       if (state.ledgers.some(row => row.ledgerId === this.ledgerId)) {
@@ -59,6 +58,16 @@ function database(members) {
       return this;
     }
     static async findOne(query) { return state.ledgers.find(row => row.ledgerId === query.ledgerId) || null; }
+    // Real Mongoose: await Ledger.aggregate(pipeline).allowDiskUse(true).
+    static aggregate = (pipeline) => ({
+      allowDiskUse: async () => {
+        const memberIds = [...new Set(state.ledgers.map(row => row.memberId))];
+        return memberIds.map(memberId => {
+          const latest = latestBalance(memberId);
+          return { _id: memberId, balance: latest?.balance ?? 0, transactionDate: latest?.transactionDate };
+        });
+      },
+    });
   }
   const DeductionSetting = { findOne: async () => ({ amount: 25 }) };
   return { state, Member, Ledger, DeductionSetting };

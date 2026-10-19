@@ -82,6 +82,15 @@ const AdminPortal = ({ onBack, user }) => {
     );
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // The mobile nav drawer otherwise has no keyboard-reachable way to close
+  // without navigating — only the backdrop's onClick, which a keyboard-only
+  // user can't trigger.
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setIsMobileMenuOpen(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobileMenuOpen]);
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
@@ -182,13 +191,24 @@ const AdminPortal = ({ onBack, user }) => {
     fetchInitialData();
   }, [fetchInitialData]);
 
+  // attendanceLogs only feeds the dashboard/events/live sections (see the
+  // render below) — this used to poll unconditionally the entire time the
+  // portal was mounted, regardless of which section was active or whether
+  // the tab was even visible, re-paging through every attendance record
+  // system-wide every 7s for no one to see. Gated the same two ways its
+  // siblings already are in this file: by relevant section (like the
+  // events-tab poller just below) and by tab visibility (like
+  // LiveAttendanceList.jsx's own "live" polling).
   useEffect(() => {
+    if (!["dashboard", "events", "live"].includes(activeSection)) return undefined;
     const refreshInterval = setInterval(() => {
-      fetchAttendanceLogs();
+      if (document.visibilityState === "visible") {
+        fetchAttendanceLogs();
+      }
     }, 7000);
 
     return () => clearInterval(refreshInterval);
-  }, [fetchAttendanceLogs]);
+  }, [activeSection, fetchAttendanceLogs]);
 
   // Keep the Event Approvals tab current: pick up new Secretary
   // submissions right away, then poll while the tab stays open so approvals

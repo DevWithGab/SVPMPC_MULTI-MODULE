@@ -113,6 +113,15 @@ export default function AttendanceSecretaryPortal({
     return window.localStorage.getItem("secretarySidebarCollapsed") === "true";
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // The mobile nav drawer otherwise has no keyboard-reachable way to close
+  // without navigating — only the backdrop's onClick, which a keyboard-only
+  // user can't trigger.
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setIsMobileMenuOpen(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobileMenuOpen]);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
   useEffect(() => {

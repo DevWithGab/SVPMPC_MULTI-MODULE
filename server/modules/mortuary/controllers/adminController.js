@@ -2,12 +2,6 @@ const { Member } = require('../../../shared/models');
 const { Ledger, Beneficiary, Claim } = require('../models');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// Same escaping used throughout the other mortuary controllers (e.g.
-// claimController.js, treasurerClaimController.js) — a search term is user
-// input, not a trusted regex pattern; left un-escaped it can cause
-// catastrophic-backtracking (ReDoS) on this collection-wide query.
-const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 // This module hands out plain 6-digit sequential memberIds. Member docs
 // created elsewhere (the shared admin controller's MEM-<uuid> passbook
 // numbers, TEST- fixtures, etc.) sort AFTER any 6-digit number
@@ -58,13 +52,14 @@ const adminController = {
         query.status = status;
       }
 
-      // Search by name or memberId if provided
+      // Search by name or memberId if provided — Member.js's text index
+      // (member_search_text), replacing an unanchored $regex $or that was a
+      // full collection scan regardless of this model's other indexes
+      // (confirmed via explain(): COLLSCAN at 10k members). Matches whole
+      // tokens, not substrings — "mar" no longer matches "Maria"; a partial
+      // memberId fragment no longer matches either.
       if (search) {
-        const searchRegex = new RegExp(escapeRegex(search), 'i');
-        query.$or = [
-          { memberName: searchRegex },
-          { memberId: searchRegex }
-        ];
+        query.$text = { $search: search };
       }
 
       // Get total count for pagination

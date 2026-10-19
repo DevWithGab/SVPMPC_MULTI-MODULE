@@ -11,14 +11,10 @@ const recordAttendance = async (req, res) => {
   try {
     const { memberId, eventId, scannedBy, entrySource, justification } = req.body;
 
-    // typeof check closes a NoSQL operator-injection hole: a crafted body
-    // like {"memberId":{"$ne":null},"eventId":{"$ne":null}} passes the
-    // !memberId truthiness check (a non-empty object is truthy) and turns
-    // the findOne calls below into real query operators, matching
-    // whichever member/event Mongo's query planner returns first instead
-    // of the one actually scanned. Neither field is ever legitimately
-    // anything but a string, so rejecting the wrong type here is exactly
-    // as correct as rejecting a missing one.
+    /* using typeof checks para maiwasan ang NoSQL operator injection attacks.
+       kasi for example ah, kung walang typeof check, puwede magpadala ang attacker ng:
+       { "$gt": "" } as a memberId at eventId, at makakapasok sa attendance 
+      kahit hindi valid ang member/event. */
     if (!memberId || !eventId || typeof memberId !== 'string' || typeof eventId !== 'string') {
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -29,18 +25,19 @@ const recordAttendance = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // Member.status is shared with the Mortuary module — filing a death
-    // claim there flips it to 'deceased'. That must block attendance here
-    // too, for both a QR scan and a manual entry — there's no legitimate
-    // override for this one, unlike the QR-active check below.
+    /*
+    Member.status is shared with the Mortuary module 
+    kaya we need to check if the member is deceased before
+    allowing attendance recording, tapos mag return ng error
+    message na hindi puwede i-check in ang deceased member.*/
     if (member.status === 'deceased') {
       return res.status(400).json({ message: `${member.memberName} is recorded as deceased and cannot be marked present for an event.` });
     }
 
-    // A deactivated or never-generated QR can't check in via scan. Manual
-    // entries (staff recording attendance by hand) are a deliberate
-    // override and bypass this — matches how the justification field
-    // already handles irregular entries.
+    /* A deactivated or never-generated QR can't check in via scan. Manual
+    entries (staff recording attendance by hand) are a deliberate
+    override and bypass this — matches how the justification field
+    already handles irregular entries.*/
     if (entrySource !== 'manual' && (!member.qrCodeGenerated || member.qrCodeActive === false)) {
       return res.status(400).json({ message: 'This member\'s QR code is not active. Generate or reactivate it before scanning.' });
     }
@@ -55,13 +52,8 @@ const recordAttendance = async (req, res) => {
       return res.status(400).json({ message: 'Attendance can only be recorded while the event is active' });
     }
 
-    // Fast-path check so a plain double-click gets this friendly message
-    // without ever reaching the database's own constraint. It is NOT the
-    // real guard — two near-simultaneous scans (same member, two scanner
-    // stations, or just enough network jitter) can both pass this findOne
-    // before either has saved. The unique index on {memberId, eventId}
-    // (see Attendance.js) backed by the duplicate-key catch below the save
-    // is what actually prevents a second "present" row from ever existing.
+    /*Ang fast-path check ay para sa mabilis at friendly na feedback, 
+    while the unique index is the one na pumipigil sa duplicate attendance records. */ 
     const logDuplicateScan = () => createAuditLog({
       userId: scannedBy || 'scanner',
       userName: scannedBy || 'Scanner Device',
@@ -112,9 +104,9 @@ const recordAttendance = async (req, res) => {
       saved = await newAttendance.save();
     } catch (error) {
       if (error.code !== 11000) throw error;
-      // Lost the race: another request's insert landed between the
-      // findOne above and this save. The unique index just caught what the
-      // findOne couldn't.
+      /* Lost the race: another request's insert landed between the
+       findOne above and this save. The unique index just caught what the
+       findOne couldn't.*/
       await logDuplicateScan();
       return res.status(400).json({
         message: 'Member already marked present for this event',
@@ -228,10 +220,8 @@ const getAttendanceStats = async (req, res) => {
       status: 'present',
     });
 
-    // "Expected attendee" means an active member — same rule already applied
-    // in EventAttendeesPanel.jsx's absentee list. Counting deceased/inactive/
-    // staff members here inflated the expected total, which understated
-    // Present% and overstated Pending% on this screen.
+    /*Active members lang ang dapat bilangin bilang expected attendees 
+    para tama ang attendance percentages sa screen. */
     const totalMembers = await Member.countDocuments({ status: 'active' });
     const absentCount = totalMembers - presentCount;
     const attendanceRate = totalMembers > 0 ? ((presentCount / totalMembers) * 100).toFixed(2) : 0;

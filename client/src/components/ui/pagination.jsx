@@ -66,6 +66,7 @@ export const Pagination = ({
         onClick={() => handlePageChange(1)}
         disabled={!hasPrevPage}
         className="h-8 w-8 p-0"
+        aria-label="First page"
       >
         <ChevronsLeft className="h-4 w-4" />
       </Button>
@@ -77,6 +78,7 @@ export const Pagination = ({
         onClick={() => handlePageChange(currentPage - 1)}
         disabled={!hasPrevPage}
         className="h-8 w-8 p-0"
+        aria-label="Previous page"
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -93,10 +95,12 @@ export const Pagination = ({
               size="sm"
               onClick={() => handlePageChange(page)}
               className={`h-8 w-8 p-0 ${
-                currentPage === page 
-                  ? 'bg-emerald-700 text-white hover:bg-emerald-800' 
+                currentPage === page
+                  ? 'bg-emerald-700 text-white hover:bg-emerald-800'
                   : ''
               }`}
+              aria-label={`Page ${page}`}
+              aria-current={currentPage === page ? 'page' : undefined}
             >
               {page}
             </Button>
@@ -111,6 +115,7 @@ export const Pagination = ({
         onClick={() => handlePageChange(currentPage + 1)}
         disabled={!hasNextPage}
         className="h-8 w-8 p-0"
+        aria-label="Next page"
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
@@ -122,6 +127,7 @@ export const Pagination = ({
         onClick={() => handlePageChange(totalPages)}
         disabled={!hasNextPage}
         className="h-8 w-8 p-0"
+        aria-label="Last page"
       >
         <ChevronsRight className="h-4 w-4" />
       </Button>

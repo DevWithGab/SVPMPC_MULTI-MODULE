@@ -167,12 +167,12 @@ export default function LoginForm({
 
         {/* Super Admin Link - Subtle Footer */}
         <div className="mt-8 pt-6 border-t border-slate-100">
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
             <Shield className="w-3 h-3" />
             <button
               type="button"
               onClick={() => (window.location.href = "/super-admin")}
-              className="hover:text-emerald-600 transition-colors font-medium"
+              className="py-1 hover:text-emerald-600 transition-colors font-medium"
             >
               Super Admin Access
             </button>

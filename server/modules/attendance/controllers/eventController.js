@@ -60,14 +60,9 @@ const checkAndUpdateCompletedEvents = async () => {
 const eventStatusTimer = setInterval(checkAndUpdateCompletedEvents, 60 * 1000);
 eventStatusTimer.unref();
 
-// Create event.
-// `autoApprove` is decided by which route wired this handler up (see the
-// createEvent/createEventAsAdmin split below), never by req.user.role.
-// authorizeSecretaryOnly deliberately lets Admin accounts use the Secretary
-// routes too, so branching on role here would let an Admin-owned account
-// skip the approval workflow simply by creating the event through the
-// Secretary Portal — exactly the bug where Secretary-created events showed
-// up already "Upcoming" and never reached the Admin's Pending Approvals list.
+/*Ang route ang nagtatakda kung kailangan ng approval, 
+para hindi basta lumabas na “Upcoming” ang Secretary-created event
+at malaktawan ang Admin's Pending Approvals list. */
 const handleCreateEvent = async (req, res, { autoApprove }) => {
   try {
     const { eventName, eventDate, eventTime, startTime, endTime, location, description, type, createdBy } = req.body;
@@ -218,13 +213,14 @@ const updateEvent = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    // The Secretary can only edit an event before it's been acted on
-    // (draft/pending/rejected) — once it's approved or closed, it's the
-    // Admin's to manage. The Admin isn't bound by that lifecycle: this same
-    // controller backs both the Secretary's and the Admin's update route,
-    // and only the latter authenticates as 'admin', so that's the signal
-    // to allow editing regardless of status (including a closed, i.e.
-    // time-exceeded, event).
+    /* The Secretary can only edit an event before it's been acted on
+    (draft/pending/rejected) — once it's approved or closed, it's the
+    Admin's to manage. The Admin isn't bound by that lifecycle: this same
+    controller backs both the Secretary's and the Admin's update route,
+    and only the latter authenticates as 'admin', so that's the signal
+    to allow editing regardless of status (including a closed, i.e.
+    time-exceeded, event).*/
+    
     if (
       !['draft', 'pending_approval', 'rejected'].includes(originalEvent.status) &&
       !['admin', 'super_admin'].includes(req.user?.role)

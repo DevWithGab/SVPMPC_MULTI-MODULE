@@ -278,14 +278,10 @@ const generateAllQRCodes = async (req, res) => {
   }
 };
 
-// Scanner Operator — the lowest-privilege Attendance role — hits this same
-// endpoint only to manually search/match a member when a QR scan fails (see
-// QRScanner.jsx's normalizedMembers/filteredMembers). It reads memberId,
-// memberName, barangay and qrCode and nothing else; the actual attendance
-// submission only ever sends memberId, which the server re-validates against
-// its own Member record anyway. Admin/Secretary's own roster screens hitting
-// this same route genuinely need the rest (email, phone, status, etc.), so
-// the narrower field set is gated by role here rather than applied globally.
+/* Nililimitahan ang data na nakikita ng Scanner Operator batay sa role niya, 
+habang pinananatili ang kumpletong impormasyon para sa Admin at Secretary. 
+Ito ay security measure para hindi mag-access ng hindi kailangang personal information
+ang mga user na may mas mababang permissions.*/
 const SCANNER_OPERATOR_PROJECTION = 'memberId memberName barangay qrCode';
 
 // Get all members — bounded via the same pagination utility used elsewhere

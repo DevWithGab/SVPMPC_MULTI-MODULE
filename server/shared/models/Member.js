@@ -113,4 +113,23 @@ memberSchema.index({ barangay: 1 }); // For barangay filtering
 memberSchema.index({ phoneNumber: 1 }); // For search
 memberSchema.index({ status: 1, memberName: 1 }); // Compound for filtered sorting
 
+// Backs the member-search box across getAllMembers (shared + mortuary admin)
+// and the Treasurer's balance search. These all used an unanchored,
+// case-insensitive $regex $or — measured via explain() at 10,000 members:
+// COLLSCAN, 10,000 docs examined to return 20, and it can't use any of the
+// single-field indexes above regardless, since only a prefix-anchored regex
+// can use a B-tree index. A $text index scales with result size instead of
+// collection size, at the cost of a real semantics change: it matches whole
+// tokens (word- and punctuation-split, e.g. "MEM-123456" tokenizes to
+// "mem"/"123456"), not arbitrary substrings — "mar" no longer matches
+// "Maria", and a partial memberId/phone fragment no longer matches either.
+// language: 'none' disables stemming and the English stop-word list (which
+// would otherwise silently drop short common words like "a"/"the" from a
+// search) — plain whole-token matching is more predictable for names,
+// addresses, and identifiers than linguistic stemming would be.
+memberSchema.index(
+  { memberName: 'text', memberId: 'text', email: 'text', phoneNumber: 'text', address: 'text', beneficiaries: 'text' },
+  { name: 'member_search_text', default_language: 'none' }
+);
+
 module.exports = mongoose.model('Member', memberSchema);

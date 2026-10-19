@@ -363,22 +363,8 @@ export const attendanceAPI = {
       justification: options.justification,
     };
 
-    const endpoints = ['/attendance/record', '/attendance/attendance/record'];
-
-    let lastError = null;
-    for (const endpoint of endpoints) {
-      try {
-        const response = await api.post(endpoint, payload);
-        return response.data;
-      } catch (error) {
-        lastError = error;
-        if (error.response?.status !== 404) {
-          throw error;
-        }
-      }
-    }
-
-    throw lastError;
+    const response = await api.post('/attendance/attendance/record', payload);
+    return response.data;
   },
 
   // params supports { page, limit } — same paginated-list shape as
@@ -386,67 +372,28 @@ export const attendanceAPI = {
   // that need every record for the event should page through it (see
   // LiveAttendanceList's fetchEventAttendance for the loop).
   getAttendanceByEvent: async (eventId, params = {}) => {
-    try {
-      const response = await api.get(`/attendance/event/${eventId}`, { params });
-      return normalizeAttendanceResponse(response.data);
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        throw error;
-      }
-
-      const response = await api.get(`/attendance/attendance/event/${eventId}`, { params });
-      return normalizeAttendanceResponse(response.data);
-    }
+    const response = await api.get(`/attendance/attendance/event/${eventId}`, { params });
+    return normalizeAttendanceResponse(response.data);
   },
 
   getAttendanceStats: async (eventId) => {
-    try {
-      const response = await api.get(`/attendance/stats/${eventId}`);
-      return response.data;
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        throw error;
-      }
-
-      const response = await api.get(`/attendance/attendance/stats/${eventId}`);
-      return response.data;
-    }
+    const response = await api.get(`/attendance/attendance/stats/${eventId}`);
+    return response.data;
   },
 
   generateReport: async (eventId, format = 'pdf') => {
-    try {
-      const response = await api.post('/attendance/report', {
-        eventId,
-        format,
-      });
-      return response.data;
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        throw error;
-      }
-
-      const response = await api.post('/attendance/attendance/report', {
-        eventId,
-        format,
-      });
-      return response.data;
-    }
+    const response = await api.post('/attendance/attendance/report', {
+      eventId,
+      format,
+    });
+    return response.data;
   },
 
   // params supports { page, limit, scannedBy } — same paginated-list shape
   // as getAttendanceByEvent, capped at 100 rows per page server-side.
   getAllAttendance: async (params = {}) => {
-    try {
-      const response = await api.get('/attendance', { params });
-      return normalizeAttendanceResponse(response.data);
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        throw error;
-      }
-
-      const response = await api.get('/attendance/attendance', { params });
-      return normalizeAttendanceResponse(response.data);
-    }
+    const response = await api.get('/attendance/attendance', { params });
+    return normalizeAttendanceResponse(response.data);
   },
 };
 

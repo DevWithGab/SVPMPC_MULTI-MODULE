@@ -4,10 +4,8 @@ const Attendance = require('../models/Attendance');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// Restoring from a backup upserts by each collection's natural key — an
-// existing record with the same id gets its fields overwritten, a new one
-// gets created. It never deletes anything not present in the backup, so a
-// partial or older backup can't wipe out newer data that isn't in the file.
+/*Safe ang restore dahil hindi nito basta binubura ang existing data
+ na hindi kasama sa backup, kahit partial o luma na ang backup file. */
 const upsertMany = async (Model, key, records) => {
   const result = { created: 0, updated: 0, errors: [] };
   if (!Array.isArray(records)) return result;
@@ -40,9 +38,9 @@ const upsertMany = async (Model, key, records) => {
   return result;
 };
 
-// Restores from the same JSON shape the "Complete System Backup" button
-// downloads: { members, events, attendanceLogs }. Any subset of those three
-// arrays is accepted, so a members-only or events-only export also works.
+/* Restores from the same JSON shape the "Complete System Backup" button
+downloads: { members, events, attendanceLogs }. Any subset of those three
+arrays is accepted, so a members-only or events-only export also works.*/
 const restoreBackup = async (req, res) => {
   try {
     const { members, events, attendanceLogs, attendance } = req.body || {};
