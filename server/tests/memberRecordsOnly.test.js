@@ -120,6 +120,7 @@ test('Mortuary single and bulk member creation save members and ledgers without 
   assert.equal(members.length, 3);
   assert.equal(ledgers.length, 3);
   assert.ok(members.every(member => !member.username && !member.passwordHash));
+  assert.ok(members.every(member => member.modules.length === 1 && member.modules[0] === 'mortuary'));
 });
 
 test('Attendance CSV member creation saves only member records, without credentials', async () => {

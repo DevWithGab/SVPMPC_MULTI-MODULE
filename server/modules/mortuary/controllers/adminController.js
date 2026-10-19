@@ -45,7 +45,7 @@ const adminController = {
       const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
       const { status, search } = req.query;
 
-      let query = {};
+      let query = { modules: 'mortuary' };
       
       // Filter by status if provided
       if (status) {
@@ -128,7 +128,8 @@ const adminController = {
         barangay: barangay.trim(),
         address: address.trim(),
         status,
-        joinDate: new Date()
+        joinDate: new Date(),
+        modules: ['mortuary']
       }));
 
       // Create initial ledger entry
@@ -174,22 +175,23 @@ const adminController = {
       const { memberId } = req.params;
       const updateData = req.body;
 
-      const member = await Member.findOne({ memberId });
+      // Keep profile edits scoped in the write itself, even if membership
+      // changes while the request is in flight. Ignore QR/module fields.
+      const fields = {};
+      if (updateData.name) fields.memberName = updateData.name;
+      if (updateData.contact) fields.phoneNumber = updateData.contact;
+      if (updateData.barangay) fields.barangay = updateData.barangay.trim();
+      if (updateData.address) fields.address = updateData.address.trim();
+      if (updateData.status) fields.status = updateData.status;
+      const member = await Member.findOneAndUpdate(
+        { memberId, modules: 'mortuary' }, { $set: fields }, { new: true, runValidators: true },
+      );
       if (!member) {
         return res.status(404).json({
           success: false,
           message: 'Member not found'
         });
       }
-
-      // Map frontend fields to database fields
-      if (updateData.name) member.memberName = updateData.name;
-      if (updateData.contact) member.phoneNumber = updateData.contact;
-      if (updateData.barangay) member.barangay = updateData.barangay.trim();
-      if (updateData.address) member.address = updateData.address.trim();
-      if (updateData.status) member.status = updateData.status;
-
-      await member.save();
 
       res.json({
         success: true,
@@ -219,7 +221,7 @@ const adminController = {
     try {
       const { memberId } = req.params;
 
-      const member = await Member.findOne({ memberId });
+      const member = await Member.findOne({ memberId, modules: 'mortuary' });
       if (!member) {
         return res.status(404).json({
           success: false,
@@ -314,7 +316,8 @@ const adminController = {
             barangay: barangay.trim(),
             address: address.trim(),
             status,
-            joinDate: new Date()
+            joinDate: new Date(),
+            modules: ['mortuary']
           }));
 
           // Create initial ledger entry

@@ -4,6 +4,57 @@ const Ledger = require('../models/Ledger');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
+const MORTUARY_MEMBER_FIELDS = ['beneficiaries', 'beneficiaryRelationship'];
+const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay',
+  'address', 'dateOfBirth', 'gender', 'joinDate', 'status', ...MORTUARY_MEMBER_FIELDS];
+const validId = value => typeof value === 'string' && value.trim().length > 0;
+const pickFields = (record, allowed) => Object.fromEntries(
+  allowed.filter(field => Object.hasOwn(record, field)).map(field => [field, record[field]])
+);
+
+const restoreMembers = async (records) => {
+  const result = { created: 0, updated: 0, errors: [] };
+  for (const record of records) {
+    const memberId = record?.memberId;
+    if (!validId(memberId)) {
+      result.errors.push({ error: 'Record requires a string memberId' });
+      continue;
+    }
+    try {
+      const existing = await Member.findOne({ memberId });
+      if (existing) {
+        // Trust stored membership, not an assignment supplied by the backup.
+        if (!existing.modules?.includes('mortuary')) {
+          result.errors.push({ memberId, error: 'Member is not enrolled in Mortuary' });
+          continue;
+        }
+        const fields = pickFields(record, MORTUARY_MEMBER_FIELDS);
+        if (Object.keys(fields).length) {
+          const update = await Member.updateOne({ memberId, modules: 'mortuary' },
+            { $set: fields }, { runValidators: true });
+          if (!update.matchedCount) {
+            result.errors.push({ memberId, error: 'Member is no longer available in Mortuary' });
+            continue;
+          }
+        }
+        result.updated += 1;
+      } else {
+        if (record.modules !== undefined &&
+            (!Array.isArray(record.modules) || !record.modules.includes('mortuary'))) {
+          result.errors.push({ memberId, error: 'Backup member is not enrolled in Mortuary' });
+          continue;
+        }
+        // Explicitly override the schema default of enrollment in both modules.
+        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['mortuary'] });
+        result.created += 1;
+      }
+    } catch (error) {
+      result.errors.push({ memberId, error: safeErrorMessage(error) });
+    }
+  }
+  return result;
+};
+
 // A member's balance is never a field on the Member document — it's derived
 // from their latest Ledger entry (see shared/utils understanding throughout
 // this module). A backup that only captures Members + Contributions can't
@@ -32,8 +83,8 @@ const upsertMany = async (Model, key, records) => {
 
   for (const record of records) {
     const keyValue = record?.[key];
-    if (!keyValue) {
-      result.errors.push({ error: `Record missing ${key}`, record });
+    if (!validId(keyValue)) {
+      result.errors.push({ error: `Record requires a string ${key}` });
       continue;
     }
 
@@ -42,9 +93,23 @@ const upsertMany = async (Model, key, records) => {
       // backup file, they belong to whatever document ends up storing this.
       const { _id, __v, createdAt, updatedAt, ...fields } = record;
       const existing = await Model.findOne({ [key]: keyValue });
+      const memberId = fields.memberId ?? existing?.memberId;
+      if (!validId(memberId) || (existing && existing.memberId !== memberId)) {
+        result.errors.push({ [key]: keyValue, error: 'A valid memberId is required; existing records cannot be reassigned' });
+        continue;
+      }
+      if (!await Member.findOne({ memberId, modules: 'mortuary' })) {
+        result.errors.push({ [key]: keyValue, error: 'Member is not enrolled in Mortuary' });
+        continue;
+      }
+      fields.memberId = memberId;
 
       if (existing) {
-        await Model.updateOne({ [key]: keyValue }, { $set: fields });
+        const update = await Model.updateOne({ [key]: keyValue, memberId }, { $set: fields }, { runValidators: true });
+        if (!update.matchedCount) {
+          result.errors.push({ [key]: keyValue, error: 'Record changed during restore; try again' });
+          continue;
+        }
         result.updated += 1;
       } else {
         await Model.create(fields);
@@ -80,7 +145,7 @@ const restoreBackup = async (req, res) => {
     }
 
     const summary = {};
-    if (hasMembers) summary.members = await upsertMany(Member, 'memberId', members);
+    if (hasMembers) summary.members = await restoreMembers(members);
     if (hasContributions) summary.contributions = await upsertMany(Contribution, 'contributionId', contributions);
     if (hasLedgers) summary.ledgers = await upsertMany(Ledger, 'ledgerId', ledgers);
 
@@ -89,8 +154,8 @@ const restoreBackup = async (req, res) => {
     const totalErrors = Object.values(summary).reduce((sum, s) => sum + s.errors.length, 0);
 
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId,
+      userName: req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'mortuary',
@@ -115,8 +180,8 @@ const restoreBackup = async (req, res) => {
     res.status(200).json({ success: true, message: 'Backup restored successfully', summary });
   } catch (error) {
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId,
+      userName: req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'mortuary',

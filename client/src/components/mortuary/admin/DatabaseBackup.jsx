@@ -18,9 +18,8 @@ import "./DatabaseBackup.css";
 // The `members` prop comes back from the Mortuary admin member listing
 // reshaped for that screen's own display (id/name/contact instead of the
 // real Member schema fields) — dumping it as-is into the backup would make
-// restore silently unable to update memberName/phoneNumber on existing
-// records, since the schema has no "name" or "contact" path. Normalize back
-// to the real field names so what gets exported is what upsertMany expects.
+// restore unable to recreate missing members, since the schema has no
+// "name" or "contact" path. Existing shared profiles are preserved on restore.
 const normalizeMemberForBackup = (m) => ({
   memberId: m.memberId || m.id,
   memberName: m.memberName || m.name,
@@ -29,6 +28,8 @@ const normalizeMemberForBackup = (m) => ({
   barangay: m.barangay || "",
   address: m.address || "",
   beneficiaries: m.beneficiaries || "",
+  beneficiaryRelationship: m.beneficiaryRelationship || "",
+  modules: m.modules,
   status: m.status || "active",
   dateOfBirth: m.dateOfBirth || undefined,
   gender: m.gender || undefined,
@@ -505,6 +506,10 @@ export default function DatabaseBackup({
                 : "Click to select a backup .json file"}
             </label>
             <p id="backup-file-help">Select a JSON backup to preview its records before confirming restore.</p>
+            <p className="text-xs text-slate-500 mt-2">
+              Existing members: restores beneficiary fields only. Shared profiles, status, QR details, and module assignments are preserved.
+              Attendance-only members are skipped. Missing members are created in Mortuary only.
+            </p>
           </div>
 
           {parseError && (
