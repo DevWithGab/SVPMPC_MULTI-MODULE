@@ -4,6 +4,64 @@ const Attendance = require('../models/Attendance');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
+const QR_FIELDS = ['qrCode', 'qrCodeUrl', 'qrCodeGenerated', 'qrCodeActive'];
+const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', ...QR_FIELDS];
+const pickFields = (record, allowed) => Object.fromEntries(
+  allowed.filter(field => Object.hasOwn(record, field)).map(field => [field, record[field]])
+);
+const validRecordId = value => typeof value === 'string' && value.trim().length > 0;
+
+// Attendance can recover QR data, but cannot rewrite the shared profile,
+// mortuary eligibility/status, beneficiaries, or module assignments.
+const restoreMembers = async (records) => {
+  const result = { created: 0, updated: 0, errors: [] };
+  for (const record of records) {
+    const memberId = record?.memberId;
+    if (!validRecordId(memberId)) {
+      result.errors.push({ error: 'Record requires a string memberId' });
+      continue;
+    }
+
+    try {
+      // Check the stored membership, never the membership claimed by the file.
+      const existing = await Member.findOne({ memberId });
+      if (existing) {
+        if (!existing.modules?.includes('attendance')) {
+          result.errors.push({ memberId, error: 'Member is not enrolled in Attendance' });
+          continue;
+        }
+        const fields = pickFields(record, QR_FIELDS);
+        if (Object.keys(fields).length) {
+          // Recheck membership atomically in case it changed after the lookup.
+          const update = await Member.updateOne(
+            { memberId, modules: 'attendance' },
+            { $set: fields },
+            { runValidators: true },
+          );
+          if (!update.matchedCount) {
+            result.errors.push({ memberId, error: 'Member is no longer available in Attendance' });
+            continue;
+          }
+        }
+        result.updated += 1;
+      } else {
+        if (record.modules !== undefined &&
+            (!Array.isArray(record.modules) || !record.modules.includes('attendance'))) {
+          result.errors.push({ memberId, error: 'Backup member is not enrolled in Attendance' });
+          continue;
+        }
+        // Override Member's default (both modules). Restoring Attendance must
+        // never enroll a new member in Mortuary or import their eligibility.
+        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['attendance'] });
+        result.created += 1;
+      }
+    } catch (error) {
+      result.errors.push({ memberId, error: safeErrorMessage(error) });
+    }
+  }
+  return result;
+};
+
 /*Safe ang restore dahil hindi nito basta binubura ang existing data
  na hindi kasama sa backup, kahit partial o luma na ang backup file. */
 const upsertMany = async (Model, key, records) => {
@@ -12,8 +70,8 @@ const upsertMany = async (Model, key, records) => {
 
   for (const record of records) {
     const keyValue = record?.[key];
-    if (!keyValue) {
-      result.errors.push({ error: `Record missing ${key}`, record });
+    if (!validRecordId(keyValue)) {
+      result.errors.push({ error: `Record requires a string ${key}` });
       continue;
     }
 
@@ -24,7 +82,7 @@ const upsertMany = async (Model, key, records) => {
       const existing = await Model.findOne({ [key]: keyValue });
 
       if (existing) {
-        await Model.updateOne({ [key]: keyValue }, { $set: fields });
+        await Model.updateOne({ [key]: keyValue }, { $set: fields }, { runValidators: true });
         result.updated += 1;
       } else {
         await Model.create(fields);
@@ -58,7 +116,7 @@ const restoreBackup = async (req, res) => {
     }
 
     const summary = {};
-    if (hasMembers) summary.members = await upsertMany(Member, 'memberId', members);
+    if (hasMembers) summary.members = await restoreMembers(members);
     if (hasEvents) summary.events = await upsertMany(Event, 'eventId', events);
     if (hasAttendance) {
       summary.attendance = await upsertMany(Attendance, 'attendanceId', attendanceRecords);
@@ -69,8 +127,8 @@ const restoreBackup = async (req, res) => {
     const totalErrors = Object.values(summary).reduce((sum, s) => sum + s.errors.length, 0);
 
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId,
+      userName: req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'attendance',
@@ -95,8 +153,8 @@ const restoreBackup = async (req, res) => {
     res.status(200).json({ message: 'Backup restored successfully', summary });
   } catch (error) {
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId,
+      userName: req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'attendance',

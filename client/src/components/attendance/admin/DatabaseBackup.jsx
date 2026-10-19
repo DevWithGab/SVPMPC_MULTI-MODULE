@@ -327,6 +327,10 @@ export default function DatabaseBackup({
                 : "Click to select a backup .json file"}
             </label>
             <p id="aab-file-help">Select a JSON backup to preview its records before confirming restore.</p>
+            <p className="text-xs text-slate-500 mt-2">
+              Existing members: restores QR details only. Shared profiles, status, beneficiaries, and module assignments are preserved.
+              Mortuary-only members are skipped. Missing members are created in Attendance only.
+            </p>
           </div>
 
           {parseError && (
