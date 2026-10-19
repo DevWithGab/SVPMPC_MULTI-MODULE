@@ -28,12 +28,12 @@ export default function RequiredPasswordChange({ user, onComplete, onLogout }) {
     e.preventDefault(); setError('');
     if (password !== confirm) return setError('The new passwords do not match.');
     setBusy(true);
-    try { await authAPI.changePassword(user.userId, current, password); onComplete({ ...user, isTemporaryPassword: false }); }
+    try { await authAPI.changePassword(user.userId, current, password); onComplete(); }
     catch (e) { setError(e.response?.data?.message || 'Unable to change password.'); }
     finally { setBusy(false); }
   };
   return <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6"><form onSubmit={submit} className="bg-white rounded-xl border p-8 space-y-5 w-full max-w-md">
-    <h1 className="text-2xl font-bold">Set your password</h1><p>Change your temporary password before accessing the system.</p>
+    <h1 className="text-2xl font-bold">Set your password</h1><p>Change your temporary password before accessing the system. You will need to sign in again with your new password.</p>
     {error && <p role="alert" className="text-red-700">{error}</p>}
     <PasswordField id="temporary-password" label="Temporary password" autoComplete="current-password" required value={current} onChange={e => setCurrent(e.target.value)} />
     <PasswordField id="new-password" label="New password" autoComplete="new-password" required minLength={12} maxLength={72} value={password} onChange={e => setPassword(e.target.value)} hint="Use at least 12 characters." />

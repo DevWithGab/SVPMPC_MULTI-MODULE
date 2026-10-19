@@ -19,7 +19,7 @@ import TerminalFooter from "../components/shared/TerminalFooter";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
-export default function SystemSelector({ onModuleSelect }) {
+export default function SystemSelector({ onModuleSelect, notice }) {
   const [selectedSystem, setSelectedSystem] = useState(null);
   const [step, setStep] = useState("MODULE_SELECTION"); // MODULE_SELECTION, ROLE_SELECTION, ADMIN_LOGIN, SECRETARY_LOGIN, TREASURER_LOGIN
   const [adminLoginData, setAdminLoginData] = useState({
@@ -358,6 +358,7 @@ export default function SystemSelector({ onModuleSelect }) {
       {/* Right Panel - System/Role Selection */}
       <div className="w-full lg:w-[45%] bg-slate-50 p-6 md:p-12 lg:p-20 flex flex-col h-full overflow-y-auto">
         <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
+          {notice && <p role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
           {/* Module Selection Step */}
           {step === "MODULE_SELECTION" && (
             <ModuleSelection

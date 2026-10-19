@@ -40,6 +40,7 @@ const portals = Object.fromEntries(
 
 function AppRoutes() {
   const [session, setSession] = useState(readSession);
+  const [loginNotice, setLoginNotice] = useState('');
   const { updateAuth, logout, user: authUser, token: authToken, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,6 +50,7 @@ function AppRoutes() {
   const handleLogin = (module, role, user, token) => {
     const path = portalPath(module, role);
     if (!portals[path]) return;
+    setLoginNotice('');
     localStorage.setItem('selectedModule', JSON.stringify({ module, role }));
     updateAuth(user, token);
     setSession({ module, role, user, token });
@@ -65,13 +67,13 @@ function AppRoutes() {
   };
 
   if (loading) return <p className="p-8">Loading session...</p>;
-  if (authUser?.isTemporaryPassword) return <RequiredPasswordChange user={authUser} onLogout={handleLogout} onComplete={user => {
-    updateAuth(user, authToken);
-    setSession(previous => previous ? { ...previous, user } : previous);
+  if (authUser?.isTemporaryPassword) return <RequiredPasswordChange user={authUser} onLogout={handleLogout} onComplete={() => {
+    handleLogout();
+    setLoginNotice('Password changed successfully. Sign in again with your new password.');
   }} />;
   const routesElement = (
     <Routes>
-      <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector onModuleSelect={handleLogin} />} />
+      <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector onModuleSelect={handleLogin} notice={loginNotice} />} />
       <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'admin', user, token)} onLogout={handleLogout} />} />
       {Object.entries(portals).map(([path, Portal]) => (
         <Route key={path} path={path} element={

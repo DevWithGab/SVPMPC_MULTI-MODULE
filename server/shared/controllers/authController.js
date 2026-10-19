@@ -123,7 +123,7 @@ const changePassword = async (req, res) => {
     const { userId } = req.params;
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
+    if (typeof currentPassword !== 'string' || !currentPassword || !newPassword) {
       return res.status(400).json({ message: 'Current and new password required' });
     }
 
@@ -150,6 +150,8 @@ const changePassword = async (req, res) => {
     user.passwordHash = newPassword;
     user.isTemporaryPassword = false;
     user.lastPasswordChangeDate = new Date();
+    // All previously issued tokens carry the old version, including this session.
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
     await user.save();
 
     // Log password change
@@ -165,7 +167,8 @@ const changePassword = async (req, res) => {
     await credentialLog.save();
 
     res.status(200).json({
-      message: 'Password changed successfully',
+      message: 'Password changed successfully. Please sign in again.',
+      requiresReauthentication: true,
       user: {
         userId: user.userId,
         isTemporaryPassword: user.isTemporaryPassword,

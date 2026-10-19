@@ -169,6 +169,64 @@ test('password change checks current password and clears the first-login require
   assert.equal(result.code, 200);
   assert.equal(user.isTemporaryPassword, false);
   assert.equal(user.passwordHash, 'a-new-long-password');
+  assert.equal(user.sessionVersion, 1);
+  assert.equal(result.data.requiresReauthentication, true);
+});
+
+test('password changes revoke all old tokens; only a fresh login with the new password restores access', async () => {
+  const jwt = require('jsonwebtoken');
+  const secret = require('node:crypto').randomBytes(32);
+  const tokens = {
+    sign: payload => jwt.sign(payload, secret, { expiresIn: '5m' }),
+    verify: token => jwt.verify(token, secret),
+  };
+  for (const version of [undefined, 4]) {
+    const user = { userId: 'staff', role: 'secretary', status: 'active', modules: ['attendance'],
+      sessionVersion: version, passwordHash: 'original-password', isTemporaryPassword: true,
+      comparePassword: async value => value === user.passwordHash, save: async () => {} };
+    const controller = load('../shared/controllers/authController', {
+      '../models/User': { findOne: async () => user },
+      '../models/CredentialLog': class { async save() {} }, jsonwebtoken: tokens,
+    });
+    const auth = load('../middleware/auth', {
+      '../shared/models/User': { findOne: () => ({ select: async () => user }) }, jsonwebtoken: tokens,
+    });
+    const login = async password => {
+      const res = response();
+      await controller.login({ body: { username: 'staff', password } }, res);
+      return res;
+    };
+    const oldTokens = [(await login('original-password')).data.token,
+      tokens.sign({ userId: 'staff', sessionVersion: version || 0, jti: 'second-device' })];
+    const denied = response();
+    await controller.changePassword({ params: { userId: 'staff' },
+      body: { currentPassword: 'incorrect-password', newPassword: 'replacement-password' } }, denied);
+    assert.equal(denied.code, 400);
+    assert.equal(user.sessionVersion, version);
+
+    const changed = response();
+    await controller.changePassword({ params: { userId: 'staff' },
+      body: { currentPassword: 'original-password', newPassword: 'replacement-password' } }, changed);
+    assert.equal(changed.code, 200);
+    assert.equal(user.sessionVersion, (version || 0) + 1);
+    for (const token of oldTokens) {
+      let passed = false;
+      const rejected = response();
+      await auth.authenticateToken({ headers: { authorization: `Bearer ${token}` } }, rejected, () => { passed = true; });
+      assert.equal(passed, false);
+      assert.equal(rejected.code, 401);
+      const verified = response();
+      await controller.verifyToken({ headers: { authorization: `Bearer ${token}` } }, verified);
+      assert.equal(verified.code, 401);
+    }
+    assert.equal((await login('original-password')).code, 401);
+    const fresh = await login('replacement-password');
+    assert.equal(fresh.code, 200);
+    assert.equal(jwt.verify(fresh.data.token, secret).sessionVersion, (version || 0) + 1);
+    let passed = false;
+    await auth.authenticateToken({ headers: { authorization: `Bearer ${fresh.data.token}` } }, response(), () => { passed = true; });
+    assert.equal(passed, true);
+  }
 });
 
 test('audit routes deny cross-module requests and scope unfiltered requests to assigned modules', async () => {
