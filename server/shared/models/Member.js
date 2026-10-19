@@ -83,7 +83,7 @@ const memberSchema = new mongoose.Schema(
       relationship: String,
       phoneNumber: String,
     },
-    // Module access
+    // Shared cooperative membership. Staff module permissions live on User.
     modules: {
       type: [String],
       default: ['attendance', 'mortuary'],
@@ -92,6 +92,12 @@ const memberSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Every newly registered member participates in both services, regardless of
+// which portal/import created them or any client-supplied module selection.
+memberSchema.pre('validate', function () {
+  if (this.isNew) this.modules = ['attendance', 'mortuary'];
+});
 
 // Index for faster queries
 // Note: memberId already has unique index from schema definition

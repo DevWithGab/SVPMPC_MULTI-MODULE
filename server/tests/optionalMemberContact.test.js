@@ -42,6 +42,23 @@ function controllerHarness() {
 
 const member = { memberName: 'Sample Member', barangay: 'Sample Barangay', address: 'Sample Address' };
 
+test('Super Admin single and bulk registrations always enroll in both modules despite input selections', async () => {
+  const { rows, invoke } = controllerHarness();
+  await invoke('createMember', { ...member, passbookNo: 'SHARED-1', modules: ['attendance'] });
+  await invoke('bulkCreateMembers', { members: [{ ...member, passbookNo: 'SHARED-2', modules: ['mortuary'] }] });
+  assert.equal(rows.members.length, 2);
+  assert.ok(rows.members.every(row => row.modules.join(',') === 'attendance,mortuary'));
+});
+
+test('Member model enforces both modules for every newly validated member', async () => {
+  const Member = require('../shared/models/Member');
+  for (const modules of [undefined, [], ['attendance'], ['mortuary']]) {
+    const doc = new Member({ memberId: 'SHARED-TEST', ...member, modules });
+    await doc.validate();
+    assert.deepEqual([...doc.modules], ['attendance', 'mortuary']);
+  }
+});
+
 test('manual passbook numbers preserve leading zeros and reject duplicates across creation flows', async () => {
   const { rows, invoke } = controllerHarness();
   const created = await invoke('createMember', { ...member, passbookNo: ' 000123 ' });

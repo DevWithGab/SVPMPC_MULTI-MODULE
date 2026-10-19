@@ -508,7 +508,7 @@ export default function DatabaseBackup({
             <p id="backup-file-help">Select a JSON backup to preview its records before confirming restore.</p>
             <p className="text-xs text-slate-500 mt-2">
               Existing members: restores beneficiary fields only. Shared profiles, status, QR details, and module assignments are preserved.
-              Attendance-only members are skipped. Missing members are created in Mortuary only.
+              Missing members are automatically enrolled in both Attendance and Mortuary.
             </p>
           </div>
 

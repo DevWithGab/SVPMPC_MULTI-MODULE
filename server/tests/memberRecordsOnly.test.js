@@ -34,6 +34,7 @@ test('legacy bulk import creates member records and results without accounts or 
   ]);
   assert.equal(result.summary.successCount, 2);
   assert.equal(members.length, 2);
+  assert.ok(members.every(member => member.modules.join(',') === 'attendance,mortuary'));
   assert.equal(result.createdUsers, undefined);
   assert.equal(result.createdMembers.length, 2);
   assert.equal(operation.createdMembers.length, 2);
@@ -120,7 +121,7 @@ test('Mortuary single and bulk member creation save members and ledgers without 
   assert.equal(members.length, 3);
   assert.equal(ledgers.length, 3);
   assert.ok(members.every(member => !member.username && !member.passwordHash));
-  assert.ok(members.every(member => member.modules.length === 1 && member.modules[0] === 'mortuary'));
+  assert.ok(members.every(member => member.modules.join(',') === 'attendance,mortuary'));
 });
 
 test('Attendance CSV member creation saves only member records, without credentials', async () => {
@@ -143,4 +144,5 @@ test('Attendance CSV member creation saves only member records, without credenti
   assert.equal(members.length, 1);
   assert.equal(members[0].username, undefined);
   assert.equal(members[0].passwordHash, undefined);
+  assert.equal(members[0].modules.join(','), 'attendance,mortuary');
 });

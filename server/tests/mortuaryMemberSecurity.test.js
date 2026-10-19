@@ -20,14 +20,14 @@ const profile = (memberId, modules) => ({ memberId, modules, memberName: 'Curren
   beneficiaries: 'Current beneficiary', beneficiaryRelationship: 'Spouse',
   qrCode: `qr-${memberId}`, qrCodeGenerated: true, qrCodeActive: false, joinDate: new Date(), createdAt: new Date() });
 
-function harness(members = [], { contributions = [], ledgers = [], changeMembership = false } = {}) {
+function harness(members = [], { contributions = [], ledgers = [], removeMember = false } = {}) {
   const audit = [], writes = [], queries = [];
   const match = (row, filter) => Object.entries(filter).every(([key, value]) =>
     Array.isArray(row[key]) ? row[key].includes(value) : row[key] === value);
   function model(SchemaModel, rows) {
     async function update(filter, operation, options) {
       writes.push({ filter, fields: operation.$set });
-      if (changeMembership && SchemaModel === Member) rows[0].modules = ['attendance'];
+      if (removeMember && SchemaModel === Member) rows.splice(0, 1);
       const row = rows.find(row => match(row, filter));
       if (!row) return null;
       assert.equal(options.runValidators, true);
@@ -61,13 +61,14 @@ function harness(members = [], { contributions = [], ledgers = [], changeMembers
   };
 }
 
-test('Mortuary restores reject Attendance-only members even with forged membership in the file', async () => {
+test('Mortuary restores include shared members with legacy labels and preserve protected fields', async () => {
   const original = profile('ATT-1', ['attendance']), db = harness([structuredClone(original)]);
   const res = await db.restore({ members: [{ ...original, modules: ['mortuary'], status: 'active', qrCodeActive: true }] });
-  assert.equal(res.data.summary.members.errors.length, 1);
-  assert.equal(db.writes.length, 0);
+  assert.equal(res.data.summary.members.errors.length, 0);
+  assert.equal(res.data.summary.members.updated, 1);
+  assert.equal(db.writes.length, 1);
   assert.deepEqual(db.members[0], original);
-  assert.equal(db.audit[0].status, 'partial');
+  assert.equal(db.audit[0].status, 'success');
   assert.equal(db.audit[0].userId, 'admin-id');
 });
 
@@ -79,29 +80,29 @@ test('existing Mortuary/shared members restore only permitted beneficiary fields
       beneficiaries: 'Restored beneficiary', beneficiaryRelationship: 'Child' }] });
     assert.equal(res.data.summary.members.updated, 1);
     assert.deepEqual(db.members[0], { ...original, beneficiaries: 'Restored beneficiary', beneficiaryRelationship: 'Child' });
-    assert.equal(db.writes[0].filter.modules, 'mortuary');
+    assert.equal(db.writes[0].filter.modules, undefined);
   }
 });
 
-test('new and legacy backup members enroll in Mortuary only and do not import QR fields', async () => {
+test('new and legacy backup members enroll in both modules without importing QR fields', async () => {
   for (const modules of [undefined, ['attendance', 'mortuary']]) {
     const db = harness();
     const res = await db.restore({ members: [{ ...profile('NEW', modules), modules }] });
     assert.equal(res.data.summary.members.created, 1);
-    assert.deepEqual(db.members[0].modules, ['mortuary']);
+    assert.deepEqual(db.members[0].modules, ['attendance', 'mortuary']);
     assert.equal(db.members[0].qrCode, undefined);
     assert.equal(db.members[0].qrCodeGenerated, false);
     assert.equal(db.members[0].status, 'deceased');
   }
   const rejected = await harness().restore({ members: [profile('ATT', ['attendance'])] });
-  assert.equal(rejected.data.summary.members.errors.length, 1);
+  assert.equal(rejected.data.summary.members.errors.length, 0);
 });
 
-test('restore rechecks membership at write time and rejects operator-shaped identifiers', async () => {
-  const db = harness([profile('M1', ['mortuary'])], { changeMembership: true });
+test('restore rejects missing targets and operator-shaped identifiers', async () => {
+  const db = harness([profile('M1', ['mortuary'])], { removeMember: true });
   const res = await db.restore({ members: [{ memberId: 'M1', beneficiaries: 'Changed' }] });
   assert.equal(res.data.summary.members.updated, 0);
-  assert.equal(db.members[0].beneficiaries, 'Current beneficiary');
+  assert.equal(db.members.length, 0);
   const invalid = harness();
   const rejected = await invalid.restore({ members: [{ memberId: { $ne: null } }],
     contributions: [{ contributionId: { $ne: null } }], ledgers: [{ ledgerId: { $gt: '' } }] });
@@ -109,7 +110,7 @@ test('restore rechecks membership at write time and rejects operator-shaped iden
   for (const entry of Object.values(rejected.data.summary)) assert.equal(entry.errors.length, 1);
 });
 
-test('financial restore requires Mortuary members and forbids reassigning existing records', async () => {
+test('financial restore requires registered shared members and forbids reassigning existing records', async () => {
   const contribution = { contributionId: 'C1', memberId: 'M1', amount: 25, dueDate: new Date(), status: 'paid' };
   const ledger = { ledgerId: 'L1', memberId: 'M1', transactionType: 'contribution', description: 'Test', credit: 25, balance: 25 };
   const db = harness([profile('M1', ['mortuary']), profile('ATT', ['attendance'])]);
@@ -120,20 +121,20 @@ test('financial restore requires Mortuary members and forbids reassigning existi
   assert.equal(updated.data.summary.contributions.updated, 1);
   assert.equal(updated.data.summary.ledgers.updated, 1);
   const rejected = await db.restore({ contributions: [{ ...contribution, memberId: 'ATT' }],
-    ledgers: [{ ...ledger, memberId: 'ATT' }, { ...ledger, ledgerId: 'L2', memberId: 'ATT' }] });
+    ledgers: [{ ...ledger, memberId: 'ATT' }, { ...ledger, ledgerId: 'L2', memberId: 'ATT' }, { ...ledger, ledgerId: 'L3', memberId: 'MISSING' }] });
   assert.equal(rejected.data.summary.contributions.errors.length, 1);
   assert.equal(rejected.data.summary.ledgers.errors.length, 2);
-  assert.equal(db.ledgers.length, 1);
+  assert.equal(db.ledgers.length, 2);
   assert.equal(db.contributions[0].memberId, 'M1');
 });
 
-test('normal member updates cannot change Attendance-only records or inject module/QR fields', async () => {
+test('normal member updates support shared legacy members without accepting module/QR fields', async () => {
   const attendance = profile('ATT', ['attendance']), shared = profile('SHARED', ['attendance', 'mortuary']);
   const db = harness([structuredClone(attendance), structuredClone(shared)]);
   const denied = response();
   await db.admin.updateMember({ params: { memberId: 'ATT' }, body: { status: 'active' } }, denied);
-  assert.equal(denied.code, 404);
-  assert.deepEqual(db.members[0], attendance);
+  assert.equal(denied.code, 200);
+  assert.deepEqual(db.members[0], { ...attendance, status: 'active' });
   const allowed = response();
   await db.admin.updateMember({ params: { memberId: 'SHARED' }, body: {
     name: 'Edited profile', status: 'inactive', modules: ['mortuary'], qrCodeActive: true,
@@ -145,14 +146,14 @@ test('normal member updates cannot change Attendance-only records or inject modu
   assert.equal(db.members[1].qrCodeActive, false);
 });
 
-test('Mortuary listing and delete lookup exclude Attendance-only members', async () => {
+test('Mortuary listing includes all shared members and missing delete targets are rejected', async () => {
   const db = harness([profile('ATT', ['attendance']), profile('M1', ['mortuary'])]);
   const listed = response();
   await db.admin.getAllMembers({ query: {} }, listed);
-  assert.equal(listed.data.pagination.total, 1);
-  assert.equal(listed.data.members[0].id, 'M1');
+  assert.equal(listed.data.pagination.total, 2);
+  assert.equal(listed.data.members[0].id, 'ATT');
   const deleted = response();
-  await db.admin.deleteMember({ params: { memberId: 'ATT' } }, deleted);
+  await db.admin.deleteMember({ params: { memberId: 'MISSING' } }, deleted);
   assert.equal(deleted.code, 404);
   assert.equal(db.members.length, 2);
 });

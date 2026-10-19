@@ -6,10 +6,10 @@ const { createRequire } = require('node:module');
 
 // Same VM-sandbox require-interception helper as the other controller
 // tests in this suite.
-function load(path, dependencies) {
+function load(path, dependencies, globals = {}) {
   const filename = require.resolve(path);
   const localRequire = createRequire(filename);
-  const context = { module: { exports: {} }, process, Buffer, console, setInterval, clearInterval,
+  const context = { module: { exports: {} }, process, Buffer, console, setInterval, clearInterval, ...globals,
     require: name => Object.hasOwn(dependencies, name) ? dependencies[name] : localRequire(name) };
   context.exports = context.module.exports;
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), context, { filename });
@@ -75,8 +75,8 @@ function database(events = []) {
   };
 }
 
-function controller(db) {
-  return load('../modules/attendance/controllers/eventController', db.deps);
+function controller(db, globals) {
+  return load('../modules/attendance/controllers/eventController', db.deps, globals);
 }
 
 const event = (overrides) => ({
@@ -226,10 +226,18 @@ test('reopenEvent rejects a new schedule that would already be over, and require
 });
 
 test('reopenEvent sets status to upcoming for a fully-future schedule, and to active when the new start time has already begun', async () => {
+  // Keep this scenario at noon PHT: subtracting an hour from real midnight
+  // wraps to the previous day and accidentally describes a future schedule.
+  const fixedNow = new Date('2026-10-20T04:00:00Z');
+  class FixedDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [fixedNow.getTime()])); }
+    static now() { return fixedNow.getTime(); }
+  }
   const future = database([event({ status: 'closed' })]);
-  const tomorrow = new Date(phtNow().getTime() + 24 * 60 * 60 * 1000);
+  const now = new Date(fixedNow.getTime() + 8 * 60 * 60 * 1000);
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const upcomingRes = response();
-  await controller(future).reopenEvent({
+  await controller(future, { Date: FixedDate }).reopenEvent({
     params: { eventId: 'EVT-1' },
     body: { reason: 'Rescheduled to tomorrow', eventDate: phtDateString(tomorrow), startTime: '09:00', endTime: '17:00' },
     user: {}, ip: '', get: () => '',
@@ -242,11 +250,10 @@ test('reopenEvent sets status to upcoming for a fully-future schedule, and to ac
   // later must land as 'active', not 'upcoming' — mirrors refreshEventStatus's
   // own active-window rule, applied here at reopen time.
   const active = database([event({ status: 'closed' })]);
-  const now = phtNow();
   const startedOneHourAgo = phtTimeString(new Date(now.getTime() - 60 * 60 * 1000));
   const endsInTwoHours = phtTimeString(new Date(now.getTime() + 2 * 60 * 60 * 1000));
   const activeRes = response();
-  await controller(active).reopenEvent({
+  await controller(active, { Date: FixedDate }).reopenEvent({
     params: { eventId: 'EVT-1' },
     body: { reason: 'Reopened mid-day', eventDate: phtDateString(now), startTime: startedOneHourAgo, endTime: endsInTwoHours },
     user: {}, ip: '', get: () => '',

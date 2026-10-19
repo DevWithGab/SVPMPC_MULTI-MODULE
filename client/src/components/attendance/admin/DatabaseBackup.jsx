@@ -329,7 +329,7 @@ export default function DatabaseBackup({
             <p id="aab-file-help">Select a JSON backup to preview its records before confirming restore.</p>
             <p className="text-xs text-slate-500 mt-2">
               Existing members: restores QR details only. Shared profiles, status, beneficiaries, and module assignments are preserved.
-              Mortuary-only members are skipped. Missing members are created in Attendance only.
+              Missing members are automatically enrolled in both Attendance and Mortuary.
             </p>
           </div>
 

@@ -4,6 +4,8 @@ This capstone project is a web-based management system for **Saint Vincent Paris
 
 The modules share member records and user accounts. Staff use different portals according to their responsibilities, while administrators manage records, approvals, reports, and audit trails.
 
+Every newly registered member is automatically enrolled in both Attendance and Mortuary, including records created by imports and backup restores. Member records are shared across both portals; older member module labels do not restrict visibility. Staff account module assignments and role permissions remain separate and are enforced by the API.
+
 ## Quick context for an AI assistant
 
 You can copy this description into an AI conversation, or ask the AI to read this README before working on the project:

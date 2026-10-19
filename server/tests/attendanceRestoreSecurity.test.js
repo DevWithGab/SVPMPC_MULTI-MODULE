@@ -12,7 +12,7 @@ const profile = (memberId, modules) => ({ memberId, modules, memberName: 'Curren
   beneficiaries: 'Current beneficiary', beneficiaryRelationship: 'Spouse',
   qrCodeGenerated: true, qrCodeActive: false });
 
-function harness({ members = [], events = [], attendance = [], changeMembership = false } = {}) {
+function harness({ members = [], events = [], attendance = [], removeMember = false } = {}) {
   const audit = [], queries = [], updates = [];
   function model(SchemaModel, records) {
     const match = (record, filter) => Object.entries(filter).every(([key, value]) =>
@@ -25,7 +25,7 @@ function harness({ members = [], events = [], attendance = [], changeMembership 
       },
       async updateOne(filter, update, options) {
         updates.push({ filter, update, options });
-        if (changeMembership && SchemaModel === Member) records[0].modules = ['mortuary'];
+        if (removeMember && SchemaModel === Member) records.splice(0, 1);
         const record = records.find(record => match(record, filter));
         if (!record) return { matchedCount: 0 };
         assert.equal(options.runValidators, true);
@@ -61,16 +61,16 @@ function harness({ members = [], events = [], attendance = [], changeMembership 
   };
 }
 
-test('restore rejects mortuary-only targets even when the backup claims Attendance membership', async () => {
+test('restore accepts shared members with legacy labels while protecting shared fields', async () => {
   const original = profile('MORT-1', ['mortuary']);
   const db = harness({ members: [structuredClone(original)] });
   const res = await db.restore({ members: [{ ...original, modules: ['attendance'], status: 'active', qrCodeActive: true }] });
   assert.equal(res.code, 200);
-  assert.equal(res.data.summary.members.updated, 0);
-  assert.equal(res.data.summary.members.errors.length, 1);
-  assert.deepEqual(db.members[0], original);
-  assert.equal(db.updates.length, 0);
-  assert.equal(db.audit[0].status, 'partial');
+  assert.equal(res.data.summary.members.updated, 1);
+  assert.equal(res.data.summary.members.errors.length, 0);
+  assert.deepEqual(db.members[0], { ...original, qrCodeActive: true });
+  assert.equal(db.updates.length, 1);
+  assert.equal(db.audit[0].status, 'success');
   assert.equal(db.audit[0].userId, 'attendance-admin');
 });
 
@@ -89,33 +89,33 @@ test('existing Attendance and shared members restore QR fields without changing 
     }
     assert.equal(db.members[0].qrCode, 'restored-qr');
     assert.equal(db.members[0].qrCodeActive, true);
-    assert.equal(db.updates[0].filter.modules, 'attendance');
+    assert.equal(db.updates[0].filter.modules, undefined);
   }
 });
 
-test('new members are created only in Attendance, without importing mortuary fields or schema defaults for both modules', async () => {
+test('new backup members enroll in both modules without importing protected mortuary fields', async () => {
   const db = harness();
   const res = await db.restore({ members: [{ ...profile('NEW-1', ['attendance', 'mortuary']),
     qrCode: 'restored-qr', dateOfBirth: '1980-01-01', emergencyContact: { name: 'Injected' } }] });
   assert.equal(res.data.summary.members.created, 1);
-  assert.deepEqual(db.members[0].modules, ['attendance']);
-  assert.equal(db.members[0].status, 'active'); // Explicitly exclude backup eligibility/status.
+  assert.deepEqual(db.members[0].modules, ['attendance', 'mortuary']);
+  assert.equal(db.members[0].status, 'deceased'); // Preserve historical status when recreating a shared member.
   assert.equal(db.members[0].beneficiaries, '');
   assert.equal(db.members[0].beneficiaryRelationship, '');
   assert.equal(db.members[0].dateOfBirth, undefined);
   assert.equal(db.members[0].memberName, 'Current Name');
   assert.equal(db.members[0].qrCode, 'restored-qr');
   const rejected = await db.restore({ members: [profile('MORT-NEW', ['mortuary'])] });
-  assert.equal(rejected.data.summary.members.created, 0);
-  assert.equal(rejected.data.summary.members.errors.length, 1);
+  assert.equal(rejected.data.summary.members.created, 1);
+  assert.equal(rejected.data.summary.members.errors.length, 0);
 });
 
-test('membership changes between lookup and update do not allow an out-of-scope write', async () => {
-  const db = harness({ members: [profile('RACE-1', ['attendance'])], changeMembership: true });
+test('members removed during restore are not recreated', async () => {
+  const db = harness({ members: [profile('RACE-1', ['attendance'])], removeMember: true });
   const res = await db.restore({ members: [{ memberId: 'RACE-1', qrCodeActive: true }] });
   assert.equal(res.data.summary.members.updated, 0);
   assert.equal(res.data.summary.members.errors.length, 1);
-  assert.equal(db.members[0].qrCodeActive, false);
+  assert.equal(db.members.length, 0);
 });
 
 test('operator-shaped identifiers are rejected before any query in every restore collection', async () => {

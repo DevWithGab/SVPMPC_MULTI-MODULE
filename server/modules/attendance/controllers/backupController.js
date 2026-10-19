@@ -5,7 +5,7 @@ const { createAuditLog } = require('../../../shared/services/auditLoggingService
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const QR_FIELDS = ['qrCode', 'qrCodeUrl', 'qrCodeGenerated', 'qrCodeActive'];
-const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', ...QR_FIELDS];
+const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', 'status', ...QR_FIELDS];
 const pickFields = (record, allowed) => Object.fromEntries(
   allowed.filter(field => Object.hasOwn(record, field)).map(field => [field, record[field]])
 );
@@ -23,36 +23,26 @@ const restoreMembers = async (records) => {
     }
 
     try {
-      // Check the stored membership, never the membership claimed by the file.
+      // Members are shared; backup labels never redefine their enrollment.
       const existing = await Member.findOne({ memberId });
       if (existing) {
-        if (!existing.modules?.includes('attendance')) {
-          result.errors.push({ memberId, error: 'Member is not enrolled in Attendance' });
-          continue;
-        }
         const fields = pickFields(record, QR_FIELDS);
         if (Object.keys(fields).length) {
-          // Recheck membership atomically in case it changed after the lookup.
+          // Do not recreate a member removed after the lookup.
           const update = await Member.updateOne(
-            { memberId, modules: 'attendance' },
+            { memberId },
             { $set: fields },
             { runValidators: true },
           );
           if (!update.matchedCount) {
-            result.errors.push({ memberId, error: 'Member is no longer available in Attendance' });
+            result.errors.push({ memberId, error: 'Member is no longer available' });
             continue;
           }
         }
         result.updated += 1;
       } else {
-        if (record.modules !== undefined &&
-            (!Array.isArray(record.modules) || !record.modules.includes('attendance'))) {
-          result.errors.push({ memberId, error: 'Backup member is not enrolled in Attendance' });
-          continue;
-        }
-        // Override Member's default (both modules). Restoring Attendance must
-        // never enroll a new member in Mortuary or import their eligibility.
-        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['attendance'] });
+        // Ignore module labels from old backups: new members are shared.
+        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['attendance', 'mortuary'] });
         result.created += 1;
       }
     } catch (error) {

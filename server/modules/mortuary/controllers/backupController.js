@@ -23,29 +23,20 @@ const restoreMembers = async (records) => {
     try {
       const existing = await Member.findOne({ memberId });
       if (existing) {
-        // Trust stored membership, not an assignment supplied by the backup.
-        if (!existing.modules?.includes('mortuary')) {
-          result.errors.push({ memberId, error: 'Member is not enrolled in Mortuary' });
-          continue;
-        }
+        // Members are shared, but restores still protect shared/QR fields.
         const fields = pickFields(record, MORTUARY_MEMBER_FIELDS);
         if (Object.keys(fields).length) {
-          const update = await Member.updateOne({ memberId, modules: 'mortuary' },
+          const update = await Member.updateOne({ memberId },
             { $set: fields }, { runValidators: true });
           if (!update.matchedCount) {
-            result.errors.push({ memberId, error: 'Member is no longer available in Mortuary' });
+            result.errors.push({ memberId, error: 'Member is no longer available' });
             continue;
           }
         }
         result.updated += 1;
       } else {
-        if (record.modules !== undefined &&
-            (!Array.isArray(record.modules) || !record.modules.includes('mortuary'))) {
-          result.errors.push({ memberId, error: 'Backup member is not enrolled in Mortuary' });
-          continue;
-        }
-        // Explicitly override the schema default of enrollment in both modules.
-        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['mortuary'] });
+        // Ignore module labels from old backups: new members are shared.
+        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['attendance', 'mortuary'] });
         result.created += 1;
       }
     } catch (error) {
@@ -98,8 +89,8 @@ const upsertMany = async (Model, key, records) => {
         result.errors.push({ [key]: keyValue, error: 'A valid memberId is required; existing records cannot be reassigned' });
         continue;
       }
-      if (!await Member.findOne({ memberId, modules: 'mortuary' })) {
-        result.errors.push({ [key]: keyValue, error: 'Member is not enrolled in Mortuary' });
+      if (!await Member.findOne({ memberId })) {
+        result.errors.push({ [key]: keyValue, error: 'Member not found' });
         continue;
       }
       fields.memberId = memberId;

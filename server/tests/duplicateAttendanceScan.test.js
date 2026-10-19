@@ -246,7 +246,7 @@ test('QR entries reject missing, malformed, and wrong identifiers instead of acc
   assert.equal(db.state.attendance.length, 0);
 });
 
-test('both QR and manual entries require stored Attendance membership; shared members remain eligible', async () => {
+test('QR and manual entries accept shared members regardless of legacy module labels', async () => {
   for (const entrySource of ['qr', 'manual']) {
     for (const modules of [['mortuary'], ['attendance', 'mortuary']]) {
       const member = { ...activeMember('M1'), modules };
@@ -256,8 +256,8 @@ test('both QR and manual entries require stored Attendance membership; shared me
         memberId: 'M1', eventId: 'E1', qrId: 'qr-M1', entrySource,
         justification: 'Damaged printed card', modules: ['attendance'],
       }, ip: '', get: () => '' }, result);
-      assert.equal(result.code, modules.includes('attendance') ? 201 : 404);
-      assert.equal(db.state.attendance.length, modules.includes('attendance') ? 1 : 0);
+      assert.equal(result.code, 201);
+      assert.equal(db.state.attendance.length, 1);
     }
   }
 });

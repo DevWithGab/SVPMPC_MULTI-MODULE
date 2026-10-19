@@ -45,7 +45,7 @@ const adminController = {
       const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
       const { status, search } = req.query;
 
-      let query = { modules: 'mortuary' };
+      let query = {};
       
       // Filter by status if provided
       if (status) {
@@ -129,7 +129,7 @@ const adminController = {
         address: address.trim(),
         status,
         joinDate: new Date(),
-        modules: ['mortuary']
+        modules: ['attendance', 'mortuary']
       }));
 
       // Create initial ledger entry
@@ -175,8 +175,8 @@ const adminController = {
       const { memberId } = req.params;
       const updateData = req.body;
 
-      // Keep profile edits scoped in the write itself, even if membership
-      // changes while the request is in flight. Ignore QR/module fields.
+      // Members are shared. Profile edits still use an explicit field allowlist;
+      // QR data and module assignments cannot be changed through this endpoint.
       const fields = {};
       if (updateData.name) fields.memberName = updateData.name;
       if (updateData.contact) fields.phoneNumber = updateData.contact;
@@ -184,7 +184,7 @@ const adminController = {
       if (updateData.address) fields.address = updateData.address.trim();
       if (updateData.status) fields.status = updateData.status;
       const member = await Member.findOneAndUpdate(
-        { memberId, modules: 'mortuary' }, { $set: fields }, { new: true, runValidators: true },
+        { memberId }, { $set: fields }, { new: true, runValidators: true },
       );
       if (!member) {
         return res.status(404).json({
@@ -221,7 +221,7 @@ const adminController = {
     try {
       const { memberId } = req.params;
 
-      const member = await Member.findOne({ memberId, modules: 'mortuary' });
+      const member = await Member.findOne({ memberId });
       if (!member) {
         return res.status(404).json({
           success: false,
@@ -317,7 +317,7 @@ const adminController = {
             address: address.trim(),
             status,
             joinDate: new Date(),
-            modules: ['mortuary']
+            modules: ['attendance', 'mortuary']
           }));
 
           // Create initial ledger entry

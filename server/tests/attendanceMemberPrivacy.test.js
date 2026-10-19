@@ -23,7 +23,7 @@ const privateFields = {
 };
 const records = [
   { ...privateFields, memberId: 'ATT-1', memberName: 'Attendance Member', barangay: 'Test', qrCode: 'qr-1', modules: ['attendance'] },
-  { ...privateFields, memberId: 'MORT-1', memberName: 'Mortuary Member', modules: ['mortuary'] },
+  { ...privateFields, memberId: 'MORT-1', memberName: 'Mortuary Member', barangay: 'Test', qrCode: 'qr-3', modules: ['mortuary'] },
   { ...privateFields, memberId: 'SHARED-1', memberName: 'Shared Member', barangay: 'Test', qrCode: 'qr-2', modules: ['attendance', 'mortuary'] },
 ];
 
@@ -53,14 +53,14 @@ function controller() {
 
 const response = () => ({ status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } });
 
-test('scanner list and detail expose only scanner fields and exclude mortuary-only members', async () => {
+test('scanner list and detail preserve privacy across all shared members', async () => {
   const members = controller();
   const user = { role: 'scanner_operator', modules: ['attendance'] };
   const list = response();
   await members.getAllMembers({ user, query: {} }, list);
   assert.equal(list.code, 200);
-  assert.equal(list.data.pagination.total, 2);
-  assert.deepEqual(list.data.members.map(member => member.memberId), ['ATT-1', 'SHARED-1']);
+  assert.equal(list.data.pagination.total, 3);
+  assert.deepEqual(list.data.members.map(member => member.memberId), ['ATT-1', 'MORT-1', 'SHARED-1']);
   for (const member of list.data.members) {
     assert.deepEqual(Object.keys(member).sort(), ['barangay', 'memberId', 'memberName', 'qrCode']);
     const detail = response();
@@ -70,11 +70,11 @@ test('scanner list and detail expose only scanner fields and exclude mortuary-on
   }
 });
 
-test('Attendance member reads exclude mortuary-only records for every attendance role', async () => {
+test('Attendance member reads include legacy module labels for every authorized attendance role', async () => {
   const members = controller();
   for (const role of ['scanner_operator', 'secretary', 'admin', 'super_admin']) {
     const user = { role, modules: ['attendance', 'mortuary'] };
-    for (const memberId of ['MORT-1', 'does-not-exist']) {
+    for (const memberId of ['does-not-exist']) {
       const detail = response();
       await members.getMemberById({ user, params: { memberId } }, detail);
       assert.equal(detail.code, 404, role);
@@ -82,10 +82,10 @@ test('Attendance member reads exclude mortuary-only records for every attendance
     }
     const list = response();
     await members.getAllMembers({ user, query: { page: '2', limit: '1' } }, list);
-    assert.equal(list.data.pagination.total, 2);
-    assert.equal(list.data.pagination.totalPages, 2);
+    assert.equal(list.data.pagination.total, 3);
+    assert.equal(list.data.pagination.totalPages, 3);
     assert.equal(list.data.members.length, 1);
-    assert.equal(list.data.members[0].memberId, 'SHARED-1');
+    assert.equal(list.data.members[0].memberId, 'MORT-1');
     if (role !== 'scanner_operator') {
       const detail = response();
       await members.getMemberById({ user, params: { memberId: 'ATT-1' } }, detail);
@@ -111,7 +111,7 @@ test('member API routes enforce scanner privacy on direct HTTP requests', async 
     assert.equal(found.status, 200);
     assert.deepEqual(Object.keys(await found.json()).sort(), ['barangay', 'memberId', 'memberName', 'qrCode']);
     const hidden = await fetch(base + '/MORT-1');
-    assert.equal(hidden.status, 404);
-    assert.deepEqual(await hidden.json(), { message: 'Member not found' });
+    assert.equal(hidden.status, 200);
+    assert.deepEqual(Object.keys(await hidden.json()).sort(), ['barangay', 'memberId', 'memberName', 'qrCode']);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

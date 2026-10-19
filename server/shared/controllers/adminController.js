@@ -63,7 +63,6 @@ const createMember = async (req, res) => {
       dateOfBirth,
       gender,
       emergencyContact,
-      modules = ['attendance', 'mortuary'],
     } = req.body;
 
     const email = normalizeContact(rawEmail);
@@ -102,7 +101,7 @@ const createMember = async (req, res) => {
       dateOfBirth,
       gender,
       emergencyContact,
-      modules,
+      modules: ['attendance', 'mortuary'],
       status: 'active',
     });
 
@@ -208,7 +207,7 @@ const bulkCreateMembers = async (req, res) => {
           beneficiaryRelationship: memberData.beneficiaryRelationship || '',
           dateOfBirth: memberData.dateOfBirth,
           gender: memberData.gender,
-          modules: memberData.modules || ['attendance', 'mortuary'],
+          modules: ['attendance', 'mortuary'],
           status: 'active',
         });
 

@@ -42,6 +42,7 @@ const processRow = async (rowData, rowNumber) => {
       phoneNumber: rowData.phoneNumber,
       barangay: rowData.barangay,
       address: rowData.address,
+      modules: ['attendance', 'mortuary'],
     });
 
     await member.save();

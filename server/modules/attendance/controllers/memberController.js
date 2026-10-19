@@ -56,6 +56,7 @@ const uploadMembers = async (req, res) => {
           phoneNumber: memberData.phoneNumber.trim(),
           barangay: memberData.barangay.trim(),
           address: memberData.address.trim(),
+          modules: ['attendance', 'mortuary'],
         });
 
         const saved = await newMember.save();
@@ -296,8 +297,8 @@ const memberReadProjection = (req) => req.user?.role === 'scanner_operator'
 const getAllMembers = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
-    // Scope both the records and count to Attendance, including shared members.
-    const filter = { modules: 'attendance' };
+    // All cooperative members are shared; only staff access is module-scoped.
+    const filter = {};
     const projection = memberReadProjection(req);
     const [members, total] = await Promise.all([
       Member.find(filter, projection).skip(skip).limit(limit),
@@ -318,7 +319,7 @@ const getMemberById = async (req, res) => {
   try {
     const { memberId } = req.params;
     const member = await Member.findOne(
-      { memberId, modules: 'attendance' },
+      { memberId },
       memberReadProjection(req),
     );
 
