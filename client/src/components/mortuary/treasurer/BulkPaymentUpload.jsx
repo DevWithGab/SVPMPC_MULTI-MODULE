@@ -19,6 +19,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
   const [filePickerVersion, setFilePickerVersion] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [completed, setCompleted] = useState(false);
 
 
@@ -34,7 +35,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
 
   const chooseFile = async event => {
     const file = event.target.files?.[0];
-    setCsv(''); setFilename(''); setResult(null); setError(''); setCompleted(false);
+    setCsv(''); setFilename(''); setResult(null); setError(''); setSuccessMessage(''); setCompleted(false);
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.csv') || file.size > 1024 * 1024) {
       setError('Choose a CSV file of 1 MB or less.');
@@ -49,22 +50,24 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
   const submit = async action => {
     if (inFlight.current) return;
     inFlight.current = true;
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setSuccessMessage('');
     try {
       const response = await treasurerAPI.bulkUploadPayments(csv, action);
-      setResult(response);
-      setCompleted(action === 'import');
+      const fullyImported = action === 'import' && response.success && response.summary?.failed === 0 && response.summary?.invalid === 0;
+      setResult(fullyImported ? null : response);
+      setCompleted(action === 'import' && !fullyImported);
       if (action === 'import') {
-        if (response.success && response.summary?.failed === 0 && response.summary?.invalid === 0) {
+        if (fullyImported) {
           setCsv('');
           setFilename('');
+          setSuccessMessage('Contributions imported successfully. You can choose another CSV file.');
           // Remount to clear the native file input as well, allowing the
           // same filename to be selected again for another upload.
           setFilePickerVersion(version => version + 1);
         }
-        // Keep the recorded result even if a subsequent screen refresh fails.
+        // A screen refresh failure must not undo the successful form reset.
         try { await onImported(); }
-        catch { setError('Import results are shown below. Refresh the page to load updated balances.'); }
+        catch { setError(fullyImported ? 'Contributions were imported. Refresh the page to load updated balances.' : 'Import results are shown below. Refresh the page to load updated balances.'); }
       }
     } catch (failure) {
       setError(failure.response?.data?.message || 'Unable to reach the server. Preview the same file again before retrying; completed payments will be skipped.');
@@ -92,6 +95,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
           <p>Replace the sample row with actual passbook numbers and payment details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>
         </UploadTemplateCard>
         <UploadFilePicker key={filePickerVersion} filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only ? Up to 500 payments ? Maximum 1 MB" />
+        {successMessage && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{successMessage}</p>}
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {summary && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
           {completed ? <p><strong>{summary.imported} recorded</strong> · {summary.duplicates} skipped · {summary.failed} need retry</p>
