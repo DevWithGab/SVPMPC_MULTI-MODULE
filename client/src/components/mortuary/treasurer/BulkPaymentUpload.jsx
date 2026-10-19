@@ -16,6 +16,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
   const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState('');
   const [filename, setFilename] = useState('');
+  const [filePickerVersion, setFilePickerVersion] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
@@ -54,6 +55,13 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
       setResult(response);
       setCompleted(action === 'import');
       if (action === 'import') {
+        if (response.success && response.summary?.failed === 0 && response.summary?.invalid === 0) {
+          setCsv('');
+          setFilename('');
+          // Remount to clear the native file input as well, allowing the
+          // same filename to be selected again for another upload.
+          setFilePickerVersion(version => version + 1);
+        }
         // Keep the recorded result even if a subsequent screen refresh fails.
         try { await onImported(); }
         catch { setError('Import results are shown below. Refresh the page to load updated balances.'); }
@@ -83,7 +91,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
           <p>Use a receipt or transaction reference for each payment. An already recorded payment with the same member and reference is skipped; conflicting amounts or dates must be corrected. Separate payments by the same member need different references.</p>
           <p>Replace the sample row with actual passbook numbers and payment details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>
         </UploadTemplateCard>
-        <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only ? Up to 500 payments ? Maximum 1 MB" />
+        <UploadFilePicker key={filePickerVersion} filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only ? Up to 500 payments ? Maximum 1 MB" />
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {summary && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
           {completed ? <p><strong>{summary.imported} recorded</strong> · {summary.duplicates} skipped · {summary.failed} need retry</p>
