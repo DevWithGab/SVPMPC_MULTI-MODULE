@@ -161,3 +161,26 @@ test('Passbook No. templates import with leading zeros and retain legacy header 
   assert.throws(() => parsePaymentCsv('amount,payment_date,reference_number\n10,2026-10-05,OR-1'), /Passbook No\./);
   assert.match(parse(payment(''))[0].errors[0], /Passbook No\./);
 });
+
+
+test('payment CSV accepts month-first Excel dates and ISO dates with the same stored date', () => {
+  for (const input of ['10-05-2026', '10/05/2026', '10/5/2026', '2026-10-05']) {
+    const [row] = parse(payment().replace('2026-10-05', input));
+    assert.deepEqual(row.errors, [], input);
+    assert.equal(row.entry.paymentDate, '2026-10-05');
+  }
+  assert.equal(parse(payment().replace('2026-10-05', '01-02-2026'))[0].entry.paymentDate, '2026-01-02');
+  for (const invalid of ['02-30-2026', '02/29/2026', '13-01-2026', '20-10-2026', '10/05-2026', '10-05-26']) {
+    assert.ok(parse(payment().replace('2026-10-05', invalid))[0].errors.some(error => error.includes('date')), invalid);
+  }
+  assert.deepEqual(parse(payment().replace('2026-10-05', '02-29-2028'))[0].errors, []);
+});
+
+test('re-uploading a payment with a different date format cannot credit it again', async () => {
+  const { state, service } = database();
+  await service.importRows(parse(payment().replace('2026-10-05', '10-05-2026')), 'treasurer-1');
+  const retry = await service.importRows(parse(payment()), 'treasurer-1');
+  assert.equal(retry.rows[0].status, 'skipped');
+  assert.equal(state.contributions.length, 1);
+  assert.equal(state.ledgers.length, 1);
+});

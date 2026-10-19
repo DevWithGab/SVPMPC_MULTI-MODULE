@@ -3,7 +3,7 @@ import { Upload } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../shared/BulkUploadDialog';
 import { treasurerAPI } from '../../../services/api';
-import { buildPaymentCsvTemplate } from '../../../utils/paymentCsvTemplate';
+import { buildPaymentCsvTemplate, formatPaymentCsvDate } from '../../../utils/paymentCsvTemplate';
 
 const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value || 0);
 const statusLabels = {
@@ -77,8 +77,8 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
         {canImport && <Button type="button" disabled={busy} onClick={() => submit('import')} className="gap-2 bg-coop-green text-white hover:bg-coop-darkGreen"><Upload className="h-4 w-4" aria-hidden="true" />Import {summary.ready} Payments</Button>}
       </>}>
         <UploadTemplateCard onDownload={downloadTemplate} disabled={busy}>
-          <p><strong>Required columns:</strong> Passbook No., amount, payment_date (YYYY-MM-DD), reference_number.</p>
-          <p><strong>Date example:</strong> 2026-10-20 (year-month-day). In Excel, set the payment_date column to Custom format <code>yyyy-mm-dd</code> before saving as CSV; dates such as 10-20-2026 will be rejected.</p>
+          <p><strong>Required columns:</strong> Passbook No., amount, payment_date (MM-DD-YYYY), reference_number.</p>
+          <p><strong>Date example:</strong> 10-20-2026 (month-day-year). Excel dates such as 10/20/2026 also work, as do existing YYYY-MM-DD files. Dates are always interpreted month first when the year is last.</p>
           <p><strong>Optional:</strong> payment_method (cash), notes. Use positive amounts with up to two decimal places, without currency signs or thousands separators.</p>
           <p>Use a receipt or transaction reference for each payment. An already recorded payment with the same member and reference is skipped; conflicting amounts or dates must be corrected. Separate payments by the same member need different references.</p>
           <p>Replace the sample row with actual passbook numbers and payment details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>
@@ -100,7 +100,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
             <tbody className="divide-y divide-slate-100">{result.rows.map(row => <tr key={row.row}>
               <td className="px-3 py-3">{row.row}</td>
               <td className="px-3 py-3"><p className="font-medium">{row.memberName || row.entry.memberId}</p><p className="text-xs text-slate-500">Passbook No.: {row.entry.memberId}</p></td>
-              <td className="px-3 py-3 whitespace-nowrap">{row.entry.paymentDate}</td>
+              <td className="px-3 py-3 whitespace-nowrap">{formatPaymentCsvDate(row.entry.paymentDate)}</td>
               <td className="px-3 py-3 break-all">{row.entry.referenceNumber}</td>
               <td className="px-3 py-3 whitespace-nowrap tabular-nums">{money(row.entry.amount)}</td>
               <td className={`px-3 py-3 ${row.errors.length ? 'text-rose-700' : 'text-slate-700'}`}><p className="font-medium">{statusLabels[row.status]}</p>{row.errors.map(message => <p key={message} className="text-xs mt-1">{message}</p>)}</td>
