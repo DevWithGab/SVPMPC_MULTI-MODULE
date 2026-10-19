@@ -193,6 +193,8 @@ npm run dev
 
 The backend uses Node.js's built-in watch mode to restart when its code changes. For production, run `npm start` without the development watcher.
 
+Rate limits are stored in MongoDB's `rate_limit_counters` collection, so restarting the API does not reset them. All API instances must use the same MongoDB database and synchronized system clocks. Login account/IP limits, password changes, staff actions, and bulk uploads use separate counters in fixed five- or fifteen-minute windows. Successful logins/password changes do not consume the failed-attempt allowance. The API creates a TTL cleanup index before it starts listening; the database account needs permission to create that index. If the counter store is unavailable, protected requests return 503 instead of bypassing the limit. No extra service or environment variable is required.
+
 Create staff accounts through the Super Admin staff management screen. New staff receive a random temporary password and must change it on first sign-in.
 
 ### Frontend

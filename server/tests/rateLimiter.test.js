@@ -5,7 +5,17 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { dirname } = require('node:path');
 const { createRequire } = require('node:module');
-const { loginKeyGenerator, staffActionLimiter } = require('../middleware/rateLimiter');
+const { MongoRateLimitStore } = require('../middleware/mongoRateLimitStore');
+const { createRateLimitCollection } = require('./fixtures/rateLimitCollection');
+
+function freshLimiters(collection = createRateLimitCollection()) {
+  return load('../middleware/rateLimiter', {
+    './mongoRateLimitStore': { MongoRateLimitStore: class extends MongoRateLimitStore {
+      constructor(options) { super({ ...options, collection: () => collection }); }
+    } },
+  });
+}
+const { loginKeyGenerator } = freshLimiters();
 
 test('login counter ignores module, role, IP, and username casing/whitespace', () => {
   const request = (body) => ({ ip: '127.0.0.1', body });
@@ -48,7 +58,7 @@ function load(path, dependencies = {}) {
 async function withLoginRoute(run) {
   // Use fresh stores for every test and the real route wiring. Only the
   // controller is mocked, so these checks never query the database.
-  const limiters = load('../middleware/rateLimiter');
+  const limiters = freshLimiters();
   const controller = require('../shared/controllers/authController');
   const router = load('../shared/routes/authRoutes', {
     '../../middleware': { ...require('../middleware'), ...limiters },
@@ -117,6 +127,7 @@ test('successful logins do not consume failed-attempt limits', async () => {
 // other suites' use of the shared limiter instance can't skew the count)
 // and proves it actually trips after its configured max.
 test('staffActionLimiter blocks requests past its configured max', async () => {
+  const { staffActionLimiter } = freshLimiters();
   const app = express();
   app.use(express.json());
   app.post('/staff', staffActionLimiter, (req, res) => res.status(200).json({ ok: true }));

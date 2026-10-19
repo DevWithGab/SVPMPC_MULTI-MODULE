@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { ensureRateLimitIndexes } = require('../middleware/mongoRateLimitStore');
 require('dotenv').config();
 
 const connectDB = async () => {
@@ -14,6 +15,7 @@ const connectDB = async () => {
 
   try {
     await mongoose.connect(process.env.MONGODB_URI);
+    await ensureRateLimitIndexes();
 
     console.log('✓ MongoDB connected successfully');
   } catch (error) {

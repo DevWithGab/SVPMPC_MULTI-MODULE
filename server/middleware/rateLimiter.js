@@ -1,6 +1,20 @@
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const { createHash } = require('node:crypto');
+const { MongoRateLimitStore } = require('./mongoRateLimitStore');
+
+// All processes use the application's MongoDB database. Separate namespaces
+// prevent one kind of action from consuming another action's allowance.
+const sharedLimiter = (prefix, options) => {
+  const store = new MongoRateLimitStore({ prefix });
+  const identify = options.keyGenerator || (req => ipKeyGenerator(req.ip));
+  return rateLimit({
+    ...options,
+    store,
+    keyGenerator: req => store.key(identify(req)),
+    passOnStoreError: false,
+  });
+};
 
 // One counter per login identifier, across IPs, modules, and roles. Hashing
 // keeps keys bounded and avoids storing usernames/emails in the limiter store.
@@ -13,7 +27,7 @@ const loginKeyGenerator = (req) => {
 
 // An independent IP limit also catches password spraying across usernames.
 // The higher threshold accommodates staff sharing the same office connection.
-const loginIpLimiter = rateLimit({
+const loginIpLimiter = sharedLimiter('login-ip', {
   windowMs: 5 * 60 * 1000,
   max: 100,
   standardHeaders: true,
@@ -23,7 +37,7 @@ const loginIpLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-const loginLimiter = rateLimit({
+const loginLimiter = sharedLimiter('login-account', {
   windowMs: 5 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -37,7 +51,7 @@ const loginLimiter = rateLimit({
 
 // Same brute-force exposure on change-password: an attacker with a stolen
 // session/userId could otherwise guess the current password unlimited times.
-const changePasswordLimiter = rateLimit({
+const changePasswordLimiter = sharedLimiter('change-password', {
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -57,7 +71,7 @@ const accountKeyGenerator = (req) => req.user?.userId || ipKeyGenerator(req.ip);
 // compromised super_admin token (or a buggy client retry loop) could spam
 // account creation or repeatedly force-reset another staffer's credentials
 // with no limit at all.
-const staffActionLimiter = rateLimit({
+const staffActionLimiter = sharedLimiter('staff-action', {
   windowMs: 15 * 60 * 1000,
   max: 20,
   standardHeaders: true,
@@ -69,7 +83,7 @@ const staffActionLimiter = rateLimit({
 // Bulk CSV imports (members, contributions, ledger) are heavy, rare,
 // deliberate admin actions — unlike staff changes they also cost real
 // processing time per request, so the cap is tighter.
-const bulkUploadLimiter = rateLimit({
+const bulkUploadLimiter = sharedLimiter('bulk-upload', {
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,

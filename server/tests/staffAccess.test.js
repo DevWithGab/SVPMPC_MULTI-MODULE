@@ -16,6 +16,18 @@ function load(path, dependencies) {
 }
 const response = () => ({ set() { return this; }, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } });
 const middleware = require('../middleware/auth');
+const { MongoRateLimitStore } = require('../middleware/mongoRateLimitStore');
+const { createRateLimitCollection } = require('./fixtures/rateLimitCollection');
+
+function isolatedAdminRoutes() {
+  const collection = createRateLimitCollection();
+  const limiters = load('../middleware/rateLimiter', {
+    './mongoRateLimitStore': { MongoRateLimitStore: class extends MongoRateLimitStore {
+      constructor(options) { super({ ...options, collection: () => collection }); }
+    } },
+  });
+  return load('../shared/routes/adminRoutes', { '../../middleware': { ...require('../middleware'), ...limiters } });
+}
 
 test('module access requires both a compatible role and an assignment; superadmin accesses both', () => {
   for (const role of ['super_admin', 'admin', 'secretary', 'treasurer', 'scanner_operator']) {
@@ -97,7 +109,7 @@ test('staff creation and reset return credentials once, exclude secrets from lis
 });
 
 test('HTTP staff routes deny non-superadmins for listing, creation, editing, and reset', async () => {
-  const routes = require('../shared/routes/adminRoutes');
+  const routes = isolatedAdminRoutes();
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => { req.user = { role: req.headers['x-test-role'], isTemporaryPassword: false }; next(); });
@@ -126,7 +138,7 @@ test('HTTP member routes under /admin deny non-superadmins (cross-module IDOR re
   // Every module-scoped admin already has their own properly-restricted
   // member endpoints under /api/attendance/admin and /api/mortuary/admin,
   // so this tree is now super_admin-only, same as /staff above.
-  const routes = require('../shared/routes/adminRoutes');
+  const routes = isolatedAdminRoutes();
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => { req.user = { role: req.headers['x-test-role'], isTemporaryPassword: false }; next(); });
