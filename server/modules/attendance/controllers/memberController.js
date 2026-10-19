@@ -282,7 +282,10 @@ const generateAllQRCodes = async (req, res) => {
 habang pinananatili ang kumpletong impormasyon para sa Admin at Secretary. 
 Ito ay security measure para hindi mag-access ng hindi kailangang personal information
 ang mga user na may mas mababang permissions.*/
-const SCANNER_OPERATOR_PROJECTION = 'memberId memberName barangay qrCode';
+const SCANNER_OPERATOR_PROJECTION = 'memberId memberName barangay qrCode -_id';
+const memberReadProjection = (req) => req.user?.role === 'scanner_operator'
+  ? SCANNER_OPERATOR_PROJECTION
+  : null;
 
 // Get all members — bounded via the same pagination utility used elsewhere
 // (shared/utils/pagination), so a single request can never again return the
@@ -293,10 +296,12 @@ const SCANNER_OPERATOR_PROJECTION = 'memberId memberName barangay qrCode';
 const getAllMembers = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
-    const projection = req.user?.role === 'scanner_operator' ? SCANNER_OPERATOR_PROJECTION : null;
+    // Scope both the records and count to Attendance, including shared members.
+    const filter = { modules: 'attendance' };
+    const projection = memberReadProjection(req);
     const [members, total] = await Promise.all([
-      Member.find({}, projection).skip(skip).limit(limit),
-      Member.countDocuments(),
+      Member.find(filter, projection).skip(skip).limit(limit),
+      Member.countDocuments(filter),
     ]);
     res.status(200).json({
       count: members.length,
@@ -312,7 +317,10 @@ const getAllMembers = async (req, res) => {
 const getMemberById = async (req, res) => {
   try {
     const { memberId } = req.params;
-    const member = await Member.findOne({ memberId });
+    const member = await Member.findOne(
+      { memberId, modules: 'attendance' },
+      memberReadProjection(req),
+    );
 
     if (!member) {
       return res.status(404).json({ message: 'Member not found' });
