@@ -1,66 +1,30 @@
 const mongoose = require('mongoose');
-require('dotenv').config();
-
-// Import models
 const { User } = require('../shared/models');
 
-// Database connection
-const connectDB = async () => {
+// Historical filename retained for compatibility. Lists account status only.
+async function listAccounts() {
+  const users = await User.find({}).select('username role status modules isTemporaryPassword -_id').sort({ createdAt: 1 });
+  return users.map(user => ({ username: user.username, role: user.role, status: user.status,
+    modules: user.modules, isTemporaryPassword: user.isTemporaryPassword }));
+}
+
+async function run() {
+  require('dotenv').config({ quiet: true });
+  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI must be configured.');
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/svpmpc-multi-module');
-    console.log('✅ MongoDB Connected');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.table(await listAccounts());
+    console.log('Account status only. Passwords and password hashes are not displayed.');
+  } finally {
+    await mongoose.disconnect();
   }
-};
+}
 
-// Show all credentials
-const showCredentials = async () => {
-  try {
-    console.log('🔐 Fetching all user credentials...\n');
+if (require.main === module) {
+  run().catch(() => {
+    console.error('Account listing failed. Verify the configured database.');
+    process.exitCode = 1;
+  });
+}
 
-    await connectDB();
-
-    const users = await User.find({}).sort({ createdAt: 1 });
-    
-    console.log(`📊 Total users: ${users.length}\n`);
-    console.log('═══════════════════════════════════════════════════════════');
-    
-    for (const user of users) {
-      console.log(`\n👤 ${user.username}`);
-      console.log(`   Role: ${user.role || 'member'}`);
-      console.log(`   Member ID: ${user.memberId || 'N/A'}`);
-      console.log(`   Staff ID: ${user.staffId || 'N/A'}`);
-      console.log(`   Email: ${user.email}`);
-      console.log(`   Status: ${user.status}`);
-      console.log(`   Modules: ${user.modules.join(', ')}`);
-      console.log(`   Temporary Password: ${user.isTemporaryPassword ? 'Yes' : 'No'}`);
-      
-      // Test password
-      const testPassword = 'Member2024!';
-      const isMatch = await user.comparePassword(testPassword);
-      if (isMatch) {
-        console.log(`   ✅ Password: Member2024!`);
-      }
-    }
-    
-    console.log('\n═══════════════════════════════════════════════════════════');
-    console.log('\n� ADMIN ACCOUNTS:');
-    console.log('   superadmin / SuperAdmin2024!');
-    console.log('   attendance.admin / AttendanceAdmin2024!');
-    console.log('   attendance.secretary / AttendanceSecretary2024!');
-    console.log('   mortuary.admin / MortuaryAdmin2024!');
-    console.log('   mortuary.treasurer / MortuaryTreasurer2024!');
-    console.log('\n💡 Member accounts use their username and temporary password shown above');
-    console.log('💡 Staff accounts use staffId instead of memberId\n');
-
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error:', error);
-    process.exit(1);
-  }
-};
-
-// Run
-showCredentials();
+module.exports = { listAccounts, run };

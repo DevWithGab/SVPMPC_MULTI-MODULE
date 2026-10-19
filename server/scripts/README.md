@@ -50,13 +50,33 @@ node scripts/rebuildIndexes.js
 
 ### 2. showCredentials.js
 
-Displays user credentials for testing purposes.
+Lists account status only. Does not display passwords, hashes, or contact details, and does not change accounts.
 
 **Usage:**
 ```bash
 cd server
 node scripts/showCredentials.js
 ```
+
+### 3. testLogin.js
+
+Read-only Super Admin account diagnostics. Checks whether the account exists, its status, and whether a password change is required. Never resets a password or tests hardcoded credentials. Test actual sign-in through the application.
+
+```bash
+cd server
+node scripts/testLogin.js
+```
+
+### 4. resetSuperAdminPassword.js
+
+Emergency Super Admin recovery. Requires `MONGODB_URI` and a private interactive terminal; it will not write temporary credentials to redirected output. Creates a fresh random temporary password, requires a password change at sign-in, and invalidates every previous session. Account status and permissions are preserved. New credentials are displayed once after the database update succeeds; keep terminal scrollback private and do not record or share it.
+
+```bash
+cd server
+node scripts/resetSuperAdminPassword.js
+```
+
+These scripts connect only when executed directly, not when imported. Do not run recovery as a diagnostic. Existing passwords previously exposed in Git still need rotating; editing scripts does not change database credentials or erase Git history.
 
 ---
 

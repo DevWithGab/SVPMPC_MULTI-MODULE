@@ -13,7 +13,7 @@ const checkTreasurer = async () => {
     
     if (!treasurer) {
       console.log('❌ No treasurer account found!');
-      console.log('💡 Run: node server/scripts/seedUsers.js');
+      console.log('Create staff accounts through Super Admin staff management.');
       process.exit(1);
     }
 
@@ -31,7 +31,7 @@ const checkTreasurer = async () => {
 
     console.log('\n🔑 Login Credentials:');
     console.log('   Username:', treasurer.username);
-    console.log('   Password: MortuaryTreasurer2024!');
+    console.log('Use your current password. Staff password resets are available through Super Admin.');
     console.log('\n✅ Ready to login to Treasurer Portal!');
 
     process.exit(0);
