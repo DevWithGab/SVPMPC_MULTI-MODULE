@@ -28,16 +28,16 @@ import { Toast } from '../../components/ui/toast';
 import api from '../../services/api';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../utils/balanceNotice';
 
-const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate }) => (
+const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate, badgeCount = 0 }) => (
   <button
     onClick={() => {
       setActiveTab(id);
       onNavigate?.();
     }}
-    title={collapsed ? label : undefined}
-    aria-label={label}
+    title={collapsed ? (badgeCount > 0 ? `${label}: ${badgeCount} pending deduction` : label) : undefined}
+    aria-label={badgeCount > 0 ? `${label}, ${badgeCount} ${badgeCount === 1 ? 'claim' : 'claims'} pending deduction` : label}
     aria-current={activeTab === id ? 'page' : undefined}
-    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
+    className={`relative w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
       collapsed ? 'justify-center px-0 py-3' : 'px-4 py-2.5'
     } ${
       activeTab === id
@@ -47,6 +47,14 @@ const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed
   >
     <Icon className="w-4.5 h-4.5 shrink-0" />
     {!collapsed && <span className="text-sm font-semibold tracking-tight">{label}</span>}
+    {badgeCount > 0 && (
+      <span
+        aria-hidden="true"
+        className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold leading-none text-white ${collapsed ? 'absolute -top-1 -right-1' : '-ml-1'}`}
+      >
+        {badgeCount.toLocaleString('en-PH')}
+      </span>
+    )}
   </button>
 );
 
@@ -338,7 +346,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  // Counts for the Claims tab toggle badges. limit: 1 keeps these cheap —
+  // Counts for the Claims sidebar and view badges. limit: 1 keeps these cheap —
   // only the pagination total is needed, not the actual rows.
   const fetchClaimsCounts = useCallback(async () => {
     try {
@@ -457,6 +465,18 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       setInitialLoading(false);
     })();
   }, [fetchMembers, fetchContributions, fetchDashboardStats, fetchClaimsCounts, fetchNoticeThresholds]);
+
+  useEffect(() => {
+    const refreshClaims = () => {
+      if (!document.hidden) fetchClaimsCounts();
+    };
+    const interval = window.setInterval(refreshClaims, 30000);
+    window.addEventListener('focus', refreshClaims);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshClaims);
+    };
+  }, [fetchClaimsCounts]);
 
   useEffect(() => {
     if (activeTab === 'reports') {
@@ -667,7 +687,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         <nav className={`flex-1 space-y-1 overflow-y-auto ${sidebarCollapsed ? 'px-2.5 py-4' : 'px-3 py-4'}`}>
           <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" badgeCount={claimsCounts.pendingDeduction} activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="reports" icon={BarChart3} label="Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
