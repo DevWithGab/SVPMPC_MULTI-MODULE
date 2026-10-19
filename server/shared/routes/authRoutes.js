@@ -5,7 +5,7 @@ const fs = require('fs');
 const { AppError } = require('../../middleware/errorHandler');
 const authController = require('../controllers/authController');
 const bulkImportController = require('../controllers/bulkImportController');
-const { loginLimiter, changePasswordLimiter, bulkUploadLimiter } = require('../../middleware');
+const { loginIpLimiter, loginLimiter, changePasswordLimiter, bulkUploadLimiter } = require('../../middleware');
 
 const { authenticateToken, requirePasswordChange, authorizeAdminOnly } = require('../../middleware/auth');
 const ownAccount = (req, res, next) => req.params.userId === req.user.userId ? next() : res.status(403).json({ message: 'Access denied' });
@@ -49,7 +49,7 @@ const upload = multer({
 });
 
 // Auth routes
-router.post('/login', loginLimiter, authController.login);
+router.post('/login', loginIpLimiter, loginLimiter, authController.login);
 router.put('/change-password/:userId', changePasswordLimiter, authenticateToken, ownAccount, authController.changePassword);
 router.get('/profile/:userId', authenticateToken, ownAccount, authController.getUserProfile);
 router.get('/credential-history/:userId', authenticateToken, ownAccount, authController.getCredentialHistory);

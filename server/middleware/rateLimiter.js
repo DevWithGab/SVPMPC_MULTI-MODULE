@@ -1,14 +1,27 @@
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
+const { createHash } = require('node:crypto');
 
-// Keep each login form's failed-attempt bucket independent. A failed
-// Attendance/admin login must not lock out a Mortuary/admin login or another
-// role using the same network.
+// One counter per login identifier, across IPs, modules, and roles. Hashing
+// keeps keys bounded and avoids storing usernames/emails in the limiter store.
 const loginKeyGenerator = (req) => {
-  const { username = 'unknown', expectedRole = 'unknown', module = 'unknown' } = req.body || {};
-  const ip = ipKeyGenerator(req.ip);
-  return `${ip}:${String(username).trim().toLowerCase()}:${String(module).trim().toLowerCase()}:${String(expectedRole).trim().toLowerCase()}`;
+  const username = typeof req.body?.username === 'string'
+    ? req.body.username.trim().toLowerCase()
+    : '';
+  return createHash('sha256').update(username).digest('hex');
 };
+
+// An independent IP limit also catches password spraying across usernames.
+// The higher threshold accommodates staff sharing the same office connection.
+const loginIpLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many login attempts. Please try again in 5 minutes.' },
+  keyGenerator: req => ipKeyGenerator(req.ip),
+  skipSuccessfulRequests: true,
+});
 
 const loginLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
@@ -66,6 +79,7 @@ const bulkUploadLimiter = rateLimit({
 });
 
 module.exports = {
+  loginIpLimiter,
   loginLimiter,
   changePasswordLimiter,
   loginKeyGenerator,

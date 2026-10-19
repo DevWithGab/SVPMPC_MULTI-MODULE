@@ -1,9 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const { dirname } = require('node:path');
+const { createRequire } = require('node:module');
 const { loginKeyGenerator, staffActionLimiter } = require('../middleware/rateLimiter');
 
-test('login limiter scopes attempts by account, module, and role', () => {
+test('login counter ignores module, role, IP, and username casing/whitespace', () => {
   const request = (body) => ({ ip: '127.0.0.1', body });
   const attendanceAdmin = loginKeyGenerator(request({
     username: 'Admin@Example.com',
@@ -11,12 +15,12 @@ test('login limiter scopes attempts by account, module, and role', () => {
     expectedRole: 'admin',
   }));
 
-  assert.notEqual(attendanceAdmin, loginKeyGenerator(request({
+  assert.equal(attendanceAdmin, loginKeyGenerator(request({
     username: 'Admin@Example.com',
     module: 'mortuary',
     expectedRole: 'admin',
   })));
-  assert.notEqual(attendanceAdmin, loginKeyGenerator(request({
+  assert.equal(attendanceAdmin, loginKeyGenerator(request({
     username: 'Admin@Example.com',
     module: 'attendance',
     expectedRole: 'secretary',
@@ -26,6 +30,84 @@ test('login limiter scopes attempts by account, module, and role', () => {
     module: 'ATTENDANCE',
     expectedRole: 'ADMIN',
   })));
+  assert.equal(attendanceAdmin, loginKeyGenerator({ ip: '192.0.2.10', body: { username: ' Admin@Example.com ' } }));
+  assert.notEqual(attendanceAdmin, loginKeyGenerator(request({ username: 'another-admin' })));
+  assert.equal(loginKeyGenerator(request({ username: { $ne: null } })).length, 64);
+});
+
+function load(path, dependencies = {}) {
+  const filename = require.resolve(path);
+  const localRequire = createRequire(filename);
+  const context = { module: { exports: {} }, __dirname: dirname(filename), process, Buffer, console,
+    require: name => Object.hasOwn(dependencies, name) ? dependencies[name] : localRequire(name) };
+  context.exports = context.module.exports;
+  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), context, { filename });
+  return context.module.exports;
+}
+
+async function withLoginRoute(run) {
+  // Use fresh stores for every test and the real route wiring. Only the
+  // controller is mocked, so these checks never query the database.
+  const limiters = load('../middleware/rateLimiter');
+  const controller = require('../shared/controllers/authController');
+  const router = load('../shared/routes/authRoutes', {
+    '../../middleware': { ...require('../middleware'), ...limiters },
+    '../controllers/authController': { ...controller, login: (req, res) =>
+      res.status(req.body.password === 'synthetic-success' ? 200 : 401).json({ synthetic: true }) },
+  });
+  const app = express();
+  // Only this loopback test trusts forwarding headers to simulate distinct IPs.
+  app.set('trust proxy', true);
+  app.use(express.json());
+  app.use('/api/auth', router);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const login = async (body, ip = '192.0.2.1') => {
+    const result = await fetch(`http://127.0.0.1:${server.address().port}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
+      body: JSON.stringify(body),
+    });
+    await result.json();
+    return result.status;
+  };
+  try { await run(login); }
+  finally { await new Promise(resolve => server.close(resolve)); }
+}
+
+test('login route blocks the same username after 10 failures even if module, role, or IP changes', async () => {
+  await withLoginRoute(async login => {
+    for (let i = 0; i < 10; i++) {
+      assert.equal(await login({ username: 'target', module: `module-${i}`, expectedRole: `role-${i}` }), 401);
+    }
+    for (const body of [
+      { username: 'target', module: 'mortuary', expectedRole: 'admin' },
+      { username: 'target', module: 'made-up', expectedRole: 'made-up' },
+      { username: ' TARGET ' },
+    ]) {
+      assert.equal(await login(body, '198.51.100.1'), 429);
+    }
+    assert.equal(await login({ username: 'different-account' }), 401);
+  });
+});
+
+test('login route IP limit blocks spraying across usernames, roles, and modules', async () => {
+  await withLoginRoute(async login => {
+    for (let i = 0; i < 100; i++) {
+      assert.equal(await login({ username: `account-${i}`, module: `module-${i}`, expectedRole: `role-${i}` }), 401);
+    }
+    assert.equal(await login({ username: 'another-account' }), 429);
+    assert.equal(await login({ username: 'another-account' }, '198.51.100.1'), 401);
+  });
+});
+
+test('successful logins do not consume failed-attempt limits', async () => {
+  await withLoginRoute(async login => {
+    for (let i = 0; i < 12; i++) {
+      assert.equal(await login({ username: 'staff', password: 'synthetic-success' }), 200);
+    }
+    for (let i = 0; i < 10; i++) assert.equal(await login({ username: 'staff' }), 401);
+    assert.equal(await login({ username: 'staff' }), 429);
+  });
 });
 
 // Regression test: staff creation and password reset were previously
