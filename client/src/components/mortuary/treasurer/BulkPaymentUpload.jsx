@@ -3,6 +3,7 @@ import { Upload } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../shared/BulkUploadDialog';
 import { treasurerAPI } from '../../../services/api';
+import { buildPaymentCsvTemplate } from '../../../utils/paymentCsvTemplate';
 
 const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value || 0);
 const statusLabels = {
@@ -21,8 +22,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
 
 
   const downloadTemplate = () => {
-    const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-    const contents = `Passbook No.,amount,payment_date,reference_number,payment_method,notes\r\n000123,100.00,${date},RECEIPT-001,cash,Daily contribution\r\n`;
+    const contents = buildPaymentCsvTemplate();
     const url = URL.createObjectURL(new Blob(['\uFEFF', contents], { type: 'text/csv;charset=utf-8;' }));
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -78,6 +78,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
       </>}>
         <UploadTemplateCard onDownload={downloadTemplate} disabled={busy}>
           <p><strong>Required columns:</strong> Passbook No., amount, payment_date (YYYY-MM-DD), reference_number.</p>
+          <p><strong>Date example:</strong> 2026-10-20 (year-month-day). In Excel, set the payment_date column to Custom format <code>yyyy-mm-dd</code> before saving as CSV; dates such as 10-20-2026 will be rejected.</p>
           <p><strong>Optional:</strong> payment_method (cash), notes. Use positive amounts with up to two decimal places, without currency signs or thousands separators.</p>
           <p>Use a receipt or transaction reference for each payment. An already recorded payment with the same member and reference is skipped; conflicting amounts or dates must be corrected. Separate payments by the same member need different references.</p>
           <p>Replace the sample row with actual passbook numbers and payment details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>

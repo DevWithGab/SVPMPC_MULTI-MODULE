@@ -1,5 +1,16 @@
 const PH_TIMEZONE = 'Asia/Manila';
 
+// Machine-readable dates must not depend on a locale's display order or
+// separators. Use Manila's calendar date, including around UTC midnight.
+export function formatManilaDateISO(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PH_TIMEZONE, calendar: 'gregory', numberingSystem: 'latn',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(toDate(value));
+  const fields = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${fields.year}-${fields.month}-${fields.day}`;
+}
+
 function toDate(value) {
   if (!value) return new Date();
   return value instanceof Date ? value : new Date(value);
