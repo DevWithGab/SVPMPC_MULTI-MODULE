@@ -61,7 +61,7 @@ const getCapHistory = async (req, res) => {
 const updateCap = async (req, res) => {
   try {
     const { amount, effectiveDate, description } = req.body;
-    const updatedBy = req.body.createdBy || req.user?.username || 'admin';
+    const updatedBy = req.user?.username || 'admin';
 
     const parsedAmount = parseFloat(amount);
     if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {

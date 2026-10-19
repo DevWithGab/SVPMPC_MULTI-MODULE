@@ -245,7 +245,7 @@ const getAllMemberBalances = async (req, res) => {
 // claim-linked flow does, and is audit-logged the same way too.
 const processAutomaticDeduction = async (req, res) => {
   try {
-    const { deceasedMemberName, recordedBy } = req.body;
+    const { deceasedMemberName } = req.body;
 
     if (!deceasedMemberName) {
       return res.status(400).json({
@@ -255,7 +255,7 @@ const processAutomaticDeduction = async (req, res) => {
     }
 
     const deductionAmount = await resolveDeductionRate();
-    const actor = recordedBy || req.user?.username || 'treasurer';
+    const actor = req.user?.username || 'treasurer';
 
     const { members } = await getMemberBalanceSnapshots();
     
@@ -286,7 +286,7 @@ const processAutomaticDeduction = async (req, res) => {
               credit: 0,
               balance: newBalance,
               transactionDate: new Date(),
-              recordedBy: recordedBy || 'system',
+              recordedBy: actor,
             }).save();
           } catch (error) {
             if (error.code !== 11000) throw error;
@@ -327,7 +327,7 @@ const processAutomaticDeduction = async (req, res) => {
     }
     
     await createAuditLog({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       userName: actor,
       userRole: req.user?.role || 'treasurer',
       action: 'automatic_deduction_processed',

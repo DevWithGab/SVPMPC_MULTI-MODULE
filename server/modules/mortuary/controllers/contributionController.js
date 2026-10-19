@@ -34,7 +34,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
     const finalPaymentMethod = paymentMethod || payment_method || 'cash';
     const trimmedReference = referenceNumber?.trim();
 
-    const recordedBy = req.body.recordedBy || req.user?.username || 'admin';
+    const recordedBy = req.user?.username || 'admin';
 
     console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
 

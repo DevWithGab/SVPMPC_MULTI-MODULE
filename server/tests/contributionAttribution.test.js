@@ -62,13 +62,13 @@ test('recordContribution attributes the ledger entry to the actual logged-in use
   assert.equal(db.state.ledgers[0].recordedBy, 'treasurer.jane', 'must record the actual logged-in user, not "admin"');
 });
 
-test('recordContribution prefers an explicit recordedBy in the body over req.user, and falls back to "admin" only when neither is present', async () => {
+test('recordContribution ignores forged recordedBy and uses the authenticated operator', async () => {
   const explicit = database();
   await controller(explicit).recordContribution({
     body: { memberId: '001', amount: 50, referenceNumber: 'OR-2', recordedBy: 'counter.staff' },
     user: { username: 'treasurer.jane' },
   }, response());
-  assert.equal(explicit.state.ledgers[0].recordedBy, 'counter.staff');
+  assert.equal(explicit.state.ledgers[0].recordedBy, 'treasurer.jane');
 
   const neither = database();
   await controller(neither).recordContribution({

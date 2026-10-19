@@ -12,7 +12,7 @@ const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const createClaim = async (req, res) => {
   try {
     const { memberId, beneficiaryId, dateOfDeath, causeOfDeath, remarks } = req.body;
-    const createdBy = req.body.createdBy || req.user?.username || 'admin';
+    const createdBy = req.user?.username || 'admin';
 
     // typeof check closes a NoSQL operator-injection hole: a crafted body
     // like {"memberId":{"$ne":null},"beneficiaryId":{"$ne":null},...} passes
@@ -94,7 +94,7 @@ const createClaim = async (req, res) => {
     await member.save();
 
     await createAuditLog({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       userName: createdBy,
       userRole: req.user?.role || 'admin',
       action: 'claim_created',
@@ -289,7 +289,7 @@ const addRequirement = async (req, res) => {
 const updateVerification = async (req, res) => {
   try {
     const { claimId } = req.params;
-    const { verifiedBy, verificationDate, remarks } = req.body;
+    const { verificationDate, remarks } = req.body;
 
     const claim = await Claim.findOne({ claimId });
     if (!claim) {
@@ -297,7 +297,7 @@ const updateVerification = async (req, res) => {
     }
 
     claim.verification = {
-      verifiedBy: verifiedBy || req.user?.username || claim.verification?.verifiedBy,
+      verifiedBy: req.user?.username || 'admin',
       verificationDate: verificationDate ? new Date(verificationDate) : new Date(),
       remarks,
     };
@@ -326,7 +326,7 @@ const updateVerification = async (req, res) => {
 const approveClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
-    const approvedBy = req.body.approvedBy || req.user?.username || 'admin';
+    const approvedBy = req.user?.username || 'admin';
 
     const claim = await Claim.findOne({ claimId });
     if (!claim) {
@@ -365,7 +365,7 @@ const approveClaim = async (req, res) => {
     await claim.save();
 
     await createAuditLog({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       userName: approvedBy,
       userRole: req.user?.role || 'admin',
       action: 'claim_approved',
@@ -400,7 +400,7 @@ const rejectClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
     const { reason } = req.body;
-    const rejectedBy = req.body.rejectedBy || req.user?.username || 'admin';
+    const rejectedBy = req.user?.username || 'admin';
 
     if (!reason || !reason.trim()) {
       return res.status(400).json({ success: false, message: 'A rejection reason is required' });
@@ -427,7 +427,7 @@ const rejectClaim = async (req, res) => {
     await claim.save();
 
     await createAuditLog({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       userName: rejectedBy,
       userRole: req.user?.role || 'admin',
       action: 'claim_rejected',

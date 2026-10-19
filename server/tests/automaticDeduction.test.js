@@ -89,7 +89,7 @@ test('processAutomaticDeduction posts exactly one debit per member no matter how
     { memberId: '003', memberName: 'Inactive Member', phoneNumber: '09171234569', status: 'inactive' },
   ]);
   const { processAutomaticDeduction } = controller(db);
-  const req = { body: { deceasedMemberName: 'Juan Dela Cruz', recordedBy: 'treasurer.jane' }, user: { username: 'treasurer.jane', role: 'treasurer' }, ip: '127.0.0.1', get: () => '' };
+  const req = { body: { deceasedMemberName: 'Juan Dela Cruz', recordedBy: 'forged.operator' }, user: { username: 'treasurer.jane', role: 'treasurer' }, ip: '127.0.0.1', get: () => '' };
 
   const first = response();
   await processAutomaticDeduction(req, first);

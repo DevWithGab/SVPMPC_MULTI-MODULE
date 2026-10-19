@@ -42,6 +42,7 @@ function makeClaim(overrides = {}) {
 // which falls back to the module's own DEFAULT_MAX_BENEFIT_AMOUNT).
 function controllerFor(claim, { cap = 50000 } = {}) {
   const ledgers = [];
+  const audits = [];
   // Mirrors real Mongoose findOneAndUpdate semantics closely enough for
   // these tests: only transitions (and returns the doc) if the current
   // status matches the query's status precondition, otherwise returns null
@@ -70,10 +71,10 @@ function controllerFor(claim, { cap = 50000 } = {}) {
     '../../../shared/utils/pagination': { getPaginationParams: () => ({}), buildPaginatedResponse: () => ({}) },
     './deductionController': { getMemberBalanceSnapshots: async () => ({ members: [] }) },
     './dashboardController': { getClaimFinancialTotals: async () => ({}) },
-    '../../../shared/services/auditLoggingService': { createAuditLog: async () => {} },
+    '../../../shared/services/auditLoggingService': { createAuditLog: async row => audits.push(row) },
     '../utils/ledgerBalance': { getLatestBalance: async () => 1000 },
   });
-  return { controller: treasurerClaimController, ledgers };
+  return { controller: treasurerClaimController, ledgers, audits };
 }
 
 test('releasing a claim requires a DV number', async () => {
@@ -130,4 +131,17 @@ test('zero or negative requested amounts are rejected', async () => {
     await controller.releaseClaim({ params: { claimId: 'CLAIM-1' }, body: { dvNumber: 'DV-1', amount } }, res);
     assert.equal(res.code, 400);
   }
+});
+
+test('claim release ignores forged releasedBy in payout, ledger, history and audit', async () => {
+  const claim = makeClaim();
+  const { controller, ledgers, audits } = controllerFor(claim);
+  const res = response();
+  await controller.releaseClaim({ ...req({ claimId: 'CLAIM-1' }, { dvNumber: 'DV-SEC', releasedBy: 'forged.operator' }), user: { userId: 'STAFF-1', username: 'real.operator', role: 'treasurer', id: 'mongo-id' } }, res);
+  assert.equal(res.code, 200);
+  assert.equal(claim.payout.releasedBy, 'real.operator');
+  assert.equal(ledgers[0].recordedBy, 'real.operator');
+  assert.equal(claim.statusHistory[0].changedBy, 'real.operator');
+  assert.equal(audits[0].userName, 'real.operator');
+  assert.equal(audits[0].userId, 'STAFF-1');
 });

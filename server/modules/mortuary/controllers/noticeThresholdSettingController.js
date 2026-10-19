@@ -108,7 +108,7 @@ const updateThresholds = async (req, res) => {
       noticeBodyTemplate, finalNoticeBodyTemplate,
       effectiveDate, description,
     } = req.body;
-    const updatedBy = req.body.createdBy || req.user?.username || 'admin';
+    const updatedBy = req.user?.username || 'admin';
 
     if (!noticeBodyTemplate || !noticeBodyTemplate.trim()) {
       return res.status(400).json({ success: false, message: 'Notice 1 & 2 letter content is required' });

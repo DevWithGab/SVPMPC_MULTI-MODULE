@@ -232,3 +232,17 @@ test('a single member\'s ledger write failing does not abort the batch for every
   assert.equal(db.state.ledgers.length, 2);
   assert.ok(!db.state.ledgers.some(row => row.memberId === '002'));
 });
+
+ test('claim deductions ignore supplied operator names in ledger, claim history and audit', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim()] });
+  const audits = [];
+  db.deps['../../../shared/services/auditLoggingService'] = { createAuditLog: async row => audits.push(row) };
+  const res = response();
+  await controller(db).processClaimDeduction({ params: { claimId: 'CLM-1' }, body: { jvNumber: 'JV-SEC', processedBy: 'forged.operator' }, user: { userId: 'STAFF-1', username: 'real.operator', role: 'treasurer', id: 'mongo-id' }, ip: '', get: () => '' }, res);
+  assert.equal(res.code, 200);
+  assert.ok(db.state.ledgers.every(row => row.recordedBy === 'real.operator'));
+  assert.equal(db.state.claims[0].deduction.processedBy, 'real.operator');
+  assert.ok(db.state.claims[0].statusHistory.every(row => row.changedBy === 'real.operator'));
+  assert.equal(audits[0].userName, 'real.operator');
+  assert.equal(audits[0].userId, 'STAFF-1');
+});

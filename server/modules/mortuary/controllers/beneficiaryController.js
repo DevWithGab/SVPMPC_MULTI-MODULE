@@ -133,7 +133,7 @@ const updateBeneficiary = async (req, res) => {
   try {
     const { memberId } = req.params;
     const { beneficiaryName, relationship, contactNumber, address, notes } = req.body;
-    const updatedBy = req.body.updatedBy || req.user?.username || 'admin';
+    const updatedBy = req.user?.username || 'admin';
 
     if (!beneficiaryName || !relationship || !contactNumber) {
       return res.status(400).json({
@@ -203,7 +203,7 @@ const bulkUploadBeneficiaries = async (req, res) => {
     return res.status(400).json({ success: false, message: error.message });
   }
   try {
-    const updatedBy = req.body.updatedBy || req.user?.username || 'admin';
+    const updatedBy = req.user?.username || 'admin';
     if (req.body.action === 'preview') {
       const checked = await beneficiaryImportService.preview(rows);
       return res.json({ success: true, rows: checked, summary: summarizeBeneficiaryImport(checked) });

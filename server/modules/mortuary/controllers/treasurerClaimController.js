@@ -357,7 +357,7 @@ const previewClaimDeduction = async (req, res) => {
 const processClaimDeduction = async (req, res) => {
   try {
     const { claimId } = req.params;
-    const processedBy = req.body.processedBy || req.user?.username || 'treasurer';
+    const processedBy = req.user?.username || 'treasurer';
     const jvNumber = String(req.body.jvNumber || '').trim();
 
     if (!jvNumber) {
@@ -463,7 +463,7 @@ const processClaimDeduction = async (req, res) => {
     }
 
     await createAuditLog({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       userName: processedBy,
       userRole: req.user?.role || 'treasurer',
       action: 'claim_deduction_processed',
@@ -501,7 +501,7 @@ const releaseClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
     const { paymentMethod, dvNumber, releaseDate, remarks } = req.body;
-    const releasedBy = req.body.releasedBy || req.user?.username || 'treasurer';
+    const releasedBy = req.user?.username || 'treasurer';
 
     if (!dvNumber?.trim()) {
       return res.status(400).json({ success: false, message: 'A DV (Disbursement Voucher) number is required' });
@@ -621,7 +621,7 @@ const releaseClaim = async (req, res) => {
     }
 
     await createAuditLog({
-      userId: req.user?.id,
+      userId: req.user?.userId,
       userName: releasedBy,
       userRole: req.user?.role || 'treasurer',
       action: 'claim_released',
