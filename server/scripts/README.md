@@ -48,19 +48,7 @@ node scripts/rebuildIndexes.js
 
 ---
 
-### 2. seedUsers.js
-
-Seeds initial user accounts for testing and development.
-
-**Usage:**
-```bash
-cd server
-node scripts/seedUsers.js
-```
-
----
-
-### 3. showCredentials.js
+### 2. showCredentials.js
 
 Displays user credentials for testing purposes.
 

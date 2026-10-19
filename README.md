@@ -189,7 +189,7 @@ Start the API from `server/`:
 npm run dev
 ```
 
-For a development database, `npm run seed` creates the predefined test accounts and can update existing staff identifiers. Review [seedUsers.js](server/scripts/seedUsers.js) before running it; it contains development credentials and is not a production account-provisioning procedure.
+Create staff accounts through the Super Admin staff management screen. New staff receive a random temporary password and must change it on first sign-in.
 
 ### Frontend
 
