@@ -62,13 +62,14 @@ function controller(db) {
   return load('../modules/attendance/controllers/attendanceController', db.deps);
 }
 
+const actor = { userId: 'scanner-id', username: 'scanner.one', role: 'scanner_operator' };
 const activeMember = (id) => ({ memberId: id, memberName: `Member ${id}`, phoneNumber: '09171234567', barangay: 'Test', status: 'active', qrCodeGenerated: true, qrCodeActive: true });
 const activeEvent = (id) => ({ eventId: id, eventName: `Event ${id}`, location: 'Hall', status: 'active' });
 
 test('a member can be scanned present for an event exactly once', async () => {
   const db = database({ members: [activeMember('M1')], events: [activeEvent('E1')] });
   const { recordAttendance } = controller(db);
-  const req = { body: { memberId: 'M1', eventId: 'E1', scannedBy: 'scanner.one' }, ip: '', get: () => '' };
+  const req = { user: actor, body: { memberId: 'M1', eventId: 'E1', scannedBy: 'scanner.one' }, ip: '', get: () => '' };
 
   const first = response();
   await recordAttendance(req, first);
@@ -79,7 +80,7 @@ test('a member can be scanned present for an event exactly once', async () => {
 test('a sequential repeat scan is rejected by the findOne pre-check and logged as a duplicate attempt', async () => {
   const db = database({ members: [activeMember('M1')], events: [activeEvent('E1')] });
   const { recordAttendance } = controller(db);
-  const req = { body: { memberId: 'M1', eventId: 'E1', scannedBy: 'scanner.one' }, ip: '', get: () => '' };
+  const req = { user: actor, body: { memberId: 'M1', eventId: 'E1', scannedBy: 'scanner.one' }, ip: '', get: () => '' };
 
   await recordAttendance(req, response());
   const retry = response();
@@ -94,7 +95,7 @@ test('a sequential repeat scan is rejected by the findOne pre-check and logged a
 test('two truly concurrent scans of the same member for the same event: exactly one succeeds', async () => {
   const db = database({ members: [activeMember('M1')], events: [activeEvent('E1')] });
   const { recordAttendance } = controller(db);
-  const req = { body: { memberId: 'M1', eventId: 'E1', scannedBy: 'scanner.one' }, ip: '', get: () => '' };
+  const req = { user: actor, body: { memberId: 'M1', eventId: 'E1', scannedBy: 'scanner.one' }, ip: '', get: () => '' };
 
   const resA = response();
   const resB = response();
@@ -110,13 +111,103 @@ test('the same member can be scanned for a different event; a different member c
   const { recordAttendance } = controller(db);
 
   const sameMemberOtherEvent = response();
-  await recordAttendance({ body: { memberId: 'M1', eventId: 'E1' }, ip: '', get: () => '' }, response());
-  await recordAttendance({ body: { memberId: 'M1', eventId: 'E2' }, ip: '', get: () => '' }, sameMemberOtherEvent);
+  await recordAttendance({ user: actor, body: { memberId: 'M1', eventId: 'E1' }, ip: '', get: () => '' }, response());
+  await recordAttendance({ user: actor, body: { memberId: 'M1', eventId: 'E2' }, ip: '', get: () => '' }, sameMemberOtherEvent);
   assert.equal(sameMemberOtherEvent.code, 201, 'the dedup key must be scoped to (member, event), not member alone');
 
   const otherMemberSameEvent = response();
-  await recordAttendance({ body: { memberId: 'M2', eventId: 'E1' }, ip: '', get: () => '' }, otherMemberSameEvent);
+  await recordAttendance({ user: actor, body: { memberId: 'M2', eventId: 'E1' }, ip: '', get: () => '' }, otherMemberSameEvent);
   assert.equal(otherMemberSameEvent.code, 201, 'the dedup key must not block a different member at the same event');
 
   assert.equal(db.state.attendance.length, 3);
+});
+
+test('caller-supplied operator identity cannot change recorded or duplicate-scan audit attribution', async () => {
+  const db = database({ members: [activeMember('M1')], events: [activeEvent('E1')] });
+  const { recordAttendance } = controller(db);
+  const req = { user: actor, body: { memberId: 'M1', eventId: 'E1', scannedBy: 'forged.admin',
+    scannedByUserId: 'forged-admin-id', userRole: 'super_admin' }, ip: '', get: () => '' };
+  const created = response();
+  await recordAttendance(req, created);
+  assert.equal(created.code, 201);
+  assert.equal(db.state.attendance[0].scannedBy, actor.username);
+  assert.equal(db.state.attendance[0].scannedByUserId, actor.userId);
+  const duplicate = response();
+  await recordAttendance(req, duplicate);
+  assert.equal(duplicate.code, 400);
+  assert.equal(db.state.auditLogs.length, 2);
+  for (const log of db.state.auditLogs) {
+    assert.equal(log.userId, actor.userId);
+    assert.equal(log.userName, actor.username);
+    assert.equal(log.userRole, actor.role);
+  }
+});
+
+test('failed attendance writes also attribute the authenticated account', async () => {
+  const db = database();
+  db.deps['../models'].Member.findOne = async () => { throw new Error('Synthetic database failure'); };
+  const result = response();
+  await controller(db).recordAttendance({ user: actor, body: { memberId: 'M1', eventId: 'E1', scannedBy: 'forged.admin' },
+    ip: '', get: () => '' }, result);
+  assert.equal(result.code, 500);
+  assert.equal(db.state.auditLogs[0].userId, actor.userId);
+  assert.equal(db.state.auditLogs[0].userName, actor.username);
+  assert.equal(db.state.auditLogs[0].userRole, actor.role);
+});
+
+test('manual entries require a nonblank string reason of at most 1000 characters', async () => {
+  const db = database({ members: [activeMember('M1')], events: [activeEvent('E1')] });
+  const { recordAttendance } = controller(db);
+  for (const justification of [undefined, null, '', '  \n ', 123, {}, [], 'x'.repeat(1001)]) {
+    const result = response();
+    await recordAttendance({ user: actor, body: { memberId: 'M1', eventId: 'E1', entrySource: 'manual', justification } }, result);
+    assert.equal(result.code, 400);
+  }
+  assert.equal(db.state.attendance.length, 0);
+  const valid = response();
+  await recordAttendance({ user: actor, body: { memberId: 'M1', eventId: 'E1', entrySource: 'manual',
+    justification: '  Printed QR is damaged.  ' }, get: () => '', ip: '' }, valid);
+  assert.equal(valid.code, 201);
+  assert.equal(db.state.attendance[0].justification, 'Printed QR is damaged.');
+  assert.equal(db.state.auditLogs[0].metadata.justification, 'Printed QR is damaged.');
+});
+
+test('unknown entry sources and missing authentication are rejected without writing attendance', async () => {
+  const db = database();
+  const { recordAttendance } = controller(db);
+  for (const entrySource of ['MANUAL', 'other', null, {}, []]) {
+    const result = response();
+    await recordAttendance({ user: actor, body: { memberId: 'M1', eventId: 'E1', entrySource } }, result);
+    assert.equal(result.code, 400);
+  }
+  const anonymous = response();
+  await recordAttendance({ body: { memberId: 'M1', eventId: 'E1', scannedBy: 'forged.admin' } }, anonymous);
+  assert.equal(anonymous.code, 401);
+  assert.equal(db.state.attendance.length, 0);
+});
+
+test('My Scans uses trusted identity, supports legacy names, and cannot query another operator', async () => {
+  const rows = [
+    { attendanceId: 'stable-id', scannedByUserId: actor.userId, scannedBy: 'previous.username' },
+    { attendanceId: 'legacy', scannedBy: actor.username },
+    { attendanceId: 'other', scannedByUserId: 'another-user', scannedBy: actor.username },
+    { attendanceId: 'legacy-other', scannedBy: 'other.operator' },
+  ];
+  const matches = (row, filter) => Object.entries(filter).every(([key, value]) => {
+    if (key === '$or') return value.some(part => matches(row, part));
+    if (typeof value === 'object' && '$exists' in value) return Object.hasOwn(row, key) === value.$exists;
+    if (typeof value === 'object' && '$in' in value) return value.$in.includes(row[key]);
+    return row[key] === value;
+  });
+  const db = database();
+  const Attendance = db.deps['../models/Attendance'];
+  Attendance.countDocuments = async filter => rows.filter(row => matches(row, filter)).length;
+  Attendance.find = filter => ({ sort: () => ({ skip: () => ({ limit: async () => rows.filter(row => matches(row, filter)) }) }) });
+  for (const query of [{ mine: 'true' }, { scannedBy: 'other.operator' }]) {
+    const result = response();
+    await controller(db).getAllAttendance({ user: actor, query }, result);
+    assert.equal(result.code, 200);
+    assert.equal(result.data.pagination.total, 2);
+    assert.deepEqual(result.data.data.map(row => row.attendanceId), ['stable-id', 'legacy']);
+  }
 });

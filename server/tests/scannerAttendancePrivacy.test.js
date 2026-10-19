@@ -57,7 +57,7 @@ function fixture() {
 test('scanner scan/list/event responses exclude private fields while staff retain their responses', async () => {
   for (const role of ['scanner_operator', 'secretary', 'admin', 'super_admin']) {
     const { controller, saved, audit } = fixture();
-    const request = { user: { role }, query: {}, params: { eventId: 'E1' },
+    const request = { user: { role, userId: 'staff-id', username: 'staff.username' }, query: {}, params: { eventId: 'E1' },
       body: { memberId: 'M1', eventId: 'E1' }, get: () => '', ip: '127.0.0.1' };
     const scanned = response();
     await controller.recordAttendance(request, scanned);
@@ -96,7 +96,7 @@ test('direct HTTP calls through legacy and member routes cannot expose contact f
   });
   const app = express();
   app.use(express.json());
-  app.use((req, res, next) => { req.user = { role: 'scanner_operator', modules: ['attendance'] }; next(); });
+  app.use((req, res, next) => { req.user = { role: 'scanner_operator', modules: ['attendance'], userId: 'scanner-id', username: 'scanner.one' }; next(); });
   app.use('/api/attendance', routes);
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));

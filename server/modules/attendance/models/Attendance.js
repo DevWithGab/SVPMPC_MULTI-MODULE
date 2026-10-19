@@ -44,6 +44,11 @@ const attendanceSchema = new mongoose.Schema(
     scannedBy: {
       type: String,
     },
+    // Stable authenticated account identity; absent on legacy attendance rows.
+    scannedByUserId: {
+      type: String,
+      ref: 'User',
+    },
     entrySource: {
       type: String,
       enum: ['qr', 'manual'],
@@ -61,6 +66,7 @@ attendanceSchema.index({ memberId: 1 });
 attendanceSchema.index({ eventId: 1 });
 attendanceSchema.index({ scanTime: -1 });
 attendanceSchema.index({ eventId: 1, scanTime: -1 });
+attendanceSchema.index({ scannedByUserId: 1, scanTime: -1 });
 // Every write path only ever creates a 'present' row (status: 'absent' is
 // declared in the enum above but nothing in this codebase currently creates
 // one), so a member can have at most one Attendance row per event — this is

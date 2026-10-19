@@ -22,8 +22,12 @@ const restrictScannerResponse = (req, record, fields = SCANNER_ATTENDANCE_FIELDS
 
 // Record attendance via QR scan
 const recordAttendance = async (req, res) => {
+  const actor = { userId: req.user?.userId, userName: req.user?.username, userRole: req.user?.role };
+  if (!actor.userId || !actor.userName || !actor.userRole) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
   try {
-    const { memberId, eventId, scannedBy, entrySource, justification } = req.body;
+    const { memberId, eventId, entrySource, justification } = req.body;
 
     /* using typeof checks para maiwasan ang NoSQL operator injection attacks.
        kasi for example ah, kung walang typeof check, puwede magpadala ang attacker ng:
@@ -32,6 +36,14 @@ const recordAttendance = async (req, res) => {
     if (!memberId || !eventId || typeof memberId !== 'string' || typeof eventId !== 'string') {
       return res.status(400).json({ message: 'Missing required fields' });
     }
+    if (entrySource !== undefined && !['qr', 'manual'].includes(entrySource)) {
+      return res.status(400).json({ message: 'Entry source must be qr or manual' });
+    }
+    if (entrySource === 'manual' && (typeof justification !== 'string' ||
+        !justification.trim() || justification.trim().length > 1000)) {
+      return res.status(400).json({ message: 'Manual attendance requires a reason of 1–1000 characters' });
+    }
+    const manualReason = entrySource === 'manual' ? justification.trim() : undefined;
 
     // Verify member exists
     const member = await Member.findOne({ memberId });
@@ -69,9 +81,7 @@ const recordAttendance = async (req, res) => {
     /*Ang fast-path check ay para sa mabilis at friendly na feedback, 
     while the unique index is the one na pumipigil sa duplicate attendance records. */ 
     const logDuplicateScan = () => createAuditLog({
-      userId: scannedBy || 'scanner',
-      userName: scannedBy || 'Scanner Device',
-      userRole: 'scanner',
+      ...actor,
       action: 'attendance_recorded',
       module: 'attendance',
       entityType: 'attendance',
@@ -108,9 +118,10 @@ const recordAttendance = async (req, res) => {
       barangay: member.barangay,
       scanTime: new Date(),
       status: 'present',
-      scannedBy: scannedBy || 'system',
+      scannedBy: actor.userName,
+      scannedByUserId: actor.userId,
       entrySource: entrySource === 'manual' ? 'manual' : 'qr',
-      justification: justification || undefined,
+      justification: manualReason,
     });
 
     let saved;
@@ -129,9 +140,7 @@ const recordAttendance = async (req, res) => {
 
     // Log audit event
     await createAuditLog({
-      userId: scannedBy || 'system',
-      userName: scannedBy || 'Scanner Device',
-      userRole: 'scanner',
+      ...actor,
       action: 'attendance_recorded',
       module: 'attendance',
       entityType: 'attendance',
@@ -162,9 +171,7 @@ const recordAttendance = async (req, res) => {
   } catch (error) {
     // Log failed attempt
     await createAuditLog({
-      userId: req.body.scannedBy || 'system',
-      userName: req.body.scannedBy || 'Scanner Device',
-      userRole: 'scanner',
+      ...actor,
       action: 'attendance_recorded',
       module: 'attendance',
       entityType: 'attendance',
@@ -306,10 +313,16 @@ const getAllAttendance = async (req, res) => {
     const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
     const { scannedBy } = req.query;
 
-    // Scanner Operator's "My Scans" view narrows this down to just the
-    // records that operator personally scanned in (matches the scannedBy
-    // value attendanceAPI.recordAttendance stores for each scan).
-    const filter = scannedBy ? { scannedBy } : {};
+    // My Scans uses the authenticated stable account ID. Keep legacy records
+    // searchable by trusted account names, without trusting a supplied name.
+    let filter = scannedBy ? { scannedBy } : {};
+    if (req.user?.role === 'scanner_operator' && (scannedBy || req.query.mine === 'true')) {
+      const names = [req.user.username, req.user.fullName].filter(Boolean);
+      filter = { $or: [
+        { scannedByUserId: req.user.userId },
+        { scannedByUserId: { $exists: false }, scannedBy: { $in: names } },
+      ] };
+    }
 
     // Get total count for pagination
     const total = await Attendance.countDocuments(filter);

@@ -57,12 +57,12 @@ test('recordAttendance rejects an operator-shaped memberId/eventId and still pro
   });
 
   const bad = response();
-  await recordAttendance({ body: { memberId: injected, eventId: injected } }, bad);
+  await recordAttendance({ user: { userId: 'scanner-id', username: 'scanner.one', role: 'scanner_operator' }, body: { memberId: injected, eventId: injected } }, bad);
   assert.equal(bad.code, 400);
   assert.equal(bad.data.message, 'Missing required fields');
 
   const unknown = response();
-  await recordAttendance({ body: { memberId: 'MEM-1', eventId: 'EVT-1' } }, unknown);
+  await recordAttendance({ user: { userId: 'scanner-id', username: 'scanner.one', role: 'scanner_operator' }, body: { memberId: 'MEM-1', eventId: 'EVT-1' } }, unknown);
   assert.equal(unknown.code, 404, 'a real string memberId must reach the "Member not found" check, not be blocked by the type guard');
 });
 

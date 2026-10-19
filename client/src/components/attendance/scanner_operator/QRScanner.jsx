@@ -1416,6 +1416,7 @@ export default function QRScanner({
             </label>
             <textarea
               id="oqs-manual-reason"
+              maxLength={1000}
               value={manualReason}
               onChange={(e) => setManualReason(e.target.value)}
               placeholder="Why can't this member be scanned? (e.g., QR won't scan, phone unavailable, damaged code)"
