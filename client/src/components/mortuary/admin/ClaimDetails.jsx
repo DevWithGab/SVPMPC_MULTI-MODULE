@@ -20,8 +20,8 @@ import ApproveRejectClaimModal from "./modals/ApproveRejectClaimModal";
 
 /* One checkbox column, but the underlying data still has separate
 `submitted`/`verified` booleans on the schema (no combined field exists) —
-so toggling it flips both together instead of pointing at a fictional key.
-const COMBINED_COLUMN = { label: "Submitted & Verified" };*/
+so toggling it flips both together instead of pointing at a fictional key. */
+const COMBINED_COLUMN = { label: "Submitted & Verified" };
 
 /*Older claims may contain keys from the former global checklist. Keep those
 readable while new claim-specific requirements use their stored label.*/
