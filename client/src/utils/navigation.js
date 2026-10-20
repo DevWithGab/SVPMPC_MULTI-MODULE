@@ -4,7 +4,7 @@ export function portalPath(module, role) {
   return MODULE_ROLES[module]?.includes(role) ? `/${module}/${role}` : '/';
 }
 
-export function readSession(storage = localStorage) {
+export function readSession(storage = window.sessionStorage) {
   try {
     const token = storage.getItem('token');
     const user = JSON.parse(storage.getItem('user'));

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { notifyAttendanceUpdated } from '../utils/attendanceUpdates';
+import { clearAuthSession } from '../utils/authSession';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
@@ -17,7 +18,7 @@ api.interceptors.request.use((config) => {
     return config;
   }
   
-  const token = localStorage.getItem('token');
+  const token = window.sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -36,10 +37,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && error.config?.url !== '/auth/login') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('currentView');
-      localStorage.removeItem('selectedModule');
+      clearAuthSession();
       window.location.href = '/';
     }
     return Promise.reject(error);

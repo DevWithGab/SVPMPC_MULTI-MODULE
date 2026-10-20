@@ -157,8 +157,8 @@ export default function SystemSelector({ onModuleSelect, notice }) {
 
       if (response.ok) {
         // Store authentication data
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        window.sessionStorage.setItem("token", data.token);
+        window.sessionStorage.setItem("user", JSON.stringify(data.user));
 
         // Call the parent callback to navigate to the appropriate portal
         if (onModuleSelect) {
@@ -176,7 +176,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       } else {
         setLoginError(data.message || "Invalid credentials");
       }
-    } catch (error) {
+    } catch {
       setLoginError(
         "Network error. Please check your connection and try again.",
       );
@@ -208,8 +208,8 @@ export default function SystemSelector({ onModuleSelect, notice }) {
 
       if (response.ok) {
         // Store authentication data
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        window.sessionStorage.setItem("token", data.token);
+        window.sessionStorage.setItem("user", JSON.stringify(data.user));
 
         // Call the parent callback to navigate to the appropriate portal
         if (onModuleSelect) {
@@ -222,7 +222,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       } else {
         setLoginError(data.message || "Invalid credentials");
       }
-    } catch (error) {
+    } catch {
       setLoginError(
         "Network error. Please check your connection and try again.",
       );
@@ -253,8 +253,8 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        window.sessionStorage.setItem("token", data.token);
+        window.sessionStorage.setItem("user", JSON.stringify(data.user));
 
         if (onModuleSelect) {
           onModuleSelect(
@@ -270,7 +270,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       } else {
         setLoginError(data.message || "Invalid credentials");
       }
-    } catch (error) {
+    } catch {
       setLoginError(
         "Network error. Please check your connection and try again.",
       );
@@ -302,8 +302,8 @@ export default function SystemSelector({ onModuleSelect, notice }) {
 
       if (response.ok) {
         // Store authentication data
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        window.sessionStorage.setItem("token", data.token);
+        window.sessionStorage.setItem("user", JSON.stringify(data.user));
 
         // Call the parent callback to navigate to the appropriate portal
         if (onModuleSelect) {
@@ -316,7 +316,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       } else {
         setLoginError(data.message || "Invalid credentials");
       }
-    } catch (error) {
+    } catch {
       setLoginError(
         "Network error. Please check your connection and try again.",
       );
@@ -346,8 +346,8 @@ export default function SystemSelector({ onModuleSelect, notice }) {
     }
 
     // Clear any stored authentication data when going back
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    window.sessionStorage.removeItem("token");
+    window.sessionStorage.removeItem("user");
   };
 
   return (

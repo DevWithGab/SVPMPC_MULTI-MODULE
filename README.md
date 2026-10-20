@@ -222,6 +222,15 @@ Open the URL printed by Vite, normally `http://localhost:5173`. The API health e
 
 **Port configuration matters:** the backend example defaults to port `5000`, while frontend API clients fall back to `http://localhost:5001/api`. The explicit `VITE_API_BASE_URL` above aligns them. Restart Vite after changing its environment file.
 
+### Browser sessions
+
+Staff credentials and the selected portal are stored in `sessionStorage`.
+Each new browser tab starts at sign-in and can use a separate staff account;
+reloading an existing tab preserves that tab's login. Signing out or receiving
+an expired-session response clears only the current tab. Sidebar preferences
+remain in `localStorage`. After updating from the former shared login storage,
+staff must sign in again; old browser-wide credentials are not imported.
+
 ### Available checks
 
 From `client/`:

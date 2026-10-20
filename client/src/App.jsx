@@ -51,7 +51,7 @@ function AppRoutes() {
     const path = portalPath(module, role);
     if (!portals[path]) return;
     setLoginNotice('');
-    localStorage.setItem('selectedModule', JSON.stringify({ module, role }));
+    window.sessionStorage.setItem('selectedModule', JSON.stringify({ module, role }));
     updateAuth(user, token);
     setSession({ module, role, user, token });
     const requested = location.state?.from;
@@ -60,8 +60,8 @@ function AppRoutes() {
 
   const handleLogout = () => {
     logout();
-    localStorage.removeItem('currentView');
-    localStorage.removeItem('selectedModule');
+    window.sessionStorage.removeItem('currentView');
+    window.sessionStorage.removeItem('selectedModule');
     setSession(null);
     navigate('/', { replace: true });
   };

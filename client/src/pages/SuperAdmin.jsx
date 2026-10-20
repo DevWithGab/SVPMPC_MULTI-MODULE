@@ -5,7 +5,7 @@ import {
   Mail, Phone, MapPin, Calendar, Key, ArrowLeft, X, Plus,
   CheckCircle, AlertCircle, Loader, Power
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
 import StaffAccounts from '../components/shared/StaffAccounts';
 import StaffAuditLog from '../components/shared/StaffAuditLog';
@@ -207,8 +207,8 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
 
   // Check for existing authentication on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    const token = window.sessionStorage.getItem('token');
+    const user = window.sessionStorage.getItem('user');
     
     if (token && user) {
       const userData = JSON.parse(user);
@@ -226,17 +226,17 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
     
     try {
       // Clear any existing tokens before login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      window.sessionStorage.removeItem('token');
+      window.sessionStorage.removeItem('user');
       
       // Login with super_admin credentials
       const response = await adminAPI.login('superadmin', authPassword);
       if (response.user?.role !== 'super_admin') throw new Error('Superadmin access required');
       
       if (response.token) {
-        // Store token in localStorage
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
+        // Store token for this browser tab
+        window.sessionStorage.setItem('token', response.token);
+        window.sessionStorage.setItem('user', JSON.stringify(response.user));
         
         onAuthenticated(response.user, response.token);
         setIsAuthenticated(true);
@@ -261,7 +261,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
         limit: 100
       });
       setMembers(response.members || []);
-    } catch (error) {
+    } catch {
       showToast('Error fetching members', 'error');
     } finally {
       setLoading(false);
@@ -493,7 +493,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-slate-50 flex items-center justify-center p-4">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md"
@@ -558,7 +558,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </Motion.div>
       </div>
     );
   }
@@ -980,7 +980,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
       <AnimatePresence>
         {showBulkModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -1060,7 +1060,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                   Upload Members
                 </Button>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
