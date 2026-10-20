@@ -108,6 +108,7 @@ const AdminPortal = ({ onBack, user }) => {
   const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'live', 'events', 'members', 'auditlogs', 'backup']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [attendanceRefreshError, setAttendanceRefreshError] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
 
   // State for data
@@ -142,17 +143,13 @@ const AdminPortal = ({ onBack, user }) => {
   }, []);
 
   const fetchAttendanceLogs = useCallback(async () => {
-    try {
       // getAllAttendance() alone caps at the server's default page size (10)
       // — loadDashboardRecords pages through every record, same fix already
       // applied to Secretary's own Dashboard/Reports screens. Without this,
       // the dashboard's present/absent counts and charts silently undercount
       // as soon as an event has more than 10 total scans system-wide.
       const allAttendance = await loadDashboardRecords(attendanceAPI.getAllAttendance, 'attendance');
-      setAttendanceLogs(normalizeAttendanceRecords(allAttendance));
-    } catch (error) {
-      console.error("Error refreshing attendance logs:", error);
-    }
+      return normalizeAttendanceRecords(allAttendance);
   }, []);
 
   // Refresh events on demand (new Secretary submissions, PHT auto status
@@ -201,24 +198,39 @@ const AdminPortal = ({ onBack, user }) => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  // attendanceLogs only feeds the dashboard/events/live sections (see the
-  // render below) — this used to poll unconditionally the entire time the
-  // portal was mounted, regardless of which section was active or whether
-  // the tab was even visible, re-paging through every attendance record
-  // system-wide every 7s for no one to see. Gated the same two ways its
-  // siblings already are in this file: by relevant section (like the
-  // events-tab poller just below) and by tab visibility (like
-  // LiveAttendanceList.jsx's own "live" polling).
+  // Keep dashboard totals current without replacing the page with a loader.
   useEffect(() => {
-    if (!["dashboard", "events", "live"].includes(activeSection)) return undefined;
-    const refreshInterval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        fetchAttendanceLogs();
+    if (loading || !hasLoaded || !["dashboard", "events", "live"].includes(activeSection)) return undefined;
+    let disposed = false;
+    let pending = false;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible" || pending) return;
+      pending = true;
+      try {
+        const records = await fetchAttendanceLogs();
+        if (!disposed) {
+          setAttendanceLogs(records);
+          setAttendanceRefreshError(false);
+        }
+      } catch {
+        if (!disposed) setAttendanceRefreshError(true);
+      } finally {
+        pending = false;
       }
-    }, 7000);
-
-    return () => clearInterval(refreshInterval);
-  }, [activeSection, fetchAttendanceLogs]);
+    };
+    refresh();
+    const refreshInterval = setInterval(refresh, 10000);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      disposed = true;
+      clearInterval(refreshInterval);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [activeSection, loading, hasLoaded, fetchAttendanceLogs]);
 
   // Keep the sidebar's pending badge current from every section. Refresh
   // immediately when opening approvals, then poll only while visible.
@@ -428,6 +440,7 @@ const AdminPortal = ({ onBack, user }) => {
                     currentEvent={currentEvent}
                     setCurrentEvent={setCurrentEvent}
                     setActiveSection={setActiveSection}
+                    refreshError={attendanceRefreshError}
                   />
                 )}
 

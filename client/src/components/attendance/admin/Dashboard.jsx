@@ -74,6 +74,7 @@ const Dashboard = ({
   currentEvent,
   setCurrentEvent,
   setActiveSection,
+  refreshError = false,
 }) => {
   const activeEvents = useMemo(
     () =>
@@ -214,6 +215,9 @@ const Dashboard = ({
           <p className="sd-description">
             Review event participation, attendance trends, and administrative
             tasks.
+          </p>
+          <p role="status" className={refreshError ? 'text-sm text-amber-800' : 'text-sm text-slate-500'}>
+            {refreshError ? 'Unable to refresh attendance totals. Retrying automatically.' : 'Attendance totals update every 10 seconds.'}
           </p>
         </div>
         <button
