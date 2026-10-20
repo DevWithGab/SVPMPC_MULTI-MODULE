@@ -55,10 +55,10 @@ const SidebarItem = ({
       <span
         aria-hidden="true"
         className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold leading-none text-white ${
-          collapsed ? "absolute right-1 top-1" : "ml-auto"
+          collapsed ? "absolute -top-1 -right-1" : "-ml-1"
         }`}
       >
-        {badgeCount > 99 ? "99+" : badgeCount}
+        {badgeCount.toLocaleString('en-PH')}
       </span>
     )}
   </button>
