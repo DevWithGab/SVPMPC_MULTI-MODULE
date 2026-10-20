@@ -13,8 +13,8 @@
 .attendance-reports td { padding: 17px 20px; }
 .attendance-reports td:first-child { max-width: 340px; overflow-wrap: anywhere; }
 .attendance-reports :is(th, td):nth-child(3) { text-align: right; }
-.ar-view { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #245e32; font-size: 12px; margin-top: 6px; cursor: pointer; }
-.ar-view:hover { text-decoration: underline; }
+.ar-view { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 12px; border: 1px solid #aac5b0; border-radius: 5px; background: #edf5ee; font-weight: 600; color: #245e32; font-size: 13px; margin-block: 10px 8px; cursor: pointer; white-space: nowrap; }
+.ar-view:hover { background: #deeddf; border-color: #608d69; }
 .ar-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; font-size: 12px; font-weight: 600; color: #34453a; cursor: pointer; white-space: nowrap; }
 .ar-button:hover { background: #f3f6f3; }
 .ar-button:disabled { opacity: .45; cursor: not-allowed; }
@@ -24,3 +24,21 @@
 .ar-notice { padding: 12px 16px; background: #edf5ee; border: 1px solid #cbdccd; border-radius: 5px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .ar-error { background: #fff5f3; border-color: #ebc9c1; color: #9b3425; }
 @media(max-width: 600px) { .attendance-reports h1 { font-size: 25px; } .ar-filter-heading { flex-wrap: wrap; } .ar-search { max-width: none; } .ar-scope, .ar-pagination { padding-inline: 16px; } }
+.attendance-reports .event-attendees-panel { font-variant-numeric: tabular-nums; }
+.event-attendees-panel .eap-pagination button { min-width: 36px; min-height: 40px; }
+@media(max-width: 767px) {
+  .attendance-reports .ar-events-table { display: block; min-width: 0; }
+  .ar-events-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .ar-events-table tbody { display: block; }
+  .ar-events-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-bottom: 1px solid #dce3dd; padding: 16px; gap: 14px; }
+  .attendance-reports .ar-events-table td { display: block; padding: 0; text-align: left; min-width: 0; }
+  .attendance-reports .ar-events-table td:first-child { grid-column: 1 / -1; max-width: none; }
+  .ar-events-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 5px; color: #647069; font-size: 11px; font-weight: 600; }
+  .ar-events-table td[data-label="Export"] { grid-column: 1 / -1; }
+  .ar-events-table td[data-label="Export"] button { min-height: 44px; }
+  .ar-events-table .ar-view { display: flex; width: 100%; }
+  .event-attendees-panel > div { padding-inline: 16px; }
+  .event-attendees-panel [role="list"] { padding-inline: 0; }
+  .event-attendees-panel [role="listitem"] { padding-inline: 16px; }
+  .event-attendees-panel .eap-pagination { align-items: flex-start; }
+}

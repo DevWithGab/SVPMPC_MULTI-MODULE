@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   BarChart3,
   Download,
@@ -32,6 +32,7 @@ import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "./AttendanceReports.css";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDate, formatTime } from "../../../utils/date";
+import { loadDashboardRecords } from '../../../utils/attendanceDashboard';
 
 /*Page through everything, same loop
 LiveAttendanceList's fetchEventAttendance already uses for this reason.*/
@@ -65,6 +66,19 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const [feedback, setFeedback] = useState(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const attendeesHeadingRef = useRef(null);
+  const attendeesTopRef = useRef(null);
+  const reportHeadingRef = useRef(null);
+  const returningToReport = useRef(false);
+
+  useEffect(() => {
+    const heading = viewingEvent ? attendeesHeadingRef.current : returningToReport.current ? reportHeadingRef.current : null;
+    if (heading) {
+      heading.focus({ preventScroll: true });
+      (viewingEvent ? attendeesTopRef.current : heading)?.scrollIntoView({ block: 'start' });
+    }
+    returningToReport.current = Boolean(viewingEvent);
+  }, [viewingEvent]);
 
   useEffect(() => {
     setLocalEvents(events || []);
@@ -79,14 +93,8 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       setLoadingEvents(true);
       setLoadErrors((errors) => ({ ...errors, events: false }));
       try {
-        const response = await eventAPI.getAllEvents();
-        if (Array.isArray(response?.events)) {
-          setLocalEvents(response.events);
-        } else if (Array.isArray(response)) {
-          setLocalEvents(response);
-        } else if (Array.isArray(response?.data?.events)) {
-          setLocalEvents(response.data.events);
-        }
+        const records = await loadDashboardRecords(eventAPI.getEvents, 'events');
+        setLocalEvents(records);
       } catch (error) {
         console.error("Error loading events from DB:", error);
         setLoadErrors((errors) => ({ ...errors, events: true }));
@@ -417,13 +425,18 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   specific member and see present/absent, with a way back to the report.*/
   if (viewingEvent) {
     return (
-      <div className="attendance-reports space-y-6 pb-12">
+      <div ref={attendeesTopRef} className="attendance-reports space-y-6 pb-12">
         <button
           onClick={() => setViewingEvent(null)}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-coop-green transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Reports
         </button>
+        <div>
+          <p className="ar-eyebrow">Attendance reports / Event details</p>
+          <h1 ref={attendeesHeadingRef} tabIndex={-1}>Event attendees</h1>
+          <p className="text-sm text-slate-500 mt-1">Search members or filter by attendance status. Showing up to 75 members per page.</p>
+        </div>
         <p className="ar-scope">
           Full event attendance · All dates and barangays. Absence is based on
           active membership.
@@ -445,7 +458,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <p className="ar-eyebrow">Attendance management / Reports</p>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 ref={reportHeadingRef} tabIndex={-1} className="text-2xl font-bold text-slate-900 tracking-tight">
             Attendance Reports
           </h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -688,7 +701,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         </div>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="ar-events-table">
               <TableHeader className="bg-slate-50">
                 <TableRow>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
@@ -731,6 +744,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               </p>
                               <button
                                 className="ar-view"
+                                aria-label={`View attendees for ${event.displayName}`}
                                 onClick={() =>
                                   setViewingEvent({
                                     name: event.displayName,
@@ -747,14 +761,14 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                                   })
                                 }
                               >
-                                View attendees <ChevronRight size={14} />
+                                <Users size={16} aria-hidden="true" /> View attendees <ChevronRight size={16} aria-hidden="true" />
                               </button>
                               <p className="text-xs text-slate-400">
                                 {event.location}
                               </p>
                             </div>
                           </TableCell>
-                          <TableCell className="py-3">
+                          <TableCell className="py-3" data-label="Date">
                             <div>
                               <p className="text-sm font-medium text-slate-700">
                                 {event.displayDate
@@ -763,12 +777,12 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               </p>
                             </div>
                           </TableCell>
-                          <TableCell className="py-3">
+                          <TableCell className="py-3" data-label="Total attendance">
                             <span className="text-sm font-medium text-slate-700">
                               {event.attendanceCount} records
                             </span>
                           </TableCell>
-                          <TableCell className="py-3">
+                          <TableCell className="py-3" data-label="Attendees">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-slate-400" />
@@ -778,7 +792,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="py-3">
+                          <TableCell className="py-3" data-label="Export">
                             <div
                               className="flex items-center gap-2"
                               onClick={(e) => e.stopPropagation()}

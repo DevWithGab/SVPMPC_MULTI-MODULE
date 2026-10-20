@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, X, Users, CheckCircle2, XCircle } from "lucide-react";
-import { formatDate, formatTime } from "../../../utils/date";
+import { formatDate } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
 
@@ -20,7 +20,7 @@ export default function EventAttendeesPanel({
 }) {
   const [filter, setFilter] = useState("all"); // 'all' | 'present' | 'absent'
   const [search, setSearch] = useState("");
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 75);
 
   const { presentList, absentList } = useMemo(() => {
     const presentByMemberId = new Map();
@@ -78,7 +78,8 @@ export default function EventAttendeesPanel({
 
   const total = visibleList.length;
   const totalPages = Math.ceil(total / limit) || 1;
-  const pagedList = visibleList.slice((page - 1) * limit, page * limit);
+  const currentPage = Math.min(page, totalPages);
+  const pagedList = visibleList.slice((currentPage - 1) * limit, currentPage * limit);
 
   /* The result set's size changes whenever the filter or search changes —
   reset to page 1 so pagination doesn't strand the viewer on an empty page.*/
@@ -89,14 +90,28 @@ export default function EventAttendeesPanel({
 
   if (!event) return null;
 
+  const pagination = total > 0 && (
+    <div className="eap-pagination p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <PaginationInfo currentPage={currentPage} limit={limit} total={total} />
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        hasNextPage={currentPage < totalPages}
+        hasPrevPage={currentPage > 1}
+        className="flex-wrap"
+      />
+    </div>
+  );
+
   return (
-    <div>
+    <div className="event-attendees-panel">
       <div className="px-6 py-4 flex items-start justify-between gap-4 border-b border-slate-100">
         <div>
-          <h4 className="text-lg font-bold text-slate-900">{event.name}</h4>
+          <h2 className="text-lg font-bold text-slate-900">{event.name}</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {event.date
-              ? `${formatDate(event.date)} • ${formatTime(event.date)}`
+              ? formatDate(event.date)
               : "No date"}
           </p>
         </div>
@@ -116,6 +131,7 @@ export default function EventAttendeesPanel({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
+            aria-label="Search members by name or passbook number"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search member by name or Passbook No."
@@ -123,7 +139,7 @@ export default function EventAttendeesPanel({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" aria-label="Attendance status">
           {[
             {
               key: "all",
@@ -136,7 +152,8 @@ export default function EventAttendeesPanel({
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+              aria-pressed={filter === tab.key}
+              className={`inline-flex min-h-11 items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
                 filter === tab.key
                   ? "bg-coop-green text-white border-coop-green"
                   : "bg-white text-slate-600 border-slate-200 hover:border-coop-green/40"
@@ -155,7 +172,8 @@ export default function EventAttendeesPanel({
         </div>
       </div>
 
-      <div className="divide-y divide-slate-100">
+      {pagination}
+      <div className="divide-y divide-slate-100" role="list" aria-label="Event members">
         {pagedList.length > 0 ? (
           pagedList.map((m) => {
             const isPresent = presentList.some(
@@ -164,13 +182,14 @@ export default function EventAttendeesPanel({
             return (
               <div
                 key={m.memberId}
+                role="listitem"
                 className="px-6 py-3.5 flex items-center gap-3"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">
+                  <p className="text-sm font-semibold text-slate-900 break-words">
                     {m.memberName}
                   </p>
-                  <p className="text-xs text-slate-400 truncate">
+                  <p className="text-xs text-slate-500 break-words">
                     {m.barangay || "—"}{" "}
                     {m.memberId ? `• Passbook No.: ${m.memberId}` : ""}
                   </p>
@@ -202,18 +221,7 @@ export default function EventAttendeesPanel({
         )}
       </div>
 
-      {total > 0 && (
-        <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <PaginationInfo currentPage={page} limit={limit} total={total} />
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            hasNextPage={page < totalPages}
-            hasPrevPage={page > 1}
-          />
-        </div>
-      )}
+      {pagination}
     </div>
   );
 }
