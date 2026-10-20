@@ -29,16 +29,17 @@ const SidebarItem = ({
   id,
   icon: Icon,
   label,
+  badgeCount = 0,
   activeTab,
   collapsed,
   onClick,
 }) => (
   <button
     onClick={onClick}
-    title={collapsed ? label : undefined}
-    aria-label={label}
+    title={collapsed ? `${label}${badgeCount > 0 ? ` (${badgeCount} pending)` : ""}` : undefined}
+    aria-label={badgeCount > 0 ? `${label}, ${badgeCount} pending ${badgeCount === 1 ? "event" : "events"}` : label}
     aria-current={activeTab === id ? "page" : undefined}
-    className={`w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
+    className={`relative w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
       collapsed ? "justify-center px-0 py-3" : "px-4 py-2.5"
     } ${
       activeTab === id
@@ -46,9 +47,19 @@ const SidebarItem = ({
         : "text-green-100/80 hover:bg-white/10 hover:text-white"
     }`}
   >
-    <Icon className="w-4.5 h-4.5 shrink-0" />
+    {React.createElement(Icon, { className: "w-4.5 h-4.5 shrink-0" })}
     {!collapsed && (
       <span className="text-sm font-semibold tracking-tight">{label}</span>
+    )}
+    {badgeCount > 0 && (
+      <span
+        aria-hidden="true"
+        className={`inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold leading-none text-white ${
+          collapsed ? "absolute right-1 top-1" : "ml-auto"
+        }`}
+      >
+        {badgeCount > 99 ? "99+" : badgeCount}
+      </span>
     )}
   </button>
 );
@@ -103,6 +114,9 @@ const AdminPortal = ({ onBack, user }) => {
   const [members, setMembers] = useState([]);
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [events, setEvents] = useState([]);
+  const pendingApprovalCount = events.filter(event =>
+    ["draft", "pending_approval"].includes(event.status),
+  ).length;
   const [currentEvent, setCurrentEvent] = useState(null);
 
   useEffect(() => {
@@ -145,10 +159,8 @@ const AdminPortal = ({ onBack, user }) => {
   // changes, etc.) without reloading the whole portal.
   const fetchEvents = useCallback(async () => {
     try {
-      const eventsRes = await eventAPI.getAllEvents();
-      if (eventsRes.events) {
-        setEvents(eventsRes.events);
-      }
+      const allEvents = await loadDashboardRecords(eventAPI.getEvents, 'events');
+      setEvents(allEvents);
     } catch (error) {
       console.error("Error refreshing events:", error);
     }
@@ -159,9 +171,9 @@ const AdminPortal = ({ onBack, user }) => {
     try {
       // Fetch all data in parallel — attendance pages through every record
       // (see fetchAttendanceLogs above for why getAllAttendance() alone isn't enough).
-      const [membersRes, eventsRes, allAttendance] = await Promise.all([
+      const [membersRes, allEvents, allAttendance] = await Promise.all([
         memberAPI.getAllMembers(),
-        eventAPI.getAllEvents(),
+        loadDashboardRecords(eventAPI.getEvents, 'events'),
         loadDashboardRecords(attendanceAPI.getAllAttendance, 'attendance'),
       ]);
 
@@ -169,12 +181,10 @@ const AdminPortal = ({ onBack, user }) => {
         setMembers(membersRes.members);
       }
 
-      if (eventsRes.events) {
-        setEvents(eventsRes.events);
-        // Set first active event as current, or first event
-        const activeEvent = eventsRes.events.find((e) => e.status === "active");
-        setCurrentEvent(activeEvent || eventsRes.events[0] || null);
-      }
+      setEvents(allEvents);
+      // Set first active event as current, or first event.
+      const activeEvent = allEvents.find((e) => e.status === "active");
+      setCurrentEvent(activeEvent || allEvents[0] || null);
 
       setAttendanceLogs(normalizeAttendanceRecords(allAttendance));
       setHasLoaded(true);
@@ -210,26 +220,23 @@ const AdminPortal = ({ onBack, user }) => {
     return () => clearInterval(refreshInterval);
   }, [activeSection, fetchAttendanceLogs]);
 
-  // Keep the Event Approvals tab current: pick up new Secretary
-  // submissions right away, then poll while the tab stays open so approvals
-  // and the automatic Upcoming/Active/Close transitions show up without a
-  // manual page reload.
+  // Keep the sidebar's pending badge current from every section. Refresh
+  // immediately when opening approvals, then poll only while visible.
   useEffect(() => {
-    if (activeSection !== "events") return undefined;
-    fetchEvents();
-    const refreshInterval = setInterval(fetchEvents, 10000);
+    if (activeSection === "events") fetchEvents();
+    const refreshInterval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchEvents();
+    }, 10000);
     return () => clearInterval(refreshInterval);
   }, [activeSection, fetchEvents]);
 
   useEffect(() => {
     const handleWindowFocus = () => {
-      if (activeSection === "events") {
-        fetchEvents();
-      }
+      fetchEvents();
     };
     window.addEventListener("focus", handleWindowFocus);
     return () => window.removeEventListener("focus", handleWindowFocus);
-  }, [activeSection, fetchEvents]);
+  }, [fetchEvents]);
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -316,6 +323,7 @@ const AdminPortal = ({ onBack, user }) => {
               id={item.id}
               icon={item.icon}
               label={item.label}
+              badgeCount={item.id === "events" ? pendingApprovalCount : 0}
               activeTab={activeSection}
               collapsed={isSidebarCollapsed}
               onClick={() => {
