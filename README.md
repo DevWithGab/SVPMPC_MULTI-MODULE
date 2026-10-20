@@ -234,7 +234,14 @@ npm run build
 
 The backend's `npm test` is currently a placeholder that exits with an error. These client commands do not establish that database workflows or financial operations work end to end; exercise the relevant portals against a development database when changing those features.
 
-### Reverse proxy configuration on Render
+### Render deployment notes
+
+Member QR images at `/uploads/qrcodes/<memberId>_<issuedId>.png` are rendered
+on demand from the current issued QR ID in MongoDB. They do not depend on
+local PNG files, so redeploying the backend does not require reissuing cards
+or invalidating printed codes. Old URLs stop resolving after a QR is replaced.
+This only covers member QR images; generated notice PDF batches still use
+local storage and need their own persistence setup.
 
 Set `TRUST_PROXY_HOPS=1` in the backend service's Render environment settings
 as the starting configuration for one trusted proxy. Redeploy after changing

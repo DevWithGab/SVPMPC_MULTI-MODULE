@@ -13,6 +13,7 @@ const adminRoutes = require('./shared/routes/adminRoutes');
 const attendanceRoutes = require('./modules/attendance/routes/attendanceRoutes');
 const mortuaryRoutes = require('./modules/mortuary/routes/mortuaryRoutes');
 const auditLogRoutes = require('./shared/routes/auditLogRoutes');
+const qrImageRoutes = require('./modules/attendance/routes/qrImageRoutes');
 
 const { authenticateToken, authorizeModule, authorizeAdminOnly, requirePasswordChange } = require('./middleware/auth');
 const app = express();
@@ -52,6 +53,9 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Serve static files for uploads
+// QR images are rendered from their existing MongoDB IDs so local files
+// disappearing during a deploy/restart cannot break issued member cards.
+app.use('/uploads/qrcodes', qrImageRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check endpoint
