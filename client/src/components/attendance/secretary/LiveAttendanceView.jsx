@@ -9,6 +9,7 @@ export default function LiveAttendanceView({
   selectedBarangay, availableBarangays, onBarangayChange, loading, error,
   lastRefreshedAt, onRefresh, currentPage, totalPages, pageSize, onPageChange,
   operatorView = false,
+  refreshIntervalSeconds = 3,
 }) {
   return (
     <div className="secretary-live-attendance">
@@ -23,14 +24,14 @@ export default function LiveAttendanceView({
         </button>
       </header>
 
-      {error && <div className="sla-error" role="alert">{error} Use Refresh to try again.</div>}
+      {error && <div className="sla-error" role="alert">{error}</div>}
 
       <section className="sla-event" aria-labelledby="sla-event-title">
         <div className="sla-event-icon">{activeEvent ? <Activity size={20} aria-hidden="true" /> : <CalendarOff size={20} aria-hidden="true" />}</div>
         <div className="sla-event-info">
           <p className="sla-eyebrow">Active event</p>
           <h2 id="sla-event-title">{loading && !activeEvent ? 'Checking for an active event…' : selectedEventLabel}</h2>
-          <p>Refreshes every 45 seconds while this tab is visible.</p>
+          <p>Updates automatically every {refreshIntervalSeconds} seconds while this tab is visible.</p>
         </div>
         <span className={`sla-status${activeEvent ? ' sla-status-active' : ''}`}>{loading ? 'Refreshing' : error ? 'Refresh failed' : activeEvent ? 'Active' : 'No active event'}</span>
       </section>
@@ -45,7 +46,7 @@ export default function LiveAttendanceView({
         <div className="sla-panel sla-empty" role="status">
           {loading ? <RefreshCw size={28} className="animate-spin" aria-hidden="true" /> : <CalendarOff size={28} aria-hidden="true" />}
           <strong>{loading ? 'Loading live attendance…' : error ? 'Unable to confirm the active event' : 'No active event right now'}</strong>
-          <p>{error ? 'Refresh to retry loading the event and its check-ins.' : operatorView ? 'Check with the Secretary or Admin about the event schedule. Member check-ins will appear here once an event is active.' : 'Start an event from Event Management to see member check-ins here.'}</p>
+          <p>{error ? 'The event and its check-ins will be checked again automatically.' : operatorView ? 'Check with the Secretary or Admin about the event schedule. Member check-ins will appear here once an event is active.' : 'Start an event from Event Management to see member check-ins here.'}</p>
         </div>
       ) : <>
         <section className="sla-filters" aria-labelledby="sla-filter-title">
@@ -72,7 +73,7 @@ export default function LiveAttendanceView({
           </div>
           {paginatedAttendance.length === 0 && <div className="sla-empty" role="status">
             <strong>{loading ? 'Loading check-ins…' : error ? 'Check-ins could not be loaded' : selectedBarangay !== 'all' ? 'No check-ins for this barangay' : 'No check-ins yet for this event'}</strong>
-            <p>{error ? 'Use Refresh to try again.' : selectedBarangay !== 'all' ? 'Choose another barangay or reset the filter.' : 'Recorded check-ins will appear here as members arrive.'}</p>
+            <p>{error ? 'The list will retry automatically.' : selectedBarangay !== 'all' ? 'Choose another barangay or reset the filter.' : 'Recorded check-ins will appear here as members arrive.'}</p>
             {selectedBarangay !== 'all' && <button className="sla-button" onClick={() => onBarangayChange('all')}>Reset filter</button>}
           </div>}
           <footer className="sla-pagination">

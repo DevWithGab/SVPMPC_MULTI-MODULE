@@ -4,13 +4,13 @@ import { attendanceAPI, eventAPI } from "../../../services/api";
 import { formatDateTime, formatTime } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import LiveAttendanceView from "../secretary/LiveAttendanceView";
+import { loadDashboardRecords } from "../../../utils/attendanceDashboard";
+import { ATTENDANCE_UPDATED_EVENT, ATTENDANCE_UPDATED_KEY } from "../../../utils/attendanceUpdates";
 
 const PAGE_SIZE = 10;
-const AUTO_REFRESH_MS = 45000;
-/*Server caps each attendance page at 100 rows, so an event with more
-attendees than that needs multiple requests to see everyone.*/
-const ATTENDANCE_FETCH_PAGE_SIZE = 100;
-
+const AUTO_REFRESH_MS = 3000;
+const EVENT_REFRESH_MS = 10000;
+const EMPTY_RECORDS = [];
 const getEventKey = (event) =>
   event?.eventId || event?.id || event?._id || event?.name || event?.eventName;
 
@@ -30,16 +30,21 @@ const getMemberDisplayName = (record) =>
       "Unknown member",
   );
 
+const resolveActiveEvent = (events, preferredKey) => {
+  const active = events.filter(event => String(event.status || "").toLowerCase() === "active");
+  return active.find(event => String(getEventKey(event)) === preferredKey) || active[0] || null;
+};
+
 /*Tracks who has actually checked in to the active event — not a full
 member roster with synthesized "Absent" rows for everyone who hasn't
 scanned yet. A present/absent breakdown against the whole membership
 belongs on the event's own report (see EventAttendeesPanel), not here;
 this is purely a live feed of real check-ins as they happen.*/
 export default function LiveAttendanceList({
-  attendanceLogs: propAttendanceLogs = [],
-  initialLogs = [],
-  events: propEvents = [],
-  initialEvents = [],
+  attendanceLogs: propAttendanceLogs = EMPTY_RECORDS,
+  initialLogs = EMPTY_RECORDS,
+  events: propEvents = EMPTY_RECORDS,
+  initialEvents = EMPTY_RECORDS,
   currentEvent = null,
   onRefresh,
   variant = "default",
@@ -51,143 +56,144 @@ export default function LiveAttendanceList({
   const [attendanceLogs, setAttendanceLogs] = useState(attendanceLogsSource);
   const [events, setEvents] = useState(eventsSource);
   const [loading, setLoading] = useState(false);
-  const [loadingEvents, setLoadingEvents] = useState(false);
   const [error, setError] = useState("");
   const [selectedBarangay, setSelectedBarangay] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const isRefreshingRef = useRef(false);
+  const queuedRefreshRef = useRef(null);
+  const refreshRef = useRef(null);
+  const mountedRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const eventsRef = useRef(eventsSource);
+  const lastEventsFetchRef = useRef(0);
+  const preferredEventKey = String(getEventKey(currentEvent) || "").trim();
+  const optionsRef = useRef({ preferredEventKey, onRefresh });
 
-  /*Returns the fetched events so handleRefresh can resolve "which event is
-  active" synchronously, instead of reading back from `events` state
-  (which wouldn't reflect this fetch until the next render).*/
-  const fetchEventsFromDB = useCallback(async () => {
-    setLoadingEvents(true);
-    try {
-      const response = await eventAPI.getAllEvents();
-      const allEvents = Array.isArray(response)
-        ? response
-        : Array.isArray(response?.events)
-          ? response.events
-          : Array.isArray(response?.data?.events)
-            ? response.data.events
-            : [];
-      setEvents(allEvents);
-      return allEvents;
-    } catch (eventError) {
-      console.error("Error fetching events:", eventError);
-      setError(eventError?.message || "Unable to load events.");
-      return [];
-    } finally {
-      setLoadingEvents(false);
-    }
-  }, []);
-
-  /*Pulls every attendance record for one event via the dedicated per-event
-  endpoint, paging through it in full — the generic "all attendance"
-  endpoint (and the attendanceLogs prop, sourced from it) only ever
-  returns the 10 most recent records *across every event combined*, so
-  any event with more than a handful of check-ins would have its older
-  attendees quietly fall out of view.*/
-  const fetchEventAttendance = useCallback(async (eventId) => {
-    if (!eventId) return [];
-    let page = 1;
-    let totalPages = 1;
-    let allRecords = [];
-    try {
-      do {
-        const response = await attendanceAPI.getAttendanceByEvent(eventId, {
-          page,
-          limit: ATTENDANCE_FETCH_PAGE_SIZE,
-        });
-        allRecords = allRecords.concat(
-          Array.isArray(response?.attendance) ? response.attendance : [],
-        );
-        totalPages = response?.pagination?.totalPages || 1;
-        page += 1;
-      } while (page <= totalPages);
-    } catch (fetchError) {
-      console.error("Error fetching event attendance:", fetchError);
-      setError(
-        fetchError?.message || "Unable to load attendance for this event.",
-      );
-    }
-    return allRecords;
-  }, []);
-
-  /* Seed events from props (attendance is refetched per-event below, so it
-  doesn't need the same treatment — the prop is still capped at 10).*/
   useEffect(() => {
-    if (eventsSource.length > 0) {
-      setEvents(eventsSource);
-    }
-  }, [eventsSource]);
+    optionsRef.current = { preferredEventKey, onRefresh };
+  }, [preferredEventKey, onRefresh]);
 
-  const handleRefresh = useCallback(async () => {
-    if (isRefreshingRef.current) return;
+  const fetchEventsFromDB = useCallback(
+    () => loadDashboardRecords(eventAPI.getEvents, 'events'),
+    [],
+  );
+  const fetchEventAttendance = useCallback(
+    eventId => loadDashboardRecords(
+      params => attendanceAPI.getAttendanceByEvent(eventId, params), 'attendance',
+    ),
+    [],
+  );
+
+  const handleRefresh = useCallback(async ({ background = false, refreshEvents = false } = {}) => {
+    if (isRefreshingRef.current) {
+      // A scan arriving during an existing request must get a follow-up,
+      // rather than being lost or starting an overlapping/stale request.
+      queuedRefreshRef.current = {
+        background: background && (queuedRefreshRef.current?.background ?? true),
+        refreshEvents: refreshEvents || Boolean(queuedRefreshRef.current?.refreshEvents),
+      };
+      return;
+    }
     isRefreshingRef.current = true;
-    setLoading(true);
-    setError("");
+    if (!background || !hasLoadedRef.current) setLoading(true);
+    const requestedEventKey = optionsRef.current.preferredEventKey;
     try {
-      const fetchedEvents = await fetchEventsFromDB();
-
-      /*Mirrors the activeEvent memo below, but resolved from the events we
-      just fetched rather than state (which hasn't re-rendered yet).*/
-      const currentEventKey = String(getEventKey(currentEvent) || "").trim();
-      const resolvedEvent = currentEventKey
-        ? currentEvent
-        : fetchedEvents.find(
-            (event) => String(event?.status || "").toLowerCase() === "active",
-          ) || null;
-      const resolvedEventKey = String(getEventKey(resolvedEvent) || "").trim();
-
-      setAttendanceLogs(
-        resolvedEventKey ? await fetchEventAttendance(resolvedEventKey) : [],
-      );
-
-      if (typeof onRefresh === "function") {
-        onRefresh();
+      let freshEvents = eventsRef.current;
+      if (!background || refreshEvents || !lastEventsFetchRef.current ||
+          !resolveActiveEvent(freshEvents, requestedEventKey) ||
+          Date.now() - lastEventsFetchRef.current >= EVENT_REFRESH_MS) {
+        freshEvents = await fetchEventsFromDB();
+        if (!mountedRef.current) return;
+        eventsRef.current = freshEvents;
+        lastEventsFetchRef.current = Date.now();
       }
+      const active = resolveActiveEvent(freshEvents, requestedEventKey);
+      const eventId = String(getEventKey(active) || "").trim();
+      const records = eventId ? await fetchEventAttendance(eventId) : [];
+      if (!mountedRef.current) return;
+      if (requestedEventKey !== optionsRef.current.preferredEventKey) {
+        queuedRefreshRef.current = { background: true, refreshEvents: true };
+        return;
+      }
+      // Commit only complete successful results. A failed later page must
+      // not replace the last good list with partial or empty attendance.
+      setEvents(freshEvents);
+      // New scans can shift page boundaries while a multi-page fetch is in
+      // progress. A member must still appear only once for this event.
+      const uniqueRecords = new Map(records.map(record => [getAttendanceKey(record), record]));
+      setAttendanceLogs([...uniqueRecords.values()]);
+      setError("");
       setLastRefreshedAt(new Date());
+      hasLoadedRef.current = true;
+      // Parent reloads can include every member and every event. Keep those
+      // on explicit Refresh, not on each background attendance update.
+      if (!background && typeof optionsRef.current.onRefresh === "function") {
+        Promise.resolve().then(() => optionsRef.current.onRefresh?.())
+          .catch(refreshError => console.error("Error refreshing parent attendance:", refreshError));
+      }
+    } catch (refreshError) {
+      console.error("Error refreshing live attendance:", refreshError);
+      if (mountedRef.current) setError("Unable to update live attendance. Retrying automatically.");
     } finally {
-      setLoading(false);
       isRefreshingRef.current = false;
+      if (mountedRef.current) {
+        setLoading(false);
+        const queued = queuedRefreshRef.current;
+        queuedRefreshRef.current = null;
+        if (queued) refreshRef.current?.(queued);
+      }
     }
-  }, [fetchEventsFromDB, fetchEventAttendance, currentEvent, onRefresh]);
+  }, [fetchEventsFromDB, fetchEventAttendance]);
+
+  useEffect(() => { refreshRef.current = handleRefresh; }, [handleRefresh]);
 
   useEffect(() => {
-    handleRefresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      queuedRefreshRef.current = null;
+    };
   }, []);
 
-  // Keep the "live" promise: quietly refresh in the background while the tab
-  // is actually visible, so the secretary doesn't have to click Refresh.
   useEffect(() => {
-    const interval = setInterval(() => {
+    handleRefresh({ refreshEvents: true });
+  }, [preferredEventKey, handleRefresh]);
+
+  useEffect(() => {
+    const refreshVisible = (refreshEvents = false) => {
       if (document.visibilityState === "visible") {
-        handleRefresh();
+        refreshRef.current?.({ background: true, refreshEvents });
       }
-    }, AUTO_REFRESH_MS);
+    };
+    const tick = () => refreshVisible();
+    const onReturn = () => refreshVisible(true);
+    const onRecorded = () => refreshVisible();
+    const onStorage = event => {
+      if (event.key === ATTENDANCE_UPDATED_KEY) refreshVisible();
+    };
+    // This timer is independent of changing parent props, so renders cannot
+    // continually reset the interval and postpone the next update.
+    const interval = setInterval(tick, AUTO_REFRESH_MS);
+    window.addEventListener('focus', onReturn);
+    window.addEventListener('online', onReturn);
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener(ATTENDANCE_UPDATED_EVENT, onRecorded);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onReturn);
+      window.removeEventListener('online', onReturn);
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener(ATTENDANCE_UPDATED_EVENT, onRecorded);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [handleRefresh]);
-
-  const activeEvent = useMemo(() => {
-    const currentEventKey = String(getEventKey(currentEvent) || "").trim();
-    if (currentEventKey) {
-      return currentEvent;
-    }
-
-    const eventWithActiveStatus = events.find(
-      (event) => String(event?.status || "").toLowerCase() === "active",
-    );
-
-    if (eventWithActiveStatus) {
-      return eventWithActiveStatus;
-    }
-
-    return null;
-  }, [currentEvent, events]);
+  const activeEvent = useMemo(
+    () => resolveActiveEvent(events, preferredEventKey),
+    [events, preferredEventKey],
+  );
 
   const activeEventKey = useMemo(() => {
     return String(getEventKey(activeEvent) || "").trim();
@@ -222,7 +228,8 @@ export default function LiveAttendanceList({
           record.barangay || record.barangayName || record.barangay_name || "",
         scanTime:
           record.scanTime || record.timestamp || record.createdAt || null,
-      }));
+      }))
+      .sort((a, b) => (new Date(b.scanTime).getTime() || 0) - (new Date(a.scanTime).getTime() || 0));
   }, [attendanceLogs, activeEventKey]);
 
   const availableBarangays = useMemo(() => {
@@ -285,10 +292,11 @@ export default function LiveAttendanceList({
           setSelectedBarangay(value);
           setCurrentPage(1);
         }}
-        loading={loading || loadingEvents}
+        loading={loading}
         error={error}
         lastRefreshedAt={lastRefreshedAt}
         onRefresh={handleRefresh}
+        refreshIntervalSeconds={AUTO_REFRESH_MS / 1000}
         currentPage={safePage}
         totalPages={totalPages}
         pageSize={PAGE_SIZE}
@@ -305,7 +313,7 @@ export default function LiveAttendanceList({
             LIVE ATTENDANCE
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Members checking in to the active event, in real time.
+            Check-ins update automatically every {AUTO_REFRESH_MS / 1000} seconds.
           </p>
           <div
             className={`mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ring-1 ${
@@ -326,13 +334,13 @@ export default function LiveAttendanceList({
         <button
           type="button"
           onClick={handleRefresh}
-          disabled={loading || loadingEvents}
+          disabled={loading}
           className="inline-flex items-center gap-2 rounded-lg bg-coop-green px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-coop-darkGreen active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coop-green/50"
         >
           <RefreshCw
-            className={`w-4 h-4 transition-transform ${loading || loadingEvents ? "animate-spin" : ""}`}
+            className={`w-4 h-4 transition-transform ${loading ? "animate-spin" : ""}`}
           />
-          {loading || loadingEvents ? "Refreshing..." : "Refresh"}
+          {loading ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
@@ -342,7 +350,7 @@ export default function LiveAttendanceList({
         </div>
       )}
 
-      {!activeEvent && !loading && !loadingEvents ? (
+      {!activeEvent && !loading ? (
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-10 text-center">
           <CalendarOff className="w-10 h-10 text-slate-300 mx-auto mb-4" />
           <p className="font-semibold text-slate-600">

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { notifyAttendanceUpdated } from '../utils/attendanceUpdates';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
@@ -370,6 +371,7 @@ export const attendanceAPI = {
     };
 
     const response = await api.post('/attendance/attendance/record', payload);
+    if (response.data?.success !== false) notifyAttendanceUpdated();
     return response.data;
   },
 
