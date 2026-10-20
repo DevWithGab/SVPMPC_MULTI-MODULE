@@ -15,16 +15,23 @@ import { Modal } from "../../ui/modal";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import jsQR from "jsqr";
 import { formatDate, formatTime } from "../../../utils/date";
+import { canScanEvent } from "../../../utils/scannerSchedule";
+import { loadDashboardRecords } from "../../../utils/attendanceDashboard";
 import "./QRScanner.css";
+
+const EMPTY_EVENTS = [];
 
 export default function QRScanner({
   user,
   onScanSuccess,
-  events: initialEvents = [],
+  events: initialEvents = EMPTY_EVENTS,
   onStatusChange,
   onViewAll,
 }) {
   const [events, setEvents] = useState(initialEvents);
+  const [now, setNow] = useState(Date.now);
+  const [eventNotice, setEventNotice] = useState("");
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState("");
@@ -58,51 +65,67 @@ export default function QRScanner({
   const lastValueRef = useRef("");
   const isProcessingRef = useRef(false);
   const scanCooldownRef = useRef(null);
+  const cameraSessionRef = useRef(0);
+  const cameraStartingRef = useRef(false);
+  const eventsRequestRef = useRef(false);
+  const mountedRef = useRef(false);
   /* May temporary cooldown ang scanner para maiwasan ang paulit-ulit na 
   pag-detect at pag-process ng parehong QR code habang nakikita pa ito ng camera.*/
   const pauseDetectionUntilRef = useRef(0);
 
-  const activeEventCount = Array.isArray(events)
-    ? events.filter((event) => event?.status === "active").length
-    : 0;
-  const hasActiveEvent = activeEventCount > 0;
+  const activeEvents = useMemo(
+    () => events.filter(event => canScanEvent(event, now)),
+    [events, now],
+  );
+  const hasActiveEvent = activeEvents.length > 0;
 
   useEffect(() => {
     setEvents(initialEvents);
-    if (!selectedEventId && initialEvents?.length > 0) {
-      setSelectedEventId(initialEvents[0].eventId);
-    }
-  }, [initialEvents, selectedEventId]);
+  }, [initialEvents]);
 
   useEffect(() => {
-    if (!isScanning) {
+    if (!isScanning && !isStartingCamera) {
       setStatusMessage(
         hasActiveEvent ? "Ready to scan" : "Scanner is on standby.",
       );
     }
-  }, [hasActiveEvent, isScanning]);
+  }, [hasActiveEvent, isScanning, isStartingCamera]);
 
   const fetchActiveEvents = useCallback(async () => {
+    if (eventsRequestRef.current) return;
+    eventsRequestRef.current = true;
     try {
-      const response = await eventAPI.getAllEvents();
-      const allEvents = Array.isArray(response?.events) ? response.events : [];
-      const activeEvents = allEvents.filter(
-        (event) => event.status === "active",
-      );
-      setEvents(activeEvents);
-      if (!selectedEventId && activeEvents.length > 0) {
-        setSelectedEventId(activeEvents[0].eventId);
-      }
+      const allEvents = await loadDashboardRecords(eventAPI.getEvents, 'events');
+      if (mountedRef.current) setEvents(allEvents);
     } catch (err) {
       console.error("Error fetching active events:", err);
+    } finally {
+      eventsRequestRef.current = false;
     }
-  }, [selectedEventId]);
+  }, []);
 
   useEffect(() => {
-    if (!initialEvents?.length) {
+    mountedRef.current = true;
+    const refresh = () => {
+      setNow(Date.now());
       fetchActiveEvents();
-    }
-  }, [initialEvents, fetchActiveEvents]);
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    refresh();
+    // The local clock handles known start/end boundaries without waiting
+    // for polling. Polling picks up approvals, cancellations, and edits.
+    const clock = setInterval(() => setNow(Date.now()), 1000);
+    const poll = setInterval(onVisible, 10000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(clock);
+      clearInterval(poll);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [fetchActiveEvents]);
 
   useEffect(() => {
     if (!showManualLookup) return;
@@ -158,6 +181,10 @@ export default function QRScanner({
   }, []);
 
   const stopScanning = useCallback(() => {
+    // Cancel pending camera permission/video startup as well as active scanning.
+    cameraSessionRef.current += 1;
+    cameraStartingRef.current = false;
+    setIsStartingCamera(false);
     // Stop the animation frame loop first
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
@@ -321,6 +348,33 @@ export default function QRScanner({
     };
   }, [isScanning, events, selectedEventId, user]);
 
+  useEffect(() => {
+    if (activeEvents.some(event => event.eventId === selectedEventId)) return;
+    // An open manual-entry confirmation also belongs to the old event.
+    // Close it before choosing another event so it cannot record elsewhere.
+    if (selectedEventId) {
+      setShowManualReasonModal(false);
+      setManualReasonMember(null);
+      setManualReason("");
+      setScanResult(null);
+    }
+    // An open manual-entry confirmation also belongs to the old event.
+    // Close it before choosing another event so it cannot record elsewhere.
+    if (selectedEventId) {
+      setShowManualReasonModal(false);
+      setManualReasonMember(null);
+      setManualReason("");
+      setScanResult(null);
+    }
+    if (isScanning || cameraStartingRef.current || streamRef.current) {
+      stopScanning();
+      setEventNotice("The selected event is no longer active. The camera has been stopped.");
+      setScanResult(null);
+      setError("");
+    }
+    setSelectedEventId(activeEvents[0]?.eventId || "");
+  }, [activeEvents, selectedEventId, isScanning, stopScanning]);
+
   const handleDetectedCode = useCallback(
     async (rawValue, recordOptions = {}) => {
       let memberId = rawValue?.toString().trim();
@@ -374,10 +428,11 @@ export default function QRScanner({
         user: currentUser,
       } = stateRef.current;
       const activeEvent = currentEvents.find(
-        (event) => event.eventId === currentEventId && event.status === "active",
+        (event) => event.eventId === currentEventId && canScanEvent(event),
       );
 
       if (!activeEvent) {
+        stopScanning();
         setError("Select an active event before scanning member QR codes.");
         setStatusMessage("Ready to scan");
         isProcessingRef.current = false;
@@ -414,6 +469,24 @@ export default function QRScanner({
           qrCode: qrPayload?.qrCode,
         };
 
+        if (stateRef.current.selectedEventId !== activeEvent.eventId ||
+            !canScanEvent(stateRef.current.events.find(event => event.eventId === activeEvent.eventId))) {
+          // The API may finish a valid pre-deadline scan after the camera
+          // has stopped. Keep its record without reviving the old session.
+          setScanHistory(prev => [attendance, ...prev].slice(0, 5));
+          onScanSuccess?.(attendance);
+          return;
+        }
+
+        if (stateRef.current.selectedEventId !== activeEvent.eventId ||
+            !canScanEvent(stateRef.current.events.find(event => event.eventId === activeEvent.eventId))) {
+          // The API may finish a valid pre-deadline scan after the camera
+          // has stopped. Keep its record without reviving the old session.
+          setScanHistory(prev => [attendance, ...prev].slice(0, 5));
+          onScanSuccess?.(attendance);
+          return;
+        }
+
         lastValueRef.current = memberId;
         if (scanCooldownRef.current) {
           clearTimeout(scanCooldownRef.current);
@@ -441,6 +514,12 @@ export default function QRScanner({
         let message = apiMessage;
         let status = "Scan failed. Try again.";
 
+        if (apiMessage.includes("Attendance can only be recorded while the event is active")) {
+          stopScanning();
+          setEventNotice("The selected event is no longer active. The camera has been stopped.");
+          fetchActiveEvents();
+        }
+
         if (apiMessage.includes("Member not found")) {
           message = "This QR code is not registered to a member.";
           status = "Invalid member QR code.";
@@ -466,7 +545,7 @@ export default function QRScanner({
         pauseDetectionUntilRef.current = Date.now() + 1500;
       }
     },
-    [onScanSuccess, playScanSound, triggerScanFeedback],
+    [onScanSuccess, playScanSound, triggerScanFeedback, stopScanning, fetchActiveEvents],
   );
 
   /*Manually adding a member (no camera involved) always requires a typed
@@ -595,100 +674,94 @@ export default function QRScanner({
   };
 
   const startScanning = async () => {
-    if (!selectedEventId || !events?.length) {
-      setError(
-        "Select an active event before scanning.",
-      );
-      setStatusMessage("Select an active event to scan.");
+    if (cameraStartingRef.current || isScanning) return;
+    const event = events.find(item => item.eventId === selectedEventId && canScanEvent(item));
+    if (!event) {
+      setError("Select an active event before scanning.");
       return;
     }
-
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("Camera access is not supported by this browser.");
       return;
     }
 
+    const session = ++cameraSessionRef.current;
+    cameraStartingRef.current = true;
+    setIsStartingCamera(true);
     setError("");
+    setEventNotice("");
     setStatusMessage("Requesting camera access...");
-
-    let stream = null;
+    const stillValid = () => mountedRef.current && session === cameraSessionRef.current &&
+      stateRef.current.selectedEventId === event.eventId &&
+      canScanEvent(stateRef.current.events.find(item => item.eventId === event.eventId));
+    let stream;
 
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-      });
-    } catch {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: { facingMode: { ideal: "environment" } },
         });
       } catch {
-        setError("Camera access denied. Please allow camera permissions.");
-        setStatusMessage("Ready to scan");
-        setIsScanning(false);
+        if (!stillValid()) return;
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      // Permission can be granted after the event ends, the operator cancels,
+      // or the tab unmounts. Never attach or leave that late stream running.
+      if (!stillValid() || !videoRef.current) {
+        stream.getTracks().forEach(track => track.stop());
         return;
       }
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.muted = true;
-      videoRef.current.playsInline = true;
-      videoRef.current.autoplay = true;
-      videoRef.current.style.display = "block";
-      videoRef.current.style.visibility = "visible";
       streamRef.current = stream;
-
-      const track = stream.getVideoTracks?.()[0];
-      const capabilities = track?.getCapabilities?.();
-      setFlashSupported(Boolean(capabilities?.torch));
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.play().catch(() => {});
+      const track = stream.getVideoTracks()[0];
+      setFlashSupported(Boolean(track?.getCapabilities?.()?.torch));
       setFlashOn(false);
 
-      const setupVideo = () => {
-        return new Promise((resolve) => {
-          const checkReady = () => {
-            if (videoRef.current && videoRef.current.readyState >= 2) {
-              // readyState >= 2 means HAVE_CURRENT_DATA
-              // Update stateRef BEFORE calling scanLoop to avoid timing issues
-              stateRef.current.isScanning = true;
-              setIsScanning(true);
-              if (typeof onStatusChange === "function") onStatusChange(true);
-              setStatusMessage("Scanning for QR codes...");
-              // Now start the scan loop with isScanning already true in stateRef
-              scanLoop();
-              resolve();
-            } else {
-              setTimeout(checkReady, 100);
-            }
-          };
-          checkReady();
-        });
-      };
-
-      try {
-        videoRef.current.play().catch(() => {
-          // Autoplay might be blocked, continue anyway
-        });
-        await setupVideo();
-      } catch (err) {
-        console.error("Error setting up video:", err);
-      }
-    }
-
-    if (supportsBarcodeDetector()) {
-      try {
-        detectorRef.current = new window.BarcodeDetector({
-          formats: ["qr_code"],
-        });
-      } catch (err) {
-        console.warn("BarcodeDetector not available:", err);
-        detectorRef.current = null;
-      }
-    } else {
       detectorRef.current = null;
-      setStatusMessage(
-        "Ready for the next QR code.",
-      );
+      if (supportsBarcodeDetector()) {
+        try {
+          detectorRef.current = new window.BarcodeDetector({ formats: ["qr_code"] });
+        } catch {
+          // jsQR remains available when native detection is unsupported.
+        }
+      }
+
+      const requestedAt = Date.now();
+      const ready = await new Promise(resolve => {
+        const checkReady = () => {
+          if (!stillValid() || videoRef.current !== video) return resolve(false);
+          if (video.readyState >= 2) return resolve(true);
+          if (Date.now() - requestedAt >= 10000) return resolve(false);
+          setTimeout(checkReady, 100);
+        };
+        checkReady();
+      });
+      if (!ready || !stillValid()) {
+        stream.getTracks().forEach(item => item.stop());
+        if (session === cameraSessionRef.current) {
+          stopScanning();
+          if (canScanEvent(event)) setError("The camera could not start. Please try again.");
+        }
+        return;
+      }
+      stateRef.current.isScanning = true;
+      setIsScanning(true);
+      setStatusMessage("Ready for the next QR code.");
+      onStatusChange?.(true);
+      scanLoop();
+    } catch {
+      stream?.getTracks().forEach(track => track.stop());
+      if (session === cameraSessionRef.current) {
+        stopScanning();
+        setError("Camera access denied. Please allow camera permissions.");
+      }
+    } finally {
+      if (session === cameraSessionRef.current) {
+        cameraStartingRef.current = false;
+        setIsStartingCamera(false);
+      }
     }
   };
 
@@ -700,9 +773,7 @@ export default function QRScanner({
     barangay: record.barangay || "N/A",
   }));
 
-  const selectedEvent = events.find(
-    (event) => event.eventId === selectedEventId && event.status === "active",
-  );
+  const selectedEvent = activeEvents.find(event => event.eventId === selectedEventId);
 
   return (
     <div className="operator-qr-scanner">
@@ -716,16 +787,17 @@ export default function QRScanner({
           <select
             id="oqs-event"
             value={selectedEventId}
-            disabled={isScanning || !hasActiveEvent}
+            disabled={isScanning || isStartingCamera || !hasActiveEvent}
             onChange={(e) => {
               setSelectedEventId(e.target.value);
               setScanResult(null);
               setError("");
+              setEventNotice("");
               lastValueRef.current = "";
             }}
           >
             {!hasActiveEvent && <option value="">No active events</option>}
-            {events.map(event => (
+            {activeEvents.map(event => (
               <option key={event.eventId} value={event.eventId}>{event.eventName}</option>
             ))}
           </select>
@@ -740,10 +812,10 @@ export default function QRScanner({
           <span aria-hidden="true" />{isScanning ? "Camera on" : "Camera off"}
         </span>
       </section>
-      {!hasActiveEvent && (
+      {(!hasActiveEvent || eventNotice) && (
         <div className="oqs-notice" role="status">
           <AlertCircle size={18} aria-hidden="true" />
-          <p>No active event is available. Ask an administrator to activate the event before scanning.</p>
+          <p>{eventNotice || "No active event is available. Approved events become available automatically at their scheduled start time."}</p>
         </div>
       )}
       <div className="oqs-workspace">
@@ -783,12 +855,12 @@ export default function QRScanner({
             <div className="oqs-camera-buttons">
               <button
                 type="button"
-                className={`oqs-button ${isScanning ? "oqs-button-stop" : "oqs-button-primary"}`}
-                onClick={isScanning ? stopScanning : startScanning}
-                disabled={!selectedEvent}
+                className={`oqs-button ${isScanning || isStartingCamera ? "oqs-button-stop" : "oqs-button-primary"}`}
+                onClick={isScanning || isStartingCamera ? stopScanning : startScanning}
+                disabled={!selectedEvent && !isScanning && !isStartingCamera}
               >
                 {isScanning ? <Square size={16} aria-hidden="true" /> : <Camera size={18} aria-hidden="true" />}
-                {isScanning ? "Stop camera" : "Start camera"}
+                {isStartingCamera ? "Cancel camera" : isScanning ? "Stop camera" : "Start camera"}
               </button>
               {isScanning && flashSupported && (
                 <button type="button" className="oqs-button oqs-button-secondary" onClick={toggleFlash} aria-pressed={flashOn}>

@@ -93,10 +93,6 @@ export default function AttendanceOperatorPortal({
   }, [isMobileMenuOpen]);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
-  const activeEvents = Array.isArray(events)
-    ? events.filter((event) => event?.status === "active")
-    : [];
-
   useEffect(() => {
     window.localStorage.setItem(
       "operatorSidebarCollapsed",
@@ -127,7 +123,7 @@ export default function AttendanceOperatorPortal({
         return (
           <QRScanner
             user={currentUser}
-            events={activeEvents}
+            events={events}
             onScanSuccess={handleScanSuccess}
             onViewAll={() => setActiveTab("live")}
           />
