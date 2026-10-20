@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const mongoose = require('mongoose');
 const path = require('path');
 const connectDB = require('./configs/db');
+const configureProxy = require('./configs/proxy');
 const { globalErrorHandler } = require('./middleware/errorHandler');
 
 // Routes
@@ -15,6 +16,7 @@ const auditLogRoutes = require('./shared/routes/auditLogRoutes');
 
 const { authenticateToken, authorizeModule, authorizeAdminOnly, requirePasswordChange } = require('./middleware/auth');
 const app = express();
+configureProxy(app);
 
 // Real browser-facing origins allowed to call this API, e.g.
 // "http://localhost:5173" or a comma-separated list for multiple

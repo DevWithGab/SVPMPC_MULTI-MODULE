@@ -234,6 +234,21 @@ npm run build
 
 The backend's `npm test` is currently a placeholder that exits with an error. These client commands do not establish that database workflows or financial operations work end to end; exercise the relevant portals against a development database when changing those features.
 
+### Reverse proxy configuration on Render
+
+Set `TRUST_PROXY_HOPS=1` in the backend service's Render environment settings
+as the starting configuration for one trusted proxy. Redeploy after changing
+it. Keep it unset or `0` for direct local access. The server validates that
+this setting is a non-negative integer; it never enables unrestricted proxy
+trust. This controls the client IP used by login limits and audit records.
+
+Before live use, verify that the resolved request IP matches the caller's
+public IP on the deployed service, including a request with an extra spoofed
+leftmost `X-Forwarded-For` entry. That entry must not change the resolved IP.
+The hop count must match the actual proxy path; recheck it if another proxy
+or CDN is added. Do not enable this setting on an API exposed directly to
+untrusted clients without a proxy.
+
 ## Guidance for AI-assisted changes
 
 1. Start with `client/src/App.jsx` and `server/server.js`, then trace the relevant portal, API service, route, controller, and model.

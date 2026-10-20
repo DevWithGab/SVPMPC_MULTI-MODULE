@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
+const configureProxy = require('../configs/proxy');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { dirname } = require('node:path');
@@ -66,8 +67,8 @@ async function withLoginRoute(run) {
       res.status(req.body.password === 'synthetic-success' ? 200 : 401).json({ synthetic: true }) },
   });
   const app = express();
-  // Only this loopback test trusts forwarding headers to simulate distinct IPs.
-  app.set('trust proxy', true);
+  // Exercise the production configuration with one simulated trusted proxy.
+  configureProxy(app, { TRUST_PROXY_HOPS: '1' });
   app.use(express.json());
   app.use('/api/auth', router);
   const server = app.listen(0, '127.0.0.1');
@@ -106,6 +107,7 @@ test('login route IP limit blocks spraying across usernames, roles, and modules'
       assert.equal(await login({ username: `account-${i}`, module: `module-${i}`, expectedRole: `role-${i}` }), 401);
     }
     assert.equal(await login({ username: 'another-account' }), 429);
+    assert.equal(await login({ username: 'spoofed-account' }, '203.0.113.99, 192.0.2.1'), 429);
     assert.equal(await login({ username: 'another-account' }, '198.51.100.1'), 401);
   });
 });
