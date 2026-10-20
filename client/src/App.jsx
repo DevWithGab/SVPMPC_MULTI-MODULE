@@ -73,7 +73,7 @@ function AppRoutes() {
   }} />;
   const routesElement = (
     <Routes>
-      <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector onModuleSelect={handleLogin} notice={loginNotice} />} />
+      <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector key={location.search} onModuleSelect={handleLogin} notice={loginNotice} />} />
       <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'admin', user, token)} onLogout={handleLogout} />} />
       {Object.entries(portals).map(([path, Portal]) => (
         <Route key={path} path={path} element={

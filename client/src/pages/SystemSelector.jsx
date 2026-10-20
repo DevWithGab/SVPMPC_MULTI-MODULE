@@ -1,4 +1,5 @@
 import { useState } from "react";
+import useLoginNavigation from '../hooks/useLoginNavigation';
 import {
   Database,
   QrCode,
@@ -20,8 +21,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
 
 export default function SystemSelector({ onModuleSelect, notice }) {
-  const [selectedSystem, setSelectedSystem] = useState(null);
-  const [step, setStep] = useState("MODULE_SELECTION"); // MODULE_SELECTION, ROLE_SELECTION, ADMIN_LOGIN, SECRETARY_LOGIN, TREASURER_LOGIN
+  const { selectedSystem, selectedRole, step, selectSystem, selectRole, back } = useLoginNavigation();
   const [adminLoginData, setAdminLoginData] = useState({
     email: "",
     password: "",
@@ -41,7 +41,6 @@ export default function SystemSelector({ onModuleSelect, notice }) {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState(null);
 
   const systems = [
     {
@@ -117,21 +116,13 @@ export default function SystemSelector({ onModuleSelect, notice }) {
   };
 
   const handleSystemSelect = (systemId) => {
-    setSelectedSystem(systemId);
-    setStep("ROLE_SELECTION");
+    selectSystem(systemId);
   };
 
   const handleRoleSelect = (roleId) => {
-    setSelectedRole(roleId);
-    if (roleId === "admin") {
-      setStep("ADMIN_LOGIN");
-    } else if (roleId === "secretary") {
-      setStep("SECRETARY_LOGIN");
-    } else if (roleId === "scanner_operator") {
-      setStep("OPERATOR_LOGIN");
-    } else if (roleId === "treasurer") {
-      setStep("TREASURER_LOGIN");
-    }
+    setLoginError("");
+    setShowPassword(false);
+    selectRole(roleId);
   };
 
   const handleAdminLogin = async (e) => {
@@ -332,7 +323,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       step === "TREASURER_LOGIN" ||
       step === "OPERATOR_LOGIN"
     ) {
-      setStep("ROLE_SELECTION");
+      back();
       setLoginError("");
       setAdminLoginData({ email: "", password: "" });
       setSecretaryLoginData({ email: "", password: "" });
@@ -340,9 +331,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       setOperatorLoginData({ email: "", password: "" });
       setShowPassword(false);
     } else if (step === "ROLE_SELECTION") {
-      setStep("MODULE_SELECTION");
-      setSelectedSystem(null);
-      setSelectedRole(null);
+      back();
     }
 
     // Clear any stored authentication data when going back

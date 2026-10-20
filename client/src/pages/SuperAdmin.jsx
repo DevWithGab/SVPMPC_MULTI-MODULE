@@ -1,4 +1,5 @@
 import { importHeaderLabel, isPassbookHeader } from '../utils/importHeaders';
+import useUrlState from '../hooks/useUrlState';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
@@ -98,7 +99,7 @@ const FormField = React.forwardRef(
 FormField.displayName = 'FormField';
 
 const SuperAdmin = ({ onAuthenticated, onLogout }) => {
-  const [section, setSection] = useState('members');
+  const [section, setSection] = useUrlState('tab', 'members', ['members', 'staff', 'auditlogs']);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
