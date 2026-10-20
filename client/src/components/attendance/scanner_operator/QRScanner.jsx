@@ -6,35 +6,15 @@ import React, {
   useMemo,
 } from "react";
 import {
-  QrCode,
-  Camera,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Search,
-  ChevronDown,
-  Calendar,
-  Users,
-  Zap,
-  HelpCircle,
-  X,
-  XCircle,
-  Info,
-  PieChart as PieChartIcon,
-  Loader2,
+  QrCode, Camera, CheckCircle2, AlertCircle, Clock, Search,
+  ChevronDown, Zap, XCircle, Loader2, Square,
 } from "lucide-react";
-import { motion as Motion, AnimatePresence } from "framer-motion";
-import { Pie, PieChart, Cell } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import { ChartContainer } from "../../ui/chart";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Modal } from "../../ui/modal";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import jsQR from "jsqr";
-import { formatDate, formatTime, formatDateTime } from "../../../utils/date";
-import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
-import "../secretary/Dashboard.css";
+import { formatDate, formatTime } from "../../../utils/date";
 import "./QRScanner.css";
 
 export default function QRScanner({
@@ -62,13 +42,8 @@ export default function QRScanner({
   const [manualReason, setManualReason] = useState("");
   const [showManualReasonModal, setShowManualReasonModal] = useState(false);
   const [submittingManual, setSubmittingManual] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [flashSupported, setFlashSupported] = useState(false);
-  const [eventStats, setEventStats] = useState(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [lastStatsUpdate, setLastStatsUpdate] = useState(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
   /* Brief on-camera flash shown right after a code is processed —
   null | 'success' | 'duplicate' | 'invalid'. Mirrors the playScanSound
   outcomes so the visual and audio feedback always agree.*/
@@ -130,6 +105,7 @@ export default function QRScanner({
   }, [initialEvents, fetchActiveEvents]);
 
   useEffect(() => {
+    if (!showManualLookup) return;
     let isMounted = true;
 
     const fetchMembers = async () => {
@@ -167,41 +143,7 @@ export default function QRScanner({
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  // Live attendance stats (Total Members / Present / Pending) for the selected event
-  const refreshStats = useCallback(async (eventId) => {
-    if (!eventId) return;
-    setStatsLoading(true);
-    try {
-      const response = await attendanceAPI.getAttendanceStats(eventId);
-      setEventStats({
-        totalMembers: Number(response?.totalMembers) || 0,
-        presentCount: Number(response?.presentCount) || 0,
-      });
-      setLastStatsUpdate(new Date());
-    } catch (err) {
-      console.error("Error fetching attendance stats:", err);
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (selectedEventId) {
-      refreshStats(selectedEventId);
-    } else {
-      setEventStats(null);
-    }
-  }, [selectedEventId, refreshStats]);
-
-  useEffect(() => {
-    if (!autoRefresh || !selectedEventId) return undefined;
-    const interval = setInterval(() => {
-      refreshStats(selectedEventId);
-    }, 20000);
-    return () => clearInterval(interval);
-  }, [autoRefresh, selectedEventId, refreshStats]);
+  }, [showManualLookup]);
 
   // Flashes a colored ring + icon over the camera viewport for ~900ms.
   const triggerScanFeedback = useCallback((type) => {
@@ -422,7 +364,8 @@ export default function QRScanner({
       }
 
       isProcessingRef.current = true;
-      setStatusMessage("QR code detected, processing...");
+      setScanResult(null);
+      setStatusMessage("Recording attendance...");
       setError("");
 
       const {
@@ -430,9 +373,9 @@ export default function QRScanner({
         selectedEventId: currentEventId,
         user: currentUser,
       } = stateRef.current;
-      const activeEvent =
-        currentEvents.find((event) => event.eventId === currentEventId) ||
-        currentEvents[0];
+      const activeEvent = currentEvents.find(
+        (event) => event.eventId === currentEventId && event.status === "active",
+      );
 
       if (!activeEvent) {
         setError("Select an active event before scanning member QR codes.");
@@ -486,7 +429,6 @@ export default function QRScanner({
         setStatusMessage("Attendance recorded successfully.");
         playScanSound("success");
         triggerScanFeedback("success");
-        refreshStats(activeEvent.eventId);
 
         if (onScanSuccess) {
           onScanSuccess(attendance);
@@ -524,7 +466,7 @@ export default function QRScanner({
         pauseDetectionUntilRef.current = Date.now() + 1500;
       }
     },
-    [onScanSuccess, playScanSound, refreshStats, triggerScanFeedback],
+    [onScanSuccess, playScanSound, triggerScanFeedback],
   );
 
   /*Manually adding a member (no camera involved) always requires a typed
@@ -655,7 +597,7 @@ export default function QRScanner({
   const startScanning = async () => {
     if (!selectedEventId || !events?.length) {
       setError(
-        "No active event selected. Please select or create an active event before scanning.",
+        "Select an active event before scanning.",
       );
       setStatusMessage("Select an active event to scan.");
       return;
@@ -745,12 +687,12 @@ export default function QRScanner({
     } else {
       detectorRef.current = null;
       setStatusMessage(
-        "Scanning with software fallback; align the QR code in view.",
+        "Ready for the next QR code.",
       );
     }
   };
 
-  const recentScansDisplay = scanHistory.map((record, index) => ({
+  const recentScansDisplay = scanHistory.filter(record => record.eventId === selectedEventId).map((record, index) => ({
     id: index + 1,
     memberName: record.memberName || record.name || "Unknown member",
     memberId: record.memberId || "",
@@ -758,552 +700,158 @@ export default function QRScanner({
     barangay: record.barangay || "N/A",
   }));
 
-  const selectedEvent =
-    events.find((event) => event.eventId === selectedEventId) ||
-    events[0] ||
-    null;
-
-  const totalMembers = eventStats?.totalMembers ?? 0;
-  const presentCount = eventStats?.presentCount ?? 0;
-  const pendingCount = Math.max(totalMembers - presentCount, 0);
-  const presentPct =
-    totalMembers > 0 ? Math.round((presentCount / totalMembers) * 100) : 0;
-  const hasStatsData = totalMembers > 0;
-
-  const summaryData = [
-    { key: "present", label: "Present", value: presentCount, color: "#2D7A3E" },
-    { key: "pending", label: "Pending", value: pendingCount, color: "#f59e0b" },
-  ];
-  const chartConfig = {
-    present: { label: "Present", color: "#2D7A3E" },
-    pending: { label: "Pending", color: "#f59e0b" },
-  };
+  const selectedEvent = events.find(
+    (event) => event.eventId === selectedEventId && event.status === "active",
+  );
 
   return (
-    <div className="secretary-dashboard operator-qr-scanner">
-      {/* Header */}
-      <header className="sd-header">
-        <div>
-          <p className="sd-eyebrow">Attendance management / Scanner operator</p>
-          <h1>Scan attendance</h1>
-          <p className="sd-description">
-            Point your phone's camera at a member's QR code to record
-            attendance.
-          </p>
-        </div>
-        <span
-          role="status"
-          className={`oqs-status sd-status ${
-            hasActiveEvent ? "sd-status-active" : "sd-status-neutral"
-          }`}
-        >
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${hasActiveEvent ? "bg-coop-green" : "bg-amber-500"}`}
-          />
-          {statusMessage}
-        </span>
+    <div className="operator-qr-scanner">
+      <header className="oqs-header">
+        <h1>Scan attendance</h1>
+        <p>Select the event, then scan each member's QR code.</p>
       </header>
-
-      {/* Active Event */}
-      <Card className="sd-panel oqs-panel">
-        <CardContent className="oqs-event-details p-4 sm:p-5 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-100 flex items-center justify-center shrink-0">
-              <Calendar className="w-5 h-5 text-coop-green" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-                {selectedEvent ? "Active Event" : "No Active Event"}
-              </p>
-              {selectedEvent ? (
-                <>
-                  <p className="text-sm font-bold text-slate-900 truncate">
-                    {selectedEvent.eventName}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5 truncate">
-                    {[
-                      selectedEvent.eventDate
-                        ? formatDate(selectedEvent.eventDate)
-                        : "",
-                      selectedEvent.eventTime || "",
-                      selectedEvent.location || "",
-                    ]
-                      .filter(Boolean)
-                      .join(" • ")}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm font-semibold text-slate-500">
-                  Select an event to start scanning
-                </p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="oqs-workspace">
-        {/* Scanner + stats - primary focus */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="sd-panel oqs-panel">
-            <CardHeader className="oqs-panel-heading border-b border-slate-100 p-4 sm:p-5 flex-row items-center justify-between space-y-0">
-              <CardTitle className="oqs-panel-title text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Camera className="w-4 h-4 text-coop-green" />
-                Scanner
-              </CardTitle>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={toggleFlash}
-                  aria-pressed={flashOn}
-                  disabled={!isScanning || !flashSupported}
-                  title={
-                    !isScanning
-                      ? "Start scanning to use flash"
-                      : !flashSupported
-                        ? "Flash isn't supported on this device"
-                        : undefined
-                  }
-                  className={`flex items-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                    flashOn
-                      ? "text-coop-green"
-                      : "text-slate-500 hover:text-coop-green"
-                  }`}
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  Flash
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowHelp((prev) => !prev)}
-                  aria-expanded={showHelp}
-                  aria-controls="oqs-help"
-                  className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${
-                    showHelp
-                      ? "text-coop-green"
-                      : "text-slate-500 hover:text-coop-green"
-                  }`}
-                >
-                  <HelpCircle className="w-3.5 h-3.5" />
-                  Help
-                </button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-6 space-y-5">
-              {showHelp && (
-                <div
-                  id="oqs-help"
-                  className="relative rounded-lg border border-green-200 bg-green-50 p-4"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setShowHelp(false)}
-                    aria-label="Close help"
-                    className="absolute top-3 right-3 text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                  <p className="text-xs font-bold text-coop-darkGreen mb-2">
-                    How to scan
-                  </p>
-                  <ol className="space-y-1.5 text-xs text-slate-600 list-decimal list-inside">
-                    <li>Tap "Start Scanning" to turn on the camera.</li>
-                    <li>Point the camera at the member's QR code.</li>
-                    <li>
-                      Wait for the automatic confirmation — no need to tap
-                      anything else.
-                    </li>
-                  </ol>
-                </div>
-              )}
-
-              {/* Camera viewport */}
-              <div className="mx-auto w-full max-w-sm">
-                <div className="aspect-square bg-slate-900 rounded-xl overflow-hidden relative border border-slate-800">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-
-                  {!isScanning && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center text-white/80">
-                        <QrCode className="w-14 h-14 mx-auto mb-3 opacity-40" />
-                        <p className="text-sm font-semibold">Camera ready</p>
-                        <p className="text-xs opacity-60 mt-1">
-                          Point at a member's QR code within the frame
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {isScanning && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-48 h-48 border-2 border-white/70 rounded-xl relative overflow-hidden">
-                        <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-2 border-l-2 border-coop-green rounded-tl-lg"></div>
-                        <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-2 border-r-2 border-coop-green rounded-tr-lg"></div>
-                        <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-2 border-l-2 border-coop-green rounded-bl-lg"></div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-2 border-r-2 border-coop-green rounded-br-lg"></div>
-
-                        {/* Sweeping scan line — plays while actively
-                            searching, pauses during the result flash below */}
-                        {!scanFeedback && (
-                          <Motion.div
-                            className="absolute left-1 right-1 h-1 rounded-full bg-linear-to-r from-transparent via-coop-green to-transparent"
-                            style={{
-                              boxShadow: "0 0 8px 2px rgba(45,122,62,0.7)",
-                            }}
-                            animate={{ y: [8, 176, 8] }}
-                            transition={{
-                              duration: 2.2,
-                              repeat: Infinity,
-                              ease: "easeInOut",
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Result flash — brief colored pulse + icon the instant a
-                      code finishes processing (success / duplicate / invalid) */}
-                  <AnimatePresence>
-                    {scanFeedback && (
-                      <Motion.div
-                        key={scanFeedback}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className={`absolute inset-0 flex items-center justify-center pointer-events-none ${
-                          scanFeedback === "success"
-                            ? "bg-coop-green/25"
-                            : scanFeedback === "duplicate"
-                              ? "bg-amber-500/25"
-                              : "bg-red-600/25"
-                        }`}
-                      >
-                        <Motion.div
-                          initial={{ scale: 0.4, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.6, opacity: 0 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 320,
-                            damping: 18,
-                          }}
-                          className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg ${
-                            scanFeedback === "success"
-                              ? "bg-coop-green"
-                              : scanFeedback === "duplicate"
-                                ? "bg-amber-500"
-                                : "bg-red-600"
-                          }`}
-                        >
-                          {scanFeedback === "success" ? (
-                            <CheckCircle2 className="w-11 h-11 text-white" />
-                          ) : scanFeedback === "duplicate" ? (
-                            <Clock className="w-11 h-11 text-white" />
-                          ) : (
-                            <XCircle className="w-11 h-11 text-white" />
-                          )}
-                        </Motion.div>
-                      </Motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {/* Start / Stop */}
-              {!isScanning ? (
-                <Button
-                  onClick={startScanning}
-                  disabled={!selectedEventId}
-                  className={`oqs-camera-action w-full rounded-lg font-semibold py-3.5 text-base flex items-center justify-center gap-2 shadow-sm transition-colors ${
-                    selectedEventId
-                      ? "bg-coop-green hover:bg-coop-darkGreen text-white"
-                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  }`}
-                >
-                  <Camera className="w-5 h-5" />
-                  Start Scanning
-                </Button>
-              ) : (
-                <Button
-                  onClick={stopScanning}
-                  className="oqs-camera-action w-full rounded-lg font-semibold py-3.5 text-base border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                >
-                  Stop Scanning
-                </Button>
-              )}
-
-              <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3.5 py-2.5">
-                <Info className="w-4 h-4 text-coop-green shrink-0" />
-                <p className="text-xs text-coop-darkGreen font-medium">
-                  Hold the phone steady — attendance is recorded automatically
-                  once the code is detected.
-                </p>
-              </div>
-
-              {/* Error */}
-              {error && (
-                <div
-                  role="alert"
-                  className="p-3.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2.5"
-                >
-                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                  <p className="text-red-700 font-medium text-sm">{error}</p>
-                </div>
-              )}
-
-              {/* Success */}
-              {scanResult && (
-                <div
-                  role="status"
-                  className="p-4 bg-green-50 border border-green-200 rounded-lg"
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle2 className="w-5 h-5 text-coop-green" />
-                    <p className="text-sm font-bold text-coop-darkGreen">
-                      Attendance recorded
-                    </p>
-                  </div>
-                  <div className="space-y-1.5 text-sm">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-500">Member</span>
-                      <span className="font-semibold text-slate-900 text-right">
-                        {scanResult.memberName || scanResult.memberId}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-500">Event</span>
-                      <span className="font-semibold text-slate-900 text-right">
-                        {scanResult.eventName}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-slate-500">Time</span>
-                      <span className="font-medium text-slate-700 text-right">
-                        {scanResult.scanTime || scanResult.timestamp
-                          ? formatDateTime(
-                              scanResult.scanTime || scanResult.timestamp,
-                            )
-                          : "Recorded"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Stats row */}
-          <AttendanceMetricGrid
-            label="Selected event attendance"
-            busy={statsLoading}
-            items={[
-              [
-                "Total members",
-                totalMembers.toLocaleString(),
-                "Registered members",
-                Users,
-              ],
-              [
-                "Present",
-                presentCount.toLocaleString(),
-                "Attendance recorded for this event",
-                CheckCircle2,
-              ],
-              [
-                "Pending",
-                pendingCount.toLocaleString(),
-                "Members not yet checked in",
-                Clock,
-              ],
-            ]}
-          />
+      <section className="oqs-event" aria-label="Scanning event">
+        <div className="oqs-event-field">
+          <label htmlFor="oqs-event">Event</label>
+          <select
+            id="oqs-event"
+            value={selectedEventId}
+            disabled={isScanning || !hasActiveEvent}
+            onChange={(e) => {
+              setSelectedEventId(e.target.value);
+              setScanResult(null);
+              setError("");
+              lastValueRef.current = "";
+            }}
+          >
+            {!hasActiveEvent && <option value="">No active events</option>}
+            {events.map(event => (
+              <option key={event.eventId} value={event.eventId}>{event.eventName}</option>
+            ))}
+          </select>
+          {selectedEvent && (
+            <p>{[
+              selectedEvent.eventDate ? formatDate(selectedEvent.eventDate) : "",
+              selectedEvent.location,
+            ].filter(Boolean).join(" / ")}</p>
+          )}
         </div>
-
-        {/* Recent scans + Session summary */}
-        <div className="space-y-6">
-          <Card className="sd-panel oqs-panel h-fit">
-            <CardHeader className="oqs-panel-heading border-b border-slate-100 p-5 flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle className="oqs-panel-title text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-coop-green" />
-                  Recent scans
-                </CardTitle>
-                <p className="text-slate-400 text-xs mt-1">This session</p>
+        <span className={`oqs-camera-status ${isScanning ? "is-live" : ""}`}>
+          <span aria-hidden="true" />{isScanning ? "Camera on" : "Camera off"}
+        </span>
+      </section>
+      {!hasActiveEvent && (
+        <div className="oqs-notice" role="status">
+          <AlertCircle size={18} aria-hidden="true" />
+          <p>No active event is available. Ask an administrator to activate the event before scanning.</p>
+        </div>
+      )}
+      <div className="oqs-workspace">
+        <section className="oqs-camera-panel" aria-label="QR camera scanner">
+          <div className={`oqs-viewport ${scanFeedback ? `oqs-feedback-${scanFeedback}` : ""}`}>
+            <video ref={videoRef} autoPlay muted playsInline aria-label="Live camera preview" />
+            {!isScanning ? (
+              <div className="oqs-camera-empty">
+                <QrCode size={48} strokeWidth={1.25} aria-hidden="true" />
+                <h2>Ready when you are</h2>
+                <p>Start the camera to scan a member's QR code.</p>
               </div>
-              {onViewAll && (
-                <button
-                  type="button"
-                  onClick={onViewAll}
-                  className="border border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0"
-                >
-                  View All
-                </button>
-              )}
-            </CardHeader>
-            <CardContent className="p-0">
-              {recentScansDisplay.length > 0 ? (
-                <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                  {recentScansDisplay.map((scan) => {
-                    return (
-                      <div
-                        key={scan.id}
-                        className="flex items-center gap-3 p-4"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-900 truncate">
-                            {scan.memberName}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-0.5 truncate">
-                            {scan.memberId
-                              ? `Passbook Number: ${scan.memberId}`
-                              : scan.barangay}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-xs text-slate-400">
-                            {scan.time}
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-50 text-coop-green border border-green-200">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Scanned
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2 py-10 text-slate-400">
-                  <Clock className="w-7 h-7 text-slate-300" />
-                  <p className="text-sm font-medium">No scans yet</p>
-                  <p className="text-xs">Scanned members will appear here</p>
-                </div>
-              )}
-            </CardContent>
-            {onViewAll && recentScansDisplay.length > 0 && (
-              <div className="p-3 border-t border-slate-100 text-center">
-                <button
-                  type="button"
-                  onClick={onViewAll}
-                  className="text-xs font-semibold text-coop-green hover:text-coop-darkGreen"
-                >
-                  View all recent scans
-                </button>
+            ) : (
+              <div className="oqs-viewfinder" aria-hidden="true">
+                <span /><span /><span /><span />
               </div>
             )}
-          </Card>
-
-          {/* Session summary */}
-          <Card className="sd-panel oqs-panel">
-            <CardHeader className="oqs-panel-heading border-b border-slate-100 p-5">
-              <CardTitle className="oqs-panel-title text-sm font-bold text-slate-900 flex items-center gap-2">
-                <PieChartIcon className="w-4 h-4 text-coop-green" />
-                Session summary
-              </CardTitle>
-              <p className="text-slate-400 text-xs mt-1">
-                Live attendance for this event
-              </p>
-            </CardHeader>
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center gap-5">
-                <div className="relative w-28 h-28 shrink-0">
-                  <ChartContainer
-                    config={chartConfig}
-                    className="w-full h-full aspect-square"
-                  >
-                    <PieChart>
-                      <Pie
-                        data={
-                          hasStatsData
-                            ? summaryData
-                            : [{ key: "empty", label: "No data", value: 1 }]
-                        }
-                        dataKey="value"
-                        nameKey="label"
-                        innerRadius={38}
-                        outerRadius={54}
-                        stroke="none"
-                      >
-                        {(hasStatsData
-                          ? summaryData
-                          : [{ key: "empty", color: "#e2e8f0" }]
-                        ).map((entry) => (
-                          <Cell key={entry.key} fill={entry.color} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ChartContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-lg font-bold text-slate-900">
-                      {hasStatsData ? `${presentPct}%` : "—"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0 space-y-2.5">
-                  {summaryData.map((entry) => (
-                    <div
-                      key={entry.key}
-                      className="flex items-center justify-between text-sm gap-2"
-                    >
-                      <span className="flex items-center gap-2 font-medium text-slate-700 min-w-0">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: entry.color }}
-                        />
-                        <span className="truncate">{entry.label}</span>
-                      </span>
-                      <span className="text-slate-400 font-medium shrink-0">
-                        {entry.value}
-                        {hasStatsData
-                          ? ` (${Math.round((entry.value / totalMembers) * 100)}%)`
-                          : ""}
-                      </span>
-                    </div>
-                  ))}
+            {isScanning && scanFeedback && (
+              <div className="oqs-feedback" aria-hidden="true">
+                {scanFeedback === "success" ? <CheckCircle2 size={52} />
+                  : scanFeedback === "duplicate" ? <Clock size={52} /> : <XCircle size={52} />}
+              </div>
+            )}
+            {/* Keep the result visible beside the camera on narrow screens.
+                The full result below provides the live announcement. */}
+            {(error || scanResult) && (
+              <div className={`oqs-mobile-result ${error ? "has-error" : ""}`} aria-hidden="true">
+                {error ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
+                <div>
+                  <strong>{error ? "Attendance not recorded" : scanResult.memberName || scanResult.name || scanResult.memberId}</strong>
+                  <span>{error || `Recorded · Passbook No. ${scanResult.memberId}`}</span>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                <p className="text-xs text-slate-400">
-                  {statsLoading
-                    ? "Updating…"
-                    : lastStatsUpdate
-                      ? `Last updated: ${formatTime(lastStatsUpdate)}`
-                      : "Not yet updated"}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setAutoRefresh((prev) => !prev)}
-                  aria-pressed={autoRefresh}
-                  aria-label="Toggle auto-refresh"
-                  title="Auto-refresh"
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
-                    autoRefresh ? "bg-coop-green" : "bg-slate-200"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                      autoRefresh ? "translate-x-4" : "translate-x-1"
-                    }`}
-                  />
+            )}
+          </div>
+          <div className="oqs-camera-controls">
+            <div className="oqs-camera-buttons">
+              <button
+                type="button"
+                className={`oqs-button ${isScanning ? "oqs-button-stop" : "oqs-button-primary"}`}
+                onClick={isScanning ? stopScanning : startScanning}
+                disabled={!selectedEvent}
+              >
+                {isScanning ? <Square size={16} aria-hidden="true" /> : <Camera size={18} aria-hidden="true" />}
+                {isScanning ? "Stop camera" : "Start camera"}
+              </button>
+              {isScanning && flashSupported && (
+                <button type="button" className="oqs-button oqs-button-secondary" onClick={toggleFlash} aria-pressed={flashOn}>
+                  <Zap size={16} aria-hidden="true" />Flash {flashOn ? "on" : "off"}
                 </button>
+              )}
+            </div>
+            <p className="oqs-scan-status" role="status" aria-live="polite">{statusMessage}</p>
+            <p className="oqs-camera-hint">Keep the code inside the frame. Attendance saves automatically.</p>
+          </div>
+        </section>
+        <aside className="oqs-results" aria-label="Scan results">
+          <section className={`oqs-result ${error ? "has-error" : scanResult ? "has-success" : ""}`} aria-labelledby="oqs-result-title">
+            <h2 id="oqs-result-title">Latest result</h2>
+            {error ? (
+              <div className="oqs-result-body" role="alert">
+                <AlertCircle size={24} aria-hidden="true" />
+                <h3>Attendance not recorded</h3>
+                <p>{error}</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            ) : scanResult ? (
+              <div className="oqs-result-body" role="status">
+                <CheckCircle2 size={26} aria-hidden="true" />
+                <p className="oqs-result-label">Attendance recorded</p>
+                <h3>{scanResult.memberName || scanResult.name || scanResult.memberId}</h3>
+                <p>Passbook No. {scanResult.memberId}</p>
+                <p>{scanResult.scanTime || scanResult.timestamp
+                  ? formatTime(scanResult.scanTime || scanResult.timestamp) : "Just now"}</p>
+                <span className="oqs-next-member">Ready for the next member.</span>
+              </div>
+            ) : (
+              <div className="oqs-result-body oqs-result-empty">
+                <CheckCircle2 size={26} strokeWidth={1.5} aria-hidden="true" />
+                <h3>Waiting for a scan</h3>
+                <p>The member's name and confirmation will appear here.</p>
+              </div>
+            )}
+          </section>
+          <section className="oqs-recent" aria-labelledby="oqs-recent-title">
+            <div className="oqs-section-heading">
+              <h2 id="oqs-recent-title">Recent scans</h2>
+              {onViewAll && <button type="button" onClick={onViewAll}>View attendance</button>}
+            </div>
+            {recentScansDisplay.length ? (
+              <ol>
+                {recentScansDisplay.map(scan => (
+                  <li key={scan.id}>
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    <div>
+                      <strong>{scan.memberName}</strong>
+                      <span>Passbook No. {scan.memberId}</span>
+                    </div>
+                    <time>{scan.time}</time>
+                  </li>
+                ))}
+              </ol>
+            ) : <p className="oqs-recent-empty">No scans in this session yet.</p>}
+          </section>
+        </aside>
       </div>
 
       {/* Manual lookup - secondary, collapsed by default so scanning stays the focus */}
-      <Card className="sd-panel oqs-panel">
+      <section className="oqs-manual">
         <button
           type="button"
           onClick={() => setShowManualLookup((prev) => !prev)}
@@ -1315,10 +863,10 @@ export default function QRScanner({
             <Search className="w-4 h-4 text-coop-green" />
             <div>
               <p className="text-sm font-bold text-slate-900">
-                Can't scan? Search manually
+                Can't scan a QR code?
               </p>
               <p className="text-slate-400 text-xs mt-0.5">
-                Find a member by name or Passbook No. instead
+                Use manual entry with a recorded reason.
               </p>
             </div>
           </div>
@@ -1328,7 +876,7 @@ export default function QRScanner({
         </button>
 
         {showManualLookup && (
-          <CardContent
+          <div
             id="oqs-manual-lookup"
             className="p-5 pt-0 space-y-4 border-t border-slate-100"
           >
@@ -1369,7 +917,7 @@ export default function QRScanner({
                     <Button
                       type="button"
                       onClick={() => handleManualMemberAdd(member)}
-                      disabled={!selectedEventId}
+                      disabled={!selectedEvent}
                       className="shrink-0 rounded-lg bg-coop-green hover:bg-coop-darkGreen text-white text-xs font-semibold px-3 py-2"
                     >
                       Add
@@ -1384,9 +932,9 @@ export default function QRScanner({
                 </div>
               )}
             </div>
-          </CardContent>
+          </div>
         )}
-      </Card>
+      </section>
 
       {/* Manual add requires a reason before it's recorded — kept out of
           the main flow so camera scanning stays the fast, default path. */}
