@@ -1,14 +1,16 @@
 ﻿import { Activity, ArrowRight, CalendarDays, CheckCircle2, History, MapPin, QrCode, Zap } from "lucide-react";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import useScannerDashboardEvents from '../../../hooks/useScannerDashboardEvents';
 import { formatDate, formatDateTime, formatLongDate, formatTimeRange, getManilaHour } from "../../../utils/date";
 import "../secretary/Dashboard.css";
 import "./Dashboard.css";
 
 const getTimestamp = (record) => record.timestamp || record.date || record.scanTime || record.createdAt || "";
 const timestampMs = (record) => new Date(getTimestamp(record)).getTime() || 0;
+const EMPTY_EVENTS = [];
 
-export default function Dashboard({ user, attendanceLogs = [], events = [], setActiveTab }) {
-  const activeEvents = Array.isArray(events) ? events.filter(event => event?.status === "active") : [];
+export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EVENTS, setActiveTab }) {
+  const { activeEvents, refreshError } = useScannerDashboardEvents(Array.isArray(events) ? events : EMPTY_EVENTS);
   const records = Array.isArray(attendanceLogs) ? attendanceLogs : [];
   const recentRecords = [...records].sort((a, b) => timestampMs(b) - timestampMs(a)).slice(0, 5);
   const hasActiveEvent = activeEvents.length > 0;
@@ -38,6 +40,7 @@ export default function Dashboard({ user, attendanceLogs = [], events = [], setA
       ]} />
 
       <section className="sd-panel sod-events" aria-labelledby="sod-events-title">
+        {refreshError && <p role="status" className="px-5 pt-4 text-sm text-amber-800">Unable to refresh event availability. Retrying automatically.</p>}
         <div className="sd-panel-heading">
           <div>
             <h2 id="sod-events-title">Active event sessions</h2>
