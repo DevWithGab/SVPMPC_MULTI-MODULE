@@ -424,8 +424,6 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         return "text-red-600 bg-red-50 border-red-200";
       case "cancelled":
         return "text-slate-500 bg-slate-50 border-slate-200";
-      case "completed":
-        return "text-slate-500 bg-slate-50 border-slate-200";
       case "closed":
         return "text-slate-600 bg-slate-50 border-slate-200";
       default:
@@ -446,8 +444,6 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         return <XCircle className="w-4 h-4" />;
       case "closed":
         return <XCircle className="w-4 h-4" />;
-      case "completed":
-        return <AlertCircle className="w-4 h-4" />;
       default:
         return <AlertCircle className="w-4 h-4" />;
     }

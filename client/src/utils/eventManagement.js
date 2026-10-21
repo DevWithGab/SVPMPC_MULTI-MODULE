@@ -1,6 +1,6 @@
 export const eventStatusLabels = {
   draft: 'Draft', pending_approval: 'Pending approval', upcoming: 'Upcoming',
-  active: 'Active', closed: 'Closed', completed: 'Completed', rejected: 'Needs revision', cancelled: 'Cancelled',
+  active: 'Active', closed: 'Closed', rejected: 'Needs revision', cancelled: 'Cancelled',
 };
 
 export function validateEventForm(form) {
