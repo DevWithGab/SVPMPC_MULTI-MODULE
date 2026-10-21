@@ -64,7 +64,7 @@ function createPaymentImportService({ Member, Contribution, Ledger, PaymentImpor
           ledgerId: id, memberId: reservation.memberId,
           transactionType: 'contribution', description: `Contribution payment - cash (CSV: ${reservation.referenceNumber})`,
           credit: reservation.amount, debit: 0, balance: newBalance,
-          referenceId: id, paymentMethod: 'cash', recordedBy: reservation.recordedBy,
+          referenceId: reservation.referenceNumber, paymentMethod: 'cash', recordedBy: reservation.recordedBy,
           transactionDate: new Date(),
         } }, { upsert: true, new: true, runValidators: true });
       }

@@ -1,4 +1,7 @@
 const Ledger = require('../models/Ledger');
+const Contribution = require('../models/Contribution');
+const PaymentImport = require('../models/PaymentImport');
+const { resolveLedgerPaymentReferences } = require('../utils/ledgerReferences');
 const { Member } = require('../../../shared/models');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { LATEST_FIRST, getLatestBalance } = require('../utils/ledgerBalance');
@@ -39,12 +42,13 @@ const getMemberLedger = async (req, res) => {
     // Format ledger entries for consistency with frontend expectations.
     // createdAt (full timestamp) is included alongside date (day-only) so
     // the client can break same-day ties by true recency too.
+    const paymentReferences = await resolveLedgerPaymentReferences(ledgerEntries, { Contribution, PaymentImport });
     const formattedEntries = ledgerEntries.map(entry => ({
       id: entry.ledgerId,
       member_id: entry.memberId,
       date: entry.transactionDate.toISOString().split('T')[0],
       createdAt: entry.createdAt,
-      ref_no: entry.referenceId || entry.ledgerId,
+      ref_no: paymentReferences.get(entry.ledgerId) || entry.referenceId || entry.ledgerId,
       description: entry.description,
       transactionType: entry.transactionType,
       received: entry.credit || 0,
@@ -94,12 +98,13 @@ const getAllLedger = async (req, res) => {
 
     // Format for frontend. createdAt (full timestamp) is included alongside
     // date (day-only) so the client can break same-day ties by true recency.
+    const paymentReferences = await resolveLedgerPaymentReferences(ledgerEntries, { Contribution, PaymentImport });
     const formattedEntries = ledgerEntries.map(entry => ({
       id: entry.ledgerId,
       member_id: entry.memberId,
       date: entry.transactionDate.toISOString().split('T')[0],
       createdAt: entry.createdAt,
-      ref_no: entry.referenceId || entry.ledgerId,
+      ref_no: paymentReferences.get(entry.ledgerId) || entry.referenceId || entry.ledgerId,
       description: entry.description,
       transactionType: entry.transactionType,
       received: entry.credit || 0,

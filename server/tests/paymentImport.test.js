@@ -88,7 +88,8 @@ test('daily payments update both records, accumulate repeat-member credits, pres
   assert.equal(state.ledgers[2].balance, 50);
   assert.equal(state.ledgers.at(-1).recordedBy, 'treasurer-1');
   assert.equal(state.contributions[0].paymentDate.toISOString().slice(0, 10), '2026-10-05');
-  assert.equal(state.ledgers[1].referenceId, state.contributions[0].contributionId);
+  assert.equal(state.ledgers[1].referenceId, 'OR-1');
+  assert.equal(state.ledgers[1].ledgerId, state.contributions[0].contributionId, 'internal IDs still provide retry protection');
   assert.equal(state.notifications.length, 0, 'Payment imports must not trigger the retired SMS hook');
 });
 
@@ -100,9 +101,21 @@ test('reordered re-upload skips duplicates and rejects a changed payment using a
   assert.deepEqual(retry.rows.map(row => row.status), ['skipped', 'skipped']);
   assert.equal(state.contributions.length, 2);
   assert.equal(state.ledgers.length, 2);
+  assert.deepEqual(state.ledgers.map(row => row.referenceId), ['OR-1', 'OR-2']);
   const conflict = await service.importRows(parse(payment('001', '200')), 'treasurer-2');
   assert.equal(conflict.blocked, true);
   assert.match(conflict.rows[0].errors.join(), /different amount/);
+});
+
+test('CSV receipt references preserve leading zeros while internal import IDs remain separate', async () => {
+  const { service, state } = database();
+  const rows = parse(payment('001', '100', '0000123'));
+  await service.importRows(rows, 'treasurer-1');
+  assert.equal(state.ledgers[0].referenceId, '0000123');
+  assert.equal(state.contributions[0].referenceNumber, '0000123');
+  assert.equal(state.ledgers[0].ledgerId, paymentId(rows[0].entry));
+  await service.importRows(rows, 'treasurer-1');
+  assert.equal(state.ledgers.length, 1, 're-upload does not create another credit');
 });
 
 test('existing manual payments are recognized by member and receipt', async () => {
