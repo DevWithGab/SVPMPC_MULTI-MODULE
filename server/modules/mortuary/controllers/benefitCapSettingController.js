@@ -63,11 +63,13 @@ const updateCap = async (req, res) => {
     const { amount, effectiveDate, description } = req.body;
     const updatedBy = req.user?.username || 'admin';
 
-    const parsedAmount = parseFloat(amount);
-    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+    const value = typeof amount === 'string' || typeof amount === 'number' ? String(amount).trim() : '';
+    const validFormat = /^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(value);
+    const parsedAmount = Number(value.replaceAll(',', ''));
+    if (!validFormat || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'A valid benefit cap greater than 0 is required',
+        message: 'Enter a benefit cap greater than 0, such as 10,000 or 10,000.50. Use digits, optional thousands commas, and up to 2 decimal places; letters are not allowed.',
       });
     }
 

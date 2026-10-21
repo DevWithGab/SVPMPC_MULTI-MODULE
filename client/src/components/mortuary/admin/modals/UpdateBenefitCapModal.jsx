@@ -22,9 +22,11 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const parsed = parseFloat(amount);
-    if (!amount || isNaN(parsed) || parsed <= 0) {
-      setError('Enter a valid amount greater than 0.');
+    const value = amount.trim();
+    const validFormat = /^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(value);
+    const parsed = Number(value.replaceAll(',', ''));
+    if (!validFormat || !Number.isFinite(parsed) || parsed <= 0) {
+      setError('Enter an amount greater than 0, such as 10,000 or 10,000.50. Use digits, optional thousands commas, and up to 2 decimal places; letters are not allowed.');
       return;
     }
 
@@ -37,7 +39,9 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
         description: description || undefined,
         createdBy: user?.name || user?.username,
       });
-      handleClose();
+      setAmount('');
+      setDescription('');
+      onClose();
       onSaved?.();
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to update the benefit cap.');
@@ -56,16 +60,21 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
         </p>
 
         <div>
-          <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
+          <label htmlFor="benefit-cap-amount" className="text-sm font-semibold text-slate-700 mb-1.5 block">
             New Cap (₱) <span className="text-red-500">*</span>
           </label>
           <Input
+            id="benefit-cap-amount"
             type="text"
             inputMode="decimal"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="50000"
+            onChange={(e) => { setAmount(e.target.value); setError(''); }}
+            placeholder="10,000"
+            disabled={submitting}
+            aria-invalid={Boolean(error)}
+            aria-describedby="benefit-cap-help benefit-cap-error"
           />
+          <p id="benefit-cap-help" className="text-xs text-slate-500 mt-1">Enter a positive amount, e.g. 10,000 or 10,000.50. Maximum 2 decimal places.</p>
         </div>
 
         <div>
@@ -84,7 +93,7 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p id="benefit-cap-error" role="alert" className="text-sm text-red-600">{error}</p>}
 
         <div className="flex gap-3 pt-1">
           <Button type="button" variant="secondary" onClick={handleClose} className="flex-1" disabled={submitting}>

@@ -8,6 +8,8 @@ import { Pagination, PaginationInfo } from '../../ui/pagination';
 import '../treasurer/MemberBalances.css';
 import './Beneficiaries.css';
 
+const PAGE_SIZE = 100;
+
 export default function Beneficiaries({ user }) {
   const [beneficiaries, setBeneficiaries] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
@@ -25,7 +27,7 @@ export default function Beneficiaries({ user }) {
     setLoading(true);
     setError('');
     try {
-      const res = await beneficiaryAPI.getAllBeneficiaries({ page, limit: 10, search: search.trim() || undefined });
+      const res = await beneficiaryAPI.getAllBeneficiaries({ page, limit: PAGE_SIZE, search: search.trim() || undefined });
       if (currentRequest !== requestId.current) return;
       setBeneficiaries(Array.isArray(res?.data) ? res.data : []);
       setPagination(res?.pagination || { page: 1, totalPages: 1, total: 0 });
@@ -130,7 +132,7 @@ export default function Beneficiaries({ user }) {
           </div>
         )}
         {!loading && !error && <footer className="mb-pagination">
-          <PaginationInfo currentPage={page} limit={10} total={pagination.total} />
+          <PaginationInfo currentPage={page} limit={PAGE_SIZE} total={pagination.total} />
           {pagination.total > 0 && <Pagination currentPage={page} totalPages={pagination.totalPages} onPageChange={setPage} hasNextPage={page < pagination.totalPages} hasPrevPage={page > 1} />}
         </footer>}
       </section>
