@@ -17,7 +17,7 @@ export function negativeBalanceMembers(members) {
     barangay: member.barangay || 'Not recorded',
     status: member.status || 'Not recorded',
     balance: Number(member.currentBalance ?? member.balance ?? 0),
-  })).filter(member => Number.isFinite(member.balance) && member.balance < 0)
+  })).filter(member => member.status !== 'deceased' && Number.isFinite(member.balance) && member.balance < 0)
     .sort((a, b) => a.balance - b.balance || String(a.id).localeCompare(String(b.id)));
 }
 

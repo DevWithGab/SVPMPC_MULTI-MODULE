@@ -286,7 +286,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           widths: [28, 53, 37, 33, 25], numberColumns: [3],
           body: filteredMemberStandingList.map(m => [m.id, m.name, m.barangay, reportAmount(m.balance), m.standing]) }];
       } else if (reportType === 'negativeBalances') {
-        scope = 'Current posted balances below zero, across all member statuses. Largest shortfall first.';
+        scope = 'Current posted balances below zero, excluding deceased members. Largest shortfall first.';
         sections = [
           { title: 'Balance overview', head: ['Particulars', 'Value'], widths: [125, 51], numberColumns: [1],
             body: [['Members with negative balances', String(filteredNegativeMembers.length)], ['Total shortfall to zero (PHP)', reportAmount(filteredTotalShortfall)]] },
@@ -389,7 +389,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     claims: 'All filed claims, beneficiaries and processing statuses.',
     deductions: 'Collections and released benefits for each claim.',
     deceasedMembers: 'Deceased members in the current roster.',
-    negativeBalances: 'All member statuses. Largest shortfall first.',
+    negativeBalances: 'Deceased members excluded. Largest shortfall first.',
     memberStanding: 'Active members only. Lowest posted balance first.',
   }[reportType];
   return (
@@ -583,7 +583,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             {reportType === 'negativeBalances' && !reportLoading && !reportError && (
               <div>
                 <div className="border-b border-slate-200 p-5">
-                  <p className="text-sm text-slate-600">Current balances below zero across all member statuses, sorted by largest shortfall.</p>
+                  <p className="text-sm text-slate-600">Current balances below zero, excluding deceased members, sorted by largest shortfall.</p>
                   <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-sm">
                     <p><span className="text-slate-500">Members: </span><strong>{filteredNegativeMembers.length}</strong></p>
                     <p><span className="text-slate-500">Total shortfall to zero: </span><strong className="text-rose-700">PHP {reportAmount(filteredTotalShortfall)}</strong></p>

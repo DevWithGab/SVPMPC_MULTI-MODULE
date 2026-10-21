@@ -12,7 +12,7 @@ function reviewFile(name, doc) {
   writeFileSync(resolve(process.env.REPORT_QA_DIR, name + '.pdf'), Buffer.from(doc.output('arraybuffer')));
 }
 
-test('negative balances include all statuses, exclude zero/invalid values, and rank largest shortfall first', () => {
+test('negative balances exclude deceased members and zero/invalid values, and rank largest shortfall first', () => {
   const members = [
     { memberId: '001', memberName: 'One', balance: '-250.50', status: 'inactive' },
     { id: '002', name: 'Two', currentBalance: -1000, balance: 100, status: 'active' },
@@ -21,11 +21,19 @@ test('negative balances include all statuses, exclude zero/invalid values, and r
     { id: '007', currentBalance: -100, status: 'deceased' },
   ];
   const result = negativeBalanceMembers(members);
-  assert.deepEqual(result.map(member => member.id), ['002', '001', '007']);
-  assert.equal(result.reduce((sum, member) => sum - member.balance, 0), 1350.50);
+  assert.deepEqual(result.map(member => member.id), ['002', '001']);
+  assert.equal(result.reduce((sum, member) => sum - member.balance, 0), 1250.50);
   assert.equal(reportAmount(-250.5), '-250.50');
   assert.equal(reportAmount(1234567.8), '1,234,567.80');
   assert.equal(members[0].memberId, '001');
+});
+
+test('negative balances are empty when only deceased members have shortfalls', () => {
+  assert.deepEqual(negativeBalanceMembers([
+    { id: '001', currentBalance: -10000, status: 'deceased' },
+    { id: '002', balance: '-250.50', status: 'deceased' },
+    { id: '003', currentBalance: 0, status: 'active' },
+  ]), []);
 });
 
 test('branded PDF paginates all 205 rows and retains the final record', () => {
@@ -52,7 +60,7 @@ test('negative balance report renders a summary, wrapped names, full list and to
   ]);
   const total = body.reduce((sum, row, index) => sum + 1000 - index * 25, 0);
   const doc = createMortuaryReportPdf({ ...options, title: 'Negative Balances',
-    scope: 'Current posted balances below zero, across all member statuses. Largest shortfall first.',
+    scope: 'Current posted balances below zero, excluding deceased members. Largest shortfall first.',
     sections: [
       { title: 'Balance overview', head: ['Particulars', 'Value'], widths: [125, 51], numberColumns: [1], body: [['Members with negative balances', '28'], ['Total shortfall to zero (PHP)', reportAmount(total)]] },
       { title: 'Members with negative balances', head: ['Member ID', 'Member name', 'Barangay', 'Status', 'Balance (PHP)'], widths: [28, 55, 37, 23, 33], numberColumns: [4], body, total: ['Total balance', '', '', '', reportAmount(-total)] },
