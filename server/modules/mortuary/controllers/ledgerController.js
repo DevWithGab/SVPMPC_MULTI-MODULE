@@ -4,9 +4,9 @@ const PaymentImport = require('../models/PaymentImport');
 const { resolveLedgerPaymentReferences } = require('../utils/ledgerReferences');
 const { Member } = require('../../../shared/models');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
-const { LATEST_FIRST, getLatestBalance } = require('../utils/ledgerBalance');
+const { LATEST_FIRST, getLatestBalance, getLatestBalancesByMember } = require('../utils/ledgerBalance');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
-const { parseLedgerCsv, validateLedgerEntries } = require('../utils/ledgerCsv');
+const { parseLedgerCsv, validateLedgerEntries, keyOf } = require('../utils/ledgerCsv');
 const { randomUUID } = require('node:crypto');
 
 // Get member ledger - with pagination
@@ -163,17 +163,40 @@ const bulkUploadLedger = async (req, res) => {
     }
     // Check every row before writing anything, including on import: the data
     // may have changed since the user requested a preview.
+    //
+    // This used to be 2-3 sequential DB round trips PER ROW (member lookup,
+    // duplicate-entry lookup, duplicate-ledgerId lookup) — with the row cap
+    // below, a 1000-row file meant up to ~3000 queries just to validate.
+    // Fetching each of those once for the whole batch instead — keyed by the
+    // exact member IDs, dates, and ledgerIds this upload actually touches —
+    // turns it into 3 queries total regardless of row count, with the
+    // per-row logic working against in-memory lookups.
+    const candidateRows = rows.filter(row => !row.errors.length);
+    const memberIds = [...new Set(candidateRows.map(row => row.entry.memberId))];
+    const members = memberIds.length ? await Member.find({ memberId: { $in: memberIds } }) : [];
+    const memberById = new Map(members.map(member => [member.memberId, member]));
+
+    const dates = [...new Set(candidateRows.map(row => row.entry.transactionDate))].map(d => new Date(d));
+    const existingLedgers = memberIds.length
+      ? await Ledger.find({ memberId: { $in: memberIds }, transactionDate: { $in: dates } })
+      : [];
+    const existingKeys = new Set(existingLedgers.map(ledger => keyOf({
+      memberId: ledger.memberId, transactionDate: ledger.transactionDate.toISOString().slice(0, 10),
+      credit: ledger.credit, debit: ledger.debit, referenceId: ledger.referenceId || null,
+    })));
+
+    const ledgerIdsToCheck = candidateRows.map(row => row.entry.ledgerId).filter(Boolean);
+    const existingLedgerIds = new Set(ledgerIdsToCheck.length
+      ? (await Ledger.find({ ledgerId: { $in: ledgerIdsToCheck } }, { ledgerId: 1 })).map(l => l.ledgerId)
+      : []);
+
     for (const row of rows) {
       if (row.errors.length) continue;
-      const member = await Member.findOne({ memberId: row.entry.memberId });
+      const member = memberById.get(row.entry.memberId);
       row.memberName = member?.memberName || '';
       if (!member) row.errors.push('Passbook No. was not found.');
-      const duplicate = await Ledger.findOne({
-        memberId: row.entry.memberId, transactionDate: new Date(row.entry.transactionDate),
-        credit: row.entry.credit, debit: row.entry.debit, referenceId: row.entry.referenceId,
-      });
-      if (duplicate) row.errors.push('This ledger entry is already recorded. Remove it from the CSV.');
-      if (row.entry.ledgerId && await Ledger.findOne({ ledgerId: row.entry.ledgerId })) row.errors.push('This ledgerId is already in use.');
+      if (existingKeys.has(keyOf(row.entry))) row.errors.push('This ledger entry is already recorded. Remove it from the CSV.');
+      if (row.entry.ledgerId && existingLedgerIds.has(row.entry.ledgerId)) row.errors.push('This ledgerId is already in use.');
       row.status = row.errors.length ? 'error' : 'ready';
     }
     const summary = { total: rows.length, ready: rows.filter(row => !row.errors.length).length, invalid: rows.filter(row => row.errors.length).length };
@@ -187,62 +210,29 @@ const bulkUploadLedger = async (req, res) => {
       total: ledgerEntries.length
     };
 
+    // Every row reaching this point already passed the member-existence,
+    // duplicate-entry, and required-field checks above — and the
+    // summary.invalid gate just above returned early if any row failed them.
+    // Re-running those same checks per row here (as a second loop) could
+    // never actually catch anything; it was dead work left over from before
+    // the two loops were split out. The only real per-row cost left is the
+    // write itself, plus a running balance.
+    //
+    // Posting order, not the uploaded transactionDate: a bulk file may carry
+    // back-dated or future-dated rows, and the running balance has to follow
+    // the order rows are actually written. One batched lookup seeds each
+    // member's starting balance (0 if they have no prior rows, same fallback
+    // getLatestBalance uses); an in-memory running total carries it forward
+    // across multiple rows for the same member in this upload.
+    const balances = await getLatestBalancesByMember(memberIds);
+
     for (const [index, entry] of ledgerEntries.entries()) {
       try {
-        console.log(`📝 Processing ledger entry for member: ${entry.memberId}`);
-        
-        // Validate required fields
-        if (!entry.memberId || !entry.transactionDate || (!entry.credit && !entry.debit)) {
-          console.log(`❌ Missing required fields:`, entry);
-          results.failed.push({
-            entry,
-            reason: 'Missing required fields (Passbook No., transactionDate, credit/debit)'
-          });
-          continue;
-        }
-
-        // Verify member exists
-        const member = await Member.findOne({ memberId: entry.memberId });
-        if (!member) {
-          rows[index].status = 'failed';
-          rows[index].errors.push('Passbook No. was not found.');
-          console.log(`❌ Member not found: ${entry.memberId}`);
-          results.failed.push({
-            entry,
-            reason: `Member ${entry.memberId} not found`
-          });
-          continue;
-        }
-        console.log(`✅ Member found: ${member.memberName}`);
-
-        // Check for duplicate entry (same member, date, amount, and reference)
-        const duplicateCheck = await Ledger.findOne({
-          memberId: entry.memberId,
-          transactionDate: new Date(entry.transactionDate),
-          credit: parseFloat(entry.credit) || 0,
-          debit: parseFloat(entry.debit) || 0,
-          referenceId: entry.referenceId || entry.ref_no || null
-        });
-
-        if (duplicateCheck) {
-          rows[index].status = 'failed';
-          rows[index].errors.push('This ledger entry was just recorded. Preview again.');
-          console.log(`⚠️  Duplicate entry found for ${entry.memberId}`);
-          results.failed.push({
-            entry,
-            reason: `Duplicate entry - already exists (Ledger ID: ${duplicateCheck.ledgerId})`
-          });
-          continue;
-        }
-
-        // Get current balance for this member
-        // Posting order, not the uploaded transactionDate: a bulk file may
-        // carry back-dated or future-dated rows, and the running balance has to
-        // follow the order rows are actually written.
-        const currentBalance = await getLatestBalance(entry.memberId);
-        const credit = parseFloat(entry.credit) || 0;
-        const debit = parseFloat(entry.debit) || 0;
+        const currentBalance = balances.get(entry.memberId) || 0;
+        const credit = entry.credit;
+        const debit = entry.debit;
         const newBalance = Math.round((currentBalance + credit - debit) * 100) / 100;
+        balances.set(entry.memberId, newBalance);
 
         console.log(`💰 Creating ledger: ${entry.memberId}, Credit: ${credit}, Debit: ${debit}, New Balance: ${newBalance}`);
 

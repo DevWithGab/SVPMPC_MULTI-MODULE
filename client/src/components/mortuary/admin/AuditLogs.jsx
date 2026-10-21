@@ -11,6 +11,7 @@ import {
   Zap,
   Users,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { downloadAuditCsv, createAuditPdf } from "../../../utils/auditExport";
 import AuditLogDetails from "../../shared/AuditLogDetails";
@@ -94,6 +95,7 @@ const AuditLogs = () => {
     pages: 1,
   });
   const [stats, setStats] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   /*This screen only ever shows the Mortuary module's own trail — module
   is fixed, not a user-editable filter.*/
@@ -158,13 +160,22 @@ const AuditLogs = () => {
     if (!logs.length) return;
     downloadAuditCsv(exportRows(), exportFilename("csv"));
   };
-  const handleExportPDF = () => {
-    if (!logs.length) return;
-    createAuditPdf({
-      rows: exportRows(),
-      moduleName: "Mortuary",
-      filters,
-    }).save(exportFilename("pdf"));
+  const handleExportPDF = async () => {
+    if (!logs.length || exportingPdf) return;
+    setExportingPdf(true);
+    // jsPDF table rendering runs synchronously on the main thread, so this
+    // yields one tick before it starts — otherwise the "Preparing…" state
+    // would never actually paint before the call blocks the browser.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      createAuditPdf({
+        rows: exportRows(),
+        moduleName: "Mortuary",
+        filters,
+      }).save(exportFilename("pdf"));
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -230,10 +241,10 @@ const AuditLogs = () => {
           <button
             className="td-button"
             onClick={handleExportPDF}
-            disabled={loading || Boolean(error) || logs.length === 0}
+            disabled={loading || Boolean(error) || logs.length === 0 || exportingPdf}
           >
-            <Download size={15} aria-hidden="true" />
-            PDF (current page)
+            {exportingPdf ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
+            {exportingPdf ? "Preparing PDF…" : "PDF (current page)"}
           </button>
         </div>
       </header>

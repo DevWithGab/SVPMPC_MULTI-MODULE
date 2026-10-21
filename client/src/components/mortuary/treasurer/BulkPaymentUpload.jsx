@@ -94,7 +94,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
           <p>Use a receipt or transaction reference for each payment. An already recorded payment with the same member and reference is skipped; conflicting amounts or dates must be corrected. Separate payments by the same member need different references.</p>
           <p>Replace the sample row with actual passbook numbers and payment details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>
         </UploadTemplateCard>
-        <UploadFilePicker key={filePickerVersion} filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only ? Up to 500 payments ? Maximum 1 MB" />
+        <UploadFilePicker key={filePickerVersion} filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 1,000 payments · Maximum 1 MB" />
         {successMessage && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{successMessage}</p>}
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {summary && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt } from 'lucide-react';
+import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt, Loader2 } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
@@ -423,7 +423,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             <div className="reports-export-actions">
               <button type="button" onClick={exportToCSV} disabled={exportDisabled} className="reports-button">Export CSV</button>
               <button type="button" onClick={generatePDF} disabled={exportDisabled} className="reports-button reports-button-primary">
-                <Download size={15} aria-hidden="true" />{exporting ? 'Preparing PDF...' : 'Export PDF'}</button>
+                {exporting ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}{exporting ? 'Preparing PDF...' : 'Export PDF'}</button>
             </div>
           </div>
           <div className="reports-scope-bar flex-wrap items-center">

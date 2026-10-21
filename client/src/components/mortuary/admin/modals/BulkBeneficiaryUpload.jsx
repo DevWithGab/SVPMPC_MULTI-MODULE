@@ -78,7 +78,7 @@ export default function BulkBeneficiaryUpload({ onClose, onImported }) {
           <p>A member who already has a beneficiary on file will have it superseded — the previous record is kept in that member's History. Use one row per member per upload.</p>
           <p>Replace the sample row with actual passbook numbers and beneficiary details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>
         </UploadTemplateCard>
-        <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 500 beneficiaries · Maximum 1 MB" />
+        <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 1,000 beneficiaries · Maximum 1 MB" />
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {summary && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
           {completed ? <p><strong>{summary.imported} registered</strong> · {summary.failed} need retry</p>

@@ -6,6 +6,7 @@ import { Pagination, PaginationInfo } from "../../ui/pagination";
 import LiveAttendanceView from "../secretary/LiveAttendanceView";
 import { loadDashboardRecords } from "../../../utils/attendanceDashboard";
 import { ATTENDANCE_UPDATED_EVENT, ATTENDANCE_UPDATED_KEY } from "../../../utils/attendanceUpdates";
+import { canScanEvent } from "../../../utils/scannerSchedule";
 
 const PAGE_SIZE = 10;
 const AUTO_REFRESH_MS = 3000;
@@ -30,8 +31,16 @@ const getMemberDisplayName = (record) =>
       "Unknown member",
   );
 
-const resolveActiveEvent = (events, preferredKey) => {
-  const active = events.filter(event => String(event.status || "").toLowerCase() === "active");
+// event.status is only as fresh as the last events fetch (see EVENT_REFRESH_MS
+// below) and the server's own background sweep, which flips a finished
+// event's stored status to "closed" on up to a 60-second delay — so trusting
+// it alone can keep showing "Active event" for a couple of minutes after an
+// event's actual end time. canScanEvent re-derives openness from the event's
+// own schedule against the current clock (the same check gating whether a
+// scan is actually accepted), so this list closes exactly on time regardless
+// of how stale the persisted status is.
+const resolveActiveEvent = (events, preferredKey, now = Date.now()) => {
+  const active = events.filter(event => canScanEvent(event, now));
   return active.find(event => String(getEventKey(event)) === preferredKey) || active[0] || null;
 };
 
@@ -60,6 +69,12 @@ export default function LiveAttendanceList({
   const [selectedBarangay, setSelectedBarangay] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  // Ticks alongside the AUTO_REFRESH_MS interval below purely so activeEvent
+  // (further down) re-evaluates against a fresh clock even between actual
+  // event refetches (which only happen at most every EVENT_REFRESH_MS) —
+  // otherwise an event sitting past its exact end time would keep showing as
+  // active until the next refetch happened to land afterward.
+  const [now, setNow] = useState(Date.now);
   const isRefreshingRef = useRef(false);
   const queuedRefreshRef = useRef(null);
   const refreshRef = useRef(null);
@@ -166,7 +181,12 @@ export default function LiveAttendanceList({
         refreshRef.current?.({ background: true, refreshEvents });
       }
     };
-    const tick = () => refreshVisible();
+    // Also drives activeEvent's re-evaluation below (via setNow), piggybacked
+    // on this existing interval rather than running a second timer.
+    const tick = () => {
+      setNow(Date.now());
+      refreshVisible();
+    };
     const onReturn = () => refreshVisible(true);
     const onRecorded = () => refreshVisible();
     const onStorage = event => {
@@ -191,8 +211,8 @@ export default function LiveAttendanceList({
   }, []);
 
   const activeEvent = useMemo(
-    () => resolveActiveEvent(events, preferredEventKey),
-    [events, preferredEventKey],
+    () => resolveActiveEvent(events, preferredEventKey, now),
+    [events, preferredEventKey, now],
   );
 
   const activeEventKey = useMemo(() => {

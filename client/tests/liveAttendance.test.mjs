@@ -13,6 +13,7 @@ test('live attendance polls reliably, reacts to saved scans, preserves complete 
     interval: globalThis.setInterval, clear: globalThis.clearInterval,
     visibility: Object.getOwnPropertyDescriptor(document, 'visibilityState'),
     act: globalThis.IS_REACT_ACT_ENVIRONMENT,
+    now: Date.now,
   };
   let api;
   let saved;
@@ -21,8 +22,12 @@ test('live attendance polls reliably, reacts to saved scans, preserves complete 
     api = await vite.ssrLoadModule('/src/services/api.js');
     const { ATTENDANCE_UPDATED_KEY, notifyAttendanceUpdated } = await vite.ssrLoadModule('/src/utils/attendanceUpdates.js');
     saved = { events: api.eventAPI.getEvents, attendance: api.attendanceAPI.getAttendanceByEvent, post: api.default.post };
-    const eventA = { eventId: 'A', eventName: 'First assembly', status: 'active' };
+    // resolveActiveEvent now re-derives openness from the event's own
+    // schedule (canScanEvent), not status alone — so these need a real
+    // window bracketing the mocked clock below, not just a status string.
+    const eventA = { eventId: 'A', eventName: 'First assembly', status: 'active', eventDate: '2026-10-20', startTime: '00:00', endTime: '23:59' };
     let serverEvents = [eventA];
+    Date.now = () => Date.parse('2026-10-20T10:00:00+08:00');
     const record = (i, eventId = 'A') => ({
       memberId: `TEST-${i}`, memberName: `Member ${i}`, eventId, barangay: 'Test Barangay',
       scanTime: new Date(Date.UTC(2026, 9, 20, 2, i)).toISOString(),
@@ -105,7 +110,7 @@ test('live attendance polls reliably, reacts to saved scans, preserves complete 
     assert.equal(names()[0], 'Member 5', 'scan notifications during a request get an immediate queued follow-up');
     assert.equal(names().length, 5);
 
-    serverEvents = [{ ...eventA, status: 'closed' }, { eventId: 'B', eventName: 'Next assembly', status: 'active' }];
+    serverEvents = [{ ...eventA, status: 'closed' }, { eventId: 'B', eventName: 'Next assembly', status: 'active', eventDate: '2026-10-20', startTime: '00:00', endTime: '23:59' }];
     records.push(record(6, 'B'));
     await act(async () => window.dispatchEvent(new window.Event('focus')));
     assert.equal(container.querySelector('#sla-event-title').textContent, 'Next assembly');
@@ -125,8 +130,57 @@ test('live attendance polls reliably, reacts to saved scans, preserves complete 
     globalThis.setInterval = original.interval;
     globalThis.clearInterval = original.clear;
     globalThis.IS_REACT_ACT_ENVIRONMENT = original.act;
+    Date.now = original.now;
     if (original.visibility) Object.defineProperty(document, 'visibilityState', original.visibility);
     else delete document.visibilityState;
+    container.remove();
+    await vite.close();
+  }
+});
+
+test('live attendance view closes on schedule even while the server status stays stale', async () => {
+  const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const original = { now: Date.now, interval: globalThis.setInterval, clear: globalThis.clearInterval, act: globalThis.IS_REACT_ACT_ENVIRONMENT };
+  let api, saved;
+  try {
+    const { default: LiveAttendanceList } = await vite.ssrLoadModule('/src/components/attendance/shared/LiveAttendanceList.jsx');
+    api = await vite.ssrLoadModule('/src/services/api.js');
+    saved = { events: api.eventAPI.getEvents, attendance: api.attendanceAPI.getAttendanceByEvent };
+    // Status never changes here — only the clock does. The server would
+    // only flip this to "closed" on its own up-to-60-second sweep; this
+    // proves the UI doesn't wait for that.
+    const event = { eventId: 'A', eventName: 'Timed assembly', status: 'active', eventDate: '2026-10-21', startTime: '09:00', endTime: '10:00' };
+    api.eventAPI.getEvents = async () => ({ events: [event], pagination: { totalPages: 1 } });
+    api.attendanceAPI.getAttendanceByEvent = async () => ({ attendance: [], pagination: { totalPages: 1 } });
+    let now = Date.parse('2026-10-21T09:59:59+08:00');
+    Date.now = () => now;
+    const timers = new Map();
+    globalThis.setInterval = (callback, delay) => { timers.set(delay, callback); return delay; };
+    globalThis.clearInterval = delay => timers.delete(delay);
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    await act(async () => root.render(React.createElement(LiveAttendanceList, {
+      variant: 'admin', currentEvent: { ...event }, events: [{ ...event }],
+    })));
+    assert.equal(container.querySelector('#sla-event-title').textContent, 'Timed assembly');
+    assert.match(container.querySelector('.sla-status').textContent, /^Active$/);
+
+    now = Date.parse('2026-10-21T10:00:00+08:00');
+    await act(async () => timers.get(3000)());
+    assert.equal(container.querySelector('#sla-event-title').textContent, 'No active event');
+    assert.equal(container.querySelector('.sla-status').textContent, 'No active event');
+  } finally {
+    await act(async () => root.unmount());
+    if (saved) {
+      api.eventAPI.getEvents = saved.events;
+      api.attendanceAPI.getAttendanceByEvent = saved.attendance;
+    }
+    Date.now = original.now;
+    globalThis.setInterval = original.interval;
+    globalThis.clearInterval = original.clear;
+    globalThis.IS_REACT_ACT_ENVIRONMENT = original.act;
     container.remove();
     await vite.close();
   }

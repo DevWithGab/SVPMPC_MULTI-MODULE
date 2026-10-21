@@ -1,4 +1,4 @@
-const MAX_ROWS = 500;
+const MAX_ROWS = 1000;
 const MAX_BYTES = 1024 * 1024;
 const HEADERS = ['member_id', 'beneficiary_name', 'relationship', 'contact_number'];
 const OPTIONAL = ['address', 'notes'];

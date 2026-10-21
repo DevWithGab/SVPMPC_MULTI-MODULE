@@ -51,7 +51,7 @@ test('CSV rejects malformed structure, missing headers, duplicate headers, empty
     assert.throws(() => parsePaymentCsv(csv));
   }
   assert.throws(() => parsePaymentCsv('x'.repeat(1024 * 1024 + 1)), /1 MB/);
-  assert.throws(() => parse(...Array.from({ length: 501 }, (_, i) => payment('001', '10', `OR-${i}`))), /500/);
+  assert.throws(() => parse(...Array.from({ length: 1001 }, (_, i) => payment('001', '10', `OR-${i}`))), /1000/);
 });
 
 test('CSV validates each amount, real date, reference, method, and repeated receipt', () => {

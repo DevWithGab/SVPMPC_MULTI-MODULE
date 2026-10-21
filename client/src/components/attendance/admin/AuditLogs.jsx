@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Users,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { downloadAuditCsv, createAuditPdf } from "../../../utils/auditExport";
 import AuditLogDetails from '../../shared/AuditLogDetails';
@@ -72,6 +73,7 @@ const AuditLogs = () => {
   });
 
   const [stats, setStats] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // Fetch audit logs
   const fetchAuditLogs = useCallback(
@@ -137,9 +139,18 @@ const AuditLogs = () => {
     if (!logs.length) return;
     downloadAuditCsv(exportRows(), exportFilename('csv'));
   };
-  const handleExportPDF = () => {
-    if (!logs.length) return;
-    createAuditPdf({ rows: exportRows(), moduleName: 'Attendance', filters }).save(exportFilename('pdf'));
+  const handleExportPDF = async () => {
+    if (!logs.length || exportingPdf) return;
+    setExportingPdf(true);
+    // jsPDF table rendering runs synchronously on the main thread, so this
+    // yields one tick before it starts — otherwise the "Preparing…" state
+    // would never actually paint before the call blocks the browser.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      createAuditPdf({ rows: exportRows(), moduleName: 'Attendance', filters }).save(exportFilename('pdf'));
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -196,8 +207,9 @@ const AuditLogs = () => {
             <button onClick={handleExportCSV} disabled={loading || !logs.length} className="sd-button sd-primary">
               <Download size={15} aria-hidden="true" /> CSV (current page)
             </button>
-            <button onClick={handleExportPDF} disabled={loading || !logs.length} className="sd-button">
-              <Download size={15} aria-hidden="true" /> PDF (current page)
+            <button onClick={handleExportPDF} disabled={loading || !logs.length || exportingPdf} className="sd-button">
+              {exportingPdf ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
+              {exportingPdf ? 'Preparing PDF…' : 'PDF (current page)'}
             </button>
           </div>
           {lastUpdated && (

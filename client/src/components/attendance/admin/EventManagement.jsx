@@ -28,6 +28,7 @@ import { Toast } from "../../ui/toast";
 import { eventAPI } from "../../../services/api";
 import { formatDate, formatTimeRange } from "../../../utils/date";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import useScheduledSecretaryEvents from "../../../hooks/useScheduledSecretaryEvents";
 import "../secretary/Dashboard.css";
 import "./EventManagement.css";
 
@@ -112,21 +113,33 @@ const EventManagement = ({ events = [], setEvents }) => {
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // The server only flips an approved event's stored status from
+  // upcoming/active to closed on a background sweep (every 60s), so reading
+  // event.status straight off the fetched list could show "Active" for up to
+  // a minute or two after its actual end time. This recomputes
+  // upcoming/active/closed from the event's own schedule against a
+  // once-a-second clock — same correction Secretary's Event Management and
+  // Dashboard already apply — so the badges here close exactly on time
+  // regardless of how stale the persisted status is.
+  const correctedEvents = useScheduledSecretaryEvents(events);
+
   const pendingEvents = useMemo(
     () =>
-      events.filter((event) =>
+      correctedEvents.filter((event) =>
         ["draft", "pending_approval"].includes(event.status),
       ),
-    [events],
+    [correctedEvents],
   );
   const approvedEvents = useMemo(
     () =>
-      events.filter((event) => ["upcoming", "active"].includes(event.status)),
-    [events],
+      correctedEvents.filter((event) =>
+        ["upcoming", "active"].includes(event.status),
+      ),
+    [correctedEvents],
   );
   const closedEvents = useMemo(
-    () => events.filter((event) => event.status === "closed"),
-    [events],
+    () => correctedEvents.filter((event) => event.status === "closed"),
+    [correctedEvents],
   );
 
   const updateEventInList = (updatedEvent) =>
@@ -376,7 +389,7 @@ const EventManagement = ({ events = [], setEvents }) => {
           ],
           [
             "Active now",
-            events
+            correctedEvents
               .filter((event) => event.status === "active")
               .length.toLocaleString(),
             "Currently accepting attendance",

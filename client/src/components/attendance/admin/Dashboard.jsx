@@ -148,9 +148,16 @@ const Dashboard = ({
   const absentMembers = totalMembers - presentMembers;
   const attendancePercentage =
     totalMembers > 0 ? Math.round((presentMembers / totalMembers) * 100) : 0;
-  const firstTrendRate = attendanceChartData[0]?.rate || 0;
+  // Recent momentum (last point vs. the one before it), not first-vs-last
+  // across the whole window — a volatile series can swing well above its
+  // starting point and still end up a hair below it, which labeled every
+  // recent uptick "Decreasing" as long as the window opened on a local peak.
+  const previousTrendRate =
+    attendanceChartData.length > 1
+      ? attendanceChartData.at(-2)?.rate || 0
+      : 0;
   const lastTrendRate = attendanceChartData.at(-1)?.rate || 0;
-  const trendIsUp = lastTrendRate >= firstTrendRate;
+  const trendIsUp = lastTrendRate >= previousTrendRate;
 
   const [oneWeekAgoMs] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
   const newMembersThisWeek = members.filter((member) => {

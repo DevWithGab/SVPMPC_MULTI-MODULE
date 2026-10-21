@@ -64,7 +64,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
         <p>Optional columns: description, transactionType, referenceId, paymentMethod (cash). Transaction types: contribution, payout, adjustment, penalty, automatic_deduction, claim_payout.</p>
         <p>Every row is checked. Unknown passbook numbers, invalid values, and duplicate entries must be corrected before importing.</p>
       </UploadTemplateCard>
-      <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 2,000 entries · Maximum 1 MB" />
+      <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 1,000 entries · Maximum 1 MB" />
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       {summary && !completed && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
         <p><strong>{summary.ready} ready</strong> · {summary.invalid} need correction · {summary.total} total</p>

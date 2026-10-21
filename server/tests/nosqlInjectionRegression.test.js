@@ -136,3 +136,60 @@ test('confirmAndStartImport rejects an operator-shaped operationId and still pro
   await confirmAndStartImport({ body: { operationId: 'OP-1' } }, unknown);
   assert.equal(unknown.code, 404, 'a real string operationId must reach the "Import operation not found" check');
 });
+
+test('getAllAttendance rejects an operator-shaped scannedBy query param and still processes a real one', async () => {
+  // Unlike the others above, scannedBy comes from req.query, not req.body —
+  // Express's query-string parser turns ?scannedBy[$ne]=x into an object
+  // the exact same way a crafted JSON body would, so this is the same
+  // injection class reached through a different input channel.
+  const AttendanceFake = {
+    countDocuments: async () => 0,
+    find: () => ({ sort: () => ({ skip: () => ({ limit: async () => [] }) }) }),
+  };
+  const { getAllAttendance } = load('../modules/attendance/controllers/attendanceController', {
+    '../models': { Member: {} },
+    '../models/Attendance': AttendanceFake,
+    '../models/Event': {},
+    '../models/AttendanceReport': {},
+    '../../../shared/services/auditLoggingService': { createAuditLog: async () => {} },
+  });
+
+  const bad = response();
+  await getAllAttendance({ query: { scannedBy: injected }, user: {} }, bad);
+  assert.equal(bad.code, 400);
+  assert.equal(bad.data.message, 'Invalid scannedBy filter');
+
+  const ok = response();
+  await getAllAttendance({ query: { scannedBy: 'scanner.one' }, user: {} }, ok);
+  assert.equal(ok.code, 200, 'a real string scannedBy must reach the real query, not be blocked by the type guard');
+
+  const absent = response();
+  await getAllAttendance({ query: {}, user: {} }, absent);
+  assert.equal(absent.code, 200, 'omitting scannedBy entirely must still work — it is optional');
+});
+
+// Not operator injection like the cases above ($in matches array elements
+// by equality, not as operators) — but the same underlying problem:
+// unvalidated req.body input reaching a Mongoose query. A plain
+// `!memberIds || memberIds.length === 0` check passes for anything with a
+// .length (a bare string, for instance), and never validated individual
+// elements before they reached {$in: memberIds}.
+test('generateQRCodes rejects a non-array or non-string-element memberIds, and still processes a real array', async () => {
+  const { generateQRCodes } = load('../modules/attendance/controllers/memberController', {
+    '../../../shared/models': { Member: { find: async () => [] } },
+    '../services/csvParserService': {},
+    '../services/qrCodeService': { generateQRCode: async () => ({ success: false }) },
+    '../../../shared/services/auditLoggingService': { createAuditLog: async () => {} },
+  });
+
+  for (const bad of ['MEM-1', { $ne: null }, ['MEM-1', { $ne: null }], ['MEM-1', 42]]) {
+    const res = response();
+    await generateQRCodes({ body: { memberIds: bad } }, res);
+    assert.equal(res.code, 400, JSON.stringify(bad));
+    assert.equal(res.data.message, 'No passbook numbers provided');
+  }
+
+  const ok = response();
+  await generateQRCodes({ body: { memberIds: ['MEM-1', 'MEM-2'] } }, ok);
+  assert.equal(ok.code, 404, 'a real array of strings must reach the real "No members found" check, not be blocked by the shape guard');
+});

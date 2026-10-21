@@ -56,6 +56,10 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const [loadErrors, setLoadErrors] = useState({});
   const [reload, setReload] = useState(0);
   const [exporting, setExporting] = useState(false);
+  // Which per-event row (by its eventKey, see the table below) is currently
+  // exporting, so only that row's button shows a spinner — the other rows
+  // just go disabled via exportDisabled, same as before.
+  const [exportingEventId, setExportingEventId] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -328,6 +332,11 @@ export default function AttendanceReports({ attendanceLogs, events }) {
     const includeEvent = !event && showEventColumn;
     if (!records.length) return;
     setExporting(true);
+    setExportingEventId(
+      event
+        ? event.eventId || event.id || event._id || event.displayName
+        : null,
+    );
     setFeedback(null);
     const reportScope = event
       ? [
@@ -385,6 +394,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       });
     } finally {
       setExporting(false);
+      setExportingEventId(null);
     }
   };
   const handleExportCSV = () => exportRecords("csv");
@@ -799,7 +809,12 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                                 title="Export attendees (PDF)"
                                 className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                               >
-                                <FileText className="w-4 h-4 mr-1.5" /> PDF
+                                {exportingEventId === eventKey ? (
+                                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                                ) : (
+                                  <FileText className="w-4 h-4 mr-1.5" />
+                                )}
+                                {exportingEventId === eventKey ? "Preparing…" : "PDF"}
                               </Button>
                             </div>
                           </TableCell>

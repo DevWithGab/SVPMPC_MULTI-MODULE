@@ -28,6 +28,12 @@ test('validates all rows, including errors beyond the first five', () => {
   assert.equal(rows[0].errors.length, 0);
 });
 
+test('caps uploads at 1000 entries, matching the other bulk-upload importers', () => {
+  const row = (i) => valid.replace('OR-1', `OR-${i}`);
+  assert.throws(() => parseLedgerCsv(`${header}\n${Array.from({ length: 1001 }, (_, i) => row(i)).join('\n')}`), /Maximum 1000/);
+  assert.doesNotThrow(() => parseLedgerCsv(`${header}\n${Array.from({ length: 1000 }, (_, i) => row(i)).join('\n')}`));
+});
+
 test('rejects duplicate rows and partial numeric values instead of silently truncating them', () => {
   const rows = parseLedgerCsv(`${header}\n${valid}\n${valid}\n${valid.replace('100.00', '100abc')}`);
   assert.match(rows[1].errors.join(' '), /Duplicate/);
@@ -36,17 +42,23 @@ test('rejects duplicate rows and partial numeric values instead of silently trun
 
 function controller() {
   const saved = [];
+  // One existing ledger row, standing in for what a real `Ledger.find`
+  // duplicate-check query would return as a candidate: the production code
+  // re-matches each row's exact tuple against these candidates in memory, so
+  // a mock that returns this unconditionally (ignoring the query's $in
+  // filters) is just as precise as a real DB call for what this test checks.
+  const existingLedger = { memberId: '000123', transactionDate: new Date('2026-10-21T00:00:00.000Z'), credit: 100, debit: 0, referenceId: 'EXISTING' };
   class Ledger {
     constructor(entry) { Object.assign(this, entry); }
     async save() { saved.push(this); }
-    static async findOne(query) { return query.referenceId === 'EXISTING' ? { ledgerId: 'existing' } : null; }
+    static async find(query) { return query.ledgerId ? [] : [existingLedger]; }
   }
   const filename = require.resolve('../modules/mortuary/controllers/ledgerController');
   const localRequire = createRequire(filename);
   const dependencies = {
     '../models/Ledger': Ledger,
-    '../../../shared/models': { Member: { findOne: async query => query.memberId === '000123' ? { memberName: 'Member One' } : null } },
-    '../utils/ledgerBalance': { getLatestBalance: async () => 0 },
+    '../../../shared/models': { Member: { find: async query => query.memberId.$in.includes('000123') ? [{ memberId: '000123', memberName: 'Member One' }] : [] } },
+    '../utils/ledgerBalance': { getLatestBalance: async () => 0, getLatestBalancesByMember: async () => new Map() },
   };
   const context = { module: { exports: {} }, console, require: name => dependencies[name] || localRequire(name) };
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), context, { filename });

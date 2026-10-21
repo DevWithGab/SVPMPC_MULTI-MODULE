@@ -2,11 +2,12 @@ const { readCsv, MAX_BYTES } = require('./paymentCsv');
 const TYPES = ['contribution', 'payout', 'adjustment', 'penalty', 'automatic_deduction', 'claim_payout'];
 const REQUIRED = ['memberId', 'transactionDate', 'credit', 'debit'];
 const OPTIONAL = ['description', 'transactionType', 'referenceId', 'paymentMethod', 'status', 'ledgerId'];
+const MAX_ROWS = 1000;
 const keyOf = entry => JSON.stringify([entry.memberId, entry.transactionDate, entry.credit, entry.debit, entry.referenceId || null]);
 
 function validateLedgerEntries(entries) {
   if (!Array.isArray(entries) || !entries.length) throw new Error('Provide at least one ledger entry.');
-  if (entries.length > 2000) throw new Error('Maximum 2000 entries per upload.');
+  if (entries.length > MAX_ROWS) throw new Error(`Maximum ${MAX_ROWS} entries per upload.`);
   const seen = new Set();
   const ledgerIds = new Set();
   return entries.map((source, index) => {
@@ -41,7 +42,7 @@ function validateLedgerEntries(entries) {
 function parseLedgerCsv(csv) {
   if (typeof csv !== 'string' || !csv.trim()) throw new Error('Choose a CSV file containing ledger entries.');
   if (Buffer.byteLength(csv, 'utf8') > MAX_BYTES) throw new Error('CSV file must be 1 MB or smaller.');
-  const [rawHeaders, ...rows] = readCsv(csv, 2000, 'entries');
+  const [rawHeaders, ...rows] = readCsv(csv, MAX_ROWS, 'entries');
   if (!rawHeaders || !rows.length) throw new Error('CSV must contain a header and at least one ledger entry.');
   const headers = rawHeaders.map(header => {
     const key = header.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -61,4 +62,4 @@ function parseLedgerCsv(csv) {
   })));
 }
 
-module.exports = { parseLedgerCsv, validateLedgerEntries };
+module.exports = { parseLedgerCsv, validateLedgerEntries, keyOf, MAX_ROWS };

@@ -316,6 +316,16 @@ const getAllAttendance = async (req, res) => {
     const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
     const { scannedBy } = req.query;
 
+    // typeof check closes the same NoSQL operator-injection hole already
+    // fixed on several req.body fields in this app (e.g. recordAttendance
+    // above): Express's query-string parser turns a crafted
+    // ?scannedBy[$ne]=x into an OBJECT, which — left unchecked — would be
+    // embedded directly into the filter below and interpreted as a real
+    // Mongo query operator instead of a literal scannedBy value.
+    if (scannedBy !== undefined && typeof scannedBy !== 'string') {
+      return res.status(400).json({ message: 'Invalid scannedBy filter' });
+    }
+
     // My Scans uses the authenticated stable account ID. Keep legacy records
     // searchable by trusted account names, without trusting a supplied name.
     let filter = scannedBy ? { scannedBy } : {};

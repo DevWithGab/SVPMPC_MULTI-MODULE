@@ -128,7 +128,19 @@ const generateQRCodes = async (req, res) => {
   try {
     const { memberIds } = req.body;
 
-    if (!memberIds || memberIds.length === 0) {
+    // Array.isArray + every-element-is-string, not just a truthy/.length
+    // check: a plain truthy check passes for any value with a .length
+    // property (e.g. a bare string), and without validating each element,
+    // a non-string entry (object, number, etc.) would sail into the $in
+    // list below. $in matches by equality rather than interpreting an
+    // element as an operator, so this was never a full injection like the
+    // req.body/req.query fields already guarded elsewhere — but it's still
+    // unvalidated input reaching a query, and a malformed shape here
+    // surfaced as a confusing 500 instead of a clean 400.
+    if (
+      !Array.isArray(memberIds) || memberIds.length === 0 ||
+      !memberIds.every((id) => typeof id === 'string')
+    ) {
       return res.status(400).json({ message: 'No passbook numbers provided' });
     }
 
