@@ -4,6 +4,7 @@ import { deductionSettingAPI } from '../../../services/api';
 import UpdateDeductionRateModal from './modals/UpdateDeductionRateModal';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
+import { displaySettingAmount } from '../../../utils/settingAmount';
 
 export default function DeductionSettings({ user }) {
   const [current, setCurrent] = useState(null);
@@ -59,7 +60,7 @@ export default function DeductionSettings({ user }) {
                 </div>
                 <div>
                   <p className="fs-value-label">Current Rate</p>
-                  <p className="fs-value">₱{current?.amount ?? '—'}</p>
+                  <p className="fs-value">₱{displaySettingAmount(current?.amount)}</p>
                   <p className="text-xs text-slate-500 mt-1">
                     Effective {current?.effectiveDate ? new Date(current.effectiveDate).toLocaleDateString() : '—'}
                     {current?.description ? ` • ${current.description}` : ''}
@@ -95,7 +96,7 @@ export default function DeductionSettings({ user }) {
                   {history.length > 0 ? (
                     history.map((setting) => (
                       <tr key={setting.settingId} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-3 text-sm font-semibold text-slate-900">₱{setting.amount}</td>
+                        <td className="px-6 py-3 text-sm font-semibold text-slate-900">₱{displaySettingAmount(setting.amount)}</td>
                         <td className="px-6 py-3 text-sm text-slate-600">
                           {new Date(setting.effectiveDate).toLocaleDateString()}
                         </td>

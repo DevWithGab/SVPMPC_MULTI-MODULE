@@ -4,6 +4,7 @@ import { benefitCapSettingAPI } from "../../../services/api";
 import UpdateBenefitCapModal from "./modals/UpdateBenefitCapModal";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
+import { displaySettingAmount } from '../../../utils/settingAmount';
 
 export default function BenefitCapSettings({ user }) {
   const [current, setCurrent] = useState(null);
@@ -67,9 +68,7 @@ export default function BenefitCapSettings({ user }) {
                   </p>
                   <p className="fs-value">
                     ₱
-                    {current?.amount?.toLocaleString?.() ??
-                      current?.amount ??
-                      "—"}
+                    {displaySettingAmount(current?.amount)}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
                     Effective{" "}
@@ -121,7 +120,7 @@ export default function BenefitCapSettings({ user }) {
                       >
                         <td className="px-6 py-3 text-sm font-semibold text-slate-900">
                           ₱
-                          {setting.amount?.toLocaleString?.() ?? setting.amount}
+                          {displaySettingAmount(setting.amount)}
                         </td>
                         <td className="px-6 py-3 text-sm text-slate-600">
                           {new Date(setting.effectiveDate).toLocaleDateString()}

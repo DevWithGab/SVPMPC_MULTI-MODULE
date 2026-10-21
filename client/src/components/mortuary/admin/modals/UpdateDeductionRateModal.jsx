@@ -4,6 +4,7 @@ import Modal from '../../shared/Modal';
 import Button from '../../../shared/ui/Button';
 import Input from '../../../shared/ui/Input';
 import { deductionSettingAPI } from '../../../../services/api';
+import { formatSettingAmountInput, parseSettingAmount, displaySettingAmount } from '../../../../utils/settingAmount';
 
 export default function UpdateDeductionRateModal({ isOpen, onClose, currentAmount, user, onSaved }) {
   const [amount, setAmount] = useState('');
@@ -22,9 +23,9 @@ export default function UpdateDeductionRateModal({ isOpen, onClose, currentAmoun
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const parsed = parseFloat(amount);
-    if (!amount || isNaN(parsed) || parsed <= 0) {
-      setError('Enter a valid amount greater than 0.');
+    const parsed = parseSettingAmount(amount);
+    if (!Number.isFinite(parsed)) {
+      setError('Enter an amount greater than 0, such as 10,000 or 10,000.50. Use digits and up to 2 decimal places; letters are not allowed.');
       return;
     }
 
@@ -37,7 +38,9 @@ export default function UpdateDeductionRateModal({ isOpen, onClose, currentAmoun
         description: description || undefined,
         createdBy: user?.name || user?.username,
       });
-      handleClose();
+      setAmount('');
+      setDescription('');
+      onClose();
       onSaved?.();
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to update the deduction rate.');
@@ -50,21 +53,26 @@ export default function UpdateDeductionRateModal({ isOpen, onClose, currentAmoun
     <Modal isOpen={isOpen} onClose={handleClose} title="Update Deduction Rate">
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-slate-500">
-          Current rate: <span className="font-bold text-slate-900">₱{currentAmount}</span> per approved claim. This
+          Current rate: <span className="font-bold text-slate-900">₱{displaySettingAmount(currentAmount)}</span> per approved claim. This
           value may change through board approval.
         </p>
 
         <div>
-          <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
+          <label htmlFor="deduction-rate-amount" className="text-sm font-semibold text-slate-700 mb-1.5 block">
             New Amount (₱) <span className="text-red-500">*</span>
           </label>
           <Input
+            id="deduction-rate-amount"
             type="text"
             inputMode="decimal"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => { setAmount(formatSettingAmountInput(e.target.value)); setError(''); }}
             placeholder="25"
+            disabled={submitting}
+            aria-invalid={Boolean(error)}
+            aria-describedby="deduction-rate-help deduction-rate-error"
           />
+          <p id="deduction-rate-help" className="text-xs text-slate-500 mt-1">Commas are added automatically. Enter a positive amount with up to 2 decimal places.</p>
         </div>
 
         <div>
@@ -83,7 +91,7 @@ export default function UpdateDeductionRateModal({ isOpen, onClose, currentAmoun
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p id="deduction-rate-error" role="alert" className="text-sm text-red-600">{error}</p>}
 
         <div className="flex gap-3 pt-1">
           <Button type="button" variant="secondary" onClick={handleClose} className="flex-1" disabled={submitting}>

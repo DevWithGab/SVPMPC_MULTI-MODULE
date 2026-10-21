@@ -4,6 +4,7 @@ import Modal from '../../shared/Modal';
 import Button from '../../../shared/ui/Button';
 import Input from '../../../shared/ui/Input';
 import { benefitCapSettingAPI } from '../../../../services/api';
+import { formatSettingAmountInput, parseSettingAmount, displaySettingAmount } from '../../../../utils/settingAmount';
 
 export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, user, onSaved }) {
   const [amount, setAmount] = useState('');
@@ -22,10 +23,8 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const value = amount.trim();
-    const validFormat = /^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(value);
-    const parsed = Number(value.replaceAll(',', ''));
-    if (!validFormat || !Number.isFinite(parsed) || parsed <= 0) {
+    const parsed = parseSettingAmount(amount);
+    if (!Number.isFinite(parsed)) {
       setError('Enter an amount greater than 0, such as 10,000 or 10,000.50. Use digits, optional thousands commas, and up to 2 decimal places; letters are not allowed.');
       return;
     }
@@ -54,7 +53,7 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
     <Modal isOpen={isOpen} onClose={handleClose} title="Update Benefit Cap">
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-slate-500">
-          Current cap: <span className="font-bold text-slate-900">₱{currentAmount?.toLocaleString?.() ?? currentAmount}</span> released
+          Current cap: <span className="font-bold text-slate-900">₱{displaySettingAmount(currentAmount)}</span> released
           per claim — collections above this amount become cooperative income instead of being paid out. This
           value may change through board approval.
         </p>
@@ -68,7 +67,7 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
             type="text"
             inputMode="decimal"
             value={amount}
-            onChange={(e) => { setAmount(e.target.value); setError(''); }}
+            onChange={(e) => { setAmount(formatSettingAmountInput(e.target.value)); setError(''); }}
             placeholder="10,000"
             disabled={submitting}
             aria-invalid={Boolean(error)}
