@@ -23,19 +23,19 @@ const API_BASE_URL =
 export default function SystemSelector({ onModuleSelect, notice }) {
   const { selectedSystem, selectedRole, step, selectSystem, selectRole, back } = useLoginNavigation();
   const [adminLoginData, setAdminLoginData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
   const [secretaryLoginData, setSecretaryLoginData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
   const [treasurerLoginData, setTreasurerLoginData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
   const [operatorLoginData, setOperatorLoginData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
   const [loginLoading, setLoginLoading] = useState(false);
@@ -137,7 +137,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: adminLoginData.email,
+          username: adminLoginData.username,
           password: adminLoginData.password,
           expectedRole: selectedRole || "admin",
           module: selectedSystem,
@@ -162,7 +162,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
         }
 
         // Reset form
-        setAdminLoginData({ email: "", password: "" });
+        setAdminLoginData({ username: "", password: "" });
         setShowPassword(false);
       } else {
         setLoginError(data.message || "Invalid credentials");
@@ -188,7 +188,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: secretaryLoginData.email,
+          username: secretaryLoginData.username,
           password: secretaryLoginData.password,
           expectedRole: "secretary",
           module: selectedSystem,
@@ -208,7 +208,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
         }
 
         // Reset form
-        setSecretaryLoginData({ email: "", password: "" });
+        setSecretaryLoginData({ username: "", password: "" });
         setShowPassword(false);
       } else {
         setLoginError(data.message || "Invalid credentials");
@@ -234,7 +234,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: operatorLoginData.email,
+          username: operatorLoginData.username,
           password: operatorLoginData.password,
           expectedRole: "scanner_operator",
           module: selectedSystem,
@@ -256,7 +256,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
           );
         }
 
-        setOperatorLoginData({ email: "", password: "" });
+        setOperatorLoginData({ username: "", password: "" });
         setShowPassword(false);
       } else {
         setLoginError(data.message || "Invalid credentials");
@@ -282,7 +282,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: treasurerLoginData.email,
+          username: treasurerLoginData.username,
           password: treasurerLoginData.password,
           expectedRole: "treasurer",
           module: selectedSystem,
@@ -302,7 +302,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
         }
 
         // Reset form
-        setTreasurerLoginData({ email: "", password: "" });
+        setTreasurerLoginData({ username: "", password: "" });
         setShowPassword(false);
       } else {
         setLoginError(data.message || "Invalid credentials");
@@ -325,10 +325,10 @@ export default function SystemSelector({ onModuleSelect, notice }) {
     ) {
       back();
       setLoginError("");
-      setAdminLoginData({ email: "", password: "" });
-      setSecretaryLoginData({ email: "", password: "" });
-      setTreasurerLoginData({ email: "", password: "" });
-      setOperatorLoginData({ email: "", password: "" });
+      setAdminLoginData({ username: "", password: "" });
+      setSecretaryLoginData({ username: "", password: "" });
+      setTreasurerLoginData({ username: "", password: "" });
+      setOperatorLoginData({ username: "", password: "" });
       setShowPassword(false);
     } else if (step === "ROLE_SELECTION") {
       back();

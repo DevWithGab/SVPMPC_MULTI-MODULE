@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import {
-  Mail,
+  User,
   Lock,
   UserCheck,
   Shield,
@@ -30,9 +30,9 @@ export default function LoginForm({
       icon: Shield,
       title: "Administrator Access",
       subtitle: `Sign in to manage ${selectedSystemData?.title}`,
-      emailLabel: "Username or Email",
+      usernameLabel: "Username",
       passwordLabel: "Admin Password",
-      emailPlaceholder: "Enter your username or email",
+      usernamePlaceholder: "Enter your username",
       passwordPlaceholder: "Enter admin password",
       buttonText: "Admin Sign In",
       buttonIcon: Shield,
@@ -42,9 +42,9 @@ export default function LoginForm({
       icon: ClipboardList,
       title: "Secretary Access",
       subtitle: `Sign in to manage ${selectedSystemData?.title}`,
-      emailLabel: "Username or Email",
+      usernameLabel: "Username",
       passwordLabel: "Secretary Password",
-      emailPlaceholder: "Enter your username or email",
+      usernamePlaceholder: "Enter your username",
       passwordPlaceholder: "Enter secretary password",
       buttonText: "Secretary Sign In",
       buttonIcon: ClipboardList,
@@ -54,9 +54,9 @@ export default function LoginForm({
       icon: UserCheck,
       title: "Scanner Operator Access",
       subtitle: `Sign in to use the QR scanner for ${selectedSystemData?.title}`,
-      emailLabel: "Operator Username or Email",
+      usernameLabel: "Operator Username",
       passwordLabel: "Operator Password",
-      emailPlaceholder: "Enter your username or email",
+      usernamePlaceholder: "Enter your username",
       passwordPlaceholder: "Enter operator password",
       buttonText: "Operator Sign In",
       buttonIcon: UserCheck,
@@ -67,9 +67,9 @@ export default function LoginForm({
       icon: Calculator,
       title: "Treasurer / Staff Access",
       subtitle: `Sign in to manage ${selectedSystemData?.title}`,
-      emailLabel: "Username or Email",
+      usernameLabel: "Username",
       passwordLabel: "Treasurer Password",
-      emailPlaceholder: "Enter your username or email",
+      usernamePlaceholder: "Enter your username",
       passwordPlaceholder: "Enter treasurer password",
       buttonText: "Treasurer Sign In",
       buttonIcon: Calculator,
@@ -116,14 +116,14 @@ export default function LoginForm({
         <form onSubmit={onSubmit} className="space-y-4">
           {/* Username Input */}
           <Input
-            label={currentConfig.emailLabel}
+            label={currentConfig.usernameLabel}
             type="text"
-            value={loginData.email}
+            value={loginData.username}
             onChange={(e) =>
-              setLoginData({ ...loginData, email: e.target.value })
+              setLoginData({ ...loginData, username: e.target.value })
             }
-            placeholder={currentConfig.emailPlaceholder}
-            icon={Mail}
+            placeholder={currentConfig.usernamePlaceholder}
+            icon={User}
             required
             disabled={loginLoading}
             autoComplete="username"
