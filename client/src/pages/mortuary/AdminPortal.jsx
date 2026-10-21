@@ -1,4 +1,5 @@
 import LoadError from '../../components/shared/common/LoadError';
+import { loadAllPages } from '../../utils/loadAllPages';
 import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
@@ -123,7 +124,7 @@ const AdminPortal = ({ onBack, user }) => {
         dashboardRes,
         balancesRes,
       ] = await Promise.all([
-        mortuaryMemberAPI.getAllMembers({ limit: 100 }),
+        loadAllPages(page => mortuaryMemberAPI.getAllMembers({ page, limit: 100 })).then(members => ({ success: true, members })),
         contributionAPI.getAllContributions(),
         payoutAPI.getAllPayouts(),
         treasurerAPI.getDashboard(),

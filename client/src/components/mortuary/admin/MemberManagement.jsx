@@ -9,7 +9,7 @@ import './MemberManagement.css';
 const MemberManagement = ({
   filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab
 }) => {
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   useEffect(() => {
     setPage(1);

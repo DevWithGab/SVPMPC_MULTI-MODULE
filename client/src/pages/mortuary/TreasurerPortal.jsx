@@ -141,7 +141,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [memberFilter, setMemberFilter] = useState('all');
   const [barangayFilter, setBarangayFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 75;
+  const itemsPerPage = 100;
   const [ledgerMembers, setLedgerMembers] = useState([]);
   const [ledgerPagination, setLedgerPagination] = useState(null);
   

@@ -458,7 +458,7 @@ const MemberManagement = () => {
     return matchesSearch && matchesBarangay;
   });
 
-  const { page, limit, setPage } = usePagination(1, 75);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   useEffect(() => {
     setPage(1);
