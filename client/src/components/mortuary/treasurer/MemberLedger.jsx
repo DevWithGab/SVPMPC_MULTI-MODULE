@@ -1,11 +1,8 @@
-import { importHeaderLabel, normalizeImportHeader } from '../../../utils/importHeaders';
 import './MemberLedger.css';
 import React, { useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
-import { treasurerAPI } from '../../../services/api';
-import { Button } from '../../ui/button';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
-import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../shared/BulkUploadDialog';
+import BulkLedgerUpload from './BulkLedgerUpload';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 
@@ -112,9 +109,6 @@ const MemberLedger = ({
   refreshData
 }) => {
   const [showBulkModal, setShowBulkModal] = useState(false);
-  const [csvFile, setCsvFile] = useState(null);
-  const [csvPreview, setCsvPreview] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [transactionFilter, setTransactionFilter] = useState('all');
   const [datePreset, setDatePreset] = useState('all'); // 'all' | 'thisMonth' | 'lastMonth' | 'thisYear'
   const [sortOrder, setSortOrder] = useState('desc');
@@ -148,90 +142,6 @@ const MemberLedger = ({
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  };
-
-  const handleCSVUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setCsvFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target.result;
-        const lines = text.split('\n').filter(line => line.trim());
-        const parseCSVLine = (line) => {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') { inQuotes = !inQuotes; }
-            else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
-            else { current += char; }
-          }
-          result.push(current.trim());
-          return result;
-        };
-        const headers = parseCSVLine(lines[0]).map(normalizeImportHeader);
-        const preview = lines.slice(1, 6).map(line => {
-          const values = parseCSVLine(line);
-          return headers.reduce((obj, header, index) => {
-            obj[header] = values[index] || '';
-            return obj;
-          }, {});
-        });
-        setCsvPreview(preview);
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handleBulkUpload = async () => {
-    if (!csvFile || loading) return;
-    setLoading(true);
-    try {
-      const text = await csvFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      const parseCSVLine = (line) => {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"') { inQuotes = !inQuotes; }
-          else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
-          else { current += char; }
-        }
-        result.push(current.trim());
-        return result;
-      };
-      const headers = parseCSVLine(lines[0]).map(normalizeImportHeader);
-      const ledgerEntries = lines.slice(1)
-        .filter(line => line.trim())
-        .map((line) => {
-          const values = parseCSVLine(line);
-          return {
-            memberId: values[headers.indexOf('memberId')],
-            transactionDate: values[headers.indexOf('transactionDate')],
-            credit: parseFloat(values[headers.indexOf('credit')]) || 0,
-            debit: parseFloat(values[headers.indexOf('debit')]) || 0,
-            description: values[headers.indexOf('description')] || 'Bulk upload',
-            transactionType: values[headers.indexOf('transactionType')] || '',
-            referenceId: values[headers.indexOf('referenceId')] || values[headers.indexOf('ref_no')] || '',
-            paymentMethod: values[headers.indexOf('paymentMethod')] || 'Cash',
-            status: values[headers.indexOf('status')] || 'completed'
-          };
-        });
-      const response = await treasurerAPI.bulkUploadLedger(ledgerEntries);
-      showToast(`Uploaded: ${response.results.success.length} ok, ${response.results.failed.length} failed`, 'success');
-      setShowBulkModal(false);
-      setCsvFile(null);
-      setCsvPreview([]);
-      if (refreshData) await refreshData();
-    } catch (error) {
-      showToast('Upload error: ' + error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const exportLedgerToCSV = (entries, memberName) => {
@@ -618,54 +528,7 @@ const MemberLedger = ({
       </section>
 
       {/* Bulk Upload Modal */}
-      {showBulkModal && (
-        <BulkUploadDialog
-          title="Bulk Upload Ledger"
-          description="Import transaction entries into your members' ledgers."
-          busy={loading}
-          onClose={() => { setShowBulkModal(false); setCsvFile(null); setCsvPreview([]); }}
-          footer={<>
-            <Button type="button" variant="outline" disabled={loading}
-              onClick={() => { setShowBulkModal(false); setCsvFile(null); setCsvPreview([]); }}
-              className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50">Cancel</Button>
-            <Button type="button" onClick={handleBulkUpload} disabled={!csvFile || loading}
-              className="gap-2 bg-coop-green text-white hover:bg-coop-darkGreen">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="h-4 w-4" aria-hidden="true" />}
-              {loading ? 'Uploading...' : 'Upload Entries'}
-            </Button>
-          </>}
-        >
-          <UploadTemplateCard onDownload={downloadLedgerTemplate} disabled={loading}>
-            <p>Replace the sample row with actual passbook numbers and ledger entries. Keep leading zeros in passbook numbers and use YYYY-MM-DD dates.</p>
-            <p>Credit adds to the balance; debit deducts from it. Enter a positive amount in one column and 0 in the other, without currency signs or thousands separators.</p>
-            <p>Columns: Passbook No., transactionDate, credit, debit, description, transactionType, referenceId, paymentMethod (cash). Keep the column headers unchanged.</p>
-          </UploadTemplateCard>
-          <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading}
-            hint="CSV only ? Review the first 5 entries before uploading" />
-          {csvPreview.length > 0 && (
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-slate-900">Entry preview</h3>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">First 5 rows</span>
-              </div>
-              <div className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white">
-                <table className="w-full text-left text-sm">
-                  <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                    <tr>{Object.keys(csvPreview[0]).map(key => <th key={key} className="px-3 py-3 font-medium whitespace-nowrap">{importHeaderLabel(key)}</th>)}</tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {csvPreview.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        {Object.values(row).map((val, i) => <td key={i} className="px-3 py-3 text-slate-600 whitespace-nowrap">{val}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </BulkUploadDialog>
-      )}
+      {showBulkModal && <BulkLedgerUpload onClose={() => setShowBulkModal(false)} onImported={refreshData} onDownloadTemplate={downloadLedgerTemplate} />}
     </div>
   );
 };

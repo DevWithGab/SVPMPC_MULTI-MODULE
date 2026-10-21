@@ -3,6 +3,8 @@ const { Member } = require('../../../shared/models');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { LATEST_FIRST, getLatestBalance } = require('../utils/ledgerBalance');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { parseLedgerCsv, validateLedgerEntries } = require('../utils/ledgerCsv');
+const { randomUUID } = require('node:crypto');
 
 // Get member ledger - with pagination
 const getMemberLedger = async (req, res) => {
@@ -146,14 +148,33 @@ const getMemberBalance = async (req, res) => {
 // Bulk upload ledger entries from CSV
 const bulkUploadLedger = async (req, res) => {
   try {
-    const { ledgerEntries } = req.body;
-
-    if (!ledgerEntries || !Array.isArray(ledgerEntries) || ledgerEntries.length === 0) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'No ledger entries provided' 
-      });
+    let rows;
+    const action = req.body.action || 'import';
+    try {
+      if (!['preview', 'import'].includes(action)) throw new Error('Choose preview or import.');
+      rows = req.body.csv !== undefined ? parseLedgerCsv(req.body.csv) : validateLedgerEntries(req.body.ledgerEntries);
+    } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
     }
+    // Check every row before writing anything, including on import: the data
+    // may have changed since the user requested a preview.
+    for (const row of rows) {
+      if (row.errors.length) continue;
+      const member = await Member.findOne({ memberId: row.entry.memberId });
+      row.memberName = member?.memberName || '';
+      if (!member) row.errors.push('Passbook No. was not found.');
+      const duplicate = await Ledger.findOne({
+        memberId: row.entry.memberId, transactionDate: new Date(row.entry.transactionDate),
+        credit: row.entry.credit, debit: row.entry.debit, referenceId: row.entry.referenceId,
+      });
+      if (duplicate) row.errors.push('This ledger entry is already recorded. Remove it from the CSV.');
+      if (row.entry.ledgerId && await Ledger.findOne({ ledgerId: row.entry.ledgerId })) row.errors.push('This ledgerId is already in use.');
+      row.status = row.errors.length ? 'error' : 'ready';
+    }
+    const summary = { total: rows.length, ready: rows.filter(row => !row.errors.length).length, invalid: rows.filter(row => row.errors.length).length };
+    if (action === 'preview') return res.json({ success: true, rows, summary });
+    if (summary.invalid) return res.status(400).json({ success: false, message: 'Correct every listed error and preview again. No ledger entries were imported.', rows, summary });
+    const ledgerEntries = rows.map(row => row.entry);
 
     const results = {
       success: [],
@@ -161,7 +182,7 @@ const bulkUploadLedger = async (req, res) => {
       total: ledgerEntries.length
     };
 
-    for (const entry of ledgerEntries) {
+    for (const [index, entry] of ledgerEntries.entries()) {
       try {
         console.log(`📝 Processing ledger entry for member: ${entry.memberId}`);
         
@@ -178,6 +199,8 @@ const bulkUploadLedger = async (req, res) => {
         // Verify member exists
         const member = await Member.findOne({ memberId: entry.memberId });
         if (!member) {
+          rows[index].status = 'failed';
+          rows[index].errors.push('Passbook No. was not found.');
           console.log(`❌ Member not found: ${entry.memberId}`);
           results.failed.push({
             entry,
@@ -197,6 +220,8 @@ const bulkUploadLedger = async (req, res) => {
         });
 
         if (duplicateCheck) {
+          rows[index].status = 'failed';
+          rows[index].errors.push('This ledger entry was just recorded. Preview again.');
           console.log(`⚠️  Duplicate entry found for ${entry.memberId}`);
           results.failed.push({
             entry,
@@ -212,7 +237,7 @@ const bulkUploadLedger = async (req, res) => {
         const currentBalance = await getLatestBalance(entry.memberId);
         const credit = parseFloat(entry.credit) || 0;
         const debit = parseFloat(entry.debit) || 0;
-        const newBalance = currentBalance + credit - debit;
+        const newBalance = Math.round((currentBalance + credit - debit) * 100) / 100;
 
         console.log(`💰 Creating ledger: ${entry.memberId}, Credit: ${credit}, Debit: ${debit}, New Balance: ${newBalance}`);
 
@@ -222,7 +247,7 @@ const bulkUploadLedger = async (req, res) => {
 
         // Create ledger entry
         const ledgerEntry = new Ledger({
-          ledgerId: entry.ledgerId || `L${Date.now()}_${entry.memberId}`,
+          ledgerId: entry.ledgerId || `L${randomUUID()}`,
           memberId: entry.memberId,
           transactionType: entry.transactionType || (credit > 0 ? 'contribution' : 'payout'),
           transactionDate: new Date(entry.transactionDate),
@@ -236,6 +261,7 @@ const bulkUploadLedger = async (req, res) => {
         });
 
         await ledgerEntry.save();
+        rows[index].status = 'imported';
         console.log(`✅ Ledger entry saved: ${ledgerEntry.ledgerId}`);
         results.success.push({
           memberId: entry.memberId,
@@ -244,6 +270,8 @@ const bulkUploadLedger = async (req, res) => {
         });
 
       } catch (error) {
+        rows[index].status = 'failed';
+        rows[index].errors.push('Unable to save this entry. Refresh and preview the remaining entries before retrying.');
         console.error(`❌ Error processing entry:`, error.message);
         results.failed.push({
           entry,
@@ -260,7 +288,8 @@ const bulkUploadLedger = async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Processed ${results.total} entries: ${results.success.length} successful, ${results.failed.length} failed`,
-      results
+      results,
+      rows
     });
 
   } catch (error) {

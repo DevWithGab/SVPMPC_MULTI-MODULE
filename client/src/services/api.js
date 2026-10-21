@@ -764,8 +764,8 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  bulkUploadLedger: async (ledgerEntries) => {
-    const response = await api.post('/mortuary/treasurer/ledger/bulk-upload', { ledgerEntries });
+  bulkUploadLedger: async (csv, action = 'preview') => {
+    const response = await api.post('/mortuary/treasurer/ledger/bulk-upload', { csv, action });
     return response.data;
   },
 

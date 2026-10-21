@@ -19,7 +19,7 @@ const aliases = {
 };
 
 // Strict CSV reader: quoted commas, escaped quotes, CRLF, BOM and multiline notes.
-function readCsv(text) {
+function readCsv(text, maxRows = MAX_ROWS, rowLabel = 'payments') {
   const rows = [];
   let row = [], cell = '', quoted = false, closed = false;
   let line = 1, rowLine = 1;
@@ -28,7 +28,7 @@ function readCsv(text) {
     pushCell();
     if (row.some(Boolean)) { row.line = rowLine; rows.push(row); }
     row = [];
-    if (rows.length > MAX_ROWS + 1) throw new Error(`Maximum ${MAX_ROWS} payments per upload.`);
+    if (rows.length > maxRows + 1) throw new Error(`Maximum ${maxRows} ${rowLabel} per upload.`);
   };
   text = text.replace(/^\uFEFF/, '');
   for (let i = 0; i < text.length; i++) {
@@ -93,4 +93,4 @@ function parsePaymentCsv(csv) {
   });
 }
 
-module.exports = { parsePaymentCsv, MAX_ROWS, MAX_BYTES };
+module.exports = { parsePaymentCsv, readCsv, MAX_ROWS, MAX_BYTES };
