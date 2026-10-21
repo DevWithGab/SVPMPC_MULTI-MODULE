@@ -4,7 +4,7 @@ import LoadError from '../../components/shared/common/LoadError';
 import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Users, CreditCard, FileText, LayoutGrid, BarChart3,
+  Users, CreditCard, FileText, LayoutGrid, BarChart3, Bell,
   LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,7 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   Dashboard,
   MemberBalances,
+  Notices,
   Contributions,
   MemberLedger,
   ClaimsPendingDeduction,
@@ -100,7 +101,7 @@ const PortalSkeleton = () => (
 
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
-  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'ledger', 'contributions', 'reports']);
+  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports']);
   const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'awaiting-release', 'disbursement-report', 'income-report']); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
   const [members, setMembers] = useState([]);
   // Separate from `members` above (which the balances aggregation scopes to
@@ -525,7 +526,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   }, [searchQuery, barangayFilter, memberFilter, activeTab]);
 
   const relevantKeys = {
-    dashboard: ['stats', 'contributions'], members: ['members'],
+    dashboard: ['stats', 'contributions'], members: ['members'], notices: ['members'],
     contributions: ['contributions'], claims: ['claims'],
     ledger: selectedMemberId ? ['members', 'ledger'] : ['ledgerList'],
     reports: ['reportMembers'],
@@ -558,9 +559,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             onRefresh={retryLoads}
             refreshing={retrying}
             members={members}
-            user={user}
             noticeThresholds={noticeThresholds}
-            showToast={showToast}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             barangayFilter={barangayFilter}
@@ -571,6 +570,17 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
             onOpenLedger={openMemberLedger}
+          />
+        );
+      case 'notices':
+        return (
+          <Notices
+            members={members}
+            user={user}
+            noticeThresholds={noticeThresholds}
+            showToast={showToast}
+            onRefresh={retryLoads}
+            refreshing={retrying}
           />
         );
       case 'claims':
@@ -687,6 +697,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         <nav className={`flex-1 space-y-1 overflow-y-auto ${sidebarCollapsed ? 'px-2.5 py-4' : 'px-3 py-4'}`}>
           <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="notices" icon={Bell} label="Notices" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" badgeCount={claimsCounts.pendingDeduction} activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />

@@ -3,7 +3,7 @@ import { sanitizeNoticeHtml } from './sanitizeHtml.js';
 
 // Balance-threshold notices — shared between the per-member "Print Notice"
 // action on the Member Ledger and the bulk "print all by threshold" action
-// on Member Balances, so both stay on the same thresholds and letter
+// on Notices, so both stay on the same thresholds and letter
 // template instead of drifting apart.
 //
 // Thresholds are admin-configurable (Mortuary Admin → Notice Thresholds,
