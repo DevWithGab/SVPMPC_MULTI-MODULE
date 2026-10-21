@@ -22,7 +22,7 @@ export function createAttendanceReportPdf({ logs, scope, logo, generatedAt }) {
   return createMortuaryReportPdf({ logo, generatedAt, title: 'Attendance Report', scope,
     program: 'Attendance Management', metadataLabel: 'REPORT RECORDS', metadataValue: `${logs.length} attendance records`,
     sections: [
-      { title: 'Report overview', head: ['Attendance records', 'Unique attendees', 'Events represented'], body: [[String(logs.length), String(members), String(events)]] },
+      { title: 'Report overview', head: ['Attendance records', 'Members who attended', 'Events represented'], body: [[String(logs.length), String(members), String(events)]] },
       { title: 'Attendance register', head: ['Passbook no.', 'Member / Barangay', 'Event', 'Date / Time (PHT)', 'Status'], widths: [25, 47, 43, 37, 24],
         body: logs.map(log => [String(log.memberId || 'Not recorded'), `${log.memberName}\n${log.barangay || 'Not recorded'}`, log.eventName || 'Not recorded', valid(log.scanTime) ? `${formatDate(log.scanTime)}\n${formatTime(log.scanTime)}` : 'Not recorded', log.status || 'present']),
         emptyMessage: 'No attendance records match this report scope.' },

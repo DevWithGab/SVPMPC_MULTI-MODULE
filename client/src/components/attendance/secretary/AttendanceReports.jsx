@@ -647,9 +647,9 @@ export default function AttendanceReports({ attendanceLogs, events }) {
             FileText,
           ],
           [
-            "Unique attendees",
+            "Members who attended",
             uniqueMembers,
-            "Distinct members represented",
+            "Each member is counted once",
             Users,
           ],
           [
