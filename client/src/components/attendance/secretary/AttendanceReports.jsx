@@ -24,6 +24,7 @@ import {
 import { EventAttendeesPanel } from "../shared";
 import {
   createAttendanceReportPdf,
+  createAttendanceReportCsv,
   matchesAttendancePeriod,
   attendancePeriods,
 } from "../../../utils/attendanceReport";
@@ -31,24 +32,16 @@ import { loadReportLogo } from "../../../utils/mortuaryReportPdf";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "./AttendanceReports.css";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
-import { formatDate, formatTime } from "../../../utils/date";
+import { formatDate } from "../../../utils/date";
 import { loadDashboardRecords } from '../../../utils/attendanceDashboard';
 
 /*Page through everything, same loop
 LiveAttendanceList's fetchEventAttendance already uses for this reason.*/
 const ATTENDANCE_FETCH_PAGE_SIZE = 100;
 
-/*Wrapping the value as an Excel text-formula ("="...") makes
-Excel display it as plain text instead, at a width that fits the content.*/
-const excelText = (value) => `="${String(value ?? "").replace(/"/g, '""')}"`;
-
-/* Standard CSV field quoting (RFC 4180) — wraps every field in double quotes
-and escapes internal ones, so values containing commas (like "Oct 2, 2026")
-don't get misread as extra columns.*/
-const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-
 export default function AttendanceReports({ attendanceLogs, events }) {
   const [selectedEvent, setSelectedEvent] = useState("all");
+  const showEventColumn = selectedEvent === "all";
   const [selectedBarangay, setSelectedBarangay] = useState("all");
   const [dateRange, setDateRange] = useState("month");
   const [localEvents, setLocalEvents] = useState(events || []);
@@ -332,6 +325,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const exportRecords = async (type, event) => {
     if (exportDisabled) return;
     const records = event ? getEventAttendanceLogs(event) : filteredLogs;
+    const includeEvent = !event && showEventColumn;
     if (!records.length) return;
     setExporting(true);
     setFeedback(null);
@@ -358,33 +352,13 @@ export default function AttendanceReports({ attendanceLogs, events }) {
           logs: records,
           scope: reportScope,
           logo,
+          includeEvent,
         }).save(filename + ".pdf");
       } else {
-        const rows = [
-          [
-            "Passbook Number",
-            "Member Name",
-            "Barangay",
-            "Event",
-            "Date (PHT)",
-            "Time (PHT)",
-            "Status",
-          ],
-          ...records.map((log) => [
-            log.memberId,
-            log.memberName,
-            log.barangay,
-            log.eventName,
-            log.scanTime ? excelText(formatDate(log.scanTime)) : "Not recorded",
-            log.scanTime ? excelText(formatTime(log.scanTime)) : "Not recorded",
-            log.status,
-          ]),
-        ];
         const url = URL.createObjectURL(
           new Blob(
             [
-              "\uFEFF" +
-                rows.map((row) => row.map(csvCell).join(",")).join("\r\n"),
+              createAttendanceReportCsv({ logs: records, includeEvent }),
             ],
             { type: "text/csv;charset=utf-8;" },
           ),
@@ -704,13 +678,13 @@ export default function AttendanceReports({ attendanceLogs, events }) {
             <Table className="ar-events-table">
               <TableHeader className="bg-slate-50">
                 <TableRow>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
+                  {showEventColumn && <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Event Name
-                  </TableHead>
+                  </TableHead>}
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Date
                   </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
+                  <TableHead data-label="Total attendance" className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Total Attendance
                   </TableHead>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
@@ -737,11 +711,38 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                           key={eventKey}
                           className="hover:bg-slate-50/50 transition-colors"
                         >
-                          <TableCell className="py-3">
+                          {showEventColumn && <TableCell className="py-3">
                             <div>
                               <p className="text-sm font-semibold text-slate-900">
                                 {event.displayName}
                               </p>
+                              <p className="text-xs text-slate-400">
+                                {event.location}
+                              </p>
+                            </div>
+                          </TableCell>}
+                          <TableCell className="py-3" data-label="Date">
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">
+                                {event.displayDate
+                                  ? formatDate(event.displayDate)
+                                  : "No date"}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-3" data-label="Total attendance">
+                            <span className="text-sm font-medium text-slate-700">
+                              {event.attendanceCount} records
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-3" data-label="Attendees">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Users className="w-4 h-4 text-slate-400" />
+                                <span className="text-sm font-medium text-slate-700">
+                                  {event.uniqueAttendees} members
+                                </span>
+                              </div>
                               <button
                                 className="ar-view"
                                 aria-label={`View attendees for ${event.displayName}`}
@@ -763,33 +764,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               >
                                 <Users size={16} aria-hidden="true" /> View attendees <ChevronRight size={16} aria-hidden="true" />
                               </button>
-                              <p className="text-xs text-slate-400">
-                                {event.location}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3" data-label="Date">
-                            <div>
-                              <p className="text-sm font-medium text-slate-700">
-                                {event.displayDate
-                                  ? formatDate(event.displayDate)
-                                  : "No date"}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3" data-label="Total attendance">
-                            <span className="text-sm font-medium text-slate-700">
-                              {event.attendanceCount} records
-                            </span>
-                          </TableCell>
-                          <TableCell className="py-3" data-label="Attendees">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <Users className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm font-medium text-slate-700">
-                                  {event.uniqueAttendees} members
-                                </span>
-                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="py-3" data-label="Export">
@@ -834,7 +808,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                     })}
                 {(reportLoading || reportError) && (
                   <TableRow>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={showEventColumn ? 5 : 4}>
                       <div className="ar-empty" role="status">
                         {reportLoading && <Loader2 className="animate-spin" />}
                         <strong>
@@ -856,7 +830,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                   eventSummary.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={showEventColumn ? 5 : 4}
                         className="text-center py-12 text-slate-400"
                       >
                         <div className="flex flex-col items-center gap-4">

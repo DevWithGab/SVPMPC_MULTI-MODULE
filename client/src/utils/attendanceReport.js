@@ -15,7 +15,20 @@ export function matchesAttendancePeriod(value, period, now = new Date()) {
   start.setTime(start.getTime() - 6 * 86400000);
   return day >= dayKey(start);
 }
-export function createAttendanceReportPdf({ logs, scope, logo, generatedAt }) {
+export function createAttendanceReportCsv({ logs, includeEvent = true }) {
+  const excelText = value => `="${String(value ?? '').replace(/"/g, '""')}"`;
+  const cell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const rows = [
+    ['Passbook Number', 'Member Name', 'Barangay', ...(includeEvent ? ['Event'] : []), 'Date (PHT)', 'Time (PHT)', 'Status'],
+    ...logs.map(log => [log.memberId, log.memberName, log.barangay,
+      ...(includeEvent ? [log.eventName] : []),
+      log.scanTime ? excelText(formatDate(log.scanTime)) : 'Not recorded',
+      log.scanTime ? excelText(formatTime(log.scanTime)) : 'Not recorded', log.status]),
+  ];
+  return '\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n');
+}
+
+export function createAttendanceReportPdf({ logs, scope, logo, generatedAt, includeEvent = true }) {
   const members = new Set(logs.map(log => String(log.memberId || log.memberName))).size;
   const events = new Set(logs.map(log => String(log.eventId || log.eventName))).size;
   const valid = value => value && Number.isFinite(new Date(value).getTime());
@@ -23,8 +36,8 @@ export function createAttendanceReportPdf({ logs, scope, logo, generatedAt }) {
     program: 'Attendance Management', metadataLabel: 'REPORT RECORDS', metadataValue: `${logs.length} attendance records`,
     sections: [
       { title: 'Report overview', head: ['Attendance records', 'Members who attended', 'Events represented'], body: [[String(logs.length), String(members), String(events)]] },
-      { title: 'Attendance register', head: ['Passbook no.', 'Member / Barangay', 'Event', 'Date / Time (PHT)', 'Status'], widths: [25, 47, 43, 37, 24],
-        body: logs.map(log => [String(log.memberId || 'Not recorded'), `${log.memberName}\n${log.barangay || 'Not recorded'}`, log.eventName || 'Not recorded', valid(log.scanTime) ? `${formatDate(log.scanTime)}\n${formatTime(log.scanTime)}` : 'Not recorded', log.status || 'present']),
+      { title: 'Attendance register', head: ['Passbook no.', 'Member / Barangay', ...(includeEvent ? ['Event'] : []), 'Date / Time (PHT)', 'Status'], widths: includeEvent ? [25, 47, 43, 37, 24] : [25, 75, 50, 26],
+        body: logs.map(log => [String(log.memberId || 'Not recorded'), `${log.memberName}\n${log.barangay || 'Not recorded'}`, ...(includeEvent ? [log.eventName || 'Not recorded'] : []), valid(log.scanTime) ? `${formatDate(log.scanTime)}\n${formatTime(log.scanTime)}` : 'Not recorded', log.status || 'present']),
         emptyMessage: 'No attendance records match this report scope.' },
     ],
   });

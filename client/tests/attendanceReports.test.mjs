@@ -2,7 +2,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { matchesAttendancePeriod, createAttendanceReportPdf } from '../src/utils/attendanceReport.js';
+import { matchesAttendancePeriod, createAttendanceReportPdf, createAttendanceReportCsv } from '../src/utils/attendanceReport.js';
+
+test('attendance CSV omits the event column only for event-scoped exports', () => {
+  const logs = [{ memberId: '000123', memberName: 'Maria Santos', barangay: 'San Vicente', eventName: 'Assembly', scanTime: '2026-10-08T02:00:00Z', status: 'present' }];
+  const allEvents = createAttendanceReportCsv({ logs });
+  const singleEvent = createAttendanceReportCsv({ logs, includeEvent: false });
+  assert.match(allEvents.split('\r\n')[0], /"Event"/);
+  assert.match(allEvents, /"Assembly"/);
+  assert.equal(singleEvent.split('\r\n')[0], '\uFEFF"Passbook Number","Member Name","Barangay","Date (PHT)","Time (PHT)","Status"');
+  assert.doesNotMatch(singleEvent, /Assembly/);
+  assert.match(singleEvent, /"000123","Maria Santos","San Vicente"/);
+  assert.match(singleEvent, /"present"$/);
+});
+
+test('single-event PDF omits the event column and keeps the remaining data', () => {
+  const logo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO(MAIN).png', import.meta.url)));
+  const doc = createAttendanceReportPdf({ logo, scope: 'Assembly', includeEvent: false,
+    logs: [{ memberId: '000123', memberName: 'Maria Santos', barangay: 'San Vicente', eventName: 'Assembly', status: 'late' }] });
+  assert.deepEqual(Object.values(doc.lastAutoTable.head[0].cells).map(cell => cell.text.join(' ')), ['Passbook no.', 'Member / Barangay', 'Date / Time (PHT)', 'Status']);
+  assert.equal(Object.keys(doc.lastAutoTable.body[0].cells).length, 4);
+  assert.deepEqual(doc.lastAutoTable.body[0].cells[3].text, ['late']);
+});
 
 test('report periods use Manila calendar dates, include seven days, and exclude future dates', () => {
   const now = new Date('2026-10-08T02:00:00Z');

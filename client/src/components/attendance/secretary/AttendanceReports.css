@@ -12,7 +12,7 @@
 .attendance-reports th { font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: normal; padding: 14px 20px; color: #526058; }
 .attendance-reports td { padding: 17px 20px; }
 .attendance-reports td:first-child { max-width: 340px; overflow-wrap: anywhere; }
-.attendance-reports :is(th, td):nth-child(3) { text-align: right; }
+.attendance-reports :is(th, td)[data-label="Total attendance"] { text-align: right; }
 .ar-view { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 12px; border: 1px solid #aac5b0; border-radius: 5px; background: #edf5ee; font-weight: 600; color: #245e32; font-size: 13px; margin-block: 10px 8px; cursor: pointer; white-space: nowrap; }
 .ar-view:hover { background: #deeddf; border-color: #608d69; }
 .ar-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; font-size: 12px; font-weight: 600; color: #34453a; cursor: pointer; white-space: nowrap; }
