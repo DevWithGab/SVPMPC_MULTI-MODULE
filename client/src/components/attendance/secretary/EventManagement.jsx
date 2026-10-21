@@ -36,6 +36,7 @@ import {
   loadSecretaryEvents,
 } from "../../../utils/eventManagement";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
+import useScheduledSecretaryEvents from '../../../hooks/useScheduledSecretaryEvents';
 import "./EventManagement.css";
 
 export default function EventManagement({ user, events, onRefreshEvents }) {
@@ -44,7 +45,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [viewedEvent, setViewedEvent] = useState(null);
+  const [viewedEventRecord, setViewedEvent] = useState(null);
   const [eventPendingDelete, setEventPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,11 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
   const [sortOrder, setSortOrder] = useState("newest");
   const requestVersion = useRef({ version: 0 });
   const [toast, setToast] = useState(null);
-  const [eventList, setEventList] = useState(events || []);
+  const [storedEvents, setEventList] = useState(events || []);
+  const eventList = useScheduledSecretaryEvents(storedEvents);
+  const viewedEventId = viewedEventRecord?.eventId || viewedEventRecord?._id || viewedEventRecord?.id;
+  const viewedEvent = eventList.find(event => viewedEventId &&
+    (event.eventId || event._id || event.id) === viewedEventId) || viewedEventRecord;
   const phtDateTime = (date, time) => `${date}T${time || "00:00"}:00+08:00`;
   // Every Secretary event is a General Assembly — there's no type picker
   // in the form, so this never varies.

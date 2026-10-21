@@ -1,3 +1,5 @@
+import { scannerEventWindow } from './scannerSchedule.js';
+
 export const eventStatusLabels = {
   draft: 'Draft', pending_approval: 'Pending approval', upcoming: 'Upcoming',
   active: 'Active', closed: 'Closed', rejected: 'Needs revision', cancelled: 'Cancelled',
@@ -24,4 +26,13 @@ export async function loadSecretaryEvents(getPage) {
     page++;
   } while (page <= totalPages);
   return records;
+}
+// Only approved events follow the clock. Preserve approval, cancellation,
+// rejection and closed states returned by the server.
+export function scheduledSecretaryEvent(event, now = Date.now()) {
+  if (!['upcoming', 'active'].includes(event.status)) return event;
+  const window = scannerEventWindow(event);
+  if (!window) return event;
+  const status = now >= window.end ? 'closed' : now >= window.start ? 'active' : 'upcoming';
+  return status === event.status ? event : { ...event, status };
 }

@@ -5,6 +5,7 @@ import { formatDate, formatTime, formatTimeRange, formatLongDate } from '../../.
 import { eventStatusLabels } from '../../../utils/eventManagement';
 import { loadDashboardRecords, summarizeDashboard, recordTime, eventTime, validTimestamp } from '../../../utils/attendanceDashboard';
 import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
+import useScheduledSecretaryEvents from '../../../hooks/useScheduledSecretaryEvents';
 import './Dashboard.css';
 
 const statusTone = status => ({ active: 'active', upcoming: 'upcoming', pending_approval: 'pending', rejected: 'revision' }[status] || 'neutral');
@@ -67,7 +68,8 @@ export default function SecretaryDashboard({ attendanceLogs, events: initialEven
     return () => { cancelled = true; };
   }, [reload, initialEvents, attendanceLogs]);
 
-  const { counts, agenda, latest, todayAttendance } = summarizeDashboard(events, records, now);
+  const scheduledEvents = useScheduledSecretaryEvents(events);
+  const { counts, agenda, latest, todayAttendance } = summarizeDashboard(scheduledEvents, records, now);
   const refreshing = loading.events || loading.attendance;
   const retry = () => setReload(value => value + 1);
   const metric = (value, source) => loading[source] || errors[source] ? '—' : value.toLocaleString();
