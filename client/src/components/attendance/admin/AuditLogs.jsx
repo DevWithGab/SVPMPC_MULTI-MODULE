@@ -192,12 +192,14 @@ const AuditLogs = () => {
           </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <button onClick={handleExportCSV} disabled={loading || !logs.length} className="sd-button sd-primary">
-            <Download size={15} aria-hidden="true" /> CSV (current page)
-          </button>
-          <button onClick={handleExportPDF} disabled={loading || !logs.length} className="sd-button">
-            <Download size={15} aria-hidden="true" /> PDF (current page)
-          </button>
+          <div className="flex items-center gap-2" role="group" aria-label="Export audit logs">
+            <button onClick={handleExportCSV} disabled={loading || !logs.length} className="sd-button sd-primary">
+              <Download size={15} aria-hidden="true" /> CSV (current page)
+            </button>
+            <button onClick={handleExportPDF} disabled={loading || !logs.length} className="sd-button">
+              <Download size={15} aria-hidden="true" /> PDF (current page)
+            </button>
+          </div>
           {lastUpdated && (
             <p className="text-xs text-slate-400">
               Last updated {formatTime(lastUpdated)}

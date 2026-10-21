@@ -24,8 +24,8 @@ const uploadMembers = async (req, res) => {
 
       // Log failed validation
       await createAuditLog({
-        userId: req.user?.id,
-        userName: req.user?.name || 'Unknown',
+        userId: req.user?.userId || req.user?.id,
+        userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
         userRole: req.user?.role || 'secretary',
         action: 'member_imported',
         module: 'attendance',
@@ -74,8 +74,8 @@ const uploadMembers = async (req, res) => {
 
     // Log successful import
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'secretary',
       action: 'member_imported',
       module: 'attendance',
@@ -106,8 +106,8 @@ const uploadMembers = async (req, res) => {
 
     // Log failed import
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'secretary',
       action: 'member_imported',
       module: 'attendance',
@@ -179,8 +179,8 @@ const generateQRCodes = async (req, res) => {
 
     // Log audit event
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'secretary',
       action: 'qr_code_generated',
       module: 'attendance',
@@ -206,8 +206,8 @@ const generateQRCodes = async (req, res) => {
   } catch (error) {
     // Log failed attempt
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'secretary',
       action: 'qr_code_generated',
       module: 'attendance',
@@ -358,8 +358,8 @@ const regenerateQRCode = async (req, res) => {
     await member.save();
 
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'qr_code_regenerated',
       module: 'attendance',
@@ -398,8 +398,8 @@ const deactivateQRCode = async (req, res) => {
     await member.save();
 
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'qr_code_deactivated',
       module: 'attendance',
@@ -439,8 +439,8 @@ const reactivateQRCode = async (req, res) => {
     await member.save();
 
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'qr_code_reactivated',
       module: 'attendance',

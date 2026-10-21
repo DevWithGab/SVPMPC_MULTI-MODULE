@@ -86,6 +86,18 @@ const event = (overrides) => ({
 
 // --- approveEvent ---------------------------------------------------------
 
+test('event approval logs the authenticated admin name and business ID', async () => {
+  const db = database([event({ status: 'pending_approval' })]);
+  const res = response();
+  await controller(db).approveEvent({ params: { eventId: 'EVT-1' },
+    user: { userId: 'ADMIN-1', id: 'mongo-id', username: 'attendance.admin', role: 'admin' },
+    ip: '', get: () => '',
+  }, res);
+  assert.equal(res.code, 200);
+  assert.equal(db.state.auditLogs[0].userId, 'ADMIN-1');
+  assert.equal(db.state.auditLogs[0].userName, 'attendance.admin');
+});
+
 test('approveEvent moves a draft or pending_approval event to upcoming', async () => {
   for (const status of ['draft', 'pending_approval']) {
     const db = database([event({ status })]);

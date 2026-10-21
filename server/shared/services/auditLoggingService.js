@@ -1,4 +1,5 @@
-const { AuditLog, Member } = require('../../shared/models');
+const { AuditLog, Member, User } = require('../../shared/models');
+const { resolveAuditActorNames } = require('../utils/auditActorNames');
 const Event = require('../../modules/attendance/models/Event');
 const Attendance = require('../../modules/attendance/models/Attendance');
 const { v4: uuidv4 } = require('uuid');
@@ -320,7 +321,7 @@ const getAuditLogs = async (options = {}) => {
     ]);
 
     return {
-      logs,
+      logs: await resolveAuditActorNames(logs, User),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -351,7 +352,7 @@ const getEntityAuditTrail = async (entityType, entityId, limit = 20, module) => 
       .sort({ timestamp: -1 })
       .limit(parseInt(limit));
 
-    return logs;
+    return resolveAuditActorNames(logs, User);
   } catch (error) {
     console.error('Error fetching entity audit trail:', error);
     throw error;

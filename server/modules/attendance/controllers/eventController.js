@@ -89,8 +89,8 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
 
     // Log audit event
     await createAuditLog({
-      userId: req.user?.id || createdBy,
-      userName: req.user?.name || createdBy,
+      userId: req.user?.userId || req.user?.id || createdBy,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || createdBy,
       userRole: req.user?.role || 'admin',
       action: 'event_created',
       module: 'attendance',
@@ -114,8 +114,8 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
   } catch (error) {
     // Log failed attempt
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'event_created',
       module: 'attendance',
@@ -233,8 +233,8 @@ const updateEvent = async (req, res) => {
 
     // Log audit event
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'event_updated',
       module: 'attendance',
@@ -258,8 +258,8 @@ const updateEvent = async (req, res) => {
   } catch (error) {
     // Log failed attempt
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'event_updated',
       module: 'attendance',
@@ -290,8 +290,8 @@ const transitionEvent = async (req, res, nextStatus, allowedStatuses, message) =
   // — same action reopenEvent already uses for this same kind of change,
   // so no new AuditLog.action enum value is needed.
   await createAuditLog({
-    userId: req.user?.id,
-    userName: req.user?.name || 'Unknown',
+    userId: req.user?.userId || req.user?.id,
+    userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
     userRole: req.user?.role || 'admin',
     action: 'event_status_changed',
     module: 'attendance',
@@ -323,8 +323,8 @@ const approveEvent = async (req, res) => {
   await event.save();
 
   await createAuditLog({
-    userId: req.user?.id,
-    userName: req.user?.name || 'Unknown',
+    userId: req.user?.userId || req.user?.id,
+    userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
     userRole: req.user?.role || 'admin',
     action: 'event_status_changed',
     module: 'attendance',
@@ -376,8 +376,8 @@ const reopenEvent = async (req, res) => {
   await event.save();
 
   await createAuditLog({
-    userId: req.user?.id,
-    userName: req.user?.name || 'Unknown',
+    userId: req.user?.userId || req.user?.id,
+    userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
     userRole: req.user?.role || 'admin',
     action: 'event_status_changed',
     module: 'attendance',
@@ -415,8 +415,8 @@ const deleteEvent = async (req, res) => {
 
     // Log audit event
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'event_deleted',
       module: 'attendance',
@@ -439,8 +439,8 @@ const deleteEvent = async (req, res) => {
   } catch (error) {
     // Log failed attempt
     await createAuditLog({
-      userId: req.user?.id,
-      userName: req.user?.name || 'Unknown',
+      userId: req.user?.userId || req.user?.id,
+      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
       userRole: req.user?.role || 'admin',
       action: 'event_deleted',
       module: 'attendance',
