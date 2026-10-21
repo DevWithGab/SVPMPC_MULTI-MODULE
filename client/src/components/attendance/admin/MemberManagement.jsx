@@ -10,8 +10,6 @@ import {
   XCircle,
   CheckCircle2,
   MapPin,
-  Mail,
-  Phone,
   QrCode,
   RefreshCw,
   RotateCcw,
@@ -725,12 +723,6 @@ const MemberManagement = () => {
                     scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
                   >
-                    Contact
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider"
-                  >
                     Barangay
                   </th>
                   <th
@@ -771,14 +763,6 @@ const MemberManagement = () => {
                               Passbook No.: {member?.memberId || "N/A"}
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-slate-900">
-                          {member?.email || "N/A"}
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          {member?.phoneNumber || "N/A"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -849,14 +833,6 @@ const MemberManagement = () => {
                 </p>
 
                 <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-slate-600">
-                    <Mail className="w-4 h-4 mr-2 text-slate-400" />
-                    {member?.email || "N/A"}
-                  </div>
-                  <div className="flex items-center text-sm text-slate-600">
-                    <Phone className="w-4 h-4 mr-2 text-slate-400" />
-                    {member?.phoneNumber || "N/A"}
-                  </div>
                   <div className="flex items-center text-sm text-slate-600">
                     <MapPin className="w-4 h-4 mr-2 text-slate-400" />
                     {member?.barangay || "Unassigned"}
