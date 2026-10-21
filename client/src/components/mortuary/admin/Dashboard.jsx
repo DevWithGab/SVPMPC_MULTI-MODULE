@@ -613,7 +613,7 @@ const Dashboard = ({
           <section className="td-panel" aria-labelledby="mad-fund-title">
             <div className="td-panel-heading"><h2 id="mad-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></div>
             <dl className="td-fund-totals">
-              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{totalDeductionsCollected.toLocaleString()}</dd><small>All-time assessments collected</small></div>
+              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{totalDeductionsCollected.toLocaleString()}</dd><small>One time assessment collected</small></div>
               <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{totalClaimsReleased.toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
             </dl>
             <button className="mad-panel-link" onClick={() => setActiveTab("claims")}>View claims <ArrowRight size={15} aria-hidden="true" /></button>

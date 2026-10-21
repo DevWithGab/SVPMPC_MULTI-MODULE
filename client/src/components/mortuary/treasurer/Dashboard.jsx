@@ -272,7 +272,7 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
           <section className="td-panel" aria-labelledby="td-fund-title">
             <div className="td-panel-heading"><h2 id="td-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></div>
             <dl className="td-fund-totals">
-              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{(stats?.totalDeductionsCollected || 0).toLocaleString()}</dd><small>All-time assessments collected</small></div>
+              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{(stats?.totalDeductionsCollected || 0).toLocaleString()}</dd><small>One time assessment collected</small></div>
               <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{(stats?.totalReleased || 0).toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
             </dl>
           </section>
