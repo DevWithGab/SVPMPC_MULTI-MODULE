@@ -4,7 +4,7 @@ import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-re
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import BulkLedgerUpload from './BulkLedgerUpload';
 import { getBarangay } from '../../../utils/helpers';
-import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
+import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF } from '../../../utils/balanceNotice';
 
 
 const formatPeso = (amount, { signed = false } = {}) => {
@@ -190,6 +190,8 @@ const MemberLedger = ({
     const hasActiveLedgerFilters =
       transactionFilter !== 'all' || datePreset !== 'all';
     const monthGroups = groupEntriesByMonth(mEntries, sortOrder);
+    const noticeLevel = getNoticeLevel(currentMember.balance, noticeThresholds);
+    const noticeLabel = noticeLevel ? NOTICE_LEVEL_LABELS[noticeLevel] : 'Notice';
 
     return (
       <div className="member-ledger space-y-5 print:space-y-0">
@@ -209,26 +211,40 @@ const MemberLedger = ({
           >
             <ArrowLeft className="w-4 h-4" /> Back to list
           </button>
+          <button
+            onClick={() => onAddDeposit(currentMember)}
+            className="ml-button ml-primary"
+          >
+            Add Deposit
+          </button>
+        </div>
+        <div className="ml-document-actions ml-screen">
+          <section className="ml-action-group" aria-labelledby="ml-ledger-actions-title">
+            <h2 id="ml-ledger-actions-title">Ledger records</h2>
+            <p>Export or print the transactions shown with your current filters.</p>
           <div className="ml-actions">
             <button
               onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
+              disabled={loadingMemberLedger || mEntries.length === 0}
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
             >
-              <Download className="w-4 h-4" /> Export
+              <Download className="w-4 h-4" /> Export Ledger CSV
             </button>
             <button
               onClick={() => window.print()}
+              disabled={loadingMemberLedger}
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
             >
               <Printer className="w-4 h-4" /> Print Ledger
             </button>
-            {(() => {
-              const noticeLevel = getNoticeLevel(currentMember.balance, noticeThresholds);
-              return (
+          </div>
+          </section>
+          <section className="ml-action-group ml-notice-actions" aria-labelledby="ml-notice-actions-title">
+            <h2 id="ml-notice-actions-title">Balance notice</h2>
+            <p>{noticeLevel ? `${noticeLabel} letter based on the member's current balance.` : 'No notice is required for the current balance.'}</p>
+            {noticeLevel && <div className="ml-actions">
                 <button
                   onClick={() => printBalanceNotice(currentMember, user?.name, noticeThresholds)}
-                  disabled={!noticeLevel}
-                  title={noticeLevel ? undefined : `Balance is above ₱${(noticeThresholds?.notice1Max ?? DEFAULT_NOTICE_THRESHOLDS.notice1Max).toLocaleString()} — no notice needed`}
                   className={`inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${
                     noticeLevel === 3
                       ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white focus-visible:ring-red-500'
@@ -238,32 +254,19 @@ const MemberLedger = ({
                   }`}
                 >
                   <Printer className="w-4 h-4" />
-                  {noticeLevel ? `Print ${NOTICE_LEVEL_LABELS[noticeLevel]}` : 'Print Notice'}
+                  Print {noticeLabel}
                 </button>
-              );
-            })()}
-            {(() => {
-              const noticeLevel = getNoticeLevel(currentMember.balance, noticeThresholds);
-              if (!noticeLevel) return null;
-              return (
                 <button
                   onClick={() => handleDownloadNotice(currentMember)}
                   disabled={downloadingNotice}
-                  title={`Download ${NOTICE_LEVEL_LABELS[noticeLevel]} as PDF`}
+                  aria-busy={downloadingNotice}
                   className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {downloadingNotice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  Download PDF
+                  {downloadingNotice ? 'Preparing Notice PDF...' : `Download ${noticeLabel} PDF`}
                 </button>
-              );
-            })()}
-            <button
-              onClick={() => onAddDeposit(currentMember)}
-              className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium bg-green-700 hover:bg-green-800 text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1"
-            >
-              Add Deposit
-            </button>
-          </div>
+            </div>}
+          </section>
         </div>
 
         <section className="ml-filters ml-screen" aria-labelledby="ml-entry-filter-title">
