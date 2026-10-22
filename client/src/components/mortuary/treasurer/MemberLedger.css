@@ -8,8 +8,8 @@
   .ml-description { color: #647069; font-size: 13px; line-height: 1.6; margin-top: 7px; }
   .ml-button, .ml-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; height: auto; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; color: #34453a; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
   .ml-button:hover, .ml-controls button:hover { background: #f3f6f3; }
-  .ml-primary, .ml-controls button.bg-green-700 { background: #245e32; border-color: #245e32; color: white; }
-  .ml-primary:hover, .ml-controls button.bg-green-700:hover { background: #163a1e; }
+  .ml-primary, .ml-controls button.ml-primary, .ml-controls button.bg-green-700 { background: #245e32; border-color: #245e32; color: white; }
+  .ml-primary:hover, .ml-controls button.ml-primary:hover, .ml-controls button.bg-green-700:hover { background: #163a1e; }
   .ml-controls button.bg-red-600 { color: #9b3425; background: #fff5f3; border-color: #ebc9c1; }
   .ml-controls button.bg-amber-500 { color: #795d21; background: #faf6eb; border-color: #e7dcc0; }
   .ml-button:disabled, .ml-controls button:disabled, .ml-text-button:disabled { opacity: .45; cursor: not-allowed; }
