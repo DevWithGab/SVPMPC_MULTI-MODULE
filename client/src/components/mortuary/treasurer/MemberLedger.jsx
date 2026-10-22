@@ -6,6 +6,7 @@ import BulkLedgerUpload from './BulkLedgerUpload';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF } from '../../../utils/balanceNotice';
 import { outputMemberLedgerPdf } from '../../../utils/memberLedgerPdf';
+import { getStandingLabel } from '../../../utils/memberStanding';
 
 
 const formatPeso = (amount, { signed = false } = {}) => {
@@ -334,6 +335,7 @@ const MemberLedger = ({
                 <p className={`text-xl font-mono font-bold ${currentMember.balance < 0 ? 'text-red-600' : 'text-slate-900'}`}>
                   {formatPeso(currentMember.balance)}
                 </p>
+                <p className="text-xs text-slate-500">{getStandingLabel(currentMember.balance, noticeThresholds?.targetBalance)}</p>
                 {(() => {
                   const level = getNoticeLevel(currentMember.balance, noticeThresholds);
                   if (!level) return null;

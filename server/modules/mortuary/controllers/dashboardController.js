@@ -1,6 +1,7 @@
 const Ledger = require('../models/Ledger');
 const Contribution = require('../models/Contribution');
 const Claim = require('../models/Claim');
+const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const { Member } = require('../../../shared/models');
 const { LATEST_FIRST, getLatestBalancesByMember } = require('../utils/ledgerBalance');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
@@ -101,10 +102,12 @@ const getTreasurerDashboard = async (req, res) => {
     const members = await Member.find({ status: 'active' }).select('memberId').lean();
     let fundBalance = 0;
     let lowBalanceCount = 0;
+    let negativeBalanceCount = 0;
     let goodStandingCount = 0;
     let excellentStandingCount = 0;
 
-    const MINIMUM_BALANCE = 1000;
+    const noticeThresholds = await NoticeThresholdSetting.findOne({ status: 'active' }).select('targetBalance').lean();
+    const MINIMUM_BALANCE = noticeThresholds?.targetBalance ?? 1000;
     const GOOD_STANDING_THRESHOLD = 5000;
     const EXCELLENT_STANDING_THRESHOLD = 10000;
 
@@ -120,6 +123,7 @@ const getTreasurerDashboard = async (req, res) => {
       // Categorize member standing
       if (balance < MINIMUM_BALANCE) {
         lowBalanceCount++;
+        if (balance < 0) negativeBalanceCount++;
       } else if (balance >= EXCELLENT_STANDING_THRESHOLD) {
         excellentStandingCount++;
       } else if (balance >= GOOD_STANDING_THRESHOLD) {
@@ -155,11 +159,13 @@ const getTreasurerDashboard = async (req, res) => {
       success: true,
       data: {
         fundBalance,
+        minimumBalance: MINIMUM_BALANCE,
         activeMembers,
         totalMembers,
         inactiveMembers,
         deceasedMembers,
         lowBalanceMembers: lowBalanceCount,
+        negativeBalanceMembers: negativeBalanceCount,
         totalCollected,
         // Death-fund assessment totals across all claims — see
         // getClaimFinancialTotals for why this is separate from fundBalance.
@@ -172,7 +178,8 @@ const getTreasurerDashboard = async (req, res) => {
           excellent: excellentStandingCount,
           good: goodStandingCount,
           fair: fairStandingCount,
-          atRisk: lowBalanceCount
+          atRisk: lowBalanceCount - negativeBalanceCount,
+          negativeBalance: negativeBalanceCount
         },
         // Status composition
         statusComposition: {

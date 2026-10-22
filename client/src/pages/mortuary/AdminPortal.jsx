@@ -162,6 +162,7 @@ const AdminPortal = ({ onBack, user }) => {
           activeMembers: dashboardRes.data.activeMembers || 0,
           totalMembers: dashboardRes.data.totalMembers || 0,
           lowBalanceMembers: dashboardRes.data.lowBalanceMembers || 0,
+          minimumBalance: dashboardRes.data.minimumBalance ?? 1000,
           totalCollected: dashboardRes.data.totalCollected || 0,
         });
       }
@@ -199,6 +200,7 @@ const AdminPortal = ({ onBack, user }) => {
       case "members":
         return (
           <MemberManagement
+            minimumBalance={stats?.minimumBalance}
             filteredMembers={filteredMembers}
             members={members}
             statusFilter={statusFilter}

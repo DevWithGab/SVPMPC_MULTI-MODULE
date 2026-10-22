@@ -6,6 +6,7 @@ import { treasurerAPI } from '../../../services/api';
 import { getClaimStatusMeta } from '../shared/claimMeta';
 import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, reportAmount } from '../../../utils/mortuaryReportPdf';
 import { loadAllPages } from '../../../utils/loadAllPages';
+import { getStandingLabel } from '../../../utils/memberStanding';
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import './Reports.css';
 
@@ -20,22 +21,12 @@ const REPORT_TYPES = [
   { id: 'deductions', label: 'Deductions & Payouts', icon: Receipt },
 ];
 
-// Mirrors the balance thresholds used server-side in dashboardController.js
-// so this report's categories match the Member Standing pie chart on the
-// dashboard exactly.
-const STANDING_THRESHOLDS = { excellent: 10000, good: 5000, fair: 1000 };
-const getStandingLabel = (balance) => {
-  const value = balance ?? 0;
-  if (value >= STANDING_THRESHOLDS.excellent) return 'Excellent';
-  if (value >= STANDING_THRESHOLDS.good) return 'Good';
-  if (value >= STANDING_THRESHOLDS.fair) return 'Fair';
-  return 'At Risk';
-};
 const STANDING_BADGE_STYLES = {
   Excellent: 'bg-green-50 text-green-700 border-green-200',
   Good: 'bg-blue-50 text-blue-700 border-blue-200',
   Fair: 'bg-amber-50 text-amber-700 border-amber-200',
-  'At Risk': 'bg-red-50 text-red-700 border-red-200',
+  'At Risk': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Negative Balance': 'bg-red-50 text-red-700 border-red-200',
 };
 
 // 'YYYY-MM' for monthly, 'YYYY' for annually — sorts correctly as plain
@@ -57,6 +48,7 @@ const formatPeriodLabel = (key, granularity) => {
 };
 
 const Reports = ({ contributions = [], stats = {}, members = [], membersLoading = false, membersError = null }) => {
+  const minimumBalance = stats?.minimumBalance ?? 1000;
   const [reportType, setReportType] = useState('summary');
   const [summaryPeriod, setSummaryPeriod] = useState('monthly'); // 'monthly' | 'annually'
   const [barangayFilter, setBarangayFilter] = useState('all');
@@ -119,11 +111,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
         id: m.id || m.memberId,
         name: m.name || m.memberName,
         barangay: m.barangay || 'N/A',
-        balance: m.currentBalance ?? 0,
-        standing: getStandingLabel(m.currentBalance),
+        balance: m.currentBalance ?? m.balance ?? 0,
+        standing: getStandingLabel(m.currentBalance ?? m.balance, minimumBalance),
       }))
       .sort((a, b) => a.balance - b.balance);
-  }, [members]);
+  }, [members, minimumBalance]);
 
   // Per-claim deduction/payout line items — richer than a single aggregate
   // total since it shows exactly which claims funded the collected amount.

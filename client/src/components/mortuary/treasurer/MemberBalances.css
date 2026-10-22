@@ -22,7 +22,7 @@
 .mb-register-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 22px 20px; }
 .mb-register-heading h2 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; color: #17251d; }
 .mb-register-heading p { font-size: 12px; color: #647069; line-height: 1.6; margin-top: 5px; }
-.mb-view-switch { display: flex; border: 1px solid #cdd6cf; border-radius: 5px; overflow: hidden; }
+.mb-view-switch { display: flex; flex-wrap: wrap; border: 1px solid #cdd6cf; border-radius: 5px; overflow: hidden; }
 .mb-view-switch button { display: flex; align-items: center; gap: 8px; padding: 9px 12px; color: #647069; font-size: 12px; cursor: pointer; }
 .mb-view-switch button[aria-pressed="true"] { background: #eaf0ea; color: #245e32; font-weight: 600; }
 .mb-view-switch button:focus-visible { outline-offset: -3px; }
@@ -40,6 +40,8 @@
 .mb-sort { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .mb-secondary { display: block; color: #647069; font-size: 12px; margin-top: 5px; }
 .mb-low-balance { color: #9b3425; }
+.mb-secondary[data-standing="negativeBalance"] { color: #b91c1c; font-weight: 600; }
+.mb-secondary[data-standing="atRisk"] { color: #926111; }
 .mb-status { display: inline-flex; border: 1px solid #dce3dd; background: #f5f6f5; color: #647069; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .mb-status-active { color: #245e32; background: #edf5ee; border-color: #cbdccd; }
 .mb-ledger-button { min-height: 33px; padding: 6px 9px; }

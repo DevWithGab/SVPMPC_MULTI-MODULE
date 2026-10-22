@@ -6,16 +6,19 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/char
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import { formatLongDate } from '../../../utils/date';
 import './Dashboard.css';
+import { MEMBER_STANDING_LABELS } from '../../../utils/memberStanding';
 
 const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError, setActiveTab, onRefresh, refreshing = false }) => {
   const firstName = user?.name?.split(' ')[0] || 'Treasurer';
   const healthyRatio = memberBalanceCoverage(stats);
+  const minimumBalance = stats?.minimumBalance ?? 1000;
 
   const memberStandingData = [
     { standing: "excellent", members: stats?.memberStanding?.excellent || 0, fill: "#10b981" },
     { standing: "good", members: stats?.memberStanding?.good || 0, fill: "#3b82f6" },
     { standing: "fair", members: stats?.memberStanding?.fair || 0, fill: "#f59e0b" },
-    { standing: "atRisk", members: stats?.memberStanding?.atRisk || 0, fill: "#ef4444" },
+    { standing: "atRisk", members: stats?.memberStanding?.atRisk || 0, fill: "#f97316" },
+    { standing: "negativeBalance", members: stats?.memberStanding?.negativeBalance || 0, fill: "#dc2626" },
   ].filter(item => item.members > 0);
 
   const statusCompositionData = [
@@ -28,8 +31,9 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
     members: { label: "Members" },
     excellent: { label: "Excellent (₱10k+)", color: "#10b981" },
     good: { label: "Good (₱5k-10k)", color: "#3b82f6" },
-    fair: { label: "Fair (₱1k-5k)", color: "#f59e0b" },
-    atRisk: { label: "At Risk (<₱1k)", color: "#ef4444" },
+    fair: { label: `Fair (PHP ${minimumBalance.toLocaleString()} to <5k)`, color: "#f59e0b" },
+    atRisk: { label: `At Risk (PHP 0 to <${minimumBalance.toLocaleString()})`, color: "#f97316" },
+    negativeBalance: { label: "Negative Balance (<₱0)", color: "#dc2626" },
   };
 
   const statusCompositionConfig = {
@@ -88,8 +92,8 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
       <AttendanceMetricGrid label="Mortuary fund overview" busy={refreshing} items={[
         ['Active member balances', '₱' + (stats?.fundBalance?.toLocaleString() || '0'), 'Sum of active member ledger balances', Wallet],
         ['Active members', stats?.activeMembers?.toLocaleString() || '0', 'Currently contributing', Users],
-        ['Low balance', (stats?.lowBalanceMembers || 0).toLocaleString(), 'Members with balances below ₱1,000', AlertTriangle],
-        ['Above minimum balance', healthyRatio === null ? 'N/A' : healthyRatio + '%', 'Active members with at least PHP 1,000', ShieldCheck],
+        ['Low balance', (stats?.lowBalanceMembers || 0).toLocaleString(), `Members with balances below PHP ${minimumBalance.toLocaleString()}`, AlertTriangle],
+        ['Above minimum balance', healthyRatio === null ? 'N/A' : healthyRatio + '%', `Active members with at least PHP ${minimumBalance.toLocaleString()}`, ShieldCheck],
       ]} />
       <p className="td-overview">Welcome back, {firstName}. Review the fund's financial overview and member insights.</p>
       <div className="td-workspace"><div className="td-main">
@@ -162,7 +166,7 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
                   data={memberStandingData}
                   dataKey="members"
                   label={({ standing, percent }) =>
-                    `${standing === 'atRisk' ? 'At Risk' : standing.charAt(0).toUpperCase() + standing.slice(1)}: ${(percent * 100).toFixed(0)}%`
+                    `${MEMBER_STANDING_LABELS[standing]}: ${(percent * 100).toFixed(0)}%`
                   }
                   nameKey="standing"
                 />
@@ -175,7 +179,7 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
               <div key={item.standing} className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.fill }} />
-                  <span className="text-slate-600">{item.standing === 'atRisk' ? 'At Risk' : item.standing.charAt(0).toUpperCase() + item.standing.slice(1)}</span>
+                  <span className="text-slate-600">{MEMBER_STANDING_LABELS[item.standing]}</span>
                 </span>
                 <span className="font-bold text-slate-900">{item.members}</span>
               </div>

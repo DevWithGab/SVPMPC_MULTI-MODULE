@@ -34,6 +34,7 @@ import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
 import { formatLongDate } from "../../../utils/date";
 import "../treasurer/Dashboard.css";
 import "./Dashboard.css";
+import { getMemberStanding, getStandingLabel } from '../../../utils/memberStanding';
 
 // ---- Local presentational pieces -------------------------------------
 
@@ -365,6 +366,10 @@ const Dashboard = ({
   );
   const currentBalance = toAmount(stats?.fundBalance);
   const openingBalance = currentBalance - totalCollected + totalPaidOut;
+  const activeMembers = members.filter(member => member.status === 'active');
+  const minimumBalance = stats?.minimumBalance ?? 1000;
+  const negativeBalanceCount = activeMembers.filter(member => getMemberStanding(member.currentBalance, minimumBalance) === 'negativeBalance').length;
+  const atRiskCount = activeMembers.filter(member => getMemberStanding(member.currentBalance, minimumBalance) === 'atRisk').length;
 
   // Claim-specific totals (death-fund assessment collected vs. benefits
   // released) — distinct from the member-contribution figures above.
@@ -444,7 +449,7 @@ const Dashboard = ({
           <p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p>
         </div>
         <div className="td-header-actions">
-          <button className="td-button" onClick={() => exportToCSV(members, "mortuary_report")} disabled={!members.length}>
+          <button className="td-button" onClick={() => exportToCSV(members.map(member => ({ ...member, standing: getStandingLabel(member.currentBalance, minimumBalance) })), "mortuary_report")} disabled={!members.length}>
             <Download size={15} aria-hidden="true" /> Export report
           </button>
           <button className="td-button td-primary" onClick={() => setActiveTab("claims")}>
@@ -459,6 +464,8 @@ const Dashboard = ({
         ["Active members", formatAmount(stats?.activeMembers), "Currently contributing", Users],
         ["Total collected", `₱${totalCollected.toLocaleString()}`, "All-time member contributions", CreditCard],
         ["Total paid out", `₱${totalPaidOut.toLocaleString()}`, "All-time payouts", Banknote],
+        ["At Risk", atRiskCount.toLocaleString(), `Active members with PHP 0 to below PHP ${minimumBalance.toLocaleString()}`, Clock],
+        ["Negative Balance", negativeBalanceCount.toLocaleString(), "Active members with a balance below PHP 0", XCircle],
       ]} />
       <p className="td-overview">Welcome back, {firstName}. Review the fund's financial overview and manage member claims.</p>
 

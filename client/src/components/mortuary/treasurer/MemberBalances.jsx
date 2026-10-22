@@ -5,6 +5,7 @@ import './MemberBalances.css';
 import { getBarangay } from '../../../utils/helpers';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
+import { getStandingLabel, getMemberStanding } from '../../../utils/memberStanding';
 
 const MemberBalances = ({
   members,
@@ -27,12 +28,13 @@ const MemberBalances = ({
   const targetBalance = noticeThresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance;
   const lowBalanceMembers = members.filter(m => m.balance < targetBalance);
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
-  const lowBalancePercent = members.length > 0 ? (lowBalanceMembers.length / members.length) * 100 : 0;
+  const atRiskMembers = members.filter(m => m.balance >= 0 && m.balance < targetBalance);
+  const negativeBalanceMembers = members.filter(m => m.balance < 0);
 
   const peso = (value) => `₱${value.toLocaleString('en-PH')}`;
 
   const filteredMembers = members
-    .filter(m => (memberFilter === 'low' ? m.balance < targetBalance : true))
+    .filter(m => memberFilter === 'low' ? m.balance >= 0 && m.balance < targetBalance : memberFilter === 'negative' ? m.balance < 0 : true)
     .filter(m => (barangayFilter === 'All' ? true : getBarangay(m) === barangayFilter))
     .filter(m => (statusFilter === 'all' ? true : m.status === statusFilter))
     .filter(m => (m.name?.toLowerCase().includes(searchQuery.toLowerCase()) || m.id?.toString().includes(searchQuery)))
@@ -63,7 +65,8 @@ const MemberBalances = ({
       <AttendanceMetricGrid label="Member balance overview" busy={refreshing} items={[
         ['Total capital', peso(totalCapital), 'Across ' + members.length.toLocaleString() + ' active members', Wallet],
         ['Low balance', lowBalanceMembers.length.toLocaleString(), 'Members below ' + peso(targetBalance), Clock],
-        ['At risk', lowBalancePercent.toFixed(1) + '%', 'Share of members with a low balance', AlertTriangle],
+        ['At Risk', atRiskMembers.length.toLocaleString(), 'Balances from PHP 0 to below ' + peso(targetBalance), AlertTriangle],
+        ['Negative Balance', negativeBalanceMembers.length.toLocaleString(), 'Members with a balance below PHP 0', AlertTriangle],
       ]} />
       <section className="mb-filters" aria-labelledby="mb-filter-title">
         <div className="mb-filter-heading"><h2 id="mb-filter-title">Find a member</h2><button className="mb-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
@@ -78,7 +81,8 @@ const MemberBalances = ({
         <div className="mb-register-heading"><div><h2 id="mb-register-title">Member register</h2><p>Open a member's ledger to review contributions and deductions.</p></div>
           <div className="mb-view-switch" role="group" aria-label="Balance filter">
             <button aria-pressed={memberFilter === 'all'} onClick={() => updateFilter(setMemberFilter, 'all')}>All members <span>{members.length.toLocaleString()}</span></button>
-            <button aria-pressed={memberFilter === 'low'} onClick={() => updateFilter(setMemberFilter, 'low')}>At risk <span>{lowBalanceMembers.length.toLocaleString()}</span></button>
+            <button aria-pressed={memberFilter === 'low'} onClick={() => updateFilter(setMemberFilter, 'low')}>At Risk <span>{atRiskMembers.length.toLocaleString()}</span></button>
+            <button aria-pressed={memberFilter === 'negative'} onClick={() => updateFilter(setMemberFilter, 'negative')}>Negative Balance <span>{negativeBalanceMembers.length.toLocaleString()}</span></button>
           </div>
         </div>
         <div className="mb-scope"><span>{filteredMembers.length.toLocaleString()} of {members.length.toLocaleString()} members{barangayFilter !== 'All' && ' · ' + barangayFilter}</span><span>Low balance: below {peso(targetBalance)}</span></div>
@@ -87,7 +91,7 @@ const MemberBalances = ({
           <tbody>{currentMembersBalancesChunk.map(m => <tr key={m.id} onClick={() => onOpenLedger?.(m)}>
             <td><strong>{m.name}</strong><span className="mb-secondary">#{m.id.toString().padStart(6, '0')}</span></td>
             <td>{getBarangay(m)}</td>
-            <td className="mb-number"><strong className={m.balance < targetBalance ? 'mb-low-balance' : ''}>₱{m.balance?.toLocaleString()}</strong></td>
+            <td className="mb-number"><strong className={m.balance < targetBalance ? 'mb-low-balance' : ''}>₱{m.balance?.toLocaleString()}</strong><span className="mb-secondary" data-standing={getMemberStanding(m.balance, targetBalance)}>{getStandingLabel(m.balance, targetBalance)}</span></td>
             <td><span className={'mb-status' + (m.status === 'active' ? ' mb-status-active' : '')}>{m.status === 'active' ? 'Active' : 'Inactive'}</span></td>
             <td><button className="mb-button mb-ledger-button" onClick={e => { e.stopPropagation(); onOpenLedger?.(m); }} aria-label={'Open ledger for ' + m.name}><BookOpen size={14} aria-hidden="true" />Open ledger</button></td>
           </tr>)}</tbody></table>

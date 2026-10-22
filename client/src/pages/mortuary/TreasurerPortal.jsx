@@ -122,7 +122,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       excellent: 0,
       good: 0,
       fair: 0,
-      atRisk: 0
+      atRisk: 0, negativeBalance: 0
     },
     statusComposition: {
       active: 0,
@@ -302,7 +302,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             excellent: 0,
             good: 0,
             fair: 0,
-            atRisk: 0
+            atRisk: 0, negativeBalance: 0
           },
           statusComposition: {
             active: 0,

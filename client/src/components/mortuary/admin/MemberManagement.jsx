@@ -5,9 +5,10 @@ import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import '../treasurer/MemberBalances.css';
 import './MemberManagement.css';
+import { getStandingLabel, getMemberStanding } from '../../../utils/memberStanding';
 
 const MemberManagement = ({
-  filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab
+  filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab, minimumBalance = 1000
 }) => {
   const { page, limit, setPage } = usePagination(1, 100);
 
@@ -98,7 +99,7 @@ const MemberManagement = ({
                 <tr key={member.id}>
                   <td><strong>{member.name}</strong><span className="mb-secondary">#{String(member.id).padStart(6, '0')}</span></td>
                   <td>{member.contact || '—'}</td>
-                  <td className="mb-number"><strong>₱{(Number(member.currentBalance) || 0).toLocaleString('en-PH')}</strong></td>
+                  <td className="mb-number"><strong>₱{(Number(member.currentBalance) || 0).toLocaleString('en-PH')}</strong><span className="mb-secondary" data-standing={getMemberStanding(member.currentBalance, minimumBalance)}>{getStandingLabel(member.currentBalance, minimumBalance)}</span></td>
                   <td>
                     <span className={`mb-status${member.status === 'active' ? ' mb-status-active' : member.status === 'deceased' ? ' admin-member-deceased' : ''}`}>
                       {member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : 'Unknown'}
