@@ -23,12 +23,12 @@ export default function FundSettings({ user }) {
     <div className="treasurer-dashboard fund-settings">
       <header className="td-header">
         <div>
-          <p className="td-eyebrow">Mortuary management / Fund settings</p>
-          <h1>Fund settings</h1>
+          <p className="td-eyebrow">Mortuary management / Settings</p>
+          <h1>Settings</h1>
           <p className="td-description">Manage claim deductions, benefit limits, and member notice thresholds and content.</p>
         </div>
       </header>
-      <div className="fs-navigation" role="group" aria-label="Fund settings sections">
+      <div className="fs-navigation" role="group" aria-label="Settings sections">
         {sections.map(section => (
           <button key={section.id} id={`fs-section-${section.id}`} aria-pressed={tab === section.id} aria-controls="fs-content" onClick={() => setTab(section.id)}>
             {React.createElement(section.icon, { size: 16, 'aria-hidden': true })}

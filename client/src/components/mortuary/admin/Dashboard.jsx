@@ -432,7 +432,7 @@ const Dashboard = ({
     },
     {
       icon: Banknote,
-      label: "Fund Settings",
+      label: "Settings",
       desc: "Deduction rate, benefit cap & more",
       tab: "fundSettings",
     },

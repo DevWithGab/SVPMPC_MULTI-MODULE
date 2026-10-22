@@ -181,7 +181,7 @@ const AdminPortal = ({ onBack, user }) => {
     { id: "members", label: "Members", icon: Users },
     { id: "claims", label: "Claims", icon: ClipboardCheck },
     { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
-    { id: "fundSettings", label: "Fund Settings", icon: Banknote },
+    { id: "fundSettings", label: "Settings", icon: Banknote },
     { id: "auditlogs", label: "Audit Logs", icon: Shield },
     { id: "backup", label: "Backup & Restore", icon: FileText },
   ];
