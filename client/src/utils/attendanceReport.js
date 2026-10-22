@@ -32,7 +32,7 @@ export function createAttendanceReportPdf({ logs, scope, logo, generatedAt, incl
   const members = new Set(logs.map(log => String(log.memberId || log.memberName))).size;
   const events = new Set(logs.map(log => String(log.eventId || log.eventName))).size;
   const valid = value => value && Number.isFinite(new Date(value).getTime());
-  return createMortuaryReportPdf({ logo, generatedAt, title: 'Attendance Report', scope,
+  return createMortuaryReportPdf({ logo, generatedAt, title: 'Attendance Report', scope, template: 'standard',
     program: 'Attendance Management', metadataLabel: 'REPORT RECORDS', metadataValue: `${logs.length} attendance records`,
     sections: [
       { title: 'Report overview', head: ['Attendance records', 'Members who attended', 'Events represented'], body: [[String(logs.length), String(members), String(events)]] },

@@ -301,6 +301,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           widths: [31, 48, 31, 33, 33], numberColumns: [3, 4],
           body: filteredDeductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected), reportAmount(c.payoutAmount)]) }];
       }
+      if (reportType !== 'summary') scope += ` Barangay: ${barangayFilter === 'all' ? 'All barangays' : barangayFilter}.`;
       const logo = await loadReportLogo();
       const title = REPORT_TYPES.find(type => type.id === reportType)?.label || 'Mortuary Fund Report';
       const doc = createMortuaryReportPdf({ title, scope, sections, logo });

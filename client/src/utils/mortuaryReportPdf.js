@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { createCooperativeReportPdf } from './cooperativeReportPdf.js';
 
 const ink = [30, 30, 30];
 const muted = [100, 100, 100];
@@ -34,8 +35,9 @@ export function loadReportLogo() {
 
 // Text and vector tables stay selectable and crisp when printed. PHP is used
 // explicitly because the built-in PDF fonts do not contain the peso glyph.
-export function createMortuaryReportPdf({ title, scope, sections, logo, generatedAt = new Date(), program = 'Mortuary Aid Fund Program', metadataLabel = 'CURRENCY', metadataValue = 'Philippine pesos (PHP)' }) {
+export function createMortuaryReportPdf({ title, scope, sections, logo, generatedAt = new Date(), program = 'Mortuary Aid Fund Program', metadataLabel = 'CURRENCY', metadataValue = 'Philippine pesos (PHP)', template = 'ledger' }) {
   if (!logo) throw new Error('The cooperative logo is required for this report.');
+  if (template === 'ledger') return createCooperativeReportPdf({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue });
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   doc.setProperties({ title, author: 'St. Vincent Parish Multi-Purpose Cooperative', subject: program });
   const width = doc.internal.pageSize.getWidth();

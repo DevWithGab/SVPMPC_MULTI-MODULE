@@ -48,6 +48,9 @@ test('branded PDF paginates all 205 rows and retains the final record', () => {
   assert.equal(doc.lastAutoTable.body.length, 205);
   assert.deepEqual(doc.lastAutoTable.body.at(-1).cells[1].text, ['MEM-0205']);
   assert.ok(Object.keys(doc.internal.collections.addImage_images).length > 0);
+  assert.deepEqual(doc.lastAutoTable.head[0].cells[0].styles.fillColor, [255, 255, 255]);
+  assert.ok(doc.lastAutoTable.body[0].cells[0].styles.lineWidth > 0);
+  assert.equal(doc.lastAutoTable.head[0].cells[0].styles.halign, 'center');
   reviewFile('contributions', doc);
 });
 
@@ -88,6 +91,7 @@ test('financial summary uses separate financial-position and period tables', () 
         body: [['September 2026', '125,000.00', '52,000.00', '50,000.00', '127,000.00'], ['August 2026', '100,000.00', '49,000.00', '49,000.00', '100,000.00']] },
     ] });
   assert.equal(doc.getNumberOfPages(), 1);
-  assert.equal(doc.lastAutoTable.head[0].cells[4].styles.halign, 'right');
+  assert.equal(doc.lastAutoTable.head[0].cells[4].styles.halign, 'center');
+  assert.equal(doc.lastAutoTable.body[0].cells[4].styles.halign, 'right');
   reviewFile('financial-summary', doc);
 });
