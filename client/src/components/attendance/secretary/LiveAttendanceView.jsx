@@ -3,6 +3,7 @@ import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { formatDateTime, formatTime } from '../../../utils/date';
 import './LiveAttendance.css';
+import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
 
 export default function LiveAttendanceView({
   activeEvent, selectedEventLabel, liveRows, filteredAttendance, paginatedAttendance,
@@ -61,12 +62,13 @@ export default function LiveAttendanceView({
           <div className="sla-scope"><span>{filteredAttendance.length.toLocaleString()} of {liveRows.length.toLocaleString()} check-ins</span><span>{selectedBarangay === 'all' ? 'All barangays' : selectedBarangay}</span></div>
           <div className="sla-table-scroll" role="region" aria-label="Live check-in records" tabIndex={0}>
             <table>
-              <thead><tr><th scope="col">Member / Passbook</th><th scope="col">Check-in time</th><th scope="col">Barangay</th></tr></thead>
+              <thead><tr><th scope="col">Member / Passbook</th><th scope="col">Check-in time</th><th scope="col">Barangay</th><th scope="col">Scanned by</th></tr></thead>
               <tbody>{paginatedAttendance.map(row => (
                 <tr key={row.recordId || row.memberKey}>
                   <td><strong>{row.memberName}</strong><span className="sla-secondary">Passbook No.: {row.memberId || row.memberKey || 'N/A'}</span></td>
                   <td>{row.scanTime ? formatDateTime(row.scanTime) : 'Unknown time'}</td>
                   <td>{row.barangay || 'Unassigned'}</td>
+                  <td>{attendanceScannedBy(row)}</td>
                 </tr>
               ))}</tbody>
             </table>

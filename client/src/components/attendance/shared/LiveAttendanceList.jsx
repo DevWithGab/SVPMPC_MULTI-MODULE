@@ -7,6 +7,7 @@ import LiveAttendanceView from "../secretary/LiveAttendanceView";
 import { loadDashboardRecords } from "../../../utils/attendanceDashboard";
 import { ATTENDANCE_UPDATED_EVENT, ATTENDANCE_UPDATED_KEY } from "../../../utils/attendanceUpdates";
 import { canScanEvent } from "../../../utils/scannerSchedule";
+import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
 
 const PAGE_SIZE = 10;
 const AUTO_REFRESH_MS = 3000;
@@ -244,6 +245,7 @@ export default function LiveAttendanceList({
         memberKey: String(getAttendanceKey(record) || ""),
         memberName: getMemberDisplayName(record),
         memberId: record.memberId || record.member_id || "",
+        scannedBy: attendanceScannedBy(record),
         barangay:
           record.barangay || record.barangayName || record.barangay_name || "",
         scanTime:
@@ -446,6 +448,7 @@ export default function LiveAttendanceList({
                   <th className="px-4 py-3">Member</th>
                   <th className="px-4 py-3">Time</th>
                   <th className="px-4 py-3">Barangay</th>
+                  <th className="px-4 py-3">Scanned by</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white stagger-in">
@@ -477,13 +480,14 @@ export default function LiveAttendanceList({
                         <td className="px-4 py-3 text-slate-500">
                           {row.barangay || "Unassigned"}
                         </td>
+                        <td className="px-4 py-3 text-slate-500">{attendanceScannedBy(row)}</td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
                     <td
-                      colSpan="3"
+                      colSpan="4"
                       className="px-4 py-8 text-center text-slate-500"
                     >
                       No check-ins yet for this event.

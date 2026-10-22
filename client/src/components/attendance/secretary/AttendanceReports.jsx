@@ -34,6 +34,7 @@ import "./AttendanceReports.css";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
 import { formatDate } from "../../../utils/date";
 import { loadDashboardRecords } from '../../../utils/attendanceDashboard';
+import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
 
 /*Page through everything, same loop
 LiveAttendanceList's fetchEventAttendance already uses for this reason.*/
@@ -273,6 +274,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         displayName: eventName,
         displayDate: event.eventDate || event.date || "",
         attendanceCount: eventLogs.length,
+        scanners: [...new Set(eventLogs.map(attendanceScannedBy))].join(', ') || 'No scans yet',
         uniqueAttendees: [
           ...new Set(
             eventLogs.map((log) => String(log.memberId || log.memberName)),
@@ -697,6 +699,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                   <TableHead data-label="Total attendance" className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Total Attendance
                   </TableHead>
+                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">Scanned by</TableHead>
                   <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
                     Attendees
                   </TableHead>
@@ -745,6 +748,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               {event.attendanceCount} records
                             </span>
                           </TableCell>
+                          <TableCell className="py-3 break-words" data-label="Scanned by">{event.scanners}</TableCell>
                           <TableCell className="py-3" data-label="Attendees">
                             <div className="space-y-2">
                               <div className="flex items-center gap-2">
@@ -823,7 +827,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                     })}
                 {(reportLoading || reportError) && (
                   <TableRow>
-                    <TableCell colSpan={showEventColumn ? 5 : 4}>
+                    <TableCell colSpan={showEventColumn ? 6 : 5}>
                       <div className="ar-empty" role="status">
                         {reportLoading && <Loader2 className="animate-spin" />}
                         <strong>
@@ -845,7 +849,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                   eventSummary.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={showEventColumn ? 5 : 4}
+                        colSpan={showEventColumn ? 6 : 5}
                         className="text-center py-12 text-slate-400"
                       >
                         <div className="flex flex-col items-center gap-4">

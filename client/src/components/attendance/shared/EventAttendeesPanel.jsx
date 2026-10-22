@@ -3,6 +3,7 @@ import { Search, X, Users, CheckCircle2, XCircle } from "lucide-react";
 import { formatDate } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
+import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
 
 /* Shows who actually showed up to an event vs. who didn't — rendered as the
 body of its own page (not a modal, not a cramped scroll box inside a
@@ -32,6 +33,7 @@ export default function EventAttendeesPanel({
         memberName: log.memberName || "Unknown member",
         barangay: log.barangay || "",
         scanTime: log.scanTime || log.timestamp || null,
+        scannedBy: attendanceScannedBy(log),
       });
     });
 
@@ -193,6 +195,7 @@ export default function EventAttendeesPanel({
                     {m.barangay || "—"}{" "}
                     {m.memberId ? `• Passbook No.: ${m.memberId}` : ""}
                   </p>
+                  {isPresent && <p className="text-xs text-slate-500 break-words">Scanned by: {attendanceScannedBy(m)}</p>}
                 </div>
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${

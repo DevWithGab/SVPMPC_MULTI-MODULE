@@ -15,7 +15,7 @@ function load(path, deps) {
   return context.module.exports;
 }
 const response = () => ({ status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } });
-const allowedAttendance = ['attendanceId', 'memberId', 'memberName', 'eventId', 'eventName', 'barangay', 'scanTime', 'status', 'entrySource'].sort();
+const allowedAttendance = ['attendanceId', 'memberId', 'memberName', 'eventId', 'eventName', 'barangay', 'scanTime', 'status', 'entrySource', 'scannedBy'].sort();
 const row = { attendanceId: 'A1', memberId: 'M1', memberName: 'Synthetic Member', eventId: 'E1',
   eventName: 'Synthetic Event', barangay: 'Test', scanTime: new Date(), status: 'present', entrySource: 'qr',
   _id: 'internal-id', phoneNumber: 'synthetic-private-phone', email: 'private@example.com',
@@ -63,6 +63,7 @@ test('scanner scan/list/event responses exclude private fields while staff retai
     await controller.recordAttendance(request, scanned);
     assert.equal(scanned.code, 201);
     assert.equal(saved[0].phoneNumber, row.phoneNumber, 'stored data is preserved');
+    assert.equal(scanned.data.attendance.scannedBy, request.user.username, 'the recorded operator is available in attendance responses');
     assert.equal(audit[0].changes.after.phoneNumber, row.phoneNumber, 'authorized audit history is preserved');
     if (role === 'scanner_operator') {
       assert.deepEqual(Object.keys(scanned.data.attendance).sort(), allowedAttendance);

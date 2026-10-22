@@ -8,7 +8,7 @@ const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 // Use an allowlist so new model fields cannot silently become scanner data.
 const SCANNER_ATTENDANCE_FIELDS = ['attendanceId', 'memberId', 'memberName', 'eventId',
-  'eventName', 'barangay', 'scanTime', 'status', 'entrySource'];
+  'eventName', 'barangay', 'scanTime', 'status', 'entrySource', 'scannedBy'];
 const SCANNER_REPORT_FIELDS = ['reportId', 'eventId', 'eventName', 'reportDate',
   'totalMembers', 'presentCount', 'absentCount', 'attendanceRate'];
 const scannerProjection = req => req.user?.role === 'scanner_operator'
