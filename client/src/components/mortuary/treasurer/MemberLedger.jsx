@@ -241,10 +241,12 @@ const MemberLedger = ({
           </section>
           <section className="ml-action-group ml-notice-actions" aria-labelledby="ml-notice-actions-title">
             <h2 id="ml-notice-actions-title">Balance notice</h2>
-            <p>{noticeLevel ? `${noticeLabel} letter based on the member's current balance.` : 'No notice is required for the current balance.'}</p>
-            {noticeLevel && <div className="ml-actions">
+            <p id="ml-notice-status">{noticeLevel ? `${noticeLabel} letter based on the member's current balance.` : 'No notice is required for the current balance.'}</p>
+            <div className="ml-actions">
                 <button
                   onClick={() => printBalanceNotice(currentMember, user?.name, noticeThresholds)}
+                  disabled={!noticeLevel}
+                  aria-describedby="ml-notice-status"
                   className={`inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${
                     noticeLevel === 3
                       ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white focus-visible:ring-red-500'
@@ -258,14 +260,15 @@ const MemberLedger = ({
                 </button>
                 <button
                   onClick={() => handleDownloadNotice(currentMember)}
-                  disabled={downloadingNotice}
+                  disabled={!noticeLevel || downloadingNotice}
+                  aria-describedby="ml-notice-status"
                   aria-busy={downloadingNotice}
                   className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {downloadingNotice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                   {downloadingNotice ? 'Preparing Notice PDF...' : `Download ${noticeLabel} PDF`}
                 </button>
-            </div>}
+            </div>
           </section>
         </div>
 
