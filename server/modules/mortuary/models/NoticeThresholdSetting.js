@@ -56,6 +56,7 @@ const noticeThresholdSettingSchema = new mongoose.Schema(
     // use the official wording; legacy whole-document templates are retained.
     noticeMessageTemplate: { type: String },
     finalNoticeMessageTemplate: { type: String },
+    noticeManagerName: { type: String, trim: true, maxlength: 100 },
     effectiveDate: {
       type: Date,
       required: true,

@@ -1,6 +1,7 @@
 // Official cooperative forms for all three notices. Keep the
 // server counterpart in sync so background batches match browser downloads.
 export const NOTICE_MANAGER = 'MONINA C. GUZMAN';
+export const getNoticeManagerName = settings => String(settings?.noticeManagerName || '').trim() || NOTICE_MANAGER;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const noticeDate = () => new Intl.DateTimeFormat('en-PH', {
   timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric',
@@ -17,16 +18,16 @@ export const DEFAULT_FINAL_NOTICE_MESSAGE = 'This is to inform you that you have
 export const getNoticeMessageTemplate = (settings, level) => level === 3
   ? settings?.finalNoticeMessageTemplate || DEFAULT_FINAL_NOTICE_MESSAGE
   : settings?.noticeMessageTemplate || DEFAULT_NOTICE_MESSAGE;
-export const fillNoticeMessage = (template, member, level, target, peso = '₱') => {
+export const fillNoticeMessage = (template, member, level, target, peso = '₱', settings) => {
   const values = {
     name: member.name, address: member.address, passbook: passbook(member),
     balance: signedMoney(member.balance, peso), amountNeeded: signedMoney(Math.max(target - (member.balance || 0), 0), peso),
-    targetBalance: signedMoney(target, peso), managerName: NOTICE_MANAGER, date: noticeDate(),
+    targetBalance: signedMoney(target, peso), managerName: getNoticeManagerName(settings), date: noticeDate(),
     noticeLabel: level === 3 ? 'LAST NOTICE' : title(level),
   };
   return String(template).replace(/\{(\w+)\}/g, (token, key) => values[key] === undefined ? token : String(values[key] ?? ''));
 };
-const messageMarkup = (template, member, level, target) => fillNoticeMessage(template, member, level, target)
+const messageMarkup = (template, member, level, target, settings) => fillNoticeMessage(template, member, level, target, '₱', settings)
   .split(/\n\s*\n/).map((paragraph, index) => `<p class="${index === 0 ? 'official-message' : 'official-closing'}">${escapeHtml(paragraph).replace(/\n/g, '<br>').replace(/-?₱[\d,]+\.\d{2}/g, '<strong>$&</strong>')}</p>`).join('');
 
 export const COOPERATIVE_NOTICE_STYLES = `
@@ -50,7 +51,7 @@ export const COOPERATIVE_NOTICE_STYLES = `
   .official-message { line-height: 1.5; text-align: justify; text-indent: 18mm; margin: 20px 0 0; }
   .official-thanks { margin: 3px 0 14px 18mm; }
   .official-signoff { margin-left: 62%; line-height: 1.5; }
-  .official-manager { margin-top: 18px; text-align: center; }
+  .official-manager { margin-top: 18px; text-align: center; overflow-wrap: anywhere; }
   .official-received { font-size: 12pt; line-height: 1.5; margin-top: 4px; }
   .official-note { color: #303866; font-size: 11pt; font-weight: bold; }
   .official-closing { margin: 5px 0 16px 18mm; line-height: 1.5; }
@@ -76,8 +77,8 @@ const buildLastNoticeMarkup = (member, target, logoUrl, settings) => `
       <div class="official-field"><b>Passbook #:</b><span class="official-value">${escapeHtml(passbook(member))}</span></div>
     </div></div>
     <div>Sir/Madam:</div>
-    ${messageMarkup(getNoticeMessageTemplate(settings, 3), member, 3, target)}
-    <div class="official-signoff">Very truly yours,<div class="official-manager"><b>${NOTICE_MANAGER}</b><br>Manager</div></div>
+    ${messageMarkup(getNoticeMessageTemplate(settings, 3), member, 3, target, settings)}
+    <div class="official-signoff">Very truly yours,<div class="official-manager"><b>${escapeHtml(getNoticeManagerName(settings))}</b><br>Manager</div></div>
     <div class="official-received">Received by: _______________________<br>Date received: ____________________</div>
     <div class="official-note">Note: Please disregard notice if payment has been made.</div>
   </div>`;
@@ -96,8 +97,8 @@ export const buildCooperativeNoticeMarkup = (member, level, target, logoUrl, set
       <div class="official-field"><b>ADDRESS:</b><span class="official-value">${escapeHtml(member.address)}</span></div>
     </div><div class="official-pb"><b>PB NO.:</b><span>${escapeHtml(passbook(member))}</span></div></div>
     <div>Sir/Madam:</div>
-    ${messageMarkup(getNoticeMessageTemplate(settings, level), member, level, target)}
-    <div class="official-signoff">Very truly yours,<div class="official-manager"><b>${NOTICE_MANAGER}</b><br>Manager</div></div>
+    ${messageMarkup(getNoticeMessageTemplate(settings, level), member, level, target, settings)}
+    <div class="official-signoff">Very truly yours,<div class="official-manager"><b>${escapeHtml(getNoticeManagerName(settings))}</b><br>Manager</div></div>
     <div class="official-received">Received by: _______________________<br>Date Received: ____________________</div>
     <div class="official-note">NOTE: Please disregard notice if payment has been made.</div>
   </div>`;
@@ -139,11 +140,10 @@ export const drawCooperativeNotice = (doc, member, level, target, logo, settings
   text(pbLines, 688, 195, 11);
   y += 17; text('Sir/Madam:', margin, y);
   doc.setFontSize(14); doc.setFont('helvetica', 'normal');
-  y = drawMessage(doc, fillNoticeMessage(getNoticeMessageTemplate(settings, level), member, level, target, 'PHP '), y + 36, level);
+  y = drawMessage(doc, fillNoticeMessage(getNoticeMessageTemplate(settings, level), member, level, target, 'PHP ', settings), y + 36, level);
   const signY = Math.max(y + 32, 414);
   text('Very truly yours,', 535, signY);
-  text(NOTICE_MANAGER, 662, signY + 41, 16, true, { align: 'center' });
-  text('Manager', 662, signY + 60, 14, false, { align: 'center' });
+  drawManager(doc, text, settings, signY + 41);
   const receiptY = Math.max(signY + 55, height - 85);
   text('Received by: _______________________', margin, receiptY, 12);
   text('Date Received: ____________________', margin, receiptY + 18, 12);
@@ -180,17 +180,26 @@ const drawLastNotice = (doc, member, target, logo, settings) => {
   }
   y += 17; text('Sir/Madam:', margin, y);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(14);
-  y = drawMessage(doc, fillNoticeMessage(getNoticeMessageTemplate(settings, 3), member, 3, target, 'PHP '), y + 32, 3);
+  y = drawMessage(doc, fillNoticeMessage(getNoticeMessageTemplate(settings, 3), member, 3, target, 'PHP ', settings), y + 32, 3);
   const signY = y + 25;
   text('Very truly yours,', 535, signY);
-  text(NOTICE_MANAGER, 662, signY + 34, 16, true, { align: 'center' });
-  text('Manager', 662, signY + 52, 14, false, { align: 'center' });
+  drawManager(doc, text, settings, signY + 34);
   const receiptY = Math.max(signY + 47, height - 85);
   text('Received by: _______________________', margin, receiptY, 12);
   text('Date received: ____________________', margin, receiptY + 18, 12);
   doc.setTextColor(48, 56, 102);
   text('Note: Please disregard notice if payment has been made.', margin, receiptY + 36, 11, true);
   doc.setTextColor(0, 0, 0);
+};
+
+const drawManager = (doc, text, settings, y) => {
+  const name = getNoticeManagerName(settings);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
+  const size = Math.max(10, Math.min(16, 16 * 240 / doc.getTextWidth(name)));
+  doc.setFontSize(size);
+  const lines = doc.splitTextToSize(name, 240);
+  text(lines, 662, y, size, true, { align: 'center', lineHeightFactor: 1.1 });
+  text('Manager', 662, y + lines.length * size * 1.1 + 4, 14, false, { align: 'center' });
 };
 
 // Reserve room for the signature and receipt. Long edited messages continue

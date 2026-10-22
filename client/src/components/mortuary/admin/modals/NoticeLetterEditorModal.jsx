@@ -47,7 +47,7 @@ export default function NoticeLetterEditorModal({ onClose, level, current, onSav
   return (
     <Modal isOpen onClose={submitting ? () => {} : onClose} title={'Edit ' + title} maxWidth="max-w-3xl">
       <div className="space-y-4">
-        <p className="text-sm text-slate-600">Edit the message and closing paragraphs below. The cooperative letterhead, member fields, date, and MONINA C. GUZMAN manager block are filled automatically.</p>
+        <p className="text-sm text-slate-600">Edit the message and closing paragraphs below. The cooperative letterhead, member fields, date, and configured manager name are filled automatically. Change the manager name in Notice Content settings.</p>
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm">Insert automatic field <select disabled={submitting || preview} value="" onChange={event => insertField(event.target.value)} className="border border-slate-300 rounded px-2 py-1 ml-2"><option value="">Choose a field</option>{fields.map(([token, label]) => <option key={token} value={token}>{label}</option>)}</select></label>
           <button type="button" disabled={submitting} onClick={() => setPreview(!preview)} className="td-button">{preview ? 'Back to editing' : 'Preview notice'}</button>

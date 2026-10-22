@@ -49,6 +49,14 @@ function fakeModel(seed = []) {
 let seq = 0;
 const nextId = (prefix) => `${prefix}-${++seq}`;
 
+test('message and threshold edits retain the selected notice manager', async () => {
+  const { Model, Doc } = fakeModel([{ settingId: 'MANAGER', status: 'active', noticeManagerName: 'MARIA C. SANTOS' }]);
+  const updated = await supersedeAndInsert(Model, () => new Doc({ settingId: nextId('S'), status: 'active', noticeMessageTemplate: 'Updated message' }), { preserveFields: ['noticeManagerName'] });
+  assert.equal(updated.noticeManagerName, 'MARIA C. SANTOS');
+  const elected = await supersedeAndInsert(Model, () => new Doc({ settingId: nextId('S'), status: 'active', noticeManagerName: 'ANA D. CRUZ' }), { preserveFields: ['noticeManagerName'] });
+  assert.equal(elected.noticeManagerName, 'ANA D. CRUZ');
+});
+
 test('updating thresholds preserves omitted message fields and accepts explicitly edited messages', async () => {
   const { Model, Doc } = fakeModel([{ settingId: 'MESSAGES', status: 'active', noticeMessageTemplate: 'First message', finalNoticeMessageTemplate: 'Last message' }]);
   const preserved = await supersedeAndInsert(Model, () => new Doc({ settingId: nextId('S'), status: 'active', targetBalance: 1500 }), { preserveFields: ['noticeMessageTemplate', 'finalNoticeMessageTemplate'] });

@@ -107,9 +107,13 @@ const updateThresholds = async (req, res) => {
       targetBalance, notice1Min, notice1Max, notice2Min, notice2Max,
       noticeBodyTemplate, finalNoticeBodyTemplate,
       noticeMessageTemplate, finalNoticeMessageTemplate,
+      noticeManagerName,
       effectiveDate, description,
     } = req.body;
     const updatedBy = req.user?.username || 'admin';
+    if (noticeManagerName !== undefined && (typeof noticeManagerName !== 'string' || !noticeManagerName.trim() || noticeManagerName.trim().length > 100 || /[\r\n]/.test(noticeManagerName))) {
+      return res.status(400).json({ success: false, message: 'Enter a manager name of up to 100 characters on one line.' });
+    }
     for (const value of [noticeMessageTemplate, finalNoticeMessageTemplate]) {
       if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > 10000)) {
         return res.status(400).json({ success: false, message: 'Notice messages must contain text and be no longer than 10,000 characters.' });
@@ -164,11 +168,12 @@ const updateThresholds = async (req, res) => {
       finalNoticeBodyTemplate: sanitizeNoticeHtml(finalNoticeBodyTemplate.trim()),
       noticeMessageTemplate: noticeMessageTemplate?.trim(),
       finalNoticeMessageTemplate: finalNoticeMessageTemplate?.trim(),
+      noticeManagerName: noticeManagerName?.trim(),
       effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
       status: 'active',
       description,
       createdBy: updatedBy,
-    }), { validateModifiedOnly: true, preserveFields: ['noticeMessageTemplate', 'finalNoticeMessageTemplate'] });
+    }), { validateModifiedOnly: true, preserveFields: ['noticeMessageTemplate', 'finalNoticeMessageTemplate', 'noticeManagerName'] });
 
     res.status(201).json({
       success: true,

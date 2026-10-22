@@ -20,23 +20,27 @@ test('edited messages are used for print, individual PDF and background batches 
   t.after(() => { globalThis.window = previousWindow; if (originalSave === undefined) delete jsPDF.API.save; else jsPDF.API.save = originalSave; });
   t.mock.method(globalThis, 'fetch', async () => { throw new Error('offline'); });
   const template = 'Edited message for {name}. Balance: {balance}. Deposit {amountNeeded}.\n\nCustom closing from {managerName}.';
-  const settings = { ...batchService.DEFAULT_NOTICE_THRESHOLDS, noticeMessageTemplate: template, finalNoticeMessageTemplate: template };
+  const settings = { ...batchService.DEFAULT_NOTICE_THRESHOLDS, noticeMessageTemplate: template, finalNoticeMessageTemplate: template, noticeManagerName: 'MARIA C. SANTOS' };
   const directory = await mkdtemp(join(tmpdir(), 'edited-notices-'));
   try {
     for (const [level, balance] of [[1, 800], [2, 500], [3, -200]]) {
       const record = { ...member, name: 'Juan <Cruz>', balance };
       printBalanceNotice(record, 'Treasurer', settings);
       assert.ok(markup.includes('Edited message for Juan &lt;Cruz&gt;'));
-      assert.ok(markup.includes('Custom closing from MONINA C. GUZMAN.'));
+      assert.ok(markup.includes('Custom closing from MARIA C. SANTOS.'));
+      assert.ok(markup.includes('<b>MARIA C. SANTOS</b>'));
+      assert.ok(!markup.includes('MONINA C. GUZMAN'));
       assert.ok(!markup.includes('{amountNeeded}'));
       await downloadBalanceNoticePDF(record, 'Treasurer', settings);
       assert.ok(saved.includes('Edited message for Juan <Cruz>'));
-      assert.ok(saved.includes('Custom closing from MONINA C. GUZMAN.'));
+      assert.ok(saved.includes('Custom closing from MARIA C. SANTOS.'));
+      assert.ok(!saved.includes('MONINA C. GUZMAN'));
       const outputPath = join(directory, `notice-${level}.pdf`);
       await batchService.generateNoticeBatchPdf([record], level, 'Treasurer', settings, outputPath);
       const content = await readFile(outputPath, 'latin1');
       assert.ok(content.includes('Edited message for Juan <Cruz>'));
-      assert.ok(content.includes('Custom closing from MONINA C. GUZMAN.'));
+      assert.ok(content.includes('Custom closing from MARIA C. SANTOS.'));
+      assert.ok(!content.includes('MONINA C. GUZMAN'));
       await rm(outputPath);
     }
   } finally { await rmdir(directory); }
