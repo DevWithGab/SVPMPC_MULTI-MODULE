@@ -106,9 +106,15 @@ const updateThresholds = async (req, res) => {
     const {
       targetBalance, notice1Min, notice1Max, notice2Min, notice2Max,
       noticeBodyTemplate, finalNoticeBodyTemplate,
+      noticeMessageTemplate, finalNoticeMessageTemplate,
       effectiveDate, description,
     } = req.body;
     const updatedBy = req.user?.username || 'admin';
+    for (const value of [noticeMessageTemplate, finalNoticeMessageTemplate]) {
+      if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > 10000)) {
+        return res.status(400).json({ success: false, message: 'Notice messages must contain text and be no longer than 10,000 characters.' });
+      }
+    }
 
     if (!noticeBodyTemplate || !noticeBodyTemplate.trim()) {
       return res.status(400).json({ success: false, message: 'Notice 1 & 2 letter content is required' });
@@ -156,11 +162,13 @@ const updateThresholds = async (req, res) => {
       ...parsed,
       noticeBodyTemplate: sanitizeNoticeHtml(noticeBodyTemplate.trim()),
       finalNoticeBodyTemplate: sanitizeNoticeHtml(finalNoticeBodyTemplate.trim()),
+      noticeMessageTemplate: noticeMessageTemplate?.trim(),
+      finalNoticeMessageTemplate: finalNoticeMessageTemplate?.trim(),
       effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
       status: 'active',
       description,
       createdBy: updatedBy,
-    }), { validateModifiedOnly: true });
+    }), { validateModifiedOnly: true, preserveFields: ['noticeMessageTemplate', 'finalNoticeMessageTemplate'] });
 
     res.status(201).json({
       success: true,

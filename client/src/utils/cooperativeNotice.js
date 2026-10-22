@@ -11,8 +11,23 @@ const signedMoney = (value, peso) => peso === 'PHP '
   ? `PHP ${value < 0 ? '-' : ''}${amount(Math.abs(value || 0))}`
   : `${value < 0 ? '-' : ''}${peso}${amount(Math.abs(value || 0))}`;
 const title = level => level === 1 ? 'FIRST NOTICE' : 'SECOND NOTICE';
-const message = (member, target, peso) => `This is to inform you that your deposit under the Mortuary Aid Fund Program has only a balance of ${peso}${amount(member.balance)}. Please make an additional deposit of ${peso}${amount(Math.max(target - (member.balance || 0), 0))} immediately to make your current balance of ${peso}${amount(target)} from receipt of this notice to enjoy the benefit of this program.`;
-const lastNoticeMessage = (member, target, peso) => `This is to inform you that you have ${signedMoney(member.balance, peso)} deposits in the Mortuary Aid Fund Program. Kindly replenish or deposit ${peso}${amount(Math.max(target - (member.balance || 0), 0))} in your mortuary fund within (30) days to maintain your membership in the said program. Failure to do so will automatically drop you from the program.`;
+
+export const DEFAULT_NOTICE_MESSAGE = 'This is to inform you that your deposit under the Mortuary Aid Fund Program has only a balance of {balance}. Please make an additional deposit of {amountNeeded} immediately to make your current balance of {targetBalance} from receipt of this notice to enjoy the benefit of this program.\n\nThank you and God Bless!';
+export const DEFAULT_FINAL_NOTICE_MESSAGE = 'This is to inform you that you have {balance} deposits in the Mortuary Aid Fund Program. Kindly replenish or deposit {amountNeeded} in your mortuary fund within (30) days to maintain your membership in the said program. Failure to do so will automatically drop you from the program.\n\nPlease be guided and updated accordingly.';
+export const getNoticeMessageTemplate = (settings, level) => level === 3
+  ? settings?.finalNoticeMessageTemplate || DEFAULT_FINAL_NOTICE_MESSAGE
+  : settings?.noticeMessageTemplate || DEFAULT_NOTICE_MESSAGE;
+export const fillNoticeMessage = (template, member, level, target, peso = '₱') => {
+  const values = {
+    name: member.name, address: member.address, passbook: passbook(member),
+    balance: signedMoney(member.balance, peso), amountNeeded: signedMoney(Math.max(target - (member.balance || 0), 0), peso),
+    targetBalance: signedMoney(target, peso), managerName: NOTICE_MANAGER, date: noticeDate(),
+    noticeLabel: level === 3 ? 'LAST NOTICE' : title(level),
+  };
+  return String(template).replace(/\{(\w+)\}/g, (token, key) => values[key] === undefined ? token : String(values[key] ?? ''));
+};
+const messageMarkup = (template, member, level, target) => fillNoticeMessage(template, member, level, target)
+  .split(/\n\s*\n/).map((paragraph, index) => `<p class="${index === 0 ? 'official-message' : 'official-closing'}">${escapeHtml(paragraph).replace(/\n/g, '<br>').replace(/-?₱[\d,]+\.\d{2}/g, '<strong>$&</strong>')}</p>`).join('');
 
 export const COOPERATIVE_NOTICE_STYLES = `
   @page { size: A4 landscape; margin: 0; }
@@ -38,6 +53,7 @@ export const COOPERATIVE_NOTICE_STYLES = `
   .official-manager { margin-top: 18px; text-align: center; }
   .official-received { font-size: 12pt; line-height: 1.5; margin-top: 4px; }
   .official-note { color: #303866; font-size: 11pt; font-weight: bold; }
+  .official-closing { margin: 5px 0 16px 18mm; line-height: 1.5; }
   .official-final .official-header { padding-right: 0; }
   .official-final .official-date { top: 88px; }
   .official-final .official-fields { margin-top: 32px; }
@@ -47,7 +63,7 @@ export const COOPERATIVE_NOTICE_STYLES = `
   .official-final .official-closing { margin: 5px 0 16px 18mm; }
 `;
 
-const buildLastNoticeMarkup = (member, target, logoUrl) => `
+const buildLastNoticeMarkup = (member, target, logoUrl, settings) => `
   <div class="official-notice official-final">
     <div class="official-header">
       <div class="official-brand"><img src="${escapeHtml(logoUrl)}" alt="" /><div><strong>ST. VINCENT PARISH MULTI-PURPOSE COOPERATIVE</strong><br>Dupax del Sur, Nueva Vizcaya</div></div>
@@ -60,15 +76,14 @@ const buildLastNoticeMarkup = (member, target, logoUrl) => `
       <div class="official-field"><b>Passbook #:</b><span class="official-value">${escapeHtml(passbook(member))}</span></div>
     </div></div>
     <div>Sir/Madam:</div>
-    <p class="official-message">${escapeHtml(lastNoticeMessage(member, target, '₱')).replace(/-?₱[\d,]+\.\d{2}/g, '<strong>$&</strong>')}</p>
-    <p class="official-closing">Please be guided and updated accordingly.</p>
+    ${messageMarkup(getNoticeMessageTemplate(settings, 3), member, 3, target)}
     <div class="official-signoff">Very truly yours,<div class="official-manager"><b>${NOTICE_MANAGER}</b><br>Manager</div></div>
     <div class="official-received">Received by: _______________________<br>Date received: ____________________</div>
     <div class="official-note">Note: Please disregard notice if payment has been made.</div>
   </div>`;
 
-export const buildCooperativeNoticeMarkup = (member, level, target, logoUrl) => level === 3
-  ? buildLastNoticeMarkup(member, target, logoUrl)
+export const buildCooperativeNoticeMarkup = (member, level, target, logoUrl, settings) => level === 3
+  ? buildLastNoticeMarkup(member, target, logoUrl, settings)
   : `
   <div class="official-notice">
     <div class="official-header">
@@ -81,15 +96,14 @@ export const buildCooperativeNoticeMarkup = (member, level, target, logoUrl) => 
       <div class="official-field"><b>ADDRESS:</b><span class="official-value">${escapeHtml(member.address)}</span></div>
     </div><div class="official-pb"><b>PB NO.:</b><span>${escapeHtml(passbook(member))}</span></div></div>
     <div>Sir/Madam:</div>
-    <p class="official-message">${escapeHtml(message(member, target, '₱')).replace(/₱[\d,]+\.\d{2}/g, '<strong>$&</strong>')}</p>
-    <p class="official-thanks">Thank you and God Bless!</p>
+    ${messageMarkup(getNoticeMessageTemplate(settings, level), member, level, target)}
     <div class="official-signoff">Very truly yours,<div class="official-manager"><b>${NOTICE_MANAGER}</b><br>Manager</div></div>
     <div class="official-received">Received by: _______________________<br>Date Received: ____________________</div>
     <div class="official-note">NOTE: Please disregard notice if payment has been made.</div>
   </div>`;
 
-export const drawCooperativeNotice = (doc, member, level, target, logo) => {
-  if (level === 3) return drawLastNotice(doc, member, target, logo);
+export const drawCooperativeNotice = (doc, member, level, target, logo, settings) => {
+  if (level === 3) return drawLastNotice(doc, member, target, logo, settings);
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
   // Coordinates follow the landscape form; long member fields wrap and push
@@ -125,9 +139,7 @@ export const drawCooperativeNotice = (doc, member, level, target, logo) => {
   text(pbLines, 688, 195, 11);
   y += 17; text('Sir/Madam:', margin, y);
   doc.setFontSize(14); doc.setFont('helvetica', 'normal');
-  const lines = doc.splitTextToSize(message(member, target, 'PHP '), width - 2 * margin - 25);
-  y += 36; text(lines, margin + 25, y, 14, false, { lineHeightFactor: 1.45 });
-  y += lines.length * 20.3 + 3; text('Thank you and God Bless!', margin + 25, y);
+  y = drawMessage(doc, fillNoticeMessage(getNoticeMessageTemplate(settings, level), member, level, target, 'PHP '), y + 36, level);
   const signY = Math.max(y + 32, 414);
   text('Very truly yours,', 535, signY);
   text(NOTICE_MANAGER, 662, signY + 41, 16, true, { align: 'center' });
@@ -140,7 +152,7 @@ export const drawCooperativeNotice = (doc, member, level, target, logo) => {
   doc.setTextColor(0, 0, 0);
 };
 
-const drawLastNotice = (doc, member, target, logo) => {
+const drawLastNotice = (doc, member, target, logo, settings) => {
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
   const margin = 48;
@@ -168,10 +180,7 @@ const drawLastNotice = (doc, member, target, logo) => {
   }
   y += 17; text('Sir/Madam:', margin, y);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(14);
-  const lines = doc.splitTextToSize(lastNoticeMessage(member, target, 'PHP '), width - 2 * margin - 25);
-  y += 32; text(lines, margin + 25, y, 14, false, { lineHeightFactor: 1.4 });
-  y += lines.length * 19.6 + 3;
-  text('Please be guided and updated accordingly.', margin + 25, y);
+  y = drawMessage(doc, fillNoticeMessage(getNoticeMessageTemplate(settings, 3), member, 3, target, 'PHP '), y + 32, 3);
   const signY = y + 25;
   text('Very truly yours,', 535, signY);
   text(NOTICE_MANAGER, 662, signY + 34, 16, true, { align: 'center' });
@@ -182,4 +191,29 @@ const drawLastNotice = (doc, member, target, logo) => {
   doc.setTextColor(48, 56, 102);
   text('Note: Please disregard notice if payment has been made.', margin, receiptY + 36, 11, true);
   doc.setTextColor(0, 0, 0);
+};
+
+// Reserve room for the signature and receipt. Long edited messages continue
+// on another page instead of overlapping those fields or being cut off.
+const drawMessage = (doc, value, startY, level) => {
+  let y = startY;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(14);
+  const paragraphs = value.split(/\n\s*\n/);
+  paragraphs.forEach((paragraph, index) => {
+    if (index) y += 7;
+    const lines = doc.splitTextToSize(paragraph, doc.internal.pageSize.getWidth() - 121);
+    for (const line of lines) {
+      if (y > pageHeight - 160) {
+        doc.addPage();
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+        doc.text(`${level === 3 ? 'LAST NOTICE' : title(level)} (continued)`, 48, 60);
+        y = 90;
+      }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(14);
+      doc.text(line, 73, y);
+      y += 19.6;
+    }
+  });
+  return y;
 };

@@ -10,19 +10,61 @@ import { drawCooperativeNotice } from '../src/utils/cooperativeNotice.js';
 
 const member = { id: 'MEM-2026-0042', name: 'Test Member', address: 'Sample Street', balance: -2000 };
 
+test('edited messages are used for print, individual PDF and background batches at every notice level', async (t) => {
+  const previousWindow = globalThis.window;
+  const originalSave = jsPDF.API.save;
+  let markup;
+  let saved;
+  globalThis.window = { location: { origin: 'http://localhost' }, open: () => ({ document: { write: value => { markup = value; }, close() {} } }) };
+  jsPDF.API.save = function () { saved = this.output(); return this; };
+  t.after(() => { globalThis.window = previousWindow; if (originalSave === undefined) delete jsPDF.API.save; else jsPDF.API.save = originalSave; });
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('offline'); });
+  const template = 'Edited message for {name}. Balance: {balance}. Deposit {amountNeeded}.\n\nCustom closing from {managerName}.';
+  const settings = { ...batchService.DEFAULT_NOTICE_THRESHOLDS, noticeMessageTemplate: template, finalNoticeMessageTemplate: template };
+  const directory = await mkdtemp(join(tmpdir(), 'edited-notices-'));
+  try {
+    for (const [level, balance] of [[1, 800], [2, 500], [3, -200]]) {
+      const record = { ...member, name: 'Juan <Cruz>', balance };
+      printBalanceNotice(record, 'Treasurer', settings);
+      assert.ok(markup.includes('Edited message for Juan &lt;Cruz&gt;'));
+      assert.ok(markup.includes('Custom closing from MONINA C. GUZMAN.'));
+      assert.ok(!markup.includes('{amountNeeded}'));
+      await downloadBalanceNoticePDF(record, 'Treasurer', settings);
+      assert.ok(saved.includes('Edited message for Juan <Cruz>'));
+      assert.ok(saved.includes('Custom closing from MONINA C. GUZMAN.'));
+      const outputPath = join(directory, `notice-${level}.pdf`);
+      await batchService.generateNoticeBatchPdf([record], level, 'Treasurer', settings, outputPath);
+      const content = await readFile(outputPath, 'latin1');
+      assert.ok(content.includes('Edited message for Juan <Cruz>'));
+      assert.ok(content.includes('Custom closing from MONINA C. GUZMAN.'));
+      await rm(outputPath);
+    }
+  } finally { await rmdir(directory); }
+});
+
+test('long edited messages continue onto additional pages and keep the receipt after the last paragraph', () => {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
+  drawCooperativeNotice(doc, member, 3, 1000, null, { finalNoticeMessageTemplate: 'Additional information for the member. '.repeat(180) + '\n\nEND OF EDITED MESSAGE' });
+  assert.ok(doc.getNumberOfPages() > 1);
+  const lastPage = doc.internal.pages.at(-1).join('\n');
+  assert.ok(lastPage.includes('END OF EDITED MESSAGE'));
+  assert.ok(lastPage.includes('MONINA C. GUZMAN'));
+  assert.ok(lastPage.includes('Received by:'));
+});
+
 test('official PDF paragraphs wrap within the landscape page', () => {
   const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
   const originalText = doc.text.bind(doc);
-  let bodyLines;
+  const bodyLines = [];
   doc.text = (value, x, y, options) => {
-    if (Array.isArray(value) && value[0]?.startsWith('This is to inform')) {
-      bodyLines = value;
-      value.forEach(line => assert.ok(x + doc.getTextWidth(line) <= doc.internal.pageSize.getWidth() - 47));
+    if (x === 73) {
+      bodyLines.push(value);
+      assert.ok(x + doc.getTextWidth(value) <= doc.internal.pageSize.getWidth() - 47);
     }
     return originalText(value, x, y, options);
   };
   drawCooperativeNotice(doc, { ...member, balance: 800 }, 1, 1000, null);
-  assert.ok(bodyLines?.length >= 3);
+  assert.ok(bodyLines.length >= 3);
   assert.equal(doc.getNumberOfPages(), 1);
 });
 

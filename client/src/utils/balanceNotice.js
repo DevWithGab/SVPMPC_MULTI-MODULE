@@ -151,7 +151,7 @@ const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
   const { level, html: bodyHtml } = buildNoticeBodyHtml(member, managerName, thresholds);
   if (!level) return '';
   if (level === 1 || level === 2 || level === 3) {
-    return buildCooperativeNoticeMarkup(member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoUrl);
+    return buildCooperativeNoticeMarkup(member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoUrl, thresholds);
   }
 
   return `
@@ -439,7 +439,7 @@ const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUr
   if (!level) return false;
 
   if (level === 1 || level === 2 || level === 3) {
-    drawCooperativeNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl);
+    drawCooperativeNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl, thresholds);
     return true;
   }
 

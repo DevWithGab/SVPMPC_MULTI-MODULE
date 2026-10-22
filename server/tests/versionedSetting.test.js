@@ -49,6 +49,16 @@ function fakeModel(seed = []) {
 let seq = 0;
 const nextId = (prefix) => `${prefix}-${++seq}`;
 
+test('updating thresholds preserves omitted message fields and accepts explicitly edited messages', async () => {
+  const { Model, Doc } = fakeModel([{ settingId: 'MESSAGES', status: 'active', noticeMessageTemplate: 'First message', finalNoticeMessageTemplate: 'Last message' }]);
+  const preserved = await supersedeAndInsert(Model, () => new Doc({ settingId: nextId('S'), status: 'active', targetBalance: 1500 }), { preserveFields: ['noticeMessageTemplate', 'finalNoticeMessageTemplate'] });
+  assert.equal(preserved.noticeMessageTemplate, 'First message');
+  assert.equal(preserved.finalNoticeMessageTemplate, 'Last message');
+  const edited = await supersedeAndInsert(Model, () => new Doc({ settingId: nextId('S'), status: 'active', noticeMessageTemplate: 'Edited message' }), { preserveFields: ['noticeMessageTemplate', 'finalNoticeMessageTemplate'] });
+  assert.equal(edited.noticeMessageTemplate, 'Edited message');
+  assert.equal(edited.finalNoticeMessageTemplate, 'Last message');
+});
+
 test('inserts the first row with nothing to supersede', async () => {
   const { state, Model, Doc } = fakeModel();
   const doc = await supersedeAndInsert(Model, () => new Doc({ settingId: nextId('S'), status: 'active', amount: 25 }));

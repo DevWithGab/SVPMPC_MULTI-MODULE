@@ -21,7 +21,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // buildNewDoc() must return a FRESH, unsaved Mongoose document each call —
 // it is invoked again on every retry so the new document always gets its
 // own settingId/effectiveDate rather than reusing one from a failed attempt.
-async function supersedeAndInsert(Model, buildNewDoc, { validateModifiedOnly = false } = {}) {
+async function supersedeAndInsert(Model, buildNewDoc, { validateModifiedOnly = false, preserveFields = [] } = {}) {
   let lastError;
   for (let attempt = 0; attempt < MAX_RACE_RETRIES; attempt++) {
     // A tiny, growing random delay before each retry (not the first
@@ -34,6 +34,9 @@ async function supersedeAndInsert(Model, buildNewDoc, { validateModifiedOnly = f
     try {
       const currentActive = await Model.findOne({ status: 'active' });
       if (currentActive) {
+        for (const field of preserveFields) {
+          if (newDoc[field] === undefined) newDoc[field] = currentActive[field];
+        }
         currentActive.status = 'superseded';
         currentActive.supersededBy = newDoc.settingId;
         currentActive.supersededAt = new Date();

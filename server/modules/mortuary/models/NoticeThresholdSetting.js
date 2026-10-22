@@ -52,6 +52,10 @@ const noticeThresholdSettingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Editable message inside the official cooperative form. Missing values
+    // use the official wording; legacy whole-document templates are retained.
+    noticeMessageTemplate: { type: String },
+    finalNoticeMessageTemplate: { type: String },
     effectiveDate: {
       type: Date,
       required: true,

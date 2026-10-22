@@ -273,7 +273,7 @@ const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUr
   if (!level) return false;
 
   if (level === 1 || level === 2 || level === 3) {
-    drawCooperativeNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl);
+    drawCooperativeNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl, thresholds);
     return true;
   }
 
