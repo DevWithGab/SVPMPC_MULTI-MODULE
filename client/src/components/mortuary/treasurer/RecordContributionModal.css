@@ -1,4 +1,6 @@
 .contribution-payment-modal { border-color: #dce3dd; border-radius: 8px; color: #24362a; }
+.contribution-alert-container { z-index: 1100; }
+.contribution-alert-container .swal2-html-container { white-space: pre-line; overflow-wrap: anywhere; }
 .contribution-payment-modal > div:first-child { padding: 20px 24px; border-color: #e2e7e3; }
 .contribution-payment-modal > div:first-child h3 { font-size: 18px; font-weight: 600; letter-spacing: -.3px; color: #17251d; }
 .contribution-payment-modal > div:first-child button { color: #647069; border-radius: 4px; }
