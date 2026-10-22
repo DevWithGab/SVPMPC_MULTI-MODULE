@@ -1,3 +1,4 @@
+import { buildCooperativeNoticeMarkup, COOPERATIVE_NOTICE_STYLES, drawCooperativeNotice } from './cooperativeNotice.js';
 import { jsPDF } from 'jspdf';
 import { sanitizeNoticeHtml } from './sanitizeHtml.js';
 
@@ -149,6 +150,9 @@ const buildNoticeBodyHtml = (member, managerName, thresholds) => {
 const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
   const { level, html: bodyHtml } = buildNoticeBodyHtml(member, managerName, thresholds);
   if (!level) return '';
+  if (level === 1 || level === 2) {
+    return buildCooperativeNoticeMarkup(member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoUrl);
+  }
 
   return `
     <div class="notice-page">
@@ -187,7 +191,7 @@ export const printBalanceNotice = (member, managerName, thresholds = DEFAULT_NOT
     <html>
       <head>
         <title>${esc(NOTICE_LEVEL_LABELS[level])} - ${esc(member.name)}</title>
-        <style>${NOTICE_STYLES}</style>
+        <style>${NOTICE_STYLES}${level === 3 ? '' : COOPERATIVE_NOTICE_STYLES}</style>
       </head>
       <body>
         ${markup}
@@ -217,7 +221,7 @@ export const printBalanceNoticesBulk = (members, level, managerName, thresholds 
     <html>
       <head>
         <title>${esc(NOTICE_LEVEL_LABELS[level])} - Batch (${targets.length})</title>
-        <style>${NOTICE_STYLES}</style>
+        <style>${NOTICE_STYLES}${level === 3 ? '' : COOPERATIVE_NOTICE_STYLES}</style>
       </head>
       <body>
         ${pages}
@@ -432,6 +436,11 @@ const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUr
   const { level, html: bodyHtml } = buildNoticeBodyHtml(member, managerName, thresholds);
   if (!level) return false;
 
+  if (level === 1 || level === 2) {
+    drawCooperativeNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl);
+    return true;
+  }
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const maxWidth = pageWidth - PAGE_MARGIN_PT * 2;
@@ -481,7 +490,7 @@ export const downloadBalanceNoticePDF = async (member, managerName, thresholds =
   if (!level) return false;
 
   const logoDataUrl = await getLogoDataUrl();
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: level === 3 ? 'portrait' : 'landscape' });
   renderMemberNoticePage(doc, member, managerName, thresholds, logoDataUrl);
   doc.save(`${filenameSafe(NOTICE_LEVEL_LABELS[level])}-${filenameSafe(member.name)}.pdf`);
   return true;
@@ -499,7 +508,7 @@ export const downloadBalanceNoticesBulkPDF = async (members, level, managerName,
   if (targets.length === 0) return 0;
 
   const logoDataUrl = await getLogoDataUrl();
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: level === 3 ? 'portrait' : 'landscape' });
   targets.forEach((member, index) => {
     if (index > 0) doc.addPage();
     renderMemberNoticePage(doc, member, managerName, thresholds, logoDataUrl);

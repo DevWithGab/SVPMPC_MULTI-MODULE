@@ -40,8 +40,8 @@ export default function NoticeContentSettings({ user }) {
   return (
     <div className="fs-section">
       <p className="fs-section-description">
-        The actual letter text printed for each notice level — title, fields, body, and signatures. Edit it like a
-        document; only the logo/org-name letterhead is fixed.
+        First and second notices use the official cooperative form with automatic member details, date,
+        and manager name. The final notice document can be edited below.
       </p>
 
       {loading ? (
@@ -55,14 +55,9 @@ export default function NoticeContentSettings({ user }) {
           <div className="fs-panel fs-notice-card">
             <div className="fs-notice-heading">
               <p className="text-sm font-bold text-slate-900">Notice 1 &amp; 2 Document</p>
-              <button
-                onClick={() => setEditingLevel(1)}
-                className="td-button"
-              >
-                <FileEdit className="w-3.5 h-3.5" /> Edit Document
-              </button>
+              <span className="text-xs text-slate-500">Official cooperative template</span>
             </div>
-            <p className="fs-notice-preview line-clamp-6">{previewText(current?.noticeBodyTemplate)}</p>
+            <p className="fs-notice-preview line-clamp-6">MORTUARY AID FUND PROGRAM - FIRST NOTICE / SECOND NOTICE. Member name, address, passbook number, current balance, additional deposit, and date are filled automatically. Signed by MONINA C. GUZMAN, Manager.</p>
           </div>
           <div className="fs-panel fs-notice-card">
             <div className="fs-notice-heading">

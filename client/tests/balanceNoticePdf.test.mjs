@@ -6,8 +6,25 @@ import { join } from 'node:path';
 import { jsPDF } from 'jspdf';
 import { downloadBalanceNoticePDF, downloadBalanceNoticesBulkPDF, printBalanceNotice, parseRichTextBody, drawRichTextBody } from '../src/utils/balanceNotice.js';
 import batchService from '../../server/modules/mortuary/services/noticeLetterPdfService.js';
+import { drawCooperativeNotice } from '../src/utils/cooperativeNotice.js';
 
 const member = { id: 'MEM-2026-0042', name: 'Test Member', address: 'Sample Street', balance: -2000 };
+
+test('official PDF paragraphs wrap within the landscape page', () => {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
+  const originalText = doc.text.bind(doc);
+  let bodyLines;
+  doc.text = (value, x, y, options) => {
+    if (Array.isArray(value) && value[0]?.startsWith('This is to inform')) {
+      bodyLines = value;
+      value.forEach(line => assert.ok(x + doc.getTextWidth(line) <= doc.internal.pageSize.getWidth() - 47));
+    }
+    return originalText(value, x, y, options);
+  };
+  drawCooperativeNotice(doc, { ...member, balance: 800 }, 1, 1000, null);
+  assert.ok(bodyLines?.length >= 3);
+  assert.equal(doc.getNumberOfPages(), 1);
+});
 
 test('individual and bulk downloads preserve signed balances and replenishment amounts', async (t) => {
   const saved = [];
@@ -93,6 +110,42 @@ test('server-generated batches use the same signed PDF currency', async () => {
     assert.match(content, /\(3,000\.00\) Tj/);
   } finally {
     await rm(outputPath, { force: true });
+    await rmdir(directory);
+  }
+});
+
+
+test('official first and second forms auto-fill details and keep browser and server PDFs aligned', async (t) => {
+  const saved = [];
+  const originalSave = jsPDF.API.save;
+  jsPDF.API.save = function () { saved.push({ content: this.output(), pages: this.getNumberOfPages(), width: this.internal.pageSize.getWidth(), height: this.internal.pageSize.getHeight() }); return this; };
+  t.after(() => { jsPDF.API.save = originalSave; });
+  const previousWindow = globalThis.window;
+  let markup;
+  globalThis.window = { location: { origin: 'http://localhost' }, open: () => ({ document: { write: html => { markup = html; }, close() {} } }) };
+  const directory = await mkdtemp(join(tmpdir(), 'official-notice-'));
+  try {
+    for (const [level, balance, heading] of [[1, 800, 'FIRST NOTICE'], [2, 500, 'SECOND NOTICE']]) {
+      const record = { ...member, name: 'Juan <Dela Cruz>', passbookNumber: 'PB-0042', balance };
+      printBalanceNotice(record, 'Treasurer');
+      assert.ok(markup.includes(heading));
+      assert.ok(markup.includes('Juan &lt;Dela Cruz&gt;'));
+      assert.ok(markup.includes('PB-0042'));
+      assert.ok(markup.includes('MONINA C. GUZMAN'));
+      assert.match(markup, /Date:<\/b> [A-Za-z]+ \d{1,2}, \d{4}/);
+      await downloadBalanceNoticePDF(record, 'Treasurer');
+      const pdf = saved.at(-1);
+      assert.equal(pdf.pages, 1);
+      assert.ok(pdf.width > pdf.height);
+      for (const expected of [heading, 'PB-0042', 'MONINA C. GUZMAN', 'Dupax del Sur, Nueva Vizcaya']) assert.ok(pdf.content.includes(expected));
+      const outputPath = join(directory, 'notice-' + level + '.pdf');
+      assert.equal(await batchService.generateNoticeBatchPdf([record], level, 'Treasurer', batchService.DEFAULT_NOTICE_THRESHOLDS, outputPath), 1);
+      const content = await readFile(outputPath, 'latin1');
+      for (const expected of [heading, 'PB-0042', 'MONINA C. GUZMAN']) assert.ok(content.includes(expected));
+      await rm(outputPath);
+    }
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
     await rmdir(directory);
   }
 });
