@@ -5,6 +5,7 @@ import { Pagination, PaginationInfo } from '../../ui/pagination';
 import BulkLedgerUpload from './BulkLedgerUpload';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF } from '../../../utils/balanceNotice';
+import { outputMemberLedgerPdf } from '../../../utils/memberLedgerPdf';
 
 
 const formatPeso = (amount, { signed = false } = {}) => {
@@ -113,6 +114,19 @@ const MemberLedger = ({
   const [datePreset, setDatePreset] = useState('all'); // 'all' | 'thisMonth' | 'lastMonth' | 'thisYear'
   const [sortOrder, setSortOrder] = useState('desc');
   const [downloadingNotice, setDownloadingNotice] = useState(false);
+  const [preparingLedger, setPreparingLedger] = useState(null);
+
+  const handleLedgerPdf = async (member, entries, filtered, print = false) => {
+    setPreparingLedger(print ? 'print' : 'download');
+    try {
+      await outputMemberLedgerPdf(member, entries, { filtered, print });
+    } catch (error) {
+      console.error('Error preparing ledger PDF:', error);
+      showToast?.(error.message || 'Unable to prepare the ledger PDF. Please try again.', 'error');
+    } finally {
+      setPreparingLedger(null);
+    }
+  };
 
   const handleDownloadNotice = async (member) => {
     setDownloadingNotice(true);
@@ -221,7 +235,7 @@ const MemberLedger = ({
         <div className="ml-document-actions ml-screen">
           <section className="ml-action-group" aria-labelledby="ml-ledger-actions-title">
             <h2 id="ml-ledger-actions-title">Ledger records</h2>
-            <p>Export or print the transactions shown with your current filters.</p>
+            <p>Export, download, or print the transactions shown with your current filters.</p>
           <div className="ml-actions">
             <button
               onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
@@ -231,11 +245,22 @@ const MemberLedger = ({
               <Download className="w-4 h-4" /> Export Ledger CSV
             </button>
             <button
-              onClick={() => window.print()}
-              disabled={loadingMemberLedger}
+              onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters, true)}
+              disabled={loadingMemberLedger || preparingLedger !== null}
+              aria-busy={preparingLedger === 'print'}
               className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
             >
-              <Printer className="w-4 h-4" /> Print Ledger
+              {preparingLedger === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+              {preparingLedger === 'print' ? 'Preparing Ledger...' : 'Print Ledger'}
+            </button>
+            <button
+              onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters)}
+              disabled={loadingMemberLedger || preparingLedger !== null}
+              aria-busy={preparingLedger === 'download'}
+              className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {preparingLedger === 'download' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {preparingLedger === 'download' ? 'Preparing Ledger PDF...' : 'Download Ledger PDF'}
             </button>
           </div>
           </section>
