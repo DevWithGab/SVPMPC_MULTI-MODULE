@@ -30,13 +30,6 @@ const {
 } = require('../controllers/ledgerController');
 
 const {
-  getMemberNotificationHistory,
-  getAllNotifications,
-  getPending,
-  getNotificationStats
-} = require('../controllers/smsNotificationController');
-
-const {
   listAllClaims,
   listPendingDeduction,
   listAwaitingRelease,
@@ -102,12 +95,6 @@ router.get('/ledger', getAllLedger);
 router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLimiter, bulkUploadLedger);
-
-// Read-only historical notification records; no send or retry endpoints.
-router.get('/notifications/history/:memberId', getMemberNotificationHistory);
-router.get('/notifications/all', getAllNotifications);
-router.get('/notifications/pending', getPending);
-router.get('/notifications/stats', getNotificationStats);
 
 // Claims processing routes — a claim sitting in "pending_deduction" is the
 // Treasurer's notification (live query, no separate notification model).

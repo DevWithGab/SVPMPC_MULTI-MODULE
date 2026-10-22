@@ -41,7 +41,7 @@ The mortuary module tracks member contributions and the cooperative's financial 
 - Approve or reject claims and pass approved claims to the treasurer.
 - Assess contributions from active members for an approved claim.
 - Release the benefit to the beneficiary and record a disbursement voucher number.
-- Track low-balance notifications, audit activity, and backup/restore operations.
+- Generate low-balance notices, track audit activity, and manage backup/restore operations.
 
 The main claim workflow is:
 
@@ -96,7 +96,7 @@ The database also supports a `member` user role, but `client/src/App.jsx` curren
 - The beneficiary's benefit is based on the amount assessed for the claim, capped at **PHP 50,000**. It is not the deceased member's personal ledger balance.
 - Amounts above the benefit cap are treated as cooperative income. The shared calculation is in [claimBenefit.js](server/modules/mortuary/config/claimBenefit.js).
 - Releasing a claim records the payout without subtracting it from the deceased member's personal contribution balance.
-- SMS delivery has been retired. Use the Treasurer's printed/PDF member notices for balance reminders. Historical notification records remain available for reference.
+- SMS support, including notification history endpoints, has been removed. Use the Treasurer's printed/PDF member notices for balance reminders. Existing SMS records in MongoDB are left untouched.
 
 For example, a claim assessed at PHP 60,000 results in a PHP 50,000 benefit and PHP 10,000 retained income. A claim assessed at PHP 20,000 results in a PHP 20,000 benefit and no retained income.
 

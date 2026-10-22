@@ -1,4 +1,4 @@
-> Historical reference: SMS delivery and retry support have been removed. SMS setup instructions and SMS-specific expectations below no longer apply. Use printed/PDF notices for balance reminders; existing notification history is retained. See README.md for current behavior.
+> Historical reference only: all SMS support, including the model and notification history endpoints, has been removed. The instructions, endpoints, scripts, and expectations below no longer apply. Use printed/PDF notices for balance reminders. Existing SMS database records are left untouched. See README.md for current behavior; run `npm test` from `server` for automated checks.
 
 # Testing Guide - Automatic Threshold Notification System
 

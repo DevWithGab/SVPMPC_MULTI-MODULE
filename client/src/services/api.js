@@ -643,9 +643,9 @@ export const paymentScheduleAPI = {
 };
 
 // ============================================
-// MORTUARY - NOTIFICATIONS API (Removed - Now Automated)
+// MORTUARY - BALANCE REMINDERS
 // ============================================
-// Manual notification methods removed - system now uses automatic threshold notifications
+// Balance reminders use printed/PDF notices; SMS APIs have been removed.
 
 // ============================================
 // ADMIN - MEMBER MANAGEMENT API
@@ -774,8 +774,7 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  // Notifications (Removed - Now Automated via Threshold System)
-  // Manual notification methods removed
+  // Balance reminders use printed/PDF notices; SMS APIs have been removed.
 
   // Every claim regardless of status — used by the Reports screen (Claims
   // Report / Deductions & Payouts), which needs the full list rather than
