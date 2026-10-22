@@ -3,7 +3,7 @@ import { autoTable } from 'jspdf-autotable';
 import { drawCooperativeLetterhead } from './cooperativePdfLetterhead.js';
 
 // Mortuary reports follow the cooperative's ledger form: the same letterhead,
-// centered fund heading, black ruled tables, and numbered continuation pages.
+// centered report title, black ruled tables, and numbered continuation pages.
 export const createCooperativeReportPdf = ({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   doc.setProperties({ title, author: 'St. Vincent Parish Multi-Purpose Cooperative', subject: 'Mutual Assistance Fund' });
@@ -17,7 +17,7 @@ export const createCooperativeReportPdf = ({ title, scope, sections, logo, gener
   }).format(generatedAt);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
   const titleLines = doc.splitTextToSize(title, width);
-  const titleY = 51;
+  const titleY = 42;
   const scopeY = titleY + (titleLines.length - 1) * 6 + 9;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
   const scopeLines = doc.splitTextToSize(scope || 'All recorded transactions.', width);
@@ -59,9 +59,8 @@ export const createCooperativeReportPdf = ({ title, scope, sections, logo, gener
   for (let page = 1; page <= pages; page++) {
     doc.setPage(page);
     drawCooperativeLetterhead(doc, logo, left, right);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(19);
-    doc.text('MUTUAL ASSISTANCE FUND', doc.internal.pageSize.getWidth() / 2, 41, { align: 'center' });
-    doc.setFontSize(14); doc.text(titleLines, doc.internal.pageSize.getWidth() / 2, titleY, { align: 'center', lineHeightFactor: 1.21 });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+    doc.text(titleLines, doc.internal.pageSize.getWidth() / 2, titleY, { align: 'center', lineHeightFactor: 1.21 });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     doc.text(scopeLines, left, scopeY, { lineHeightFactor: 1.42 });
     doc.text(`Generated: ${date} PHT`, left, dateY);
