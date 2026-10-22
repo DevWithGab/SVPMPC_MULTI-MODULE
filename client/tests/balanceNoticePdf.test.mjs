@@ -47,12 +47,12 @@ test('individual and bulk downloads preserve signed balances and replenishment a
   assert.equal(saved[0].pages, 1);
   assert.equal(saved[1].pages, 2);
   for (const { content } of saved) {
-    assert.match(content, /\(PHP\) Tj/);
-    assert.match(content, /\(-2,000\.00\) Tj/);
-    assert.match(content, /\(3,000\.00\) Tj/);
+    assert.match(content, /PHP -2,000\.00/);
+    assert.match(content, /PHP 3,000\.00/);
+    assert.match(content, /LAST NOTICE/);
     assert.doesNotMatch(content, /₱|±/);
   }
-  assert.match(saved[1].content, /\(0\.00\) Tj/);
+  assert.match(saved[1].content, /PHP 0\.00/);
   assert.equal(await downloadBalanceNoticePDF({ ...member, balance: 1000 }), false);
   assert.equal(saved.length, 2);
 });
@@ -105,9 +105,9 @@ test('server-generated batches use the same signed PDF currency', async () => {
     const count = await batchService.generateNoticeBatchPdf([member], 3, 'Manager', batchService.DEFAULT_NOTICE_THRESHOLDS, outputPath);
     assert.equal(count, 1);
     const content = await readFile(outputPath, 'latin1');
-    assert.match(content, /\(PHP\) Tj/);
-    assert.match(content, /\(-2,000\.00\) Tj/);
-    assert.match(content, /\(3,000\.00\) Tj/);
+    assert.match(content, /PHP -2,000\.00/);
+    assert.match(content, /PHP 3,000\.00/);
+    assert.match(content, /LAST NOTICE/);
   } finally {
     await rm(outputPath, { force: true });
     await rmdir(directory);
@@ -115,7 +115,7 @@ test('server-generated batches use the same signed PDF currency', async () => {
 });
 
 
-test('official first and second forms auto-fill details and keep browser and server PDFs aligned', async (t) => {
+test('all official forms auto-fill details and keep browser and server PDFs aligned', async (t) => {
   const saved = [];
   const originalSave = jsPDF.API.save;
   jsPDF.API.save = function () { saved.push({ content: this.output(), pages: this.getNumberOfPages(), width: this.internal.pageSize.getWidth(), height: this.internal.pageSize.getHeight() }); return this; };
@@ -125,13 +125,20 @@ test('official first and second forms auto-fill details and keep browser and ser
   globalThis.window = { location: { origin: 'http://localhost' }, open: () => ({ document: { write: html => { markup = html; }, close() {} } }) };
   const directory = await mkdtemp(join(tmpdir(), 'official-notice-'));
   try {
-    for (const [level, balance, heading] of [[1, 800, 'FIRST NOTICE'], [2, 500, 'SECOND NOTICE']]) {
+    for (const [level, balance, heading] of [[1, 800, 'FIRST NOTICE'], [2, 500, 'SECOND NOTICE'], [3, -200, 'LAST NOTICE']]) {
       const record = { ...member, name: 'Juan <Dela Cruz>', passbookNumber: 'PB-0042', balance };
       printBalanceNotice(record, 'Treasurer');
       assert.ok(markup.includes(heading));
       assert.ok(markup.includes('Juan &lt;Dela Cruz&gt;'));
       assert.ok(markup.includes('PB-0042'));
       assert.ok(markup.includes('MONINA C. GUZMAN'));
+      if (level === 3) {
+        assert.ok(markup.includes('within (30) days'));
+        assert.ok(markup.includes('Failure to do so will automatically drop you from the program.'));
+        assert.ok(markup.includes('Please be guided and updated accordingly.'));
+        assert.ok(markup.includes('Passbook #:'));
+        assert.ok(markup.includes('Please disregard notice if payment has been made.'));
+      }
       assert.match(markup, /Date:<\/b> [A-Za-z]+ \d{1,2}, \d{4}/);
       await downloadBalanceNoticePDF(record, 'Treasurer');
       const pdf = saved.at(-1);
