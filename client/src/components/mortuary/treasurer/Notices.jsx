@@ -19,7 +19,7 @@ const noticeAlert = Swal.mixin({
   cancelButtonColor: '#647069',
 });
 
-export default function Notices({ members, user, noticeThresholds, showToast, onRefresh, refreshing = false }) {
+export default function Notices({ members, user, noticeThresholds, onRefresh, refreshing = false }) {
   const [printingLevel, setPrintingLevel] = useState(null);
   const [downloadingLevel, setDownloadingLevel] = useState(null);
   const [noticeBarangay, setNoticeBarangay] = useState('All');
@@ -29,7 +29,7 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
   // instant client-side path below the large-batch threshold.
   const [batchJob, setBatchJob] = useState(null);
   const batchPollRef = useRef(null);
-  const downloadInFlight = useRef(false);
+  const noticeActionInFlight = useRef(false);
 
   // Notice scope covers all eligible members in the selected barangay.
   const noticeTargetMembers = useMemo(
@@ -56,21 +56,43 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
     return counts;
   }, [noticeTargetMembers, noticeThresholds]);
 
-  const handleBulkPrint = (level) => {
+  const handleBulkPrint = async (level) => {
     const count = noticeLevelCounts[level];
-    if (count === 0 || noticeBusy) return;
-    if (!window.confirm(`Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel}? Each will print as a separate page in one job.`)) {
-      return;
-    }
+    if (count === 0 || noticeBusy || noticeActionInFlight.current) return;
+    noticeActionInFlight.current = true;
     setPrintingLevel(level);
     try {
-      const printed = printBalanceNoticesBulk(noticeTargetMembers, level, user?.name, noticeThresholds);
+      const confirmation = await noticeAlert.fire({
+        icon: 'question',
+        title: 'Print member notices?',
+        text: `Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel}? Each member's letter will be on a separate page in one print job.`,
+        showCancelButton: true,
+        confirmButtonText: 'Yes, open print window',
+        cancelButtonText: 'Cancel',
+        focusCancel: true,
+        // Open directly inside the confirmation click to preserve popup permission.
+        preConfirm: () => {
+          try {
+            return { printed: printBalanceNoticesBulk(noticeTargetMembers, level, user?.name, noticeThresholds) };
+          } catch (error) {
+            console.error('Error preparing notices for printing:', error);
+            return { error: true };
+          }
+        },
+      });
+      if (!confirmation.isConfirmed) return;
+      const { printed, error } = confirmation.value;
+      if (error) {
+        await noticeAlert.fire({ icon: 'error', title: 'Could not prepare notices', text: 'Unable to prepare the notices for printing. Please try again.' });
+        return;
+      }
       if (printed === 0) {
-        showToast?.('Your browser blocked the print window. Please allow pop-ups and try again.', 'error');
+        await noticeAlert.fire({ icon: 'error', title: 'Print window blocked', text: 'Your browser blocked the print window. Please allow pop-ups for this site and try again.' });
       } else {
-        showToast?.(`Queued ${printed} ${NOTICE_LEVEL_LABELS[level]} letter${printed === 1 ? '' : 's'}${barangayLabel} for printing.`, 'success');
+        await noticeAlert.fire({ icon: 'success', title: 'Notices ready for printing', text: `Prepared ${printed} ${NOTICE_LEVEL_LABELS[level]} letter${printed === 1 ? '' : 's'}${barangayLabel}. Complete printing in the print window.` });
       }
     } finally {
+      noticeActionInFlight.current = false;
       setPrintingLevel(null);
     }
   };
@@ -92,8 +114,8 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
 
   const handleBulkDownload = async (level) => {
     const count = noticeLevelCounts[level];
-    if (count === 0 || noticeBusy || downloadInFlight.current) return;
-    downloadInFlight.current = true;
+    if (count === 0 || noticeBusy || noticeActionInFlight.current) return;
+    noticeActionInFlight.current = true;
     try {
       const confirmation = await noticeAlert.fire({
         icon: 'question',
@@ -117,7 +139,7 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
       console.error('Error downloading notices PDF:', error);
       await noticeAlert.fire({ icon: 'error', title: 'Could not generate PDF', text: 'Unable to generate the notices PDF. Please try again.' });
     } finally {
-      downloadInFlight.current = false;
+      noticeActionInFlight.current = false;
       setDownloadingLevel(null);
     }
   };

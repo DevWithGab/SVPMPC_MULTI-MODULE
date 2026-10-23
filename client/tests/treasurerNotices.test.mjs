@@ -11,7 +11,7 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
   document.body.append(container);
   const root = createRoot(container);
   const previousAct = globalThis.IS_REACT_ACT_ENVIRONMENT;
-  const originalConfirm = window.confirm;
+  const originalOpen = window.open;
   const originalRevoke = URL.revokeObjectURL;
   const originalFrame = globalThis.requestAnimationFrame;
   const originalCancelFrame = globalThis.cancelAnimationFrame;
@@ -21,13 +21,13 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
   let api, treasurer, originals;
   let Swal, originalMixin;
   const alerts = [];
-  let confirmDownload = false;
+  let confirmAction = false;
   try {
     ({ default: Swal } = await import('sweetalert2'));
     originalMixin = Swal.mixin;
     Swal.mixin = () => ({ fire: async options => {
       alerts.push(options);
-      return { isConfirmed: confirmDownload };
+      return { isConfirmed: confirmAction, value: confirmAction ? options.preConfirm?.() : undefined };
     } });
     const { default: Portal } = await vite.ssrLoadModule('/src/pages/mortuary/TreasurerPortal.jsx');
     const service = await vite.ssrLoadModule('/src/services/api.js');
@@ -51,7 +51,15 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
     treasurer.startNoticeBatch = async (level, barangay) => { jobs.push({ level, barangay }); return { jobId: 'TEST-JOB' }; };
     treasurer.getNoticeBatchStatus = async () => ({ status: 'completed', totalMembers: 100, barangay: 'Barangay A' });
     treasurer.downloadNoticeBatchPdf = async () => 'blob:notice-pdf';
-    window.confirm = () => true;
+    const printWindows = [];
+    window.open = () => {
+      const output = { html: '', closed: false };
+      printWindows.push(output);
+      return { document: {
+        write: html => { output.html = html; },
+        close: () => { output.closed = true; },
+      } };
+    };
     const revoked = [];
     URL.revokeObjectURL = url => revoked.push(url);
     const render = (tab, key) => act(async () => root.render(React.createElement(MemoryRouter, {
@@ -75,11 +83,29 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
     });
     assert.equal(main().querySelector('[aria-label="Download Notice 2 PDF for 0 members"]').disabled, true);
     assert.ok(main().querySelector('[aria-label="Print Notice 1 for 100 members"]'));
+    const clickPrint = () => act(async () => main().querySelector('[aria-label="Print Notice 1 for 100 members"]').click());
+    await clickPrint();
+    assert.equal(alerts.at(-1).title, 'Print member notices?');
+    assert.match(alerts.at(-1).text, /100 members in Barangay A/);
+    assert.equal(printWindows.length, 0, 'canceling must not open a print window');
+    confirmAction = true;
+    await clickPrint();
+    assert.equal(printWindows.length, 1);
+    assert.equal(printWindows[0].closed, true);
+    assert.match(printWindows[0].html, /Batch \(100\)/);
+    assert.equal(alerts.at(-1).title, 'Notices ready for printing');
+    const workingOpen = window.open;
+    window.open = () => null;
+    await clickPrint();
+    assert.equal(alerts.at(-1).title, 'Print window blocked');
+    assert.equal(alerts.at(-1).icon, 'error');
+    window.open = workingOpen;
+    confirmAction = false;
     await act(async () => main().querySelector('[aria-label="Download Notice 1 PDF for 100 members"]').click());
     assert.equal(jobs.length, 0, 'canceling the SweetAlert must not generate a PDF');
     assert.equal(alerts.at(-1).title, 'Download notice PDF?');
     assert.match(alerts.at(-1).text, /100 members in Barangay A/);
-    confirmDownload = true;
+    confirmAction = true;
     await act(async () => main().querySelector('[aria-label="Download Notice 1 PDF for 100 members"]').click());
     assert.deepEqual(jobs, [{ level: 1, barangay: 'Barangay A' }]);
     assert.equal(main().querySelector('a[href="blob:notice-pdf"]').textContent.trim(), 'Download ready PDF');
@@ -95,7 +121,7 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
     await act(async () => root.unmount());
     if (originals) [api.get, treasurer.startNoticeBatch, treasurer.getNoticeBatchStatus, treasurer.downloadNoticeBatchPdf] = originals;
     if (originalMixin) Swal.mixin = originalMixin;
-    window.confirm = originalConfirm;
+    window.open = originalOpen;
     URL.revokeObjectURL = originalRevoke;
     globalThis.requestAnimationFrame = originalFrame;
     globalThis.cancelAnimationFrame = originalCancelFrame;
