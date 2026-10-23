@@ -19,7 +19,16 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
   globalThis.requestAnimationFrame = () => 1;
   globalThis.cancelAnimationFrame = () => {};
   let api, treasurer, originals;
+  let Swal, originalMixin;
+  const alerts = [];
+  let confirmDownload = false;
   try {
+    ({ default: Swal } = await import('sweetalert2'));
+    originalMixin = Swal.mixin;
+    Swal.mixin = () => ({ fire: async options => {
+      alerts.push(options);
+      return { isConfirmed: confirmDownload };
+    } });
     const { default: Portal } = await vite.ssrLoadModule('/src/pages/mortuary/TreasurerPortal.jsx');
     const service = await vite.ssrLoadModule('/src/services/api.js');
     api = service.default;
@@ -67,8 +76,15 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
     assert.equal(main().querySelector('[aria-label="Download Notice 2 PDF for 0 members"]').disabled, true);
     assert.ok(main().querySelector('[aria-label="Print Notice 1 for 100 members"]'));
     await act(async () => main().querySelector('[aria-label="Download Notice 1 PDF for 100 members"]').click());
+    assert.equal(jobs.length, 0, 'canceling the SweetAlert must not generate a PDF');
+    assert.equal(alerts.at(-1).title, 'Download notice PDF?');
+    assert.match(alerts.at(-1).text, /100 members in Barangay A/);
+    confirmDownload = true;
+    await act(async () => main().querySelector('[aria-label="Download Notice 1 PDF for 100 members"]').click());
     assert.deepEqual(jobs, [{ level: 1, barangay: 'Barangay A' }]);
     assert.equal(main().querySelector('a[href="blob:notice-pdf"]').textContent.trim(), 'Download ready PDF');
+    assert.equal(alerts.at(-1).title, 'Notice PDF ready');
+    assert.equal(alerts.at(-1).icon, 'success');
     await act(async () => container.querySelector('[aria-label="Member Balances"]').click());
     assert.equal(main().querySelector('h1').textContent, 'Member balances');
     assert.equal(main().querySelector('#notice-panel-title'), null);
@@ -78,6 +94,7 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
   } finally {
     await act(async () => root.unmount());
     if (originals) [api.get, treasurer.startNoticeBatch, treasurer.getNoticeBatchStatus, treasurer.downloadNoticeBatchPdf] = originals;
+    if (originalMixin) Swal.mixin = originalMixin;
     window.confirm = originalConfirm;
     URL.revokeObjectURL = originalRevoke;
     globalThis.requestAnimationFrame = originalFrame;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Swal from 'sweetalert2';
 import { Printer, Download, Loader2, FileText, RefreshCw } from 'lucide-react';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
@@ -13,6 +14,10 @@ import './MemberBalances.css';
 // the per-page work is.
 const LARGE_BATCH_THRESHOLD = 100;
 const BATCH_POLL_INTERVAL_MS = 4000;
+const noticeAlert = Swal.mixin({
+  confirmButtonColor: '#245e32',
+  cancelButtonColor: '#647069',
+});
 
 export default function Notices({ members, user, noticeThresholds, showToast, onRefresh, refreshing = false }) {
   const [printingLevel, setPrintingLevel] = useState(null);
@@ -24,6 +29,7 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
   // instant client-side path below the large-batch threshold.
   const [batchJob, setBatchJob] = useState(null);
   const batchPollRef = useRef(null);
+  const downloadInFlight = useRef(false);
 
   // Notice scope covers all eligible members in the selected barangay.
   const noticeTargetMembers = useMemo(
@@ -71,18 +77,14 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
 
   // Starts the server-side background job for a batch too large to build
   // instantly in the browser. Polling (below) picks up the result.
-  const handleBulkDownloadBackground = async (level, count) => {
+  const handleBulkDownloadBackground = async (level) => {
     setDownloadingLevel(level);
     try {
       const response = await treasurerAPI.startNoticeBatch(level, noticeBarangay === 'All' ? undefined : noticeBarangay);
       setBatchJob({ jobId: response.jobId, level });
-      showToast?.(
-        `Preparing ${count} ${NOTICE_LEVEL_LABELS[level]} letters${barangayLabel} in the background — this may take a moment. We'll let you know when it's ready.`,
-        'success'
-      );
     } catch (error) {
       console.error('Error starting notice batch job:', error);
-      showToast?.('Unable to start generating the notices. Please try again.', 'error');
+      await noticeAlert.fire({ icon: 'error', title: 'Could not prepare notices', text: 'Unable to start generating the notices. Please try again.' });
     } finally {
       setDownloadingLevel(null);
     }
@@ -90,24 +92,32 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
 
   const handleBulkDownload = async (level) => {
     const count = noticeLevelCounts[level];
-    if (count === 0 || noticeBusy) return;
-    if (!window.confirm(`Download ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel} as one PDF?`)) {
-      return;
-    }
-
-    if (count >= LARGE_BATCH_THRESHOLD) {
-      handleBulkDownloadBackground(level, count);
-      return;
-    }
-
-    setDownloadingLevel(level);
+    if (count === 0 || noticeBusy || downloadInFlight.current) return;
+    downloadInFlight.current = true;
     try {
+      const confirmation = await noticeAlert.fire({
+        icon: 'question',
+        title: 'Download notice PDF?',
+        text: `Prepare ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel} as one PDF?`,
+        showCancelButton: true,
+        confirmButtonText: 'Yes, prepare PDF',
+        cancelButtonText: 'Cancel',
+        focusCancel: true,
+      });
+      if (!confirmation.isConfirmed) return;
+      if (count >= LARGE_BATCH_THRESHOLD) {
+        await handleBulkDownloadBackground(level);
+        return;
+      }
+
+      setDownloadingLevel(level);
       const downloaded = await downloadBalanceNoticesBulkPDF(noticeTargetMembers, level, user?.name, noticeThresholds);
-      showToast?.(`Downloaded ${downloaded} ${NOTICE_LEVEL_LABELS[level]} letter${downloaded === 1 ? '' : 's'}${barangayLabel} as a PDF.`, 'success');
+      await noticeAlert.fire({ icon: 'success', title: 'Notice PDF generated', text: `Prepared ${downloaded} ${NOTICE_LEVEL_LABELS[level]} letter${downloaded === 1 ? '' : 's'}${barangayLabel}. Your PDF download has started.` });
     } catch (error) {
       console.error('Error downloading notices PDF:', error);
-      showToast?.('Unable to generate the notices PDF. Please try again.', 'error');
+      await noticeAlert.fire({ icon: 'error', title: 'Could not generate PDF', text: 'Unable to generate the notices PDF. Please try again.' });
     } finally {
+      downloadInFlight.current = false;
       setDownloadingLevel(null);
     }
   };
@@ -132,19 +142,16 @@ export default function Notices({ members, user, noticeThresholds, showToast, on
             console.error('Error fetching notice batch PDF:', downloadError);
           }
           if (!url) {
-            showToast?.('The PDF download link is unavailable. Please try again.', 'error');
+            void noticeAlert.fire({ icon: 'error', title: 'PDF unavailable', text: 'The PDF download link is unavailable. Please try again.' });
             setBatchJob(null);
             return;
           }
           setReadyDownload({ url, level: batchJob.level, count: status.totalMembers, barangay: status.barangay });
-          showToast?.(
-            `${status.totalMembers} ${NOTICE_LEVEL_LABELS[batchJob.level]} letters ready. Select Download ready PDF in the notice panel.`,
-            'success'
-          );
+          void noticeAlert.fire({ icon: 'success', title: 'Notice PDF ready', text: `${status.totalMembers} ${NOTICE_LEVEL_LABELS[batchJob.level]} letters are ready. Select Download ready PDF in the notice panel to open your PDF.` });
           setBatchJob(null);
         } else if (status.status === 'failed') {
           clearInterval(batchPollRef.current);
-          showToast?.('Generating the notices failed. Please try again.', 'error');
+          void noticeAlert.fire({ icon: 'error', title: 'Could not generate PDF', text: 'Generating the notices failed. Please try again.' });
           setBatchJob(null);
         }
       } catch (error) {
