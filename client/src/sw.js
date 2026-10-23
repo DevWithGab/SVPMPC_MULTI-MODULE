@@ -26,6 +26,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
+  // Serve the public letterhead logo even when the fallback is opened offline.
+  if (request.method === 'GET' && url.origin === self.location.origin &&
+      url.pathname === '/SVPMPC-LOGO-PRINT.png') {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME)
+      return (await cache.match('/SVPMPC-LOGO-PRINT.png')) || fetch(request)
+    })())
+    return
+  }
   // Never cache API responses, member records, authenticated pages or writes.
   if (request.method !== 'GET' || request.mode !== 'navigate' ||
       url.origin !== self.location.origin ||

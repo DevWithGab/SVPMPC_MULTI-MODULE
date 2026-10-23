@@ -4,25 +4,82 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#166534" />
-    <title>You're offline | SVPMPC</title>
+    <title>Connection notice | SVPMPC</title>
     <style>
       * { box-sizing: border-box; }
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f0fdf4; color: #163422; font: 16px/1.6 system-ui, sans-serif; }
-      main { width: 100%; max-width: 460px; padding: 32px; background: white; border: 1px solid #bbdfc6; border-radius: 20px; }
-      .brand { color: #166534; font-weight: 700; letter-spacing: .08em; }
-      h1 { font-size: 28px; line-height: 1.2; }
-      p { color: #42594a; }
-      button { margin-top: 12px; padding: 12px 24px; border: 0; border-radius: 8px; background: #166534; color: white; font: inherit; font-weight: 600; cursor: pointer; }
-      button:focus-visible { outline: 3px solid #166534; outline-offset: 4px; }
+      body { margin: 0; min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: 32px 20px; background: #f2f5f3; color: #25332c; font: 16px/1.65 Arial, sans-serif; }
+      main { width: 100%; max-width: 680px; background: #fff; border: 1px solid #dce4df; border-top: 5px solid #166534; border-radius: 12px; box-shadow: 0 16px 48px #1634220b; overflow: hidden; }
+      .letterhead { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 32px 40px 28px; border-bottom: 1px solid #e4e9e6; }
+      .letterhead img { width: 76px; height: 76px; object-fit: contain; flex-shrink: 0; }
+      .cooperative-name { margin: 0; color: #303866; font-size: 17px; font-weight: 700; line-height: 1.45; text-transform: uppercase; letter-spacing: .025em; }
+      .address { margin: 5px 0 0; color: #69756e; font-size: 13px; }
+      .notice { padding: 32px 44px 36px; }
+      .eyebrow { margin: 0 0 24px; color: #ae3c40; font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+      .status { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px; border: 1px solid #eadfc9; border-radius: 6px; background: #fcf8ef; color: #795c28; font-size: 12px; font-weight: 700; }
+      .status svg { width: 16px; height: 16px; flex-shrink: 0; }
+      h1 { margin: 16px 0 12px; color: #303866; font-size: clamp(26px, 5vw, 32px); line-height: 1.25; letter-spacing: -.025em; }
+      p { margin: 0 0 16px; }
+      .guidance { margin: 24px 0; padding: 16px 18px; border-left: 3px solid #b8cdbf; background: #f5f8f6; color: #526158; font-size: 14px; }
+      .guidance strong { display: block; margin-bottom: 4px; color: #314c3c; }
+      button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 24px; border: 0; border-radius: 7px; background: #166534; color: white; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s; }
+      button:hover { background: #14532d; }
+      button svg { width: 17px; height: 17px; }
+      button:focus-visible { outline: 3px solid #303866; outline-offset: 4px; }
+      footer { padding: 16px 24px; border-top: 1px solid #e4e9e6; color: #6c7871; text-align: center; font-size: 12px; letter-spacing: .025em; }
+      @media (max-width: 480px) {
+        body { padding: 20px 14px; }
+        .letterhead { padding: 24px 20px; gap: 12px; }
+        .letterhead img { width: 58px; height: 58px; }
+        .cooperative-name { font-size: 13px; }
+        .address { font-size: 11px; }
+        .notice { padding: 26px 24px 30px; }
+        button { width: 100%; }
+      }
     </style>
   </head>
   <body>
-    <main>
-      <div class="brand">SVPMPC</div>
-      <h1>You're offline</h1>
-      <p>Connect to the internet to open the management system. Attendance, member records, and financial transactions need a connection to the server.</p>
-      <p>Once connected, retry to return to the page you were opening.</p>
-      <button type="button" onclick="window.location.reload()">Try again</button>
+    <main aria-labelledby="notice-title">
+      <header class="letterhead">
+        <img src="/SVPMPC-LOGO-PRINT.png" alt="SVPMPC logo" width="76" height="76" />
+        <div>
+          <p class="cooperative-name">St. Vincent Parish<br />Multi-Purpose Cooperative</p>
+          <p class="address">Dupax del Sur, Nueva Vizcaya</p>
+        </div>
+      </header>
+      <section class="notice">
+        <p class="eyebrow">System connection notice</p>
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <span class="status">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m3 3 18 18M8.5 8.5A16 16 0 0 1 21 11M3 11a16 16 0 0 1 2.5-1.7M12 12a10 10 0 0 1 5 2M7 14a10 10 0 0 1 1.5-.9M10 17a4 4 0 0 1 4 0"/><circle cx="12" cy="20" r=".5"/></svg>
+            <span id="connection-label">Connection interrupted</span>
+          </span>
+          <h1 id="notice-title">Unable to reach the system</h1>
+          <p id="connection-message">The SVPMPC Management System could not be reached. Please check your internet connection and try again.</p>
+        </div>
+        <div class="guidance">
+          <strong>A connection is required to continue</strong>
+          Attendance, member records, and financial transactions require a connection to the server. When your connection is available, select Try again to return to the page you were opening.
+        </div>
+        <button type="button" id="retry-button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17"/></svg>
+          Try again
+        </button>
+      </section>
+      <footer>SVPMPC &middot; Management System</footer>
     </main>
+    <script>
+      function updateConnectionNotice() {
+        const offline = navigator.onLine === false;
+        document.getElementById('connection-label').textContent = offline ? 'No internet connection' : 'System connection unavailable';
+        document.getElementById('notice-title').textContent = offline ? "You're offline" : 'Unable to reach the system';
+        document.getElementById('connection-message').textContent = offline
+          ? 'Your device is not connected to the internet. Please reconnect to access the SVPMPC Management System.'
+          : 'Your device reports an internet connection, but the SVPMPC Management System could not be reached. Please try again in a moment.';
+      }
+      document.getElementById('retry-button').addEventListener('click', () => window.location.reload());
+      window.addEventListener('online', updateConnectionNotice);
+      window.addEventListener('offline', updateConnectionNotice);
+      updateConnectionNotice();
+    </script>
   </body>
 </html>

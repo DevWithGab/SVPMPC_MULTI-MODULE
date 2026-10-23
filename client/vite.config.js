@@ -37,8 +37,8 @@ export default defineConfig({
       manifest,
       includeManifestIcons: false,
       injectManifest: {
-        // Cache the public fallback plus the plugin's manifest; no app or API data.
-        globPatterns: ['offline.html'],
+        // Cache the public fallback and its letterhead logo; no app or API data.
+        globPatterns: ['offline.html', 'SVPMPC-LOGO-PRINT.png'],
       },
       devOptions: { enabled: false },
     }),

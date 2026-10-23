@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
+import { JSDOM } from 'jsdom'
 import { manifest } from '../vite.config.js'
 
 const source = await readFile(new URL('../src/sw.js', import.meta.url), 'utf8')
@@ -66,6 +67,33 @@ test('API calls, mutations, assets and other origins bypass the worker', () => {
 test('HTTP errors are preserved rather than presented as offline', async () => {
   const response = new Response('Unavailable', { status: 503 })
   assert.equal(await navigate(worker(async () => response).handlers), response)
+})
+
+test('the letterhead logo is available from cache without a network connection', async () => {
+  const { handlers, fallback } = worker(() => { throw new Error('Network unavailable') })
+  assert.equal(await navigate(handlers, {
+    url: 'https://coop.example/SVPMPC-LOGO-PRINT.png', mode: 'no-cors',
+  }), fallback)
+})
+
+test('the notice distinguishes offline devices from an unreachable system and updates on reconnection', async () => {
+  const html = await readFile(new URL('../public/offline.html', import.meta.url), 'utf8')
+  const dom = new JSDOM(html, { runScripts: 'outside-only' })
+  const { window } = dom
+  try {
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
+    window.eval(window.document.querySelector('script').textContent)
+    assert.equal(window.document.querySelector('h1').textContent, "You're offline")
+    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true })
+    window.dispatchEvent(new window.Event('online'))
+    assert.equal(window.document.querySelector('h1').textContent, 'Unable to reach the system')
+    assert.match(window.document.querySelector('#connection-message').textContent, /could not be reached/)
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true })
+    window.dispatchEvent(new window.Event('offline'))
+    assert.equal(window.document.querySelector('h1').textContent, "You're offline")
+  } finally {
+    window.close()
+  }
 })
 
 test('installation caches only the public fallback and cleanup is scoped', async () => {
