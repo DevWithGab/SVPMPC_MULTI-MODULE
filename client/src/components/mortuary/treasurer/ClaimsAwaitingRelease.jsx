@@ -4,13 +4,14 @@ import { treasurerAPI } from '../../../services/api';
 import { printClaimReceipt } from './claimReceipt';
 import { Action, ClaimDialog, ClaimIdentity, ClaimQueue, Detail } from './ClaimWorkflow';
 import { fieldClass, peso, shortDate, useClaimQueue } from './claimWorkflowUtils';
+import { showClaimAlert } from './claimAlerts';
 
 const todayIso = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
-export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
+export default function ClaimsAwaitingRelease({ user, onReleased }) {
   const queue = useClaimQueue(treasurerAPI.getAwaitingReleaseClaims);
   const [target, setTarget] = useState(null);
   const [form, setForm] = useState({ amount: '', dvNumber: '', releaseDate: todayIso(), remarks: '' });
@@ -36,9 +37,19 @@ export default function ClaimsAwaitingRelease({ user, showToast, onReleased }) {
     try {
       const res = await treasurerAPI.releaseClaim(target.claimId, { amount: amountValue, dvNumber: form.dvNumber.trim(), releaseDate: form.releaseDate, remarks: form.remarks.trim() || undefined, releasedBy: user?.name || user?.username });
       setReleased(res.data);
-      showToast?.('Disbursement recorded successfully.', 'success');
-      queue.refresh(); onReleased?.();
-    } catch (err) { setError(err.response?.data?.message || 'Unable to record this disbursement. Please try again.'); }
+      await showClaimAlert({
+        icon: 'success',
+        title: 'Claim released successfully',
+        text: `${peso(amountValue)} has been recorded as released for claim ${target.claimId} under DV ${form.dvNumber.trim()}. You can now print the receipt.`,
+        confirmButtonText: 'Done',
+      });
+      queue.refresh();
+      await Promise.allSettled([Promise.resolve().then(() => onReleased?.())]);
+    } catch (err) {
+      const message = err.response?.data?.message || 'Unable to record this disbursement. Please try again.';
+      setError(message);
+      await showClaimAlert({ icon: 'error', title: 'Could not record release', text: message });
+    }
     finally { inFlight.current = false; setBusy(false); }
   };
 

@@ -3,8 +3,9 @@ import { AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
 import { Action, ClaimDialog, ClaimIdentity, ClaimQueue, Detail } from './ClaimWorkflow';
 import { fieldClass, peso, shortDate, useClaimQueue } from './claimWorkflowUtils';
+import { showClaimAlert } from './claimAlerts';
 
-export default function ClaimsPendingDeduction({ user, showToast, onProcessed }) {
+export default function ClaimsPendingDeduction({ user, onProcessed }) {
   const queue = useClaimQueue(treasurerAPI.getPendingDeductionClaims);
   const [rate, setRate] = useState(null);
   const [rateLoading, setRateLoading] = useState(true);
@@ -44,9 +45,20 @@ export default function ClaimsPendingDeduction({ user, showToast, onProcessed })
     try {
       await treasurerAPI.processClaimDeduction(target.claimId, { processedBy: user?.name || user?.username, jvNumber: jvNumber.trim() });
       setDone(true);
-      showToast?.('Deduction processed. Claim is now awaiting release.', 'success');
-      queue.refresh(); onProcessed?.();
-    } catch (err) { setError(err.response?.data?.message || 'Unable to process this deduction. Please try again.'); }
+      await showClaimAlert({
+        icon: 'success',
+        title: 'Deduction processed successfully',
+        text: `Claim ${target.claimId} has been recorded under JV ${jvNumber.trim()} and is now awaiting release.`,
+        confirmButtonText: 'Done',
+      });
+      queue.refresh();
+      // Refresh failures must not report an already saved deduction as failed.
+      await Promise.allSettled([Promise.resolve().then(() => onProcessed?.())]);
+    } catch (err) {
+      const message = err.response?.data?.message || 'Unable to process this deduction. Please try again.';
+      setError(message);
+      await showClaimAlert({ icon: 'error', title: 'Could not process deduction', text: message });
+    }
     finally { inFlight.current = false; setBusy(false); }
   };
 
