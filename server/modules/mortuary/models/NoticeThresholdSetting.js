@@ -7,10 +7,10 @@ const noticeThresholdSettingSchema = new mongoose.Schema(
       unique: true,
       required: true,
     },
-    // The sustaining balance goal referenced in the printed notice letter
-    // (e.g. "deposit enough to reach ₱1,000"). Independent of the notice
-    // ranges below — raising or lowering it does not automatically shift
-    // where Notice 1/2/Final kick in.
+    /* Ito ang sustaining balance goal na nirereference sa printed notice letter (hal.
+    "deposit enough to reach ₱1,000"). Independent ito sa notice ranges sa baba -
+    hindi otomatikong nagbabago ang kinikick-in ng Notice 1/2/Final kung
+    itataas o ibababa ito. */
     targetBalance: {
       type: Number,
       required: true,
@@ -24,9 +24,9 @@ const noticeThresholdSettingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    // Notice 2 fires for balances in [notice2Min, notice2Max]. Anything
-    // below notice2Min gets the Final Notice; anything above notice1Max
-    // (and not already caught by Notice 1) needs no notice.
+    /* Fire ang Notice 2 para sa balances sa [notice2Min, notice2Max]. Kung mas mababa
+    pa sa notice2Min, makukuha ang Final Notice; kung mas mataas sa notice1Max (at
+    hindi pa nahuli ng Notice 1), wala nang kailangang notice. */
     notice2Min: {
       type: Number,
       required: true,
@@ -35,25 +35,25 @@ const noticeThresholdSettingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    // The ENTIRE letter — title, fields, salutation, body, and signatures —
-    // shared by Notice 1 and Notice 2, as admin-editable plain text.
-    // Paragraphs are separated by a blank line; placeholders substituted
-    // per-member at print time: {noticeLabel} {name} {address} {passbook}
-    // {balance} {amountNeeded} {targetBalance} {managerName}. Only the
-    // logo/org-name letterhead above this text is not part of the template.
+    /* Ito ang BUONG letter - title, fields, salutation, body, at signatures - na
+    shared ng Notice 1 at Notice 2, bilang admin-editable plain text. Pinaghihiwalay
+    ng blank line ang mga paragraph; sinasalpakan ng placeholders per-member sa print
+    time: {noticeLabel} {name} {address} {passbook} {balance} {amountNeeded}
+    {targetBalance} {managerName}. Yung logo/org-name letterhead sa itaas lang ng
+    text na ito ang hindi parte ng template. */
     noticeBodyTemplate: {
       type: String,
       required: true,
     },
-    // Same shape as noticeBodyTemplate, for the Final Notice (level 3) —
-    // kept separate since its wording (warning of being dropped from the
-    // program) is materially different from Notice 1/2.
+    /* Parehong shape ng noticeBodyTemplate, para sa Final Notice (level 3) -
+    hiniwalay dahil materially different ang wording nito (warning ng pagkakadrop
+    sa program) kumpara sa Notice 1/2. */
     finalNoticeBodyTemplate: {
       type: String,
       required: true,
     },
-    // Editable message inside the official cooperative form. Missing values
-    // use the official wording; legacy whole-document templates are retained.
+    /* Editable message sa loob ng official cooperative form. Gagamitin ang official
+    wording kung walang value; naiiwan pa rin ang legacy whole-document templates. */
     noticeMessageTemplate: { type: String },
     finalNoticeMessageTemplate: { type: String },
     noticeManagerName: { type: String, trim: true, maxlength: 100 },
@@ -83,9 +83,9 @@ const noticeThresholdSettingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// "Update Thresholds" supersedes the currently-active row and inserts a new
-// one — this partial unique index enforces "at most one active row" at the
-// DB level, same technique used for DeductionSetting.
+/* Nagsusupersede ang "Update Thresholds" sa currently-active row at nagiinsert
+ng bago - ang partial unique index na ito ang nagpapatupad ng "at most one
+active row" sa DB level, parehong technique na ginamit para sa DeductionSetting. */
 noticeThresholdSettingSchema.index(
   { status: 1 },
   { unique: true, partialFilterExpression: { status: 'active' } }

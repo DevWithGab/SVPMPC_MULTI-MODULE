@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
-// Durable receipt reservation. Stable IDs allow a retry to finish either write
-// without crediting the ledger twice, including on standalone MongoDB.
+/* Durable receipt reservation - yung stable IDs, kahit mag-retry ang write,
+hindi na madoble yung credit sa ledger, kasama na sa standalone MongoDB. */
 const schema = new mongoose.Schema({
   _id: String,
   memberId: { type: String, required: true },

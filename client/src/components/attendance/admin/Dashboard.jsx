@@ -110,8 +110,9 @@ const Dashboard = ({
     const eventLogs = attendanceLogs.filter(
       (log) => String(getLogEventId(log)) === String(eventId),
     );
-    // Count by member ID, not name — two members can share a display name,
-    // which would otherwise undercount how many people actually attended.
+    /* Count by member ID, hindi by name - kasi posible na magkapareho ang display
+    name ng dalawang members, kaya kung name lang ang gagamitin, maundercount
+    yung totoong bilang ng dumalo. */
     const presentIds = new Set(
       eventLogs
         .filter((log) => getAttendanceLogStatus(log) !== "absent")
@@ -148,10 +149,10 @@ const Dashboard = ({
   const absentMembers = totalMembers - presentMembers;
   const attendancePercentage =
     totalMembers > 0 ? Math.round((presentMembers / totalMembers) * 100) : 0;
-  // Recent momentum (last point vs. the one before it), not first-vs-last
-  // across the whole window — a volatile series can swing well above its
-  // starting point and still end up a hair below it, which labeled every
-  // recent uptick "Decreasing" as long as the window opened on a local peak.
+  /* Recent momentum ito (last point kumpara sa isa bago nito), hindi first-vs-last
+  sa buong window - kasi may volatile series na pwedeng tumaas nang malayo sa
+  starting point niya pero konti lang ang pagkababa sa huli, kaya nalalabel na
+  "Decreasing" yung bawat recent uptick kung ang window ay nagsimula sa local peak. */
   const previousTrendRate =
     attendanceChartData.length > 1
       ? attendanceChartData.at(-2)?.rate || 0
@@ -170,8 +171,8 @@ const Dashboard = ({
     );
   }).length;
 
-  // Real last-scan time for the Present card, scoped to the same event the
-  // present/absent counts above are for.
+  /* Totoong last-scan time ito para sa Present card, scoped lang sa parehong
+  event na kinukwenta ng present/absent counts sa taas. */
   const currentEventLogs = currentEvent
     ? attendanceLogs.filter(
         (log) =>

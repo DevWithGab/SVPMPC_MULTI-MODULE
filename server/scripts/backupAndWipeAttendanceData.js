@@ -7,9 +7,9 @@ const Event = require('../modules/attendance/models/Event');
 const Attendance = require('../modules/attendance/models/Attendance');
 const AttendanceReport = require('../modules/attendance/models/AttendanceReport');
 
-// Backs up every Event, Attendance, and AttendanceReport document to a
-// timestamped JSON file, then deletes all of them. Members and AuditLogs
-// are untouched. Run with: node scripts/backupAndWipeAttendanceData.js
+/* Nag-backup muna ng lahat ng Event, Attendance, at AttendanceReport document
+papuntang timestamped JSON file, tapos dine-delete lahat. Hindi nagagalaw yung
+Members at AuditLogs. Run with: node scripts/backupAndWipeAttendanceData.js */
 const backupAndWipe = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);

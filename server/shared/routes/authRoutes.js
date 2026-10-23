@@ -12,11 +12,12 @@ const { authenticateToken, requirePasswordChange, authorizeAdminOnly } = require
 const ownAccount = (req, res, next) => req.params.userId === req.user.userId ? next() : res.status(403).json({ message: 'Access denied' });
 const router = express.Router();
 
-// A bulk-import CSV briefly contains real member PII before the controller
-// parses it and deletes it. It must never land under uploads/ — that whole
-// tree is served statically with no auth (server.js), so a guessable
-// `${Date.now()}_name.csv` filename there would be downloadable by anyone
-// during that window. tmp-uploads/ sits outside the static-served tree.
+/* Pansamantalang naglalaman ng totoong member PII yung bulk-import CSV bago
+ito parse-in at i-delete ng controller. Hindi dapat ito dumapo sa ilalim ng
+uploads/ - static ang buong tree na iyon na walang auth (server.js), kaya
+yung guessable na `${Date.now()}_name.csv` filename puwede i-download ng
+kahit sino habang nandun pa ito. Nasa labas ng static-served tree ang
+tmp-uploads/. */
 const CSV_UPLOAD_DIR = path.join(__dirname, '../..', 'tmp-uploads');
 if (!fs.existsSync(CSV_UPLOAD_DIR)) {
   fs.mkdirSync(CSV_UPLOAD_DIR, { recursive: true });
@@ -32,9 +33,10 @@ const storage = multer.diskStorage({
   },
 });
 
-// .env documents this (10MB default) but server.js/the multer configs never
-// actually read it — without a limit, multer buffers an upload of any size
-// to disk before fileFilter/the controller ever get a chance to reject it.
+/* May dokumentasyon nito sa .env (10MB default) pero hindi talaga binabasa
+ito ng server.js/multer configs - kung walang limit, bubuffer ng multer sa
+disk yung upload na kahit anong laki bago pa man magkaroon ng chance ang
+fileFilter/controller na i-reject ito. */
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
 
 const upload = multer({

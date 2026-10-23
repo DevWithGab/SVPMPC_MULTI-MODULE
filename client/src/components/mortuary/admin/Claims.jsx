@@ -177,10 +177,11 @@ export default function Claims({ user }) {
                 const needsAdmin = action.actor === 'admin';
                 const open = () => setSelectedClaimId(claim.claimId);
                 return (
-                  // The row stays clickable as a mouse convenience, but it is
-                  // NOT given role="button"/tabIndex: that would nest an
-                  // interactive element inside another. The Action button below
-                  // is the real control, so keyboard users tab straight to it.
+                  /* Naka-clickable pa rin ang row bilang mouse convenience,
+                  pero hindi ito binigyan ng role="button"/tabIndex: mag-nest
+                  kasi ng interactive element sa loob ng isa pa. Ang Action
+                  button sa baba ang totoong control, kaya diretso ang tab ng
+                  keyboard users papunta dito. */
                   <tr
                     key={claim.claimId}
                     onClick={open}
@@ -188,8 +189,8 @@ export default function Claims({ user }) {
                       needsAdmin ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-slate-50/50'
                     }`}
                   >
-                    {/* Accent lives on the first cell rather than the row —
-                        a border on a <tr> is swallowed by border-collapse. */}
+                    {/* Nasa first cell ang accent imbes na sa row - dahil
+                        nalulunod ng border-collapse ang border sa isang <tr>. */}
                     <td className={`px-6 py-4 text-xs font-mono text-slate-500 border-l-2 ${
                       needsAdmin ? 'border-amber-400' : 'border-transparent'
                     }`}>
@@ -205,8 +206,9 @@ export default function Claims({ user }) {
                         <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                         {meta.label}
                       </span>
-                      {/* The badge says what the claim is; this says whose turn
-                          it is, which is what the Admin is actually scanning for. */}
+                      {/* Sinasabi ng badge kung ano ang claim; ito naman ang
+                          sinasabi kung kaninong turn na, na talagang
+                          hinahanap ng Admin. */}
                       {action.hint && (
                         <span className={`block text-[11px] mt-1 ${
                           needsAdmin ? 'font-semibold text-amber-700' : 'text-slate-400'

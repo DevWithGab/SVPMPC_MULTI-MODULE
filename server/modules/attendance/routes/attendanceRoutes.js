@@ -7,11 +7,12 @@ const fs = require('fs');
 const { AppError } = require('../../../middleware/errorHandler');
 const router = express.Router();
 
-// A member CSV upload briefly contains real member PII before the controller
-// parses it and deletes it. It must never land under uploads/ — that whole
-// tree is served statically with no auth (server.js), so a guessable
-// `${Date.now()}_name.csv` filename there would be downloadable by anyone
-// during that window. tmp-uploads/ sits outside the static-served tree.
+/* Pansamantalang naglalaman ang member CSV upload ng totoong member PII
+bago ito i-parse at i-delete ng controller. Hindi dapat ito dumapo sa
+uploads/ - yung whole tree na iyon ay served statically na walang auth
+(server.js), kaya downloadable ng kung sino man yung guessable na
+`${Date.now()}_name.csv` filename habang nandun ito. Sa labas ng
+static-served tree nakatira ang tmp-uploads/. */
 const CSV_UPLOAD_DIR = path.join(__dirname, '../../..', 'tmp-uploads');
 if (!fs.existsSync(CSV_UPLOAD_DIR)) {
   fs.mkdirSync(CSV_UPLOAD_DIR, { recursive: true });
@@ -27,8 +28,8 @@ router.use('/member', memberRoutes);
 router.use('/secretary', secretaryRoutes);
 router.use('/admin', adminRoutes);
 
-// Legacy routes for backward compatibility (if needed)
-// These can be removed once frontend is fully updated
+/* Legacy routes para sa backward compatibility (if needed) - puwede na
+itong tanggalin once fully updated na ang frontend. */
 const memberController = require('../controllers/memberController');
 const eventController = require('../controllers/eventController');
 const attendanceController = require('../controllers/attendanceController');
@@ -43,9 +44,10 @@ const storage = multer.diskStorage({
   },
 });
 
-// .env documents this (10MB default) but server.js/the multer configs never
-// actually read it — without a limit, multer buffers an upload of any size
-// to disk before fileFilter/the controller ever get a chance to reject it.
+/* Nilagay ito sa .env (10MB default) pero hindi naman talaga binabasa ng
+server.js/multer configs - kung walang limit, bubuffer ng multer ang
+upload ng kahit anong size papuntang disk bago pa man magkaroon ng chance
+mag-reject ang fileFilter/controller. */
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
 
 const upload = multer({

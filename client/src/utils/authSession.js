@@ -16,17 +16,19 @@ export function clearAuthSession(storage = window.sessionStorage) {
 }
 
 export function initializeTabSession(browser = window) {
-  // Do not import the former browser-wide login into a new tab. Remove
-  // only authentication keys, preserving preferences and update markers.
+  /* Huwag i-import yung dating browser-wide login papunta sa bagong tab.
+  Tanggalin lang yung authentication keys, pero i-preserve yung
+  preferences at update markers. */
   try {
     clearAuthSession(browser.localStorage);
   } catch {
     // Shared storage can be disabled independently of session storage.
   }
 
-  // A window opened by another page can receive a copy of its sessionStorage.
-  // Start that window at login, then detach its opener so its own reloads
-  // preserve the account it subsequently signs in with.
+  /* Yung window na binuksan ng ibang page ay posibleng makatanggap ng kopya
+  ng sessionStorage nito. Simulan yung window na iyon sa login, tapos
+  i-detach yung opener nito para yung sariling reloads niya ay
+  mapreserve yung account na ikinasign-in dito. */
   if (browser.opener) {
     clearAuthSession(browser.sessionStorage);
     browser.opener = null;

@@ -14,14 +14,15 @@ const createClaim = async (req, res) => {
     const { memberId, beneficiaryId, dateOfDeath, causeOfDeath, remarks } = req.body;
     const createdBy = req.user?.username || 'admin';
 
-    // typeof check closes a NoSQL operator-injection hole: a crafted body
-    // like {"memberId":{"$ne":null},"beneficiaryId":{"$ne":null},...} passes
-    // the !memberId truthiness check (a non-empty object is truthy) and
-    // turns the findOne calls below into real query operators, matching
-    // whichever member/claim/beneficiary Mongo's query planner returns
-    // first instead of the one actually named. Neither field is ever
-    // legitimately anything but a string, so rejecting the wrong type here
-    // is exactly as correct as rejecting a missing one.
+    /* Isinasara ng typeof check yung NoSQL operator-injection hole: kung
+    crafted body gaya ng {"memberId":{"$ne":null},"beneficiaryId":{"$ne":null},...}
+    ay makakapasa sa !memberId truthiness check (truthy yung non-empty object)
+    at ginagawang real query operators yung findOne calls sa baba, matching
+    kung sino mang member/claim/beneficiary ibalik ng Mongo's query planner
+    first sa halip na yung talagang pinangalanan. Hindi naman talaga
+    legitimate na hindi string yung alinman sa dalawang fields, kaya tama
+    lang na i-reject din ang wrong type dito gaya ng pag-reject sa missing
+    one. */
     if (
       !memberId || !beneficiaryId || !dateOfDeath ||
       typeof memberId !== 'string' || typeof beneficiaryId !== 'string'
@@ -37,11 +38,12 @@ const createClaim = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 
-    // A rejected claim can be re-filed (that's the whole point of rejecting
-    // one — e.g. wrong requirements, filed on the wrong member), but any
-    // other still-live claim on this member must block a second filing:
-    // approving/deducting/releasing two claims for one death would charge
-    // every other member twice and could pay out twice.
+    /* Puwedeng i-refile ulit yung rejected claim (yun naman talaga yung
+    point ng pag-reject - e.g. wrong requirements, filed sa wrong member),
+    pero kailangan i-block yung ibang still-live claim sa member na ito
+    kung magfile ulit: kung mag-approve/deduct/release ng dalawang claims
+    para sa isang kamatayan, magcharge ng doble sa every other member at
+    puwedeng magbayad ng doble. */
     const existingClaim = await Claim.findOne({ memberId, status: { $ne: 'rejected' } });
     if (existingClaim) {
       return res.status(409).json({
@@ -86,10 +88,10 @@ const createClaim = async (req, res) => {
 
     await claim.save();
 
-    // A claim being filed means the member has passed away — flip their
-    // status so they're naturally excluded from the death-assessment
-    // deduction their own claim will trigger (Treasurer only charges
-    // {status:'active'} members).
+    /* Ang pag-file ng claim ay senyales na namatay na yung member - kaya
+    flip yung status nila para naturally excluded sila sa death-assessment
+    deduction na magtrigger mismo ng claim nila (ang Treasurer ay nagcharge
+    lang sa {status:'active'} members). */
     member.status = 'deceased';
     await member.save();
 
@@ -160,8 +162,8 @@ const getAllClaims = async (req, res) => {
   }
 };
 
-// Claim Details — member info, beneficiary info, claim details, checklist,
-// verification info, status history
+/* Claim Details - member info, beneficiary info, claim details, checklist,
+verification info, status history */
 const getClaimById = async (req, res) => {
   try {
     const { claimId } = req.params;
@@ -189,9 +191,9 @@ const getClaimById = async (req, res) => {
   }
 };
 
-// Physical Requirements Checklist — the documents themselves are submitted
-// in person at the cooperative office; this only records whether each has
-// been received/verified.
+/* Physical Requirements Checklist - ang mismong documents ay isinusumite
+in person sa cooperative office; dito lang naitatala kung natanggap na at
+na-verify na ang bawat isa. */
 const updateRequirements = async (req, res) => {
   try {
     const { claimId } = req.params;
@@ -319,10 +321,10 @@ const updateVerification = async (req, res) => {
   }
 };
 
-// Approve Claim — only legal once every requirement item is submitted.
-// Moves straight from approved to pending_deduction so the Treasurer's
-// "notification" (a live query for pending_deduction claims) picks it up
-// immediately.
+/* Approve Claim - legal lang ito kapag naisumite na ang lahat ng requirement
+item. Lumilipat agad galing approved papuntang pending_deduction para
+makuha agad ng Treasurer's "notification" (live query para sa
+pending_deduction claims) ito. */
 const approveClaim = async (req, res) => {
   try {
     const { claimId } = req.params;

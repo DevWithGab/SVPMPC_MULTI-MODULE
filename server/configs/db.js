@@ -3,11 +3,11 @@ const { ensureRateLimitIndexes } = require('../middleware/mongoRateLimitStore');
 require('dotenv').config();
 
 const connectDB = async () => {
-  // Fail loudly here instead of silently connecting to a guessed local
-  // default — an unset MONGODB_URI used to fall back to
-  // mongodb://localhost:27017/..., which just produces a confusing
-  // ECONNREFUSED later (or worse, silently connects to the wrong local
-  // database) instead of pointing straight at the actual problem.
+  /* Fail loudly dito instead na mag-connect ng tahimik sa guessed local
+  default - dati kapag unset ang MONGODB_URI, babalik lang sa
+  mongodb://localhost:27017/..., na magreresulta lang sa confusing
+  ECONNREFUSED mamaya (o mas malala, tahimik na makaka-connect sa maling
+  local database) imbes na direktang ituro ang totoong problema. */
   if (!process.env.MONGODB_URI) {
     console.error('✗ MONGODB_URI is not set. Copy .env.example to .env and set it to your MongoDB connection string before starting the server.');
     process.exit(1);

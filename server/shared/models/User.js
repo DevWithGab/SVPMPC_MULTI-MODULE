@@ -66,8 +66,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Login accounts are staff-only. Require the same validation when updating
-// accounts through query helpers as when creating/saving documents.
+/* Staff-only ang login accounts. Kailangan din ng parehong validation kapag
+nag-update ng accounts through query helpers, kagaya ng pag-create/save ng
+documents. */
 for (const operation of ['updateOne', 'updateMany', 'findOneAndUpdate', 'replaceOne', 'findOneAndReplace']) {
   userSchema.pre(operation, function () {
     this.setOptions({ runValidators: true });

@@ -24,9 +24,9 @@ const getMemberLedger = async (req, res) => {
     // Get total count for pagination
     const total = await Ledger.countDocuments({ memberId });
 
-    // Listed in posting order, matching how the running `balance` column was
-    // computed — sorting a statement by the editable transactionDate would show
-    // the balance column jumping around. See utils/ledgerBalance.
+    /* Naka-sort ito sa posting order, kasunod kung paano nacompute yung running `balance`
+    column - kung isosort natin yung statement base sa editable transactionDate, lalabas na
+    parang tumatalbog-talbog yung balance column. Check utils/ledgerBalance. */
     const ledgerEntries = await Ledger.find({ memberId })
       .sort(LATEST_FIRST)
       .skip(skip)
@@ -39,9 +39,9 @@ const getMemberLedger = async (req, res) => {
     const totalCredits = allEntries.reduce((sum, entry) => sum + entry.credit, 0);
     const totalDebits = allEntries.reduce((sum, entry) => sum + entry.debit, 0);
 
-    // Format ledger entries for consistency with frontend expectations.
-    // createdAt (full timestamp) is included alongside date (day-only) so
-    // the client can break same-day ties by true recency too.
+    /* I-format yung ledger entries para consistent sa inaasahan ng frontend. Kasama yung
+    createdAt (full timestamp) kasabay ng date (day-only) para ma-break ng client yung
+    same-day ties base sa totoong recency. */
     const paymentReferences = await resolveLedgerPaymentReferences(ledgerEntries, { Contribution, PaymentImport });
     const formattedEntries = ledgerEntries.map(entry => ({
       id: entry.ledgerId,
@@ -96,8 +96,8 @@ const getAllLedger = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    // Format for frontend. createdAt (full timestamp) is included alongside
-    // date (day-only) so the client can break same-day ties by true recency.
+    /* I-format para sa frontend. Kasama yung createdAt (full timestamp) kasabay ng date
+    (day-only) para ma-break ng client yung same-day ties base sa totoong recency. */
     const paymentReferences = await resolveLedgerPaymentReferences(ledgerEntries, { Contribution, PaymentImport });
     const formattedEntries = ledgerEntries.map(entry => ({
       id: entry.ledgerId,
@@ -133,9 +133,9 @@ const getMemberBalance = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // Need the full latest row, not just the balance number, so this reads
-    // lastUpdated off it too — getLatestBalance (used elsewhere in this
-    // file) only returns the balance.
+    /* Kailangan dito yung buong latest row, hindi lang yung balance number, kasi kinukuha
+    rito yung lastUpdated galing dun - si getLatestBalance (ginagamit sa ibang parte ng file
+    na ito) balance lang yung ibinabalik. */
     const latestLedger = await Ledger.findOne({ memberId }).sort(LATEST_FIRST);
 
     res.status(200).json({
@@ -161,16 +161,15 @@ const bulkUploadLedger = async (req, res) => {
     } catch (error) {
       return res.status(400).json({ success: false, message: error.message });
     }
-    // Check every row before writing anything, including on import: the data
-    // may have changed since the user requested a preview.
-    //
-    // This used to be 2-3 sequential DB round trips PER ROW (member lookup,
-    // duplicate-entry lookup, duplicate-ledgerId lookup) — with the row cap
-    // below, a 1000-row file meant up to ~3000 queries just to validate.
-    // Fetching each of those once for the whole batch instead — keyed by the
-    // exact member IDs, dates, and ledgerIds this upload actually touches —
-    // turns it into 3 queries total regardless of row count, with the
-    // per-row logic working against in-memory lookups.
+    /* I-check muna lahat ng row bago magsulat ng kahit ano, kasama na kapag import: puwedeng
+    nagbago na yung data dahil baka may lumipas na oras mula nung na-preview ng user.
+
+    Dati, 2-3 sequential DB round trips ito PER ROW (member lookup, duplicate-entry lookup,
+    duplicate-ledgerId lookup) - kasama yung row cap sa baba, pag 1000-row file, aabot ng
+    ~3000 queries lang para ma-validate. Sa ngayon, isa lang na fetch per batch - base sa
+    eksaktong member IDs, dates, at ledgerIds na ginagamit ng upload na ito - kaya naging 3
+    queries na lang lahat-lahat kahit gaano karami ang rows, tapos yung per-row logic
+    nagagana na laban sa in-memory lookups. */
     const candidateRows = rows.filter(row => !row.errors.length);
     const memberIds = [...new Set(candidateRows.map(row => row.entry.memberId))];
     const members = memberIds.length ? await Member.find({ memberId: { $in: memberIds } }) : [];
@@ -210,20 +209,18 @@ const bulkUploadLedger = async (req, res) => {
       total: ledgerEntries.length
     };
 
-    // Every row reaching this point already passed the member-existence,
-    // duplicate-entry, and required-field checks above — and the
-    // summary.invalid gate just above returned early if any row failed them.
-    // Re-running those same checks per row here (as a second loop) could
-    // never actually catch anything; it was dead work left over from before
-    // the two loops were split out. The only real per-row cost left is the
-    // write itself, plus a running balance.
-    //
-    // Posting order, not the uploaded transactionDate: a bulk file may carry
-    // back-dated or future-dated rows, and the running balance has to follow
-    // the order rows are actually written. One batched lookup seeds each
-    // member's starting balance (0 if they have no prior rows, same fallback
-    // getLatestBalance uses); an in-memory running total carries it forward
-    // across multiple rows for the same member in this upload.
+    /* Lahat ng row na nakarating dito ay pumasa na sa member-existence, duplicate-entry, at
+    required-field checks sa itaas - at yung summary.invalid gate sa taas ay agad nang bumalik
+    kapag may fail sa mga yun. Kung ulitin pa yung parehong checks per row dito (bilang second
+    loop), wala talagang mahuhuli pa; dead work na lang ito mula nung hiniwalay yung dalawang
+    loop. Yung natitirang totoong cost per row ay yung write mismo, plus running balance.
+
+    Posting order ang ginamit, hindi yung uploaded transactionDate: puwedeng may back-dated o
+    future-dated rows sa bulk file, at kailangang sundin ng running balance yung order kung
+    saan talagang na-write yung rows. Isang batched lookup ang nagse-seed ng starting balance
+    ng kada member (0 kapag walang prior rows, same fallback na ginagamit ng
+    getLatestBalance); tapos in-memory running total na ang nagdadala nito pasulong kahit
+    maraming rows ng same member sa upload na ito. */
     const balances = await getLatestBalancesByMember(memberIds);
 
     for (const [index, entry] of ledgerEntries.entries()) {

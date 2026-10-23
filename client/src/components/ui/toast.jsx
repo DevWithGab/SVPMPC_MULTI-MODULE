@@ -5,8 +5,8 @@ const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Mount hidden, then flip to visible on the next frame so the
-    // opacity/translate transition actually animates in.
+    /* Mount muna as hidden, then flip to visible sa next frame para
+    yung opacity/translate transition ay actually mag-animate in. */
     const enterFrame = requestAnimationFrame(() => setIsVisible(true));
 
     const timer = setTimeout(() => {

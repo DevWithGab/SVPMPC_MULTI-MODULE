@@ -32,24 +32,27 @@ const getMemberDisplayName = (record) =>
       "Unknown member",
   );
 
-// event.status is only as fresh as the last events fetch (see EVENT_REFRESH_MS
-// below) and the server's own background sweep, which flips a finished
-// event's stored status to "closed" on up to a 60-second delay — so trusting
-// it alone can keep showing "Active event" for a couple of minutes after an
-// event's actual end time. canScanEvent re-derives openness from the event's
-// own schedule against the current clock (the same check gating whether a
-// scan is actually accepted), so this list closes exactly on time regardless
-// of how stale the persisted status is.
+/* Ang event.status ay bago lang kasing-bago ng huling events fetch (tignan
+ang EVENT_REFRESH_MS sa baba) at ng sariling background sweep ng server, na
+nagpapalit ng stored status ng tapos na event papuntang "closed" na may
+delay na up to 60 seconds - kaya kung iyon lang ang paniniwalaan, pwedeng
+magpakita pa ng "Active event" kahit ilang minuto na pasado ang actual end
+time ng event. Yung canScanEvent ang nagre-rederive ng openness base sa
+sariling schedule ng event laban sa current clock (parehong check na
+ginagamit kung tatanggapin talaga ang scan), kaya tama ang oras ng
+pagsara ng list na ito kahit gaano pa katagal ang stale ng persisted
+status. */
 const resolveActiveEvent = (events, preferredKey, now = Date.now()) => {
   const active = events.filter(event => canScanEvent(event, now));
   return active.find(event => String(getEventKey(event)) === preferredKey) || active[0] || null;
 };
 
-/*Tracks who has actually checked in to the active event — not a full
-member roster with synthesized "Absent" rows for everyone who hasn't
-scanned yet. A present/absent breakdown against the whole membership
-belongs on the event's own report (see EventAttendeesPanel), not here;
-this is purely a live feed of real check-ins as they happen.*/
+/* Tinatrack dito yung mga totoong naka-check-in na sa active event - hindi
+full member roster na may synthesized "Absent" rows para sa lahat na
+hindi pa nag-scan. Yung present/absent breakdown laban sa buong membership
+ay nasa sariling report ng event (tignan sa EventAttendeesPanel), hindi
+dito; ito ay purong live feed lang ng totoong check-ins habang
+nangyayari. */
 export default function LiveAttendanceList({
   attendanceLogs: propAttendanceLogs = EMPTY_RECORDS,
   initialLogs = EMPTY_RECORDS,
@@ -70,11 +73,12 @@ export default function LiveAttendanceList({
   const [selectedBarangay, setSelectedBarangay] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
-  // Ticks alongside the AUTO_REFRESH_MS interval below purely so activeEvent
-  // (further down) re-evaluates against a fresh clock even between actual
-  // event refetches (which only happen at most every EVENT_REFRESH_MS) —
-  // otherwise an event sitting past its exact end time would keep showing as
-  // active until the next refetch happened to land afterward.
+  /* Tumitick ito kasabay ng AUTO_REFRESH_MS interval sa baba, para lang
+  mare-evaluate ulit ang activeEvent (sa baba) laban sa fresh clock kahit
+  sa pagitan ng mga totoong event refetches (na nangyayari lang kahit
+  pinakamadalas every EVENT_REFRESH_MS) - kung hindi, isang event na lagpas
+  na sa exact end time niya ay magpapatuloy ipakita bilang active hanggang
+  sa susunod na refetch na tumama pagkatapos nito. */
   const [now, setNow] = useState(Date.now);
   const isRefreshingRef = useRef(false);
   const queuedRefreshRef = useRef(null);
@@ -103,8 +107,9 @@ export default function LiveAttendanceList({
 
   const handleRefresh = useCallback(async ({ background = false, refreshEvents = false } = {}) => {
     if (isRefreshingRef.current) {
-      // A scan arriving during an existing request must get a follow-up,
-      // rather than being lost or starting an overlapping/stale request.
+      /* Kapag may scan na dumating habang may existing request pa, kailangan
+      nito ng follow-up, imbes na mawala o magsimula ng overlapping/stale
+      request. */
       queuedRefreshRef.current = {
         background: background && (queuedRefreshRef.current?.background ?? true),
         refreshEvents: refreshEvents || Boolean(queuedRefreshRef.current?.refreshEvents),
@@ -132,18 +137,21 @@ export default function LiveAttendanceList({
         queuedRefreshRef.current = { background: true, refreshEvents: true };
         return;
       }
-      // Commit only complete successful results. A failed later page must
-      // not replace the last good list with partial or empty attendance.
+      /* Commit lang kapag complete at successful ang results. Isang failed
+      na susunod na page ay hindi dapat palitan ang huling magandang list ng
+      partial o walang laman na attendance. */
       setEvents(freshEvents);
-      // New scans can shift page boundaries while a multi-page fetch is in
-      // progress. A member must still appear only once for this event.
+      /* Pwedeng lumipat ang page boundaries habang on-going pa ang
+      multi-page fetch dahil sa mga bagong scan. Isang member ay dapat
+      lumitaw lang isang beses para sa event na ito. */
       const uniqueRecords = new Map(records.map(record => [getAttendanceKey(record), record]));
       setAttendanceLogs([...uniqueRecords.values()]);
       setError("");
       setLastRefreshedAt(new Date());
       hasLoadedRef.current = true;
-      // Parent reloads can include every member and every event. Keep those
-      // on explicit Refresh, not on each background attendance update.
+      /* Pwedeng isama ng parent reloads ang lahat ng member at lahat ng
+      event. I-keep lang ito sa explicit Refresh, hindi sa bawat background
+      attendance update. */
       if (!background && typeof optionsRef.current.onRefresh === "function") {
         Promise.resolve().then(() => optionsRef.current.onRefresh?.())
           .catch(refreshError => console.error("Error refreshing parent attendance:", refreshError));
@@ -182,8 +190,9 @@ export default function LiveAttendanceList({
         refreshRef.current?.({ background: true, refreshEvents });
       }
     };
-    // Also drives activeEvent's re-evaluation below (via setNow), piggybacked
-    // on this existing interval rather than running a second timer.
+    /* Dito din idinudrive ang re-evaluation ng activeEvent (via setNow),
+    sumasabay lang sa existing interval na ito imbes na magpatakbo ng
+    pangalawang timer. */
     const tick = () => {
       setNow(Date.now());
       refreshVisible();
@@ -193,8 +202,9 @@ export default function LiveAttendanceList({
     const onStorage = event => {
       if (event.key === ATTENDANCE_UPDATED_KEY) refreshVisible();
     };
-    // This timer is independent of changing parent props, so renders cannot
-    // continually reset the interval and postpone the next update.
+    /* Ang timer na ito ay independent sa pagbabago ng parent props, kaya
+    hindi maaapektuhan ng renders ang interval o maantala ang susunod na
+    update. */
     const interval = setInterval(tick, AUTO_REFRESH_MS);
     window.addEventListener('focus', onReturn);
     window.addEventListener('online', onReturn);

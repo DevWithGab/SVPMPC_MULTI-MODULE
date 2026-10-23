@@ -11,8 +11,8 @@ const adminRoutes = require('./adminRoutes');
 router.use('/treasurer', treasurerRoutes);
 router.use('/admin', adminRoutes);
 
-// Legacy routes for backward compatibility (if needed)
-// These can be removed once frontend is fully updated
+/* Legacy routes lang ito para sa backward compatibility (kung kailangan) -
+puwede na itong tanggalin pag fully updated na ang frontend. */
 const dashboardController = require('../controllers/dashboardController');
 const contributionController = require('../controllers/contributionController');
 const ledgerController = require('../controllers/ledgerController');

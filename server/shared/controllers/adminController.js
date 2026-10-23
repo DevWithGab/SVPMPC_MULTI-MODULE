@@ -3,10 +3,10 @@ const Beneficiary = require('../../modules/mortuary/models/Beneficiary');
 const { v4: uuidv4 } = require('uuid');
 const { safeErrorMessage } = require('../../middleware/errorHandler');
 
-// PH mobile numbers: 11 digits, starting with 09 (e.g. 09171234567). Mirrors
-// the client's utils/validation.js and beneficiaryController.js — the
-// client-side check alone isn't real enforcement since this endpoint can be
-// called directly.
+/* PH mobile numbers: 11 digits, nagsisimula sa 09 (e.g. 09171234567). Mirrors
+yung client's utils/validation.js at beneficiaryController.js - hindi sapat
+yung client-side check lang bilang real enforcement dahil puwede namang
+direktang tawagin ang endpoint na ito. */
 const PH_PHONE_REGEX = /^09\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const normalizeContact = value => typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim();
@@ -16,14 +16,14 @@ const contactError = (email, phoneNumber) => {
   return '';
 };
 
-// Auto-registers a structured Beneficiary record at member-creation time.
-// The Beneficiary model requires a contact number that member-creation forms
-// didn't previously collect, so this only fires when one is actually
-// supplied — otherwise the member still gets the free-text
-// beneficiaries/beneficiaryRelationship fields as before, and shows "Not
-// Registered" in the admin Beneficiaries screen until completed manually
-// there. Never throws: a beneficiary-registration problem must not roll
-// back an otherwise-successful member creation.
+/* Auto-register ng structured Beneficiary record pag member-creation time.
+Required ng Beneficiary model yung contact number na dati hindi kinukolekta
+ng member-creation forms, kaya mag-fire lang ito kapag may binigay talaga -
+kung wala, makukuha pa rin ng member yung free-text
+beneficiaries/beneficiaryRelationship fields gaya ng dati, at ipapakita yung
+"Not Registered" sa admin Beneficiaries screen hanggang hindi nacomplete
+manually dun. Hindi ito nagthrow: hindi dapat maapektuhan ng problema sa
+beneficiary-registration yung successful na member creation. */
 const maybeRegisterBeneficiary = async ({ memberId, memberName, beneficiaryName, relationship, contactNumber, address }) => {
   if (!beneficiaryName || !relationship || !contactNumber) return null;
   const trimmedContact = String(contactNumber).trim();
@@ -132,11 +132,11 @@ const createMember = async (req, res) => {
       if (error.keyPattern?.memberId || error.keyValue?.memberId) {
         return res.status(400).json({ message: 'Passbook No. already exists' });
       }
-      // The findOne check above is a friendly first pass, not the real
-      // guard — two concurrent requests for the same email can both pass it
-      // before either saves. Member.email's partial unique index is what
-      // actually stops the second one; this just turns that into the same
-      // clean message instead of a raw 500.
+      /* Yung findOne check sa taas ay friendly first pass lang, hindi yun
+      ang real guard - puwedeng pumasa yung dalawang concurrent requests para
+      sa parehong email bago man magsave ang isa. Yung Member.email's partial
+      unique index ang talagang humihinto sa pangalawa; ito lang
+      ginagawang parehong clean message imbes na raw 500. */
       if (error.keyPattern?.email || error.keyValue?.email) {
         return res.status(400).json({ message: 'Email already exists' });
       }
@@ -230,10 +230,11 @@ const bulkCreateMembers = async (req, res) => {
         });
       } catch (error) {
         console.error(`❌ Error processing ${memberData.email}:`, error.message);
-        // Same findOne-isn't-the-real-guard situation as createMember above
-        // — two rows (in this upload or a concurrent one) racing on the same
-        // email both pass the check above before either saves; the partial
-        // unique index on Member.email is what actually catches the loser.
+        /* Parehong findOne-isn't-the-real-guard situation gaya ng createMember
+        sa taas - dalawang rows (sa upload na ito o sa concurrent one) na
+        nagrarace sa parehong email, pumapasa pareho sa check sa taas bago
+        man magsave ang isa; yung partial unique index sa Member.email ang
+        talagang huhuli sa loser. */
         let reason = error.message;
         if (error.code === 11000) {
           if (error.keyPattern?.memberId || error.keyValue?.memberId) reason = 'Passbook No. already exists';
@@ -278,14 +279,14 @@ const getAllMembers = async (req, res) => {
     }
 
     if (search) {
-      // Member.js's text index (member_search_text) — whole-token match
-      // across memberName/memberId/email/phoneNumber/address/beneficiaries,
-      // replacing an unanchored $regex $or that was a full collection scan
-      // regardless of the single-field indexes on this model (confirmed via
-      // explain(): COLLSCAN, 10,000 docs examined to return 20 at 10k
-      // members). Matches whole tokens, not substrings — "mar" no longer
-      // matches "Maria"; a partial memberId/phone fragment no longer
-      // matches either.
+      /* Gamit yung Member.js's text index (member_search_text) - whole-token
+      match sa buong memberName/memberId/email/phoneNumber/address/beneficiaries,
+      kapalit ng unanchored $regex $or na full collection scan dati kahit may
+      single-field indexes na yung model na ito (nakumpirma via explain():
+      COLLSCAN, 10,000 docs na-examine para makabalik ng 20 sa 10k members).
+      Whole tokens lang ang tugma, hindi substrings - hindi na matugma ng
+      "mar" yung "Maria"; hindi na rin matutugma yung partial memberId/phone
+      fragment. */
       query.$text = { $search: search };
     }
 
@@ -313,13 +314,13 @@ const getAllMembers = async (req, res) => {
   }
 };
 
-// Fields an Admin editing a member record may actually change. Anything else
-// in the request body — qrCode/qrCodeUrl/qrCodeGenerated/qrCodeActive (owned
-// exclusively by the generate/regenerate/deactivate/reactivate endpoints in
-// memberController.js, which apply their own rules, e.g. refusing QR changes
-// for a deceased member), Mongoose internals like _id/__v/createdAt, or any
-// other schema field — is silently dropped instead of being passed straight
-// into the update.
+/* Yung fields na puwedeng baguhin ng Admin kapag nag-edit ng member record.
+Kung ano pa man sa request body - qrCode/qrCodeUrl/qrCodeGenerated/qrCodeActive
+(exclusive na pag-aari ng generate/regenerate/deactivate/reactivate endpoints
+sa memberController.js, na may sariling rules, e.g. tumatanggi ng QR changes
+para sa deceased member), Mongoose internals gaya ng _id/__v/createdAt, o
+kahit anong ibang schema field - tahimik na dinrop imbes na direktang
+ipasa sa update. */
 const MEMBER_UPDATE_FIELDS = [
   'memberName',
   'email',

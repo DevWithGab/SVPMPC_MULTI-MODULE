@@ -25,14 +25,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 errors by clearing the invalid session and sending the user
-// back to login — matching services/attendance/secretary.js's own interceptor
-// (the only other service module still in use; see its own axios instance).
-// Without the redirect, a missing/expired token left the portal silently
-// half-working: read-only screens kept rendering (several still go through
-// legacy unauthenticated endpoints) while every authenticated action, like
-// Approve/Reject, failed with a bare "Access token required" and no
-// indication that the fix was simply to log back in.
+/* Hinahandle dito yung 401 errors by clearing yung invalid session at
+pinapabalik yung user sa login - tugma sa interceptor ng
+services/attendance/secretary.js (yun lang yung ibang service module na
+ginagamit pa; tignan yung sariling axios instance nito). Kung walang
+redirect, yung missing/expired token iniiwan yung portal na half-working
+lang: nagrender pa rin yung read-only screens (ilan pa rin dumadaan sa
+legacy unauthenticated endpoints) pero yung bawat authenticated action,
+tulad ng Approve/Reject, nagfail lang ng bare "Access token required" na
+walang indication na ang ayos lang pala ay mag-login ulit. */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -125,15 +126,14 @@ export const bulkImportAPI = {
 // ============================================
 // ATTENDANCE - MEMBER API
 // ============================================
-// ATTENDANCE - MEMBER API
-// ============================================
 export const memberAPI = {
-  // The server now caps /attendance/members at 100 per request (it used to
-  // return the entire, ever-growing collection in one unbounded query) — every
-  // screen here still wants the full roster for client-side search/filter, so
-  // this pages through the capped endpoint and concatenates. Callers keep
-  // seeing the same { count, members } shape as before; nothing downstream
-  // needs to change.
+  /* Ngayon may cap na sa /attendance/members na 100 per request yung server
+  (dati buong, lumalaking collection lang talaga binabalik nito sa isang
+  unbounded query) - gusto pa rin ng bawat screen dito yung full roster
+  para sa client-side search/filter, kaya pinaged through dito yung capped
+  endpoint at pinagsama-sama. Nakikita pa rin ng callers yung parehong
+  { count, members } shape gaya ng dati; walang kailangan baguhin sa
+  downstream. */
   getAllMembers: async () => {
     let page = 1;
     let members = [];
@@ -176,10 +176,10 @@ export const memberAPI = {
     return response.data;
   },
 
-  // Admin-only, authenticated (/attendance/admin/members/...) — the single-
-  // member QR lifecycle actions. Kept as separate functions rather than
-  // repointing the calls above, since getAllMembers/generateQRCodes above
-  // are shared by Secretary and Scanner screens that don't have admin auth.
+  /* Admin-only, authenticated (/attendance/admin/members/...) - ito yung
+  single-member QR lifecycle actions. Iniwan na separate functions imbes
+  na baguhin yung calls sa taas, kasi yung getAllMembers/generateQRCodes
+  sa taas ay shared ng Secretary at Scanner screens na walang admin auth. */
   generateMemberQR: async (memberId) => {
     const response = await api.post('/attendance/admin/members/generate-qr', {
       memberIds: [memberId],
@@ -213,10 +213,10 @@ export const memberAPI = {
   },
 };
 
-// qrCodeUrl comes back as a server-relative path (e.g. "/uploads/qrcodes/x.png")
-// since it's a static file, not an API route — resolve it against the API's
-// origin (not the Vite dev origin the app itself is served from) for <img>,
-// download, and print.
+/* Babalik yung qrCodeUrl bilang server-relative path (hal. "/uploads/qrcodes/x.png")
+dahil static file ito, hindi API route - resolve ito against yung origin
+ng API (hindi yung Vite dev origin kung saan naka-serve yung app mismo)
+para sa <img>, download, at print. */
 export const resolveQrAssetUrl = (qrCodeUrl) => {
   if (!qrCodeUrl) return null;
   if (/^https?:\/\//i.test(qrCodeUrl)) return qrCodeUrl;
@@ -247,16 +247,17 @@ export const memberPortalAPI = {
 // ATTENDANCE - EVENT API
 // ============================================
 
-// GET /attendance/events returns the shared paginated-list shape
-// { success, data: [...events], pagination } (server/shared/utils/pagination.js),
-// but nearly every caller of getAllEvents()/getEvents() below was written
-// against an older { events: [...] } shape and reads response.events. That
-// mismatch meant response.events was always undefined, so every one of
-// those screens silently fell back to an empty list — most visibly, a
-// freshly-created event vanishing the instant any other part of the app
-// (e.g. useAttendance's refreshData) re-fetched with the same broken check.
-// Normalizing once here, alongside the raw fields, keeps every existing
-// `response.events` read working without having to touch each call site.
+/* Yung GET /attendance/events ay nagbabalik ng shared paginated-list shape
+{ success, data: [...events], pagination } (server/shared/utils/pagination.js),
+pero halos lahat ng caller ng getAllEvents()/getEvents() sa baba ay ginawa
+noong panahon ng lumang { events: [...] } shape at binabasa yung
+response.events. Dahil sa mismatch, laging undefined yung response.events,
+kaya yung bawat isa sa mga screens na ito ay tahimik na nagbabalik sa
+empty list - pinaka-kitang-kita, nawawala agad yung bagong-create na event
+sa sandaling mag-re-fetch ulit yung ibang parte ng app (hal. refreshData
+ng useAttendance) gamit yung parehong sirang check. Dito na lang i-normalize
+nang isang beses, kasama yung raw fields, para gumana pa rin yung bawat
+existing `response.events` read kahit hindi na galawin yung bawat call site. */
 const normalizeEventsResponse = (payload) => {
   const events = Array.isArray(payload)
     ? payload
@@ -295,17 +296,18 @@ export const eventAPI = {
     return response.data;
   },
 
-  // Admin-only, and unlike updateEvent above works regardless of the
-  // event's status (including closed/time-exceeded) — the server allows
-  // this specifically for requests authenticated as 'admin' via this route.
+  /* Admin-only, at kabaligtaran ng updateEvent sa taas gumagana ito kahit
+  anuman yung status ng event (kasama yung closed/time-exceeded) -
+  pinapayagan ito ng server specifically para sa requests na authenticated
+  bilang 'admin' sa route na ito. */
   updateEventAsAdmin: async (eventId, eventData) => {
     const response = await api.put(`/attendance/admin/events/${eventId}`, eventData);
     return response.data;
   },
 
-  // Admin-only, and only once an event is Closed — the server enforces both
-  // (auth + status), this just targets the authenticated admin route rather
-  // than the unauthenticated legacy one.
+  /* Admin-only, at pag Closed na lang yung event - ang server ang nag-enforce
+  sa dalawa (auth + status), ito lang yung tumuturo sa authenticated admin
+  route imbes sa unauthenticated legacy na isa. */
   deleteEvent: async (eventId) => {
     const response = await api.delete(`/attendance/admin/events/${eventId}`);
     return response.data;
@@ -337,14 +339,16 @@ export const eventAPI = {
 // ATTENDANCE - ATTENDANCE RECORDS API
 // ============================================
 
-// Same mismatch as normalizeEventsResponse above: GET /attendance returns
-// the shared paginated-list shape { success, data: [...records], pagination },
-// but most callers of getAllAttendance() below were written against an
-// older { attendance: [...] } shape and read response.attendance — which is
-// always undefined, so every one of those screens (including the Scanner
-// Portal's Live Attendance tab, via useAttendance.js) silently saw an empty
-// list and every member showed as permanently "Absent" no matter how many
-// scans actually succeeded. Normalizing once here fixes every consumer.
+/* Parehong mismatch gaya ng normalizeEventsResponse sa taas: nagbabalik yung
+GET /attendance ng shared paginated-list shape { success, data: [...records], pagination },
+pero halos lahat ng caller ng getAllAttendance() sa baba ay ginawa noong
+panahon ng lumang { attendance: [...] } shape at binabasa yung
+response.attendance - na laging undefined, kaya yung bawat isa sa mga
+screens na ito (kasama yung Live Attendance tab ng Scanner Portal, via
+useAttendance.js) ay tahimik na nakikita ang empty list at permanenteng
+"Absent" yung bawat member kahit gaano karaming scans ang nagtagumpay.
+Dito na lang i-normalize nang isang beses para maayos yung lahat ng
+consumer. */
 const normalizeAttendanceResponse = (payload) => {
   const attendance = Array.isArray(payload)
     ? payload
@@ -373,10 +377,11 @@ export const attendanceAPI = {
     return response.data;
   },
 
-  // params supports { page, limit } — same paginated-list shape as
-  // getAllAttendance, capped at 100 rows per page server-side, so callers
-  // that need every record for the event should page through it (see
-  // LiveAttendanceList's fetchEventAttendance for the loop).
+  /* Suportado ng params yung { page, limit } - parehong paginated-list shape
+  gaya ng getAllAttendance, capped sa 100 rows per page server-side, kaya
+  yung callers na kailangan ng bawat record para sa event ay dapat
+  mag-page through dito (tignan yung fetchEventAttendance ng
+  LiveAttendanceList para sa loop). */
   getAttendanceByEvent: async (eventId, params = {}) => {
     const response = await api.get(`/attendance/attendance/event/${eventId}`, { params });
     return normalizeAttendanceResponse(response.data);
@@ -395,8 +400,9 @@ export const attendanceAPI = {
     return response.data;
   },
 
-  // params supports { page, limit, scannedBy } — same paginated-list shape
-  // as getAttendanceByEvent, capped at 100 rows per page server-side.
+  /* Suportado ng params yung { page, limit, scannedBy } - parehong
+  paginated-list shape gaya ng getAttendanceByEvent, capped sa 100 rows
+  per page server-side. */
   getAllAttendance: async (params = {}) => {
     const response = await api.get('/attendance/attendance', { params });
     return normalizeAttendanceResponse(response.data);
@@ -774,18 +780,23 @@ export const treasurerAPI = {
     return response.data;
   },
 
+<<<<<<< Updated upstream
   // Balance reminders use printed/PDF notices; SMS APIs have been removed.
+=======
+  /* Notifications (Removed - Now Automated via Threshold System). Tinanggal
+  na yung manual notification methods. */
+>>>>>>> Stashed changes
 
-  // Every claim regardless of status — used by the Reports screen (Claims
-  // Report / Deductions & Payouts), which needs the full list rather than
-  // one lifecycle stage at a time like the methods below.
+  /* Lahat ng claim kahit anong status - ginagamit ng Reports screen (Claims
+  Report / Deductions & Payouts), na kailangan ng full list imbes isang
+  lifecycle stage sa isang pagkakataon lang gaya ng mga method sa baba. */
   getAllClaims: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims', { params });
     return response.data;
   },
 
-  // Claims processing — a claim sitting in "pending_deduction" is itself
-  // the notification (no separate notification model exists).
+  /* Claims processing - yung claim na nasa "pending_deduction" ay siya na
+  mismo yung notification (walang separate notification model). */
   getPendingDeductionClaims: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims/pending-deduction', { params });
     return response.data;
@@ -806,41 +817,43 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  // Read-only dry run — shown as the confirm-step preview before committing
-  // to a deduction (how many members, per-member amount, total collected).
-  // The per-member amount always comes from the Admin-set rate on the server;
-  // the Treasurer has no say in it, so nothing is passed in here.
+  /* Read-only dry run - ipinapakita bilang confirm-step preview bago
+  mag-commit sa deduction (ilang members, per-member amount, total
+  collected). Yung per-member amount ay laging galing sa Admin-set rate
+  sa server; walang say ang Treasurer dito, kaya walang ipinapasa dito. */
   previewClaimDeduction: async (claimId) => {
     const response = await api.get(`/mortuary/treasurer/claims/${claimId}/deduction-preview`);
     return response.data;
   },
 
-  // The active Admin-set deduction rate, read-only. Same underlying setting the
-  // Admin edits in Deduction Settings — surfaced here so the Treasurer's
-  // Process Deduction screen can display the rate it is about to charge.
+  /* Yung active Admin-set deduction rate, read-only. Parehong underlying
+  setting na in-edit ng Admin sa Deduction Settings - ipinapakita dito para
+  makita ng Process Deduction screen ng Treasurer yung rate na sisingilin. */
   getDeductionRate: async () => {
     const response = await api.get('/mortuary/treasurer/deduction-rate');
     return response.data;
   },
 
-  // The active Admin-set death benefit cap, read-only — same underlying
-  // setting the Admin edits in Fund Settings → Benefit Cap.
+  /* Yung active Admin-set death benefit cap, read-only - parehong underlying
+  setting na in-edit ng Admin sa Fund Settings -> Benefit Cap. */
   getBenefitCap: async () => {
     const response = await api.get('/mortuary/treasurer/benefit-cap');
     return response.data;
   },
 
-  // The active Admin-set balance notice thresholds, read-only — lets Member
-  // Ledger / Member Balances classify members (Notice 1/2/Final) the same
-  // way the Admin configured, without being able to change them here.
+  /* Yung active Admin-set balance notice thresholds, read-only - pinapayagan
+  ng Member Ledger / Member Balances na i-classify yung members (Notice
+  1/2/Final) sa parehong paraan na ikinonfigure ng Admin, pero hindi
+  mababago dito. */
   getNoticeThresholds: async () => {
     const response = await api.get('/mortuary/treasurer/notice-thresholds');
     return response.data;
   },
 
-  // Background PDF generation for a notice batch too large to comfortably
-  // build in the browser — starts the job (server responds immediately) and
-  // a separate status poll to check when the file is ready to download.
+  /* Background PDF generation para sa notice batch na masyadong laki para
+  komportableng buuin sa browser - sinisimulan yung job (agad sumasagot
+  yung server) at may separate status poll para tignan kung ready na
+  i-download yung file. */
   startNoticeBatch: async (level, barangay) => {
     const response = await api.post(`/mortuary/treasurer/notices/${level}/batch`, barangay ? { barangay } : {});
     return response.data;
@@ -851,10 +864,10 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  // The PDF itself is behind auth now (no more public /uploads/notice-batches/
-  // path) — fetch it through the authenticated client and hand back a blob
-  // URL the <a download> link can point to. Caller is responsible for
-  // URL.revokeObjectURL once it's no longer needed.
+  /* Yung PDF mismo ay naka-behind auth na ngayon (wala na yung public
+  /uploads/notice-batches/ path) - kukunin ito gamit yung authenticated
+  client at magbabalik ng blob URL na pwedeng itukoy ng <a download> link.
+  Responsibilidad ng caller yung URL.revokeObjectURL pag hindi na kailangan. */
   downloadNoticeBatchPdf: async (jobId) => {
     const response = await api.get(`/mortuary/treasurer/notices/batch/${jobId}/download`, { responseType: 'blob' });
     return URL.createObjectURL(response.data);
@@ -865,17 +878,17 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  // Claim Disbursement Report — every claim already released, for
-  // record-keeping (DV number, released by/when, amount).
+  /* Claim Disbursement Report - lahat ng claim na na-release na, para sa
+  record-keeping (DV number, released by/when, amount). */
   getDisbursementReport: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims/disbursement-report', { params });
     return response.data;
   },
 
-  // Claims Income Report — one row per claim that reached the deduction stage:
-  // collected from members, released to the beneficiary, retained as income.
-  // The response also carries `totals` across every matching claim (not just
-  // the page) and the active `maxBenefitAmount`.
+  /* Claims Income Report - isang row per claim na naabot na yung deduction
+  stage: collected from members, released to the beneficiary, retained as
+  income. May dala pa rin yung response ng `totals` across sa lahat ng
+  matching claim (hindi lang yung page) at yung active `maxBenefitAmount`. */
   getClaimIncomeReport: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims/income-report', { params });
     return response.data;
@@ -886,9 +899,10 @@ export const treasurerAPI = {
 // ATTENDANCE - DATABASE BACKUP/RESTORE API
 // ============================================
 export const backupAPI = {
-  // Admin-only (not super_admin — same stricter gate as the QR lifecycle
-  // actions). Accepts the same shape the "Complete System Backup" button
-  // downloads: { members, events, attendanceLogs }, any subset of the three.
+  /* Admin-only (hindi super_admin - parehong stricter gate gaya ng QR
+  lifecycle actions). Tinatanggap yung parehong shape na dina-download ng
+  "Complete System Backup" button: { members, events, attendanceLogs },
+  kahit anong subset ng tatlo. */
   restore: async (backupData) => {
     const response = await api.post('/attendance/admin/backup/restore', backupData);
     return response.data;
@@ -900,9 +914,9 @@ export const backupAPI = {
     return response.data;
   },
 
-  // Raw, unpaginated Ledger export for the "Complete System Backup" button —
-  // this is what actually carries every member's balance history, since
-  // Member itself has no balance field.
+  /* Raw, unpaginated Ledger export para sa "Complete System Backup" button -
+  ito talaga yung may dala ng balance history ng bawat member, dahil walang
+  balance field ang Member mismo. */
   getMortuaryLedgerExport: async () => {
     const response = await api.get('/mortuary/admin/backup/ledger');
     return response.data;

@@ -61,8 +61,8 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
           setCsv('');
           setFilename('');
           setSuccessMessage('Contributions imported successfully. You can choose another CSV file.');
-          // Remount to clear the native file input as well, allowing the
-          // same filename to be selected again for another upload.
+          /* Remount para ma-clear din yung native file input, para pwede ulit
+          mapili yung parehong filename sa susunod na upload. */
           setFilePickerVersion(version => version + 1);
         }
         // A screen refresh failure must not undo the successful form reset.

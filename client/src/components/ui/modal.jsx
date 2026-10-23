@@ -9,8 +9,9 @@ const Modal = ({ isOpen, onClose, title, children, className = '' }) => {
   const previouslyFocusedRef = useRef(null);
   const titleIdRef = useRef(`modal-title-${++modalIdCounter}`);
 
-  // Focus management: remember what had focus, move focus into the dialog
-  // on open, and give it back on close (user control & freedom).
+  /* Focus management: tatandaan kung ano yung may focus bago mag-open,
+  ililipat yung focus papunta sa dialog pag nabukas, at ibabalik pag
+  na-close (para sa user control & freedom). */
   useEffect(() => {
     if (!isOpen) return;
 

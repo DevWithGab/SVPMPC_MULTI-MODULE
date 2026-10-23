@@ -27,8 +27,8 @@ import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "../secretary/Dashboard.css";
 import "./AuditLogs.css";
 
-// Plain-language labels so the log reads as a story of what happened rather
-// than a dump of internal action codes and field names.
+/* Plain-language labels para yung log ay basahin na parang kwento ng nangyari,
+imbes na dump lang ng internal action codes at field names. */
 const ACTION_LABELS = {
   event_created: "Event Created",
   event_updated: "Event Updated",
@@ -142,9 +142,9 @@ const AuditLogs = () => {
   const handleExportPDF = async () => {
     if (!logs.length || exportingPdf) return;
     setExportingPdf(true);
-    // jsPDF table rendering runs synchronously on the main thread, so this
-    // yields one tick before it starts — otherwise the "Preparing…" state
-    // would never actually paint before the call blocks the browser.
+    /* Synchronous yung jsPDF table rendering sa main thread, kaya nagbigay muna
+    tayo ng isang tick bago ito magsimula - kung hindi, hindi talaga mapapaint
+    yung "Preparing…" state bago i-block ng call yung browser. */
     await new Promise((resolve) => setTimeout(resolve, 0));
     try {
       createAuditPdf({ rows: exportRows(), moduleName: 'Attendance', filters }).save(exportFilename('pdf'));

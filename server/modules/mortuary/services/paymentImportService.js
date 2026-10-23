@@ -43,8 +43,9 @@ function createPaymentImportService({ Member, Contribution, Ledger, PaymentImpor
       if (checked.errors.length) throw new Error(checked.errors.join('; '));
       if (checked.status === 'duplicate') return { ...checked, status: 'skipped' };
       const id = paymentId(row.entry);
-      // The reservation is immutable, so even retries after process restart use
-      // the original payment and actor. MongoDB's _id index enforces uniqueness.
+      /* Immutable yung reservation, kaya kahit mag-retry pa after process
+      restart, yung original payment at actor din pa rin ang gagamitin.
+      Yung _id index ng MongoDB ang nag-eenforce ng uniqueness. */
       let reservation;
       try {
         reservation = await PaymentImport.findOneAndUpdate(
@@ -68,8 +69,9 @@ function createPaymentImportService({ Member, Contribution, Ledger, PaymentImpor
           transactionDate: new Date(),
         } }, { upsert: true, new: true, runValidators: true });
       }
-      // Ledger first: if this write fails, re-uploading finishes the contribution
-      // record using the same IDs and leaves the existing credit untouched.
+      /* Ledger muna: kung mabigo ang write na ito, pag-re-upload ulit tatapusin
+      na lang yung contribution record gamit ang parehong IDs, hindi na
+      magagalaw yung existing credit. */
       await Contribution.updateOne({ contributionId: id }, { $setOnInsert: {
         contributionId: id, memberId: reservation.memberId, amount: reservation.amount,
         paymentDate: new Date(reservation.paymentDate), dueDate: new Date(reservation.paymentDate),

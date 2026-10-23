@@ -1,6 +1,6 @@
 /**
- * Pagination utility helper
- * Provides consistent pagination across all API endpoints
+ * Pagination utility helper - ginagamit para consistent yung pagination
+ * sa lahat ng API endpoints.
  */
 
 /**

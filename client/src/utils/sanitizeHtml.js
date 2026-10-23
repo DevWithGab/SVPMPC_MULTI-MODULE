@@ -1,22 +1,22 @@
 import DOMPurify from 'dompurify';
 
-// The notice-letter documents (Mortuary Admin → Notice Thresholds → Edit
-// Document) are admin-authored rich text, but still get rendered via
-// innerHTML/dangerouslySetInnerHTML/document.write in three places
-// (NoticeLetterEditorModal.jsx, balanceNotice.js's print flow) — a hand-rolled
-// regex sanitizer used to guard the save path, but regex can't reliably
-// parse HTML attribute syntax (confirmed bypasses: unquoted attribute values
-// like `onerror=alert(1)` and slash-separated ones like `<img/onerror=...>`
-// both slipped through). DOMPurify parses a real DOM and allowlists safe
-// tags/attributes instead of blocklisting dangerous syntax, so it isn't
-// fooled by how an attribute is written. Used at both the save path and
-// every render sink, since content stored before this fix (or written
-// directly via the API) must not be trusted just because it's already in
-// the database.
-//
-// DOMPurify's browser build self-initializes against the global `window`,
-// which the app always has. Running this file under plain Node (its own
-// test suite) needs that same global provided before this module loads —
-// see tests/setup-dom.mjs, preloaded via package.json's test script —
-// rather than branching on environment here.
+/* Yung notice-letter documents (Mortuary Admin → Notice Thresholds → Edit
+Document) ay admin-authored rich text, pero ni-render pa rin sila via
+innerHTML/dangerouslySetInnerHTML/document.write sa tatlong lugar
+(NoticeLetterEditorModal.jsx, balanceNotice.js's print flow) - dati gamit
+ng hand-rolled regex sanitizer sa save path, pero hindi reliable yung regex
+sa pag-parse ng HTML attribute syntax (confirmed bypasses: unquoted
+attribute values tulad ng `onerror=alert(1)` at slash-separated gaya ng
+`<img/onerror=...>`, dumadaan pa rin). DOMPurify kasi talagang nag-parse ng
+real DOM at allowlist lang yung safe tags/attributes imbes blocklist yung
+dangerous syntax, kaya hindi na siya nalolokohan kung paano nasulat yung
+attribute. Ginagamit ito sa save path at sa lahat ng render sink, kasi yung
+content na na-store bago pa ma-fix ito (o diretsong isinulat via API) ay
+hindi dapat basta trust-in kahit nasa database na siya. */
+
+/* Yung browser build ng DOMPurify ay self-initialize gamit yung global
+`window`, na laging meron naman yung app. Pero pag tumatakbo ito sa plain
+Node (yung sariling test suite), kailangan muna i-provide yung same global
+bago mag-load yung module - tignan sa tests/setup-dom.mjs, na preloaded via
+package.json's test script - imbes na mag-branch base sa environment dito. */
 export const sanitizeNoticeHtml = (html) => DOMPurify.sanitize(String(html || ''));

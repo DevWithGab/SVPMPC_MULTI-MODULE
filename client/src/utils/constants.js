@@ -1,11 +1,11 @@
 // App constants
 
-// Single source of truth for which staff roles exist and which modules each
-// can access. navigation.js, StaffAccounts.jsx and App.jsx each used to
-// maintain their own hand-written copy of this relationship (in two
-// different shapes, module->roles and role->modules) with nothing to catch
-// the three drifting apart — this is the one place to add, rename, or
-// re-scope a role or module now.
+/* Ito yung single source of truth kung anong staff roles meron at anong
+modules ang maaccess ng bawat isa. Dati, nagmemaintain ng sariling
+hand-written copy nito yung navigation.js, StaffAccounts.jsx, at App.jsx
+(sa dalawang ibang shape, module->roles at role->modules) na walang
+nakakaalam kung magkakaiba na sila - dito na lang idadagdag, ipapalit ang
+pangalan, o ire-scope yung role o module ngayon. */
 export const ROLE_MODULES = {
   admin: ['attendance', 'mortuary'],
   secretary: ['attendance'],
@@ -13,9 +13,10 @@ export const ROLE_MODULES = {
   treasurer: ['mortuary'],
 };
 
-// module -> roles that can access it, derived from ROLE_MODULES so the two
-// shapes never drift apart. (navigation.js's portalPath/readSession need
-// this direction; StaffAccounts.jsx's staff-creation form needs the other.)
+/* module -> roles na maaccess ito, derived mula sa ROLE_MODULES para hindi
+magkakaiba yung dalawang shape. (Kailangan ng portalPath/readSession ng
+navigation.js yung direction na ito; kailangan ng staff-creation form ng
+StaffAccounts.jsx yung iba.) */
 export const MODULE_ROLES = Object.entries(ROLE_MODULES).reduce((acc, [role, modules]) => {
   for (const module of modules) {
     (acc[module] ||= []).push(role);

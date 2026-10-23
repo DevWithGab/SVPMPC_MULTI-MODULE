@@ -1,5 +1,6 @@
-// Older CSV payments stored the internal import ID in referenceId. Resolve
-// their receipt for display without rewriting ledger history or its balances.
+/* Yung mga mas lumang CSV payments, nakasave sa referenceId ang internal
+import ID. Ire-resolve dito ang receipt nila para sa display nang hindi
+na-rewrite yung ledger history o mga balances nito. */
 async function resolveLedgerPaymentReferences(entries, { Contribution, PaymentImport }) {
   const legacy = entries.filter(entry => entry.transactionType === 'contribution' &&
     /^CSV-[a-f\d]{64}$/i.test(entry.ledgerId) && entry.referenceId === entry.ledgerId);
@@ -11,8 +12,9 @@ async function resolveLedgerPaymentReferences(entries, { Contribution, PaymentIm
     Contribution.find({ contributionId: { $in: ids } }).select('contributionId memberId referenceNumber').lean(),
   ]);
   const payments = new Map(contributions.map(payment => [payment.contributionId, payment]));
-  // The immutable reservation also covers imports interrupted before the
-  // contribution record was saved. Prefer its original receipt when present.
+  /* Sakop din ng immutable reservation yung mga imports na na-interrupt bago
+  pa ma-save ang contribution record. Piliin ang original receipt nito kung
+  available. */
   for (const reservation of reservations) payments.set(String(reservation._id), reservation);
   for (const entry of legacy) {
     const payment = payments.get(entry.ledgerId);

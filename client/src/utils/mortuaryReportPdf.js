@@ -33,8 +33,9 @@ export function loadReportLogo() {
   return logoPromise;
 }
 
-// Text and vector tables stay selectable and crisp when printed. PHP is used
-// explicitly because the built-in PDF fonts do not contain the peso glyph.
+/* Nananatiling selectable at crisp yung text at vector tables kapag
+na-print. Ginagamit yung PHP explicitly kasi walang peso glyph yung
+built-in PDF fonts. */
 export function createMortuaryReportPdf({ title, scope, sections, logo, generatedAt = new Date(), program = 'Mortuary Aid Fund Program', metadataLabel = 'CURRENCY', metadataValue = 'Philippine pesos (PHP)', template = 'ledger' }) {
   if (!logo) throw new Error('The cooperative logo is required for this report.');
   if (template === 'ledger') return createCooperativeReportPdf({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue });
@@ -47,8 +48,9 @@ export function createMortuaryReportPdf({ title, scope, sections, logo, generate
     timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
   }).format(generatedAt);
-  // Measure the front matter so longer titles and scope notes cannot collide
-  // with the first table. Continuation pages use a compact letterhead.
+  /* Sinusukat yung front matter para hindi mag-collide yung mas mahahabang
+  title at scope notes sa first table. Compact letterhead gamit yung
+  continuation pages. */
   doc.setFont('times', 'bold'); doc.setFontSize(23);
   const titleLines = doc.splitTextToSize(title, right - margin);
   const titleBottom = 49 + (titleLines.length - 1) * 9;

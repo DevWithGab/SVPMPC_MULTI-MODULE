@@ -5,9 +5,10 @@ const { DEFAULT_MAX_BENEFIT_AMOUNT } = require('../config/claimBenefit');
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// Get the currently active benefit cap. Auto-seeds a default row (matching
-// the value the hardcoded constant used before this settings screen
-// existed) on first call so no manual migration/seed script is needed.
+/* Kinukuha yung currently active benefit cap. Auto-seeds ng default row
+(tumutugma sa value na ginamit ng hardcoded constant bago pa magkaroon ng
+settings screen na ito) sa first call para hindi na kailangan ng manual
+migration/seed script. */
 const getCurrentCap = async (req, res) => {
   try {
     let current = await BenefitCapSetting.findOne({ status: 'active' });
@@ -55,9 +56,9 @@ const getCapHistory = async (req, res) => {
   }
 };
 
-// Update Benefit Cap — never overwrites, supersedes the current active row
-// and inserts a new one (board-approval-style versioning, same pattern as
-// DeductionSetting).
+/* Update Benefit Cap - hindi ito nag-overwrite, sino-supersede yung current
+active row at nagdadagdag ng bago (board-approval-style versioning, parehong
+pattern ng DeductionSetting). */
 const updateCap = async (req, res) => {
   try {
     const { amount, effectiveDate, description } = req.body;

@@ -6,12 +6,10 @@ import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadB
 import { treasurerAPI } from '../../../services/api';
 import './MemberBalances.css';
 
-// Above this, generating the batch PDF is handed off to a background server
-// job instead of built instantly in the browser — native text rendering is
-// fast enough that smaller batches still feel instant client-side (see
-// balanceNotice.js), but a very large run (hundreds to 1,000+) shouldn't tie
-// up the Treasurer's tab or risk a request timeout regardless of how fast
-// the per-page work is.
+/* Pag lagpas dito, server background job na ang gagawa ng batch PDF
+imbes na sa browser agad - mabilis naman kasi yung text rendering kaya
+ok lang sa maliliit na batch (tignan sa balanceNotice.js), pero pag sobrang
+dami (100s to 1000+), baka ma-stuck o mag-timeout yung tab ng Treasurer. */
 const LARGE_BATCH_THRESHOLD = 100;
 const BATCH_POLL_INTERVAL_MS = 4000;
 const noticeAlert = Swal.mixin({
@@ -24,14 +22,14 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
   const [downloadingLevel, setDownloadingLevel] = useState(null);
   const [noticeBarangay, setNoticeBarangay] = useState('All');
   const [readyDownload, setReadyDownload] = useState(null);
-  // { jobId, level } while a background batch is generating server-side;
-  // null otherwise. Distinct from downloadingLevel, which is only for the
-  // instant client-side path below the large-batch threshold.
+  /* { jobId, level } kapag may background batch na ginagawa sa server;
+  null kung wala. Iba ito sa downloadingLevel, na para lang sa instant
+  na client-side na paraan, yung bago pa umabot sa large-batch threshold. */
   const [batchJob, setBatchJob] = useState(null);
   const batchPollRef = useRef(null);
   const noticeActionInFlight = useRef(false);
 
-  // Notice scope covers all eligible members in the selected barangay.
+  // notice scope covers all eligible members in the selected barangay
   const noticeTargetMembers = useMemo(
     () => (noticeBarangay === 'All' ? members : members.filter((m) => getBarangay(m) === noticeBarangay)),
     [members, noticeBarangay]
@@ -46,7 +44,7 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
     3: `Below ${peso(thresholds.notice2Min)}`,
   };
 
-  // Count every eligible member in the selected barangay for each batch.
+  // count every eligible member in the selected barangay, per batch
   const noticeLevelCounts = useMemo(() => {
     const counts = { 1: 0, 2: 0, 3: 0 };
     noticeTargetMembers.forEach((m) => {
@@ -97,9 +95,15 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
     }
   };
 
+<<<<<<< Updated upstream
   // Starts the server-side background job for a batch too large to build
   // instantly in the browser. Polling (below) picks up the result.
   const handleBulkDownloadBackground = async (level) => {
+=======
+  /* Sisimulan yung background job sa server para sa batch na sobrang laki
+  para gawin agad sa browser. Yung polling sa baba ang kukuha ng resulta. */
+  const handleBulkDownloadBackground = async (level, count) => {
+>>>>>>> Stashed changes
     setDownloadingLevel(level);
     try {
       const response = await treasurerAPI.startNoticeBatch(level, noticeBarangay === 'All' ? undefined : noticeBarangay);
@@ -144,8 +148,9 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
     }
   };
 
-  // Polls the background job's status while one is running, downloading the
-  // finished PDF and clearing the job once it's ready (or reporting failure).
+  /* Chine-check paulit-ulit yung status ng background job habang tumatakbo,
+  dina-download yung tapos na PDF, tapos kinaclear yung job pag ready na
+  (o nire-report na nag-fail). */
   useEffect(() => {
     if (!batchJob) return undefined;
 
@@ -154,9 +159,9 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
         const status = await treasurerAPI.getNoticeBatchStatus(batchJob.jobId);
         if (status.status === 'completed') {
           clearInterval(batchPollRef.current);
-          // The PDF is behind auth now, so it has to be fetched through the
-          // authenticated client (not just resolved to a static URL) and
-          // turned into a blob URL the <a download> link can point to.
+          /* May auth na ngayon yung PDF, kaya kailangan kunin gamit yung
+          naka-login na client (hindi lang basta static URL) at gawing
+          blob URL para magamit ng <a download> link. */
           let url;
           try {
             url = await treasurerAPI.downloadNoticeBatchPdf(batchJob.jobId);
@@ -187,9 +192,9 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchJob?.jobId]);
 
-  // readyDownload.url is a blob: URL (see downloadNoticeBatchPdf) — release it
-  // once replaced by a newer one or on unmount, so the PDF's memory isn't
-  // held onto after the Treasurer is done with it.
+  /* blob: URL yung readyDownload.url (tignan sa downloadNoticeBatchPdf) -
+  i-release pag napalitan na ng bago o pag na-unmount na, para hindi
+  humawak ng memory yung PDF kahit tapos na gamitin ng Treasurer. */
   useEffect(() => {
     const url = readyDownload?.url;
     return () => {

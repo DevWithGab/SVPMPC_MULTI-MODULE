@@ -77,8 +77,8 @@ const authorizeModule = (module) => {
     // Check if user has access to the specific module
     const moduleAccess = {
       'mortuary': ['admin', 'treasurer'],
-      // Members no longer have self-service access to the attendance system —
-      // their QR codes are issued and used physically instead.
+      /* Wala na self-service access ang Members sa attendance system - yung
+      QR codes nila ay physically issued and used na lang. */
       'attendance': ['admin', 'secretary', 'scanner_operator']
     };
 
@@ -95,22 +95,22 @@ const authorizeModule = (module) => {
 
 // Middleware for specific role combinations
 const authorizeMortuaryRoles = authorizeRoles('admin', 'treasurer', 'super_admin');
-// Members no longer have self-service access to the attendance system —
-// their QR codes are issued and used physically instead.
+/* Wala na self-service access ang Members sa attendance system - yung
+QR codes nila ay physically issued and used na lang. */
 const authorizeAttendanceRoles = authorizeRoles('admin', 'secretary', 'scanner_operator', 'super_admin');
 const authorizeTreasurerOnly = authorizeRoles('treasurer', 'admin', 'super_admin');
 const authorizeSecretaryOnly = authorizeRoles('secretary', 'admin', 'super_admin');
-// super_admin is treated as admin-or-above everywhere authorizeAdminOnly is
-// used — the login gate (authController's expectedRole check) already lets
-// a super_admin account sign in through the "admin" login for any module
-// (allowedRolesByExpectedRole.admin = ['admin', 'super_admin']), and
-// 'super_admin' is a first-class staff role in the User schema. Without
-// 'super_admin' here, a super_admin landed in an Admin Portal by design
-// could load read-only screens (most reads go through more permissive or
-// legacy routes) but every admin-only write — approve/reject an event,
-// the new Member QR actions — silently 403'd with "Access denied.
-// Required roles: admin", even though they were exactly who the login
-// screen said could be there.
+/* Parang admin-or-above ang treatment ng super_admin saanman ginagamit ang
+authorizeAdminOnly - yung login gate (authController's expectedRole check)
+pumapayag na naman na mag-sign in ang super_admin account sa "admin" login
+para sa kahit anong module (allowedRolesByExpectedRole.admin = ['admin',
+'super_admin']), at 'super_admin' ay first-class staff role na sa User
+schema. Kung wala yung 'super_admin' dito, puwede ma-load ng super_admin na
+nakarating sa Admin Portal by design ang read-only screens (karamihan sa
+reads dumadaan sa mas permissive o legacy routes), pero every admin-only
+write - approve/reject ng event, yung bagong Member QR actions - tahimik
+na 403 na lang with "Access denied. Required roles: admin", kahit sila
+mismo yung sinabi ng login screen na puwedeng dumito. */
 const authorizeAdminOnly = authorizeRoles('admin', 'super_admin');
 
 module.exports = {

@@ -113,9 +113,9 @@ export default function AttendanceSecretaryPortal({
     return window.localStorage.getItem("secretarySidebarCollapsed") === "true";
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // The mobile nav drawer otherwise has no keyboard-reachable way to close
-  // without navigating — only the backdrop's onClick, which a keyboard-only
-  // user can't trigger.
+  /* Kung wala nito, yung mobile nav drawer ay walang keyboard-reachable
+  way para isara kung hindi mag-navigate - yung backdrop's onClick lang,
+  na hindi ma-trigger ng keyboard-only user. */
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     const onKeyDown = (e) => { if (e.key === 'Escape') setIsMobileMenuOpen(false); };

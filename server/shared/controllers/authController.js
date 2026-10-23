@@ -9,17 +9,17 @@ const login = async (req, res) => {
   try {
     const { username, password, expectedRole, module } = req.body;
 
-    // typeof check closes a real NoSQL operator-injection hole: without it,
-    // a crafted body like {"username":{"$ne":null},...} passes the !username
-    // truthiness check (a non-empty object is truthy) and turns the $or
-    // below into a real query operator, matching whichever user Mongo's
-    // query planner returns first instead of the one actually named.
-    // bcrypt.compare already throws on a non-string password, so this was
-    // never a full auth bypass today, but the filter itself was broken —
-    // confirmed live, {"$ne":null}/{"$gt":""} both matched a real user at
-    // the query level. Neither value is ever legitimately anything but a
-    // string, so rejecting the wrong type here is exactly as correct as
-    // rejecting a missing one.
+    /* Yung typeof check sinasara niya yung totoong NoSQL operator-injection hole:
+    kung wala nito, yung body na {"username":{"$ne":null},...} makaka-pasa sa
+    !username truthiness check (truthy yung non-empty object) at magiging
+    totoong query operator yung $or sa baba, so kung sino man yung user na
+    ibabalik ng Mongo's query planner first ang matatama, hindi yung talagang
+    tinukoy. Si bcrypt.compare naman throws na agad kung non-string yung
+    password, kaya hindi naman ito full auth bypass dati, pero sira talaga
+    yung filter mismo — confirmed live, yung {"$ne":null}/{"$gt":""} parehas
+    tumama sa totoong user sa query level. Wala namang legit na case kung saan
+    hindi string yung dalawang values na ito, kaya tama lang na i-reject din
+    yung mali ang type dito, kasing-tama ng pag-reject sa missing value. */
     if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ message: 'Username and password required' });
     }
@@ -43,8 +43,8 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Member self-service login has been retired — members are handled via
-    // physically-issued QR codes instead of portal access.
+    /* Retired na yung member self-service login - sa physically-issued
+    QR codes na lang nakikita yung mga member, hindi na sa portal access. */
     if (user.role === 'member') {
       return res.status(403).json({
         message: 'Member self-service login is no longer available. Please contact the cooperative office.',
@@ -69,10 +69,11 @@ const login = async (req, res) => {
       }
     }
 
-    // Module gate: the login screen's module choice (Attendance vs Mortuary)
-    // was previously never checked against the account, so e.g. an
-    // Attendance-only admin could sign in through the Mortuary admin login
-    // too. super_admin manages both modules by design and skips this check.
+    /* Module gate: yung module choice sa login screen (Attendance vs Mortuary)
+    dati hindi talaga nachecheck against sa account, kaya halimbawa yung
+    Attendance-only admin puwede pa rin makapasok sa Mortuary admin login.
+    Si super_admin by design naman nagmamanage ng both modules kaya sine-skip
+    niya yung check na ito. */
     if (module && user.role !== 'super_admin' && !user.modules?.includes(module)) {
       return res.status(403).json({
         message: `This account isn't registered for the ${module} system.`,

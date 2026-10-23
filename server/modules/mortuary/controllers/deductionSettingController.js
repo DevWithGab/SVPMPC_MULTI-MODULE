@@ -4,13 +4,14 @@ const { getPaginationParams, buildPaginatedResponse } = require('../../../shared
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// Default rate used to auto-seed the first DeductionSetting row, matching the
-// value the hardcoded DEDUCTION_AMOUNT constant in deductionController.js used
-// before this settings collection existed.
+/* Default rate na ginagamit para auto-seed yung first DeductionSetting row,
+tumutugma sa value na ginamit ng hardcoded DEDUCTION_AMOUNT constant sa
+deductionController.js bago pa magkaroon ng settings collection na ito. */
 const DEFAULT_DEDUCTION_AMOUNT = 25;
 
-// Get the currently active deduction rate. Auto-seeds a default row on first
-// call so no manual migration/seed script is needed to retire the old constant.
+/* Kinukuha yung currently active deduction rate. Auto-seeds ng default row
+sa first call para hindi na kailangan ng manual migration/seed script para
+i-retire yung lumang constant. */
 const getCurrentRate = async (req, res) => {
   try {
     let current = await DeductionSetting.findOne({ status: 'active' });
@@ -59,8 +60,9 @@ const getRateHistory = async (req, res) => {
   }
 };
 
-// Update Deduction Rate — never overwrites, supersedes the current active
-// row and inserts a new one (board-approval-style versioning).
+/* Update Deduction Rate - hindi ito nag-overwrite, sino-supersede yung
+current active row at nagdadagdag ng bago (board-approval-style
+versioning). */
 const updateRate = async (req, res) => {
   try {
     const { amount, effectiveDate, description } = req.body;

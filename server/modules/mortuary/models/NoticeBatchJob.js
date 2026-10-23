@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-// Tracks a background "generate every member's balance notice at one
-// threshold level as a single PDF" run — mirrors the shape of
-// server/shared/models/ImportOperation.js (the existing async-job pattern
-// in this codebase), scoped down to what a PDF-generation job needs.
+/* Ina-track dito ang background "generate every member's balance notice at one
+threshold level as a single PDF" run - mirror ito ng shape ng
+server/shared/models/ImportOperation.js (ang existing async-job pattern na nasa
+codebase na ito), pinaliit lang sa kailangan ng isang PDF-generation job. */
 const noticeBatchJobSchema = new mongoose.Schema(
   {
     jobId: {
@@ -16,8 +16,9 @@ const noticeBatchJobSchema = new mongoose.Schema(
       enum: [1, 2, 3],
       required: true,
     },
-    // Unset means "every barangay" — set when the Treasurer ran this batch
-    // scoped to one barangay from Member Balances' existing filter.
+    /* Ang unset ay nangangahulugang "every barangay" - naset kapag pinatakbo ng
+    Treasurer ang batch na ito scoped sa isang barangay galing sa existing filter ng
+    Member Balances. */
     barangay: {
       type: String,
       default: null,

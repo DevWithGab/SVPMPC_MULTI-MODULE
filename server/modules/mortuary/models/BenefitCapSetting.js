@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
-// Admin-configurable death-benefit cap (see config/claimBenefit.js for how
-// it's applied). Same versioned shape as DeductionSetting — "Update Cap"
-// never overwrites, it supersedes the current active row and inserts a new
-// one, so past claims' resolved payout/cap always matches what was in force
-// when they were released.
+/* Admin-configurable death-benefit cap ito (tingnan ang config/claimBenefit.js kung
+paano ito ina-apply). Parehong versioned shape ng DeductionSetting - hindi
+nag-overwrite ang "Update Cap", nagsupersede ito sa current active row at
+nag-insert ng bago, kaya tugma pa rin ang resolved payout/cap ng past claims sa
+kung ano talaga ang nasa force nung mga narelease sila. */
 const benefitCapSettingSchema = new mongoose.Schema(
   {
     settingId: {

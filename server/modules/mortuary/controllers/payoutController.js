@@ -3,19 +3,19 @@ const { Ledger } = require('../models');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const payoutController = {
-  // Get all payouts — both the legacy manual "Record Payout" ledger entries
-  // (transactionType 'payout') and the ones created when a death claim is
-  // actually released (transactionType 'claim_payout'). The Admin Dashboard's
-  // Fund Overview/Fund Summary total this list, so excluding claim_payout
-  // entries silently hid every real disbursement from those figures.
+  /* Kinukuha dito lahat ng payouts - kasama yung legacy manual "Record Payout" ledger
+  entries (transactionType 'payout') at yung mga nagawa nung actually na-release ang
+  death claim (transactionType 'claim_payout'). Tinutotal ng Fund Overview/Fund Summary
+  ng Admin Dashboard ang list na ito, kaya kung ieexclude yung claim_payout entries,
+  natatago nang tahimik yung lahat ng totoong disbursement sa mga figures na yun. */
   getAllPayouts: async (req, res) => {
     try {
       const payouts = await Ledger.find({
         transactionType: { $in: ['payout', 'claim_payout'] },
       }).sort({ transactionDate: -1 });
 
-      // One batch lookup for every member name instead of a Member.findOne()
-      // per payout row in the loop below.
+      /* Isang batch lookup lang para sa lahat ng member name imbes na Member.findOne() per
+      payout row sa loop sa baba. */
       const memberIds = [...new Set(payouts.map((payout) => payout.memberId))];
       const members = await Member.find({ memberId: { $in: memberIds } }).select('memberId memberName').lean();
       const memberNameById = new Map(members.map((member) => [member.memberId, member.memberName]));
@@ -26,9 +26,9 @@ const payoutController = {
         member_name: memberNameById.get(payout.memberId) || 'Unknown',
         member_id: payout.memberId,
         beneficiary: payout.beneficiary || 'Not specified',
-        // claim_payout rows are recorded credit-in/debit-out on the same
-        // row (see treasurerClaimController.releaseClaim) so the member's
-        // own balance is untouched — debit is still the released amount.
+        /* Ang claim_payout rows ay naitala bilang credit-in/debit-out sa same row (tingnan
+        ang treasurerClaimController.releaseClaim) para hindi magalaw yung sariling balance
+        ng member - ang debit ay yung released amount pa rin. */
         amount: Math.abs(payout.debit),
         payment_method: payout.paymentMethod || 'Cash',
         description: payout.description

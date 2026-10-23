@@ -1,7 +1,8 @@
 const PH_TIMEZONE = 'Asia/Manila';
 
-// Machine-readable dates must not depend on a locale's display order or
-// separators. Use Manila's calendar date, including around UTC midnight.
+/* Hindi dapat umasa yung machine-readable dates sa display order o
+separators ng locale. Gamitin yung calendar date ng Manila, kahit pa
+malapit sa UTC midnight. */
 export function formatManilaDateISO(value = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: PH_TIMEZONE, calendar: 'gregory', numberingSystem: 'latn',
@@ -40,10 +41,11 @@ export function formatDateTime(value) {
   return `${formatDate(value)} ${formatTime(value)}`;
 }
 
-// For raw "HH:mm" wall-clock strings (Event.startTime/endTime etc.) — these
-// are stored as plain time-of-day text already entered/interpreted as PHT,
-// not a UTC instant, so there's nothing to convert across timezones. This
-// only reformats 24-hour "HH:mm" into 12-hour "h:mm AM/PM" for display.
+/* Para sa raw "HH:mm" wall-clock strings (Event.startTime/endTime etc.) -
+naka-store na ito bilang plain time-of-day text na in-enter/interpreted
+na bilang PHT, hindi UTC instant, kaya walang kailangang iconvert across
+timezones. Dito lang ni-reformat yung 24-hour "HH:mm" papunta sa 12-hour
+"h:mm AM/PM" para sa display. */
 export function formatTimeString(value) {
   if (!value) return '';
   const match = /^(\d{1,2}):(\d{2})/.exec(String(value).trim());
@@ -69,8 +71,8 @@ export function formatForFilename(value) {
   return date.toISOString().split('T')[0];
 }
 
-// Long-form date ("Thursday, September 4, 2026") for banner/greeting-style
-// headers — like formatDate, always in Manila's calendar date.
+/* Long-form date ("Thursday, September 4, 2026") para sa banner/greeting-
+style headers - gaya ng formatDate, laging nasa calendar date ng Manila. */
 export function formatLongDate(value) {
   const date = toDate(value);
   return new Intl.DateTimeFormat('en-PH', {
@@ -82,9 +84,9 @@ export function formatLongDate(value) {
   }).format(date);
 }
 
-// The current hour (0-23) in Manila — for anything time-of-day-dependent
-// (a "Good morning/afternoon/evening" greeting, say) that should reflect
-// PHT rather than the viewer's own device timezone.
+/* Yung current hour (0-23) sa Manila - para sa anumang time-of-day-dependent
+(hal. "Good morning/afternoon/evening" greeting) na dapat sumasalamin sa
+PHT imbes sa device timezone ng viewer mismo. */
 export function getManilaHour(value = new Date()) {
   const date = toDate(value);
   const hourPart = new Intl.DateTimeFormat('en-US', {

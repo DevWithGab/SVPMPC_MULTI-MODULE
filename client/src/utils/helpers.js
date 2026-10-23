@@ -1,11 +1,11 @@
 // Helper functions
 
-// A member's barangay is its own required field, captured at registration
-// (SuperAdmin → Add Member). Records created before that field existed only
-// carry a free-text address, so fall back to the address' first
-// comma-separated segment for those — never for a member that has a real
-// barangay, or the house/street part of the address gets shown as the
-// barangay instead.
+/* Yung barangay ng member ay sarili niyang required field, nakukuha sa
+registration (SuperAdmin → Add Member). Pero yung mga records na ginawa
+bago pa magexist yung field na yun, address lang (free-text) ang meron,
+kaya doon, kukunin nalang yung unang comma-separated segment ng address
+bilang fallback - pero never ito gagawin kung may totoong barangay na yung
+member, kasi malalagay yung house/street part ng address imbes na barangay. */
 export const getBarangay = (member) => {
   const barangay = (member?.barangay || '').trim();
   if (barangay) return barangay;

@@ -1,10 +1,11 @@
 import React from 'react';
 
-// The card is white, so the tone only ever fills the icon chip — it never has to
-// carry text. That's what lets these stay vivid: a gradient dark enough to hold
-// white body text goes muddy, a gradient behind a white glyph does not.
-// Light stop of every pair clears 3:1 against white (WCAG non-text contrast),
-// and the set passes the adjacent-pair CVD check (worst deutan ΔE 9.4).
+/* Puti ang card, kaya yung tone ay laging napupunta sa icon chip lang -
+hindi niya kailangang magdala ng text. Dahil dito, puwede silang mag-stay
+vivid: gradient na dark enough para sa white body text ay nagiging muddy,
+pero gradient sa likod ng white glyph ay hindi. Yung light stop ng every
+pair ay clears 3:1 against white (WCAG non-text contrast), at pumapasa
+ang set sa adjacent-pair CVD check (worst deutan ΔE 9.4). */
 const TONES = {
   green:  { from: '#16A34A', to: '#0D9488', rgb: '22, 163, 74' },
   blue:   { from: '#3B82F6', to: '#6366F1', rgb: '59, 130, 246' },
@@ -14,10 +15,10 @@ const TONES = {
   violet: { from: '#8B5CF6', to: '#7C3AED', rgb: '139, 92, 246' },
 };
 
-// Call sites across the module spell the same intent a few different ways
-// (and `yellow`/`red` previously fell through to the default, rendering the
-// wrong tone). `emerald` folds into `green` on purpose: as separate tones the
-// two were indistinguishable side by side.
+/* Yung call sites sa buong module ay nag-spell ng same intent sa iba't
+ibang paraan (at nauna nang nahuhulog ang `yellow`/`red` sa default, kaya
+mali yung tone na lumalabas). Sinasadyang pinag-fold ang `emerald` sa
+`green`: as separate tones, hindi makilala ang dalawa kung katabi sila. */
 const ALIASES = {
   emerald: 'green',
   yellow: 'amber',
@@ -28,12 +29,14 @@ const ALIASES = {
 
 const resolveTone = (color) => TONES[ALIASES[color] || color] || TONES.green;
 
-// Truncating a money value hides digits, so the type steps down to fit instead.
-// Thresholds are measured against the tightest case — a 4-up grid, where the
-// value gets the full ~235px inner width. Inter bold at 28px runs ~14.2px per
-// character, so ₱999,999,999.99 (15 chars, 213px) still fits at full size and
-// every realistic figure renders at 28px. Node values (e.g. "42 members") are
-// short by construction and keep the display size.
+/* Pag na-truncate ang money value, nagtatago ito ng digits, kaya ang type
+ang bumababa instead para fit. Yung thresholds ay sinusukat against sa
+tightest case - isang 4-up grid, kung saan ang value ay nakukuha ang full
+~235px inner width. Inter bold sa 28px ay tumatakbo ng ~14.2px per
+character, kaya ang ₱999,999,999.99 (15 chars, 213px) ay fits pa rin sa
+full size at every realistic figure ay naka-render sa 28px. Yung Node
+values (e.g. "42 members") ay short by construction at nananatili sa
+display size. */
 const valueSizeClass = (value) => {
   if (typeof value !== 'string' && typeof value !== 'number') return 'text-[28px]';
   const len = String(value).length;
@@ -43,9 +46,10 @@ const valueSizeClass = (value) => {
   return 'text-[17px]';
 };
 
-// Renders as a plain card by default. Pass `onClick` to turn it into a
-// keyboard-accessible quick filter (e.g. "click this stat to filter the table by it"),
-// and `active` to reflect whether that filter is currently applied.
+/* Naka-render as a plain card by default. I-pass ang `onClick` para gawin
+itong keyboard-accessible quick filter (e.g. "click this stat to filter the
+table by it"), at `active` para i-reflect kung currently applied na ba
+yung filter. */
 const StatCard = ({ title, value, subtitle, icon: Icon, color = 'emerald', onClick, active = false }) => {
   const t = resolveTone(color);
   const Tag = onClick ? 'button' : 'div';
@@ -83,12 +87,12 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color = 'emerald', onCli
         )}
       </div>
 
-      {/* Proportional figures on purpose: tabular-nums makes a large standalone
-          number look loose at this size. */}
+      {/* Sinadyang proportional figures: ang tabular-nums ay nagpapamukha
+          ng malaking standalone number na maluwag sa size na ito. */}
       <p className={`mt-3 font-bold leading-none text-slate-900 ${valueSizeClass(value)}`}>{value}</p>
 
-      {/* slate-500, not slate-400 — at 11px the lighter step sits at 2.6:1 on
-          white, under the 4.5:1 AA floor. */}
+      {/* slate-500, hindi slate-400 - sa 11px, ang lighter step ay nasa
+          2.6:1 lang sa white, under sa 4.5:1 AA floor. */}
       {subtitle && <p className="mt-2 text-[11px] leading-snug text-slate-500">{subtitle}</p>}
     </Tag>
   );

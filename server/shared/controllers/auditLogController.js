@@ -34,12 +34,12 @@ const getAllAuditLogs = async (req, res) => {
       limit,
     });
 
-    // Only fall back to the synthetic feed when NO real logs exist for this
-    // filter at all (pagination.total, independent of page/limit) — logs.length
-    // alone is also 0 for a real, non-empty result when the caller just asked
-    // for a page past the last one, which used to swap in the unrelated
-    // derived dataset (different total, different rows) instead of the real
-    // (correctly empty) page.
+    /* Mag-fallback lang sa synthetic feed kapag WALANG real logs talaga para
+    sa filter na ito (pagination.total, independent sa page/limit) - zero
+    din yung logs.length para sa real, non-empty result kapag page past the
+    last one lang hinihingi ng caller, na dati nagpapalit sa unrelated
+    derived dataset (ibang total, ibang rows) imbes na yung real (tama namang
+    empty) page. */
     if (result.pagination.total === 0) {
       const derivedResult = await getDerivedActivityFeed({
         userId,

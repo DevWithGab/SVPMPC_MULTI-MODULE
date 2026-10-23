@@ -1,33 +1,36 @@
-// Shared "board-approval-style" supersede-then-insert pattern used by every
-// Admin-configurable setting that keeps full history (DeductionSetting,
-// BenefitCapSetting, NoticeThresholdSetting): at most one row is ever
-// 'active' (enforced by each model's own partial unique index on
-// {status:'active'}), and updating never overwrites — it supersedes the
-// current active row and inserts a brand new one, so past claims/notices
-// always resolve to whatever was in force when they happened.
-//
-// Superseding the old row and inserting the new one are two separate
-// documents, so they can't be one atomic operation without a multi-document
-// transaction (not available on a standalone MongoDB with no replica set).
-// Two concurrent updates can therefore both read the same still-active row
-// before either supersedes it; the unique index stops both ending up
-// active, but without retrying, the loser's insert crashes with a raw
-// E11000 instead of quietly settling behind whichever request won — this
-// was confirmed live: 6 concurrent updates produced 5 successes and 1 raw
-// 500, in a race whose outcome depends purely on timing.
+/* Shared "board-approval-style" supersede-then-insert pattern na ginagamit ng
+bawat Admin-configurable setting na nag-keep ng full history (DeductionSetting,
+BenefitCapSetting, NoticeThresholdSetting): isa lang palagi ang 'active' na row
+(enforced by each model's own partial unique index on {status:'active'}), at
+hindi nag-overwrite yung updating - sine-supersede niya yung current active
+row at nag-insert ng bagong isa, kaya yung mga past claims/notices palaging
+reresolve sa kung ano talaga yung in force noong nangyari ang mga iyon.
+
+Dalawang separate documents yung pag-supersede ng old row at pag-insert ng
+new one, kaya hindi puwedeng isang atomic operation lang ito kung walang
+multi-document transaction (hindi available sa standalone MongoDB na walang
+replica set). Dahil dito, puwedeng dalawang concurrent updates ang
+magbasa ng parehong still-active row bago pa man ito ma-supersede ng isa sa
+kanila; pinipigilan naman ng unique index na dalawa silang parehong
+maging active, pero kung walang retry, ang insert ng natalo crashes nang
+raw E11000 imbes na tahimik na sumunod lang sa kung sino ang nanalo - na-confirm
+ito live: 6 concurrent updates, 5 successes at 1 raw 500, sa race na ang
+outcome purely depende sa timing. */
 const MAX_RACE_RETRIES = 10;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// buildNewDoc() must return a FRESH, unsaved Mongoose document each call —
-// it is invoked again on every retry so the new document always gets its
-// own settingId/effectiveDate rather than reusing one from a failed attempt.
+/* Dapat palagi FRESH at unsaved Mongoose document ang ibabalik ng
+buildNewDoc() sa bawat tawag - tinatawag ulit ito sa bawat retry para laging
+may sarili itong settingId/effectiveDate imbes na gamitin ulit yung galing
+sa failed attempt. */
 async function supersedeAndInsert(Model, buildNewDoc, { validateModifiedOnly = false, preserveFields = [] } = {}) {
   let lastError;
   for (let attempt = 0; attempt < MAX_RACE_RETRIES; attempt++) {
-    // A tiny, growing random delay before each retry (not the first
-    // attempt) — several requests that lost the same round tend to retry
-    // in near lockstep, which just reproduces the same collision again;
-    // jitter spreads them out so they stop colliding with each other.
+    /* Maliit na, lumalaking random delay bago ang bawat retry (hindi sa unang
+    attempt) - yung mga requests na natalo sa parehong round madalas
+    magretry nang near lockstep, kaya mauulit lang ulit yung parehong
+    collision; ang jitter nagpapakalat sa kanila para hindi na sila
+    magbanggaan ulit. */
     if (attempt > 0) await sleep(Math.random() * attempt * 15);
 
     const newDoc = buildNewDoc();
@@ -47,8 +50,8 @@ async function supersedeAndInsert(Model, buildNewDoc, { validateModifiedOnly = f
     } catch (error) {
       lastError = error;
       if (error.code !== 11000) throw error;
-      // Someone else's update won this round — loop and retry against
-      // whatever is active now.
+      /* May ibang update na nanalo sa round na ito - loop ulit at mag-retry
+      base sa kung ano man ang active ngayon. */
     }
   }
   throw lastError;

@@ -18,21 +18,22 @@ import { claimAPI } from "../../../services/api";
 import { getClaimStatusMeta, isClaimFullySubmitted } from "../shared/claimMeta";
 import ApproveRejectClaimModal from "./modals/ApproveRejectClaimModal";
 
-/* One checkbox column, but the underlying data still has separate
-`submitted`/`verified` booleans on the schema (no combined field exists) —
-so toggling it flips both together instead of pointing at a fictional key. */
+/* Isang checkbox column lang, pero sa underlying data hiwalay talaga ang
+`submitted`/`verified` booleans sa schema (walang combined field) - kaya
+pag toggle, parehas silang na-update imbes na tumuro sa haka-haka na key. */
 const COMBINED_COLUMN = { label: "Submitted & Verified" };
 
-/*Older claims may contain keys from the former global checklist. Keep those
-readable while new claim-specific requirements use their stored label.*/
+/* Possible na may keys galing sa dating global checklist ang mga lumang
+claims. Panatilihing readable yun habang ang bagong claim-specific
+requirements ay gagamit ng naka-store na label nila. */
 const fallbackLabel = (key) =>
   key
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (c) => c.toUpperCase())
     .trim();
 
-// Quick-add suggestions for the most commonly required documents, so the
-// Admin isn't retyping the same handful of labels on every claim.
+/* Quick-add suggestions para sa pinaka-common na required documents, para
+hindi na nag re-retype ang Admin ng parehong labels sa every claim. */
 const COMMON_REQUIREMENTS = [
   "Claim Application Form",
   "Death Certificate",

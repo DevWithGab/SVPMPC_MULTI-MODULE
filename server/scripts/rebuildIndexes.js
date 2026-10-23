@@ -1,11 +1,8 @@
-/**
- * Rebuild Database Indexes Script
- * 
- * This script rebuilds all indexes for the SVPMPC database models.
- * Run this after adding new indexes to ensure they are created in MongoDB.
- * 
- * Usage: node server/scripts/rebuildIndexes.js
- */
+/* Rebuild Database Indexes Script - dito nire-rebuild lahat ng indexes para
+sa SVPMPC database models. Patakbuhin ito after magdagdag ng bagong indexes
+para masigurong nagawa na sila sa MongoDB.
+
+Usage: node server/scripts/rebuildIndexes.js */
 
 require('dotenv').config();
 const mongoose = require('mongoose');

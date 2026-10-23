@@ -4,37 +4,35 @@ const { getPaginationParams, buildPaginatedResponse } = require('../../../shared
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// noticeBodyTemplate/finalNoticeBodyTemplate now hold HTML straight from the
-// admin's in-app document editor — the client now runs this through
-// DOMPurify (a real HTML parser, allowlist-based) before ever sending it,
-// but the server shouldn't trust that alone. This regex pass is a
-// defense-in-depth backstop, not the primary defense — it previously
-// required a literal space before `on\w+=` and a quoted value, which let
-// unquoted (`onerror=alert(1)`) or slash-separated (`<img/onerror=...>`)
-// attributes straight through. Regex can't fully replicate an HTML parser,
-// so this still isn't a substitute for DOMPurify; it just needs to not have
-// known holes.
+/* Ang noticeBodyTemplate/finalNoticeBodyTemplate ay may HTML na direkta galing sa
+in-app document editor ng admin - dumadaan na ito sa DOMPurify (totoong HTML parser,
+allowlist-based) sa client side bago pa ito maipadala, pero hindi dapat umasa lang
+dun ang server. Ito yung regex pass bilang defense-in-depth backstop, hindi primary
+defense - dati required nito ang literal space bago `on\w+=` at quoted value, kaya
+nakakalusot ang unquoted (`onerror=alert(1)`) o slash-separated (`<img/onerror=...>`)
+attributes. Hindi kaya ng regex na gayahin fully ang HTML parser, kaya hindi pa rin
+ito substitute sa DOMPurify; basta kailangan lang walang known holes. */
 const sanitizeNoticeHtml = (html) =>
   String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<(iframe|object|embed|form|base|meta)\b[^>]*>/gi, '')
-    // Event-handler attributes — separator before `on\w+=` can be
-    // whitespace OR a slash (`<img/onerror=...>` is valid HTML), and the
-    // value can be double-quoted, single-quoted, or unquoted.
+    /* Event-handler attributes - puwedeng whitespace O slash ang separator bago
+    `on\w+=` (valid HTML yung `<img/onerror=...>`), at puwedeng double-quoted,
+    single-quoted, o unquoted ang value. */
     .replace(/[\s/]+on\w+\s*=\s*"[^"]*"/gi, '')
     .replace(/[\s/]+on\w+\s*=\s*'[^']*'/gi, '')
     .replace(/[\s/]+on\w+\s*=\s*[^\s"'`>/]+/gi, '')
     .replace(/(href|src|data|action)\s*=\s*(["'])\s*(javascript|data):[^"']*\2/gi, '$1=$2#$2');
 
-// Defaults matching the hardcoded values the balance-notice letter used
-// before this settings collection existed (client/src/utils/balanceNotice.js).
-// noticeBodyTemplate/finalNoticeBodyTemplate hold the ENTIRE letter — title,
-// fields, salutation, body, and signatures — as admin-editable plain text.
-// Paragraphs are separated by a blank line; placeholders substituted per
-// member at print time: {noticeLabel} {name} {address} {passbook} {balance}
-// {amountNeeded} {targetBalance} {managerName}. Only the logo/org-name
-// letterhead above this text is not part of the template.
+/* Defaults na tumutugma sa hardcoded values na ginamit ng balance-notice letter bago
+pa magexist ang settings collection na ito (client/src/utils/balanceNotice.js). Ang
+noticeBodyTemplate/finalNoticeBodyTemplate ay may buong letter - title, fields,
+salutation, body, at signatures - bilang admin-editable plain text. Pinaghihiwalay
+ng blank line ang mga paragraph; sinasalpakan ng placeholders per member sa print
+time: {noticeLabel} {name} {address} {passbook} {balance} {amountNeeded}
+{targetBalance} {managerName}. Yung logo/org-name letterhead sa itaas lang ng text
+na ito ang hindi parte ng template. */
 const DEFAULT_THRESHOLDS = {
   targetBalance: 1000,
   notice1Min: 700,
@@ -47,9 +45,9 @@ const DEFAULT_THRESHOLDS = {
     '{noticeLabel} — MORTUARY AID FUND PROGRAM\n\nName: {name}\nAddress: {address}\nPassbook No: {passbook}\n\nSir/Madam:\n\nThis is to inform you that you have {balance} deposits in the Mortuary Aid Fund Program. Kindly replenish or deposit {amountNeeded} in your mortuary fund within (30) days to maintain your membership in the said program.\n\nFailure to do so will automatically drop you from the program.\n\nPlease be guided and updated accordingly.\n\nReceived by: _______________________\nDate received: _______________________\n\nVery truly yours,\n\n_______________________\n{managerName}',
 };
 
-// Get the currently active thresholds. Auto-seeds a default row on first
-// call so no manual migration/seed script is needed to retire the old
-// hardcoded constants.
+/* Kinukuha dito yung currently active thresholds. Auto-seeds ng default row sa first
+call para hindi na kailangan ng manual migration/seed script para alisin yung lumang
+hardcoded constants. */
 const getCurrentThresholds = async (req, res) => {
   try {
     let current = await NoticeThresholdSetting.findOne({ status: 'active' });
@@ -98,9 +96,9 @@ const getThresholdHistory = async (req, res) => {
   }
 };
 
-// Update Thresholds — never overwrites, supersedes the current active row
-// and inserts a new one (board-approval-style versioning, same pattern as
-// DeductionSetting).
+/* Update Thresholds - hindi ito nag-overwrite, nagsupersede sa current active row at
+nag-insert ng bago (board-approval-style versioning, parehong pattern ng
+DeductionSetting). */
 const updateThresholds = async (req, res) => {
   try {
     const {
@@ -157,10 +155,10 @@ const updateThresholds = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Notice 1 maximum must be greater than or equal to its minimum' });
     }
 
-    // Only re-validate the fields actually being changed when superseding —
-    // a row saved before a schema change (e.g. before noticeBodyTemplate/
-    // finalNoticeBodyTemplate existed) must still be supersede-able even
-    // though it wouldn't pass full-document validation today.
+    /* I-revalidate lang yung fields na talagang nagbabago kapag nagsupersede - yung row na
+    na-save bago pa magkaroon ng schema change (hal. bago pa magexist ang
+    noticeBodyTemplate/finalNoticeBodyTemplate) dapat pa ring supersede-able kahit hindi
+    na ito papasa sa full-document validation ngayon. */
     const newSetting = await supersedeAndInsert(NoticeThresholdSetting, () => new NoticeThresholdSetting({
       settingId: uuidv4(),
       ...parsed,

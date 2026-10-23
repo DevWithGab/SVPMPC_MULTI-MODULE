@@ -370,10 +370,10 @@ const MemberLedger = ({
             </p>
           </div>
 
-          {/* Financial summary — statement-style: entry count on the left,
-              monospaced totals on the right. Kept inside #printable-ledger so
-              it appears on the printed statement too. Reflects whatever
-              filter/date range is applied above. */}
+          {/* Financial summary - statement-style: entry count sa left,
+              monospaced totals sa right. Nilagay sa loob ng #printable-ledger
+              para lumabas din sa printed statement. Sumusunod kung ano man
+              yung filter/date range na applied sa taas. */}
           <div className="ml-summary px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
               <span className="font-semibold text-slate-700">{mEntries.length}</span>{' '}
@@ -392,9 +392,9 @@ const MemberLedger = ({
             </div>
           </div>
 
-          {/* Table — ruled like a paper ledger (outer border + vertical
-              dividers between columns, on top of the row separators) since
-              this is printed as an official statement. */}
+          {/* Table - parang paper ledger yung ruling (outer border + vertical
+              dividers sa pagitan ng columns, dagdag pa sa row separators)
+              kasi naka-print ito as official statement. */}
           <div className="ml-table-scroll overflow-x-auto" role="region" aria-label="Member transaction history" tabIndex={0}>
             <table className="w-full border border-slate-200 border-collapse">
               <thead>

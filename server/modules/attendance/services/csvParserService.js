@@ -1,11 +1,10 @@
 const csv = require('csv-parser');
 const fs = require('fs');
 
-// Matches the row cap used by the mortuary module's bulk-upload importers
-// (payments, beneficiaries, ledger entries) — this was the one bulk-upload
-// path in the app with no cap at all, so an oversized CSV ran the per-row
-// validation below, and then member creation, over however many rows were
-// in the file.
+/* Sumusunod sa row cap na ginagamit ng mortuary module's bulk-upload importers
+(payments, beneficiaries, ledger entries) - ito lang yung bulk-upload path dati
+sa app na walang cap, kaya kung oversized yung CSV, tatakbo yung per-row
+validation sa baba, pati member creation, kung ilang rows man meron sa file. */
 const MAX_ROWS = 1000;
 
 const parseCSV = (filePath) => {

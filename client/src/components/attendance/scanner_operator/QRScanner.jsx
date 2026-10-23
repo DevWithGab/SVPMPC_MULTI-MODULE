@@ -51,9 +51,9 @@ export default function QRScanner({
   const [submittingManual, setSubmittingManual] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [flashSupported, setFlashSupported] = useState(false);
-  /* Brief on-camera flash shown right after a code is processed —
-  null | 'success' | 'duplicate' | 'invalid'. Mirrors the playScanSound
-  outcomes so the visual and audio feedback always agree.*/
+  /* Brief on-camera flash na ipinapakita kaagad pagkatapos ma-process ang
+  code - null | 'success' | 'duplicate' | 'invalid'. Sumusunod ito sa
+  outcomes ng playScanSound para laging tugma ang visual at audio feedback. */
   const [scanFeedback, setScanFeedback] = useState(null);
 
   const videoRef = useRef(null);
@@ -112,8 +112,9 @@ export default function QRScanner({
     };
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
     refresh();
-    // The local clock handles known start/end boundaries without waiting
-    // for polling. Polling picks up approvals, cancellations, and edits.
+    /* Hinahandle ng local clock yung known start/end boundaries kaya hindi na
+    kailangan maghintay ng polling. Yung polling naman ang kukuha ng
+    approvals, cancellations, at edits. */
     const clock = setInterval(() => setNow(Date.now()), 1000);
     const poll = setInterval(onVisible, 10000);
     window.addEventListener("focus", refresh);
@@ -350,16 +351,18 @@ export default function QRScanner({
 
   useEffect(() => {
     if (activeEvents.some(event => event.eventId === selectedEventId)) return;
-    // An open manual-entry confirmation also belongs to the old event.
-    // Close it before choosing another event so it cannot record elsewhere.
+    /* Ang bukas na manual-entry confirmation ay kabilang pa rin sa lumang
+    event - isara ito muna bago pumili ng ibang event para hindi na ito
+    ma-record sa ibang event. */
     if (selectedEventId) {
       setShowManualReasonModal(false);
       setManualReasonMember(null);
       setManualReason("");
       setScanResult(null);
     }
-    // An open manual-entry confirmation also belongs to the old event.
-    // Close it before choosing another event so it cannot record elsewhere.
+    /* Ang bukas na manual-entry confirmation ay kabilang pa rin sa lumang
+    event - isara ito muna bago pumili ng ibang event para hindi na ito
+    ma-record sa ibang event. */
     if (selectedEventId) {
       setShowManualReasonModal(false);
       setManualReasonMember(null);
@@ -403,12 +406,12 @@ export default function QRScanner({
       }
 
       if (memberId === lastValueRef.current && scanCooldownRef.current) {
-        /*Ang lastValueRef ay nase-set lang kapag successful ang scan. 
-        // Kaya kapag umabot dito, ibig sabihin ay na-scan na ang parehong 
-        // QR code kamakailan at nakikita pa rin ito ng camera. Hindi ito 
-        // error, kaya status update lang ang ipapakita sa halip na red alert, 
-        // at maghihintay muna nang mas matagal bago muling mag-scan para 
-        maiwasan ang paulit-ulit na detection.*/
+        /* Ang lastValueRef ay nase-set lang kapag successful ang scan. Kaya
+        kapag umabot dito, ibig sabihin ay na-scan na ang parehong QR code
+        kamakailan at nakikita pa rin ito ng camera. Hindi ito error, kaya
+        status update lang ang ipapakita sa halip na red alert, at
+        maghihintay muna nang mas matagal bago muling mag-scan para
+        maiwasan ang paulit-ulit na detection. */
         setError("");
         setStatusMessage("Already recorded — move to the next member.");
         playScanSound("duplicate");
@@ -471,8 +474,9 @@ export default function QRScanner({
 
         if (stateRef.current.selectedEventId !== activeEvent.eventId ||
             !canScanEvent(stateRef.current.events.find(event => event.eventId === activeEvent.eventId))) {
-          // The API may finish a valid pre-deadline scan after the camera
-          // has stopped. Keep its record without reviving the old session.
+          /* Minsan natatapos ng API ang valid na pre-deadline scan kahit
+          na-stop na ang camera. I-keep ang record nito pero hindi na dapat
+          buhayin ulit ang lumang session. */
           setScanHistory(prev => [attendance, ...prev].slice(0, 5));
           onScanSuccess?.(attendance);
           return;
@@ -480,8 +484,9 @@ export default function QRScanner({
 
         if (stateRef.current.selectedEventId !== activeEvent.eventId ||
             !canScanEvent(stateRef.current.events.find(event => event.eventId === activeEvent.eventId))) {
-          // The API may finish a valid pre-deadline scan after the camera
-          // has stopped. Keep its record without reviving the old session.
+          /* Minsan natatapos ng API ang valid na pre-deadline scan kahit
+          na-stop na ang camera. I-keep ang record nito pero hindi na dapat
+          buhayin ulit ang lumang session. */
           setScanHistory(prev => [attendance, ...prev].slice(0, 5));
           onScanSuccess?.(attendance);
           return;
@@ -539,19 +544,20 @@ export default function QRScanner({
         setStatusMessage(status);
       } finally {
         isProcessingRef.current = false;
-        /* Give the operator a beat to move the code away before the loop
-        starts decoding frames again — covers success and every error
-        path here, so nothing gets re-processed while still in view.*/
+        /* Bigyan muna ng saglit ang operator para ialis ang code bago
+        magsimula ulit mag-decode ng frames ang loop - sakop nito yung
+        success at lahat ng error path dito, kaya walang ma-re-process
+        ulit habang nakikita pa. */
         pauseDetectionUntilRef.current = Date.now() + 1500;
       }
     },
     [onScanSuccess, playScanSound, triggerScanFeedback, stopScanning, fetchActiveEvents],
   );
 
-  /*Manually adding a member (no camera involved) always requires a typed
-  reason and is recorded with entrySource: 'manual' — the server's
-  existing audit logging on every recordAttendance call then captures it
-  with this operator's name, timestamp, and reason.*/
+  /* Kapag nag-manually add ng member (walang camera), required talaga na
+  mag-type ng reason, at ire-record ito na may entrySource: 'manual' - yung
+  existing audit logging ng server sa bawat recordAttendance call ang
+  kukuha nito, kasama ang pangalan ng operator, timestamp, at reason. */
   const handleManualMemberAdd = useCallback(
     (member) => {
       const memberId = member?.memberId;
@@ -705,8 +711,9 @@ export default function QRScanner({
         if (!stillValid()) return;
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
-      // Permission can be granted after the event ends, the operator cancels,
-      // or the tab unmounts. Never attach or leave that late stream running.
+      /* Posibleng magrant ng permission kahit tapos na ang event, nag-cancel
+      na ang operator, o na-unmount na ang tab. Kailanman hindi dapat
+      i-attach o pabayaan tumakbo ang late stream na ito. */
       if (!stillValid() || !videoRef.current) {
         stream.getTracks().forEach(track => track.stop());
         return;
@@ -839,8 +846,8 @@ export default function QRScanner({
                   : scanFeedback === "duplicate" ? <Clock size={52} /> : <XCircle size={52} />}
               </div>
             )}
-            {/* Keep the result visible beside the camera on narrow screens.
-                The full result below provides the live announcement. */}
+            {/* Nakikita dito yung result sa tabi ng camera sa narrow screens.
+                Yung full result sa baba ang nagbibigay ng live announcement. */}
             {(error || scanResult) && (
               <div className={`oqs-mobile-result ${error ? "has-error" : ""}`} aria-hidden="true">
                 {error ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
@@ -1008,8 +1015,9 @@ export default function QRScanner({
         )}
       </section>
 
-      {/* Manual add requires a reason before it's recorded — kept out of
-          the main flow so camera scanning stays the fast, default path. */}
+      {/* Required ang reason bago ma-record ang manual add - nilagay ito
+          sa labas ng main flow para ang camera scanning ang mananatiling
+          mabilis, default na path. */}
       <Modal
         isOpen={showManualReasonModal}
         onClose={() => !submittingManual && setShowManualReasonModal(false)}

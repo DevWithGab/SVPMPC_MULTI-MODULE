@@ -37,8 +37,8 @@ const validateMemberField = (name, rawValue) => {
       return '';
     case 'phoneNumber':
       if (!value) return '';
-      // Shared with the mortuary Beneficiary forms — same 11-digit,
-      // starts-with-09 PH mobile rule everywhere in the app.
+      /* Shared with mortuary Beneficiary forms - same 11-digit,
+      starts-with-09 PH mobile rule, dito lang ginagamit sa buong app. */
       return validatePhPhone(value);
     case 'barangay':
       if (!value) return 'Barangay is required.';
@@ -47,10 +47,10 @@ const validateMemberField = (name, rawValue) => {
       if (!value) return 'Address is required.';
       return '';
     case 'beneficiaryContactNumber':
-      // Optional — only validated when something was actually entered. If
-      // provided (along with a beneficiary name and relationship), it's
-      // enough to auto-register a proper Beneficiary record instead of
-      // leaving it as free text for the admin to complete later.
+      /* Optional - vavalidate lang kung may talagang na-enter. Kung
+      naprovide (kasama ang beneficiary name at relationship), sapat na
+      yun para auto-register agad bilang proper Beneficiary record
+      imbes na iwan as free text na kailangan pang kumpletuhin ng admin. */
       if (!value) return '';
       return validatePhPhone(value);
     default:
@@ -58,9 +58,9 @@ const validateMemberField = (name, rawValue) => {
   }
 };
 
-// A labeled field with required marker, inline validation error, and helper
-// text — keeps every field in the form consistent (error prevention +
-// recognition-over-recall, applied once instead of per-field).
+/* Labeled field na may required marker, inline validation error, at helper
+text - para consistent yung lahat ng field sa form (error prevention +
+recognition-over-recall, ginawa once imbes na per-field). */
 const FormField = React.forwardRef(
   ({ label, name, value, onChange, onBlur, error, hint, required, type = 'text', placeholder, maxLength, inputMode, listId }, ref) => {
     const errorId = error ? `${name}-error` : undefined;
@@ -166,9 +166,9 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
     );
 
   const handleMemberFieldChange = (name, rawValue) => {
-    // Prevention over correction: strip anything non-numeric and stop
-    // accepting keystrokes past 11 digits, instead of only flagging it
-    // with an error message after the fact.
+    /* Prevention over correction: tanggalin agad ang non-numeric at
+    itigil ang pag-accept ng keystrokes pagkalampas ng 11 digits,
+    imbes na mag-flag na lang ng error message pagkatapos. */
     const value = (name === 'phoneNumber' || name === 'beneficiaryContactNumber') ? sanitizePhoneInput(rawValue) : rawValue;
     setNewMember((prev) => ({ ...prev, [name]: value }));
     if (memberTouched[name]) {
@@ -181,9 +181,10 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
     setMemberErrors((prev) => ({ ...prev, [name]: validateMemberField(name, newMember[name]) }));
   };
 
-  // Closing the form (X, backdrop, Escape, Cancel) while it has unsaved
-  // input asks for confirmation first, so a stray click can't silently
-  // discard work (error prevention / user control & freedom).
+  /* Pag isasara yung form (X, backdrop, Escape, Cancel) habang may
+  unsaved input, magtatanong muna ng confirmation, para hindi na-silent
+  discard yung work sa isang stray click (error prevention / user
+  control & freedom). */
   const requestCloseCreateModal = () => {
     if (createdMember) {
       finishCreateMember();
@@ -289,9 +290,9 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
   const handleCreateMember = async (e) => {
     e.preventDefault();
 
-    // Validate everything client-side before ever hitting the network —
-    // catches the mistake immediately instead of round-tripping to the
-    // server first (error prevention).
+    /* I-validate muna lahat client-side bago pa man tumama sa network -
+    nahuhuli agad yung mistake imbes na mag-round-trip pa sa server
+    (error prevention). */
     const nextErrors = {};
     MEMBER_VALIDATION_FIELDS.forEach((field) => {
       nextErrors[field] = validateMemberField(field, newMember[field]);
@@ -319,8 +320,8 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
         setMemberTouched((prev) => ({ ...prev, passbookNo: true }));
         memberFieldRefs.current.passbookNo?.focus();
       } else if (/email/i.test(message)) {
-        // Surface it right under the field that caused it, not just as a
-        // toast the admin has to mentally map back to a field themselves.
+        /* Ipapakita agad sa ilalim ng field na may problema, hindi lang
+        toast na kailangan pang i-map balik ng admin sa tamang field. */
         setMemberErrors((prev) => ({ ...prev, email: message }));
         setMemberTouched((prev) => ({ ...prev, email: true }));
         memberFieldRefs.current.email?.focus();

@@ -3,13 +3,13 @@
 // Philippine mobile numbers: 11 digits, starting with 09 (e.g. 09171234567).
 export const PH_PHONE_REGEX = /^09\d{9}$/;
 
-// Use as the field's onChange handler so it can't even accept letters/symbols
-// or grow past a valid PH mobile number while the user is typing — strips
-// anything that isn't a digit and caps the length at 11.
+/* Gamitin bilang onChange handler ng field para hindi na tuloy tumanggap
+ng letters/symbols o lumagpas sa valid PH mobile number habang nagtype
+yung user - tinatanggal lahat ng hindi digit at may cap na 11 characters. */
 export const sanitizePhoneInput = (value) => (value || '').replace(/\D/g, '').slice(0, 11);
 
-// Returns an error message if invalid, or '' if the value is a valid PH
-// mobile number (or blank, when required is false).
+/* Nagbabalik ng error message kung invalid, o '' kung valid na PH mobile
+number yung value (o blangko, kapag false yung required). */
 export const validatePhPhone = (value, { required = true } = {}) => {
   const digits = (value || '').trim();
   if (!digits) return required ? 'Contact number is required.' : '';

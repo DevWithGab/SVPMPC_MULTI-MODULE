@@ -18,24 +18,23 @@ const summarizeBeneficiaryImport = rows => ({
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// PH mobile numbers: 11 digits, starting with 09 (e.g. 09171234567). Mirrors
-// the client-side check in client/src/utils/validation.js — this is the
-// backstop for requests that don't go through that form (direct API calls).
+/* PH mobile numbers: 11 digits, nagsisimula sa 09 (e.g. 09171234567). Mirror
+ito ng client-side check sa client/src/utils/validation.js - ito yung backstop
+para sa requests na hindi dumadaan sa form na yun (direct API calls). */
 const PH_PHONE_REGEX = /^09\d{9}$/;
 
-// View Beneficiaries — one row per active member, showing whichever
-// beneficiary is currently on file for them.
-//
-// This is member-centric rather than Beneficiary-record-centric: some
-// active members only ever had a beneficiary captured as free text at
-// registration (Member.beneficiaries/beneficiaryRelationship) and never
-// went through the structured "Update Beneficiary" flow, so they'd have no
-// row at all in the Beneficiary collection. Starting from Member and left-
-// joining their current structured record (falling back to the legacy
-// free-text fields when there isn't one) means every active member shows
-// up here, matching what the screen's own subtitle promises — "current
-// beneficiary on file for each member" — and lets the admin see at a
-// glance who still needs to be formally registered.
+/* View Beneficiaries - isang row per active member, ipinapakita kung sino
+man yung current beneficiary nila on file.
+
+Member-centric ito sa halip na Beneficiary-record-centric: may mga active
+members na free text lang nakuha yung beneficiary nila noong registration
+(Member.beneficiaries/beneficiaryRelationship) at hindi dumaan sa structured
+"Update Beneficiary" flow, kaya walang row sila sa Beneficiary collection.
+Sa pagsimula sa Member at left-join sa current structured record nila
+(babalik sa legacy free-text fields kung walang record), lahat ng active
+member ay lumalabas dito, tugma sa pinapangako ng screen's own subtitle -
+"current beneficiary on file for each member" - at makikita ng admin kaagad
+kung sino pa yung dapat i-formally register. */
 const getAllBeneficiaries = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -126,9 +125,10 @@ const getBeneficiaryHistory = async (req, res) => {
   }
 };
 
-// Update Beneficiary Information — supersedes the current active record (if
-// any) and inserts a new one. Also used to register a member's first
-// beneficiary, since Member.beneficiaries (free text) is no longer written to.
+/* Update Beneficiary Information - pinapalitan yung current active record
+(kung meron) at nagdadagdag ng bago. Ginagamit din para i-register yung
+first beneficiary ng member, dahil hindi na ginagamit yung
+Member.beneficiaries (free text). */
 const updateBeneficiary = async (req, res) => {
   try {
     const { memberId } = req.params;
@@ -192,8 +192,8 @@ const updateBeneficiary = async (req, res) => {
   }
 };
 
-// Bulk Register Beneficiaries — same preview-then-import CSV contract as
-// the treasurer's bulk payment/ledger uploads (action: 'preview' | 'import').
+/* Bulk Register Beneficiaries - parehong preview-then-import CSV contract
+gaya ng treasurer's bulk payment/ledger uploads (action: 'preview' | 'import'). */
 const bulkUploadBeneficiaries = async (req, res) => {
   let rows;
   try {

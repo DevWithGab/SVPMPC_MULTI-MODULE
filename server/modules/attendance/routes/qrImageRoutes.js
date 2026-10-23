@@ -4,10 +4,11 @@ const { renderQRCodePng } = require('../services/qrCodeService');
 
 const router = express.Router();
 
-// Preserve the existing public image URLs used by previews, printing, and
-// downloads, but rebuild their bytes from MongoDB instead of local files.
-// Only the member's current issued UUID can resolve; old/replaced cards
-// and guessed filenames must not expose a freshly issued code.
+/* Pinapanatili yung existing public image URLs na ginagamit ng previews, printing,
+at downloads, pero yung bytes nila ay nire-rebuild galing MongoDB sa halip na
+local files. Yung member's current issued UUID lang ang makaka-resolve - hindi
+dapat makapag-expose ng freshly issued code yung old/replaced cards at guessed
+filenames. */
 router.get('/:filename', async (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   const { filename } = req.params;

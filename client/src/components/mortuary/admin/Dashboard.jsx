@@ -157,8 +157,9 @@ const RecentActivities = ({ contributions, payouts, onViewAll }) => {
       type: "payout",
       title: "Benefit Disbursement",
       desc: `Payout of ₱${formatAmount(p.amount)} to ${p.beneficiary || "Beneficiary"}`,
-      // payoutAPI returns `payout_date`, not `created_at`/`date` — reading
-      // the wrong field produced an Invalid Date here and in the sort below.
+      /* Yung payoutAPI nagbabalik ng `payout_date`, hindi `created_at`/`date`
+      - pag mali yung field na binasa, nagiging Invalid Date dito at sa sort
+      sa baba. */
       time: p.payout_date || p.created_at || p.date,
       status: p.status || "Released",
     })),
@@ -304,17 +305,18 @@ const Dashboard = ({
     return () => {
       cancelled = true;
     };
-    // showToast (addToast from useToast()) isn't memoized by its caller, so a
-    // new reference every render must not re-trigger this fetch.
+    /* Hindi memoized ng caller nito yung showToast (addToast from
+    useToast()), kaya yung bagong reference sa every render ay dapat hindi
+    mag re-trigger ulit nitong fetch. */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const claimCounts = adminData?.claims || {};
   const recentClaimActivities = adminData?.recentClaimActivities || [];
-  // By each claim's current status (server-filtered), not by scanning the
-  // historical activity log above — a claim that's since moved on (or been
-  // released) still has old "pending" entries in that log, which made
-  // already-resolved claims keep showing up in the notification bell.
+  /* Base sa current status ng each claim (server-filtered), hindi sa
+  pag-scan sa historical activity log sa taas - yung claim na nalipat na
+  (o na-release na) ay may luma pa ring "pending" entries sa log na yun,
+  na nagpapalabas ng already-resolved claims sa notification bell. */
   const needsAttention = adminData?.claimsNeedingAttention || [];
   const needsAttentionCount =
     (claimCounts.pending_requirements || 0) +
@@ -345,10 +347,10 @@ const Dashboard = ({
     });
 
     (payouts || []).forEach((p) => {
-      // payoutAPI returns `payout_date`, not `created_at`/`date` — reading
-      // the wrong field made every payout parse as an Invalid Date, so it
-      // always fell outside the `currentYear` check and the chart's "Paid
-      // Out" bars stayed at zero no matter how much was actually released.
+      /* Yung payoutAPI nagbabalik ng `payout_date`, hindi `created_at`/`date`
+      - pag mali yung field na binasa, naging Invalid Date ang every payout,
+      kaya palaging labas sa `currentYear` check at nananatiling zero yung
+      "Paid Out" bars ng chart kahit gaano karami ang na-release talaga. */
       const date = new Date(p.payout_date || p.created_at || p.date);
       if (date.getFullYear() === currentYear)
         data[date.getMonth()].paidOut += toAmount(p.amount);
@@ -371,8 +373,8 @@ const Dashboard = ({
   const negativeBalanceCount = activeMembers.filter(member => getMemberStanding(member.currentBalance, minimumBalance) === 'negativeBalance').length;
   const atRiskCount = activeMembers.filter(member => getMemberStanding(member.currentBalance, minimumBalance) === 'atRisk').length;
 
-  // Claim-specific totals (death-fund assessment collected vs. benefits
-  // released) — distinct from the member-contribution figures above.
+  /* Claim-specific totals (death-fund assessment collected vs. benefits
+  released) - iba ito sa member-contribution figures sa taas. */
   const totalDeductionsCollected = toAmount(
     claimCounts.totalDeductionsCollected,
   );

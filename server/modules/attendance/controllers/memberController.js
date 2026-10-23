@@ -128,15 +128,16 @@ const generateQRCodes = async (req, res) => {
   try {
     const { memberIds } = req.body;
 
-    // Array.isArray + every-element-is-string, not just a truthy/.length
-    // check: a plain truthy check passes for any value with a .length
-    // property (e.g. a bare string), and without validating each element,
-    // a non-string entry (object, number, etc.) would sail into the $in
-    // list below. $in matches by equality rather than interpreting an
-    // element as an operator, so this was never a full injection like the
-    // req.body/req.query fields already guarded elsewhere — but it's still
-    // unvalidated input reaching a query, and a malformed shape here
-    // surfaced as a confusing 500 instead of a clean 400.
+    /* Array.isArray + every-element-is-string ang ginamit, hindi lang basta
+    truthy/.length check: pumapasa yung plain truthy check sa kahit anong
+    value na may .length property (e.g. bare string), at kung hindi
+    vinalidate ang bawat element, puwedeng makasingit sa $in list sa baba
+    yung non-string entry (object, number, etc.). Nag-match ang $in by
+    equality imbes na basahin ang element bilang operator, kaya hindi ito
+    naging full injection gaya ng req.body/req.query fields na naguguardahan
+    na sa ibang parte - pero unvalidated input pa rin na umaabot sa query,
+    at nagresulta ng confusing 500 imbes na malinis na 400 ang malformed
+    shape dito. */
     if (
       !Array.isArray(memberIds) || memberIds.length === 0 ||
       !memberIds.every((id) => typeof id === 'string')
@@ -154,8 +155,8 @@ const generateQRCodes = async (req, res) => {
     const errors = [];
 
     for (const member of members) {
-      // Member.status is shared with the Mortuary module — a member flipped
-      // to 'deceased' there shouldn't get a fresh QR issued for attendance.
+      /* Shared sa Mortuary module ang Member.status - hindi dapat bigyan ng
+      fresh QR para sa attendance ang member na naging 'deceased' doon. */
       if (member.status === 'deceased') {
         errors.push({ memberId: member.memberId, error: 'Member is recorded as deceased' });
         continue;
@@ -238,8 +239,8 @@ const generateQRCodes = async (req, res) => {
 // Generate QR codes for all members without QR codes
 const generateAllQRCodes = async (req, res) => {
   try {
-    // Member.status is shared with the Mortuary module — a member flipped
-    // to 'deceased' there shouldn't get a fresh QR issued for attendance.
+    /* Shared sa Mortuary module ang Member.status - hindi dapat bigyan ng
+    fresh QR para sa attendance ang member na naging 'deceased' doon. */
     const members = await Member.find({ qrCodeGenerated: false, status: { $ne: 'deceased' } });
 
     if (members.length === 0) {
@@ -300,12 +301,13 @@ const memberReadProjection = (req) => req.user?.role === 'scanner_operator'
   ? SCANNER_OPERATOR_PROJECTION
   : null;
 
-// Get all members — bounded via the same pagination utility used elsewhere
-// (shared/utils/pagination), so a single request can never again return the
-// entire, ever-growing collection. No screen here asks for a specific page —
-// memberAPI.getAllMembers() on the client pages through this and
-// concatenates, so the "give me the whole roster" contract these callers
-// rely on is unchanged.
+/* Get all members - bounded ito gamit ang parehong pagination utility na
+ginagamit sa ibang parte (shared/utils/pagination), kaya hindi na puwedeng
+ibalik ulit ng isang request yung entire, ever-growing collection. Walang
+screen dito na humihingi ng specific page - nagpapage lang ang
+memberAPI.getAllMembers() sa client through this at pinagsasama-sama, kaya
+hindi nagbabago yung "give me the whole roster" contract na inaasahan ng
+mga callers na ito. */
 const getAllMembers = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -345,8 +347,8 @@ const getMemberById = async (req, res) => {
   }
 };
 
-// Force-regenerate a single member's QR code — invalidates the old image
-// (new file, new embedded qrId) and leaves the new one active.
+/* Force-regenerate ng QR code ng isang member - ininvalidate yung old
+image (new file, new embedded qrId) at ang bagong isa ang naiiwang active. */
 const regenerateQRCode = async (req, res) => {
   try {
     const { memberId } = req.params;
@@ -390,8 +392,8 @@ const regenerateQRCode = async (req, res) => {
   }
 };
 
-// Deactivate a member's QR — the image and file stay put, but it stops
-// being accepted for scan-based attendance until reactivated.
+/* I-deactivate yung QR ng member - nananatili yung image at file, pero
+hindi na ito tatanggapin para sa scan-based attendance until reactivated. */
 const deactivateQRCode = async (req, res) => {
   try {
     const { memberId } = req.params;
@@ -471,8 +473,9 @@ const reactivateQRCode = async (req, res) => {
   }
 };
 
-// Check QR status — a lightweight single-member lookup so the admin can
-// confirm current generated/active state without pulling the whole roster.
+/* Check QR status - lightweight single-member lookup para ma-confirm ng
+admin yung current generated/active state without pulling the whole
+roster. */
 const getQRStatus = async (req, res) => {
   try {
     const { memberId } = req.params;

@@ -2,10 +2,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate, formatTime, formatDateTime, formatForFilename } from './date';
 
-/**
- * Professional PDF Report Generator for Attendance System
- * Creates clean, professional PDF reports with proper formatting
- */
+/* Professional PDF Report Generator para sa Attendance System - gumagawa
+ng clean at professional na PDF reports na maayos ang formatting. */
 class PDFReportGenerator {
   constructor() {
     this.cooperativeColors = {

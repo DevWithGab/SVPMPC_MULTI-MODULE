@@ -4,8 +4,9 @@ const CACHE_MS = 60 * 1000;
 let cached;
 let pending;
 
-// Public branding needs only the shared registered-member total. Never load
-// member documents or accept client-supplied filters on this endpoint.
+/* Kailangan lang dito ng public branding yung shared registered-member total.
+Huwag mag-load ng member documents o tumanggap ng client-supplied filters
+sa endpoint na ito. */
 const getCommunityStats = async (req, res) => {
   try {
     if (!cached || cached.expiresAt <= Date.now()) {

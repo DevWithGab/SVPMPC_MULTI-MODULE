@@ -9,13 +9,15 @@ const {
   getRoleActivity,
 } = require('../../shared/controllers/auditLogController');
 
-// This router previously had no auth at all — every audit log across every
-// module (who did what, when, from what IP) was readable by anyone with the
-// URL, logged in or not. Audit screens require both a valid session and
-// an authorized staff role; scanner accounts cannot read private snapshots.
+/* Dati walang auth talaga itong router - lahat ng audit log sa bawat module
+(sino gumawa, kailan, saang IP) mababasa ng kahit sino na may URL, naka-login
+man o hindi. Kailangan ng audit screens ng both valid session at authorized
+staff role; hindi puwedeng makabasa ng private snapshots ang scanner
+accounts. */
 router.use(authenticateToken);
-// Stored audit snapshots may include contact details. Scanner screens do not
-// use audit APIs and must not bypass attendance response privacy through them.
+/* Puwedeng may contact details yung stored audit snapshots. Hindi gumagamit
+ng audit APIs ang scanner screens at hindi dapat makalusot dito papalampas
+sa attendance response privacy. */
 router.use(authorizeRoles('admin', 'super_admin', 'secretary', 'treasurer'));
 router.use((req, res, next) => {
   if (req.user.role === 'super_admin') { req.auditModule = req.query.module; return next(); }

@@ -37,9 +37,9 @@ const handleJWTError = () =>
 const handleJWTExpiredError = () =>
   new AppError('Your token has expired! Please log in again.', 401);
 
-// Handle Multer upload errors (file too large, too many files, unexpected
-// field, ...) — the uploader did something invalid, not a server bug, so
-// this always gets a clean, friendly response, not a raw stack trace.
+/* Handle Multer upload errors (file too large, too many files, unexpected
+field, ...) - mali yung ginawa ng uploader, hindi server bug, kaya laging
+clean at friendly response ang ibabalik dito, hindi raw stack trace. */
 const MULTER_ERROR_MESSAGES = {
   LIMIT_FILE_SIZE: 'File is too large.',
   LIMIT_FILE_COUNT: 'Too many files.',
@@ -55,10 +55,10 @@ const handleMulterError = (err) =>
     err.code === 'LIMIT_FILE_SIZE' ? 413 : 400
   );
 
-// Send error response for development — for a genuine bug, dump everything
-// for debugging; an operational error (expected: bad upload, bad request
-// body, etc.) is just as noisy served raw, so show it the same clean way
-// production does instead.
+/* Send error response for development - kung genuine bug, dump everything
+para sa debugging; pero kung operational error (expected: bad upload, bad
+request body, etc.) ay parang noise lang din kung raw ang serve, so ibigay
+na lang yung same clean way na ginagawa sa production. */
 const sendErrorDev = (err, res) => {
   if (err.isOperational) {
     return res.status(err.statusCode).json({ success: false, message: err.message });
@@ -119,21 +119,23 @@ const catchAsync = (fn) => {
   };
 };
 
-// Many controllers catch their own errors locally and respond directly
-// (res.status(500).json({..., error: error.message})) instead of calling
-// next(error) — so globalErrorHandler's NODE_ENV gating above never runs for
-// them, in any environment. Confirmed live: a crafted login payload
-// surfaced a raw bcrypt internal error string this way. Rewiring every one
-// of those call sites through next(error) would be the "proper" fix, but is
-// a much larger, riskier change; gating just the leaked value at each site
-// closes the actual hole without touching status codes, messages, or
-// control flow otherwise. Mirrors globalErrorHandler's own convention
-// above: anything other than the literal 'development' is treated as
-// unsafe-to-show, the same fail-safe default used there.
-// Accepts either an Error-like object (reads .message) or an already-plain
-// string (e.g. a service function's own `{ success: false, error: '...' }`
-// return value, passed straight into a response) — either way, nothing but
-// development ever sees it.
+/* Marami sa controllers ang catch nila ang own errors locally at direktang
+nag-respond (res.status(500).json({..., error: error.message})) imbes na
+tumawag ng next(error) - kaya hindi tumatakbo yung NODE_ENV gating sa
+globalErrorHandler sa itaas para sa kanila, sa kahit anong environment.
+Confirmed live: isang crafted login payload ay nag-expose ng raw bcrypt
+internal error string sa ganitong paraan. Ang i-rewire lahat ng call sites
+papunta sa next(error) ay magiging "proper" fix, pero mas malaki at mas
+risky yung change; mas mabuti na lang gating yung leaked value sa bawat
+site - naayos na ang actual hole without touching status codes, messages,
+or control flow. Sumusunod lang ito sa convention na ginagamit na ng
+globalErrorHandler sa itaas: kung hindi literal na 'development', treated
+as unsafe-to-show, parehong fail-safe default na ginagamit dun.
+
+Tumatanggap ito ng Error-like object (binabasa yung .message) o plain
+string na (e.g. return value ng isang service function na mismong
+`{ success: false, error: '...' }`, na direktang pumapasok sa response) -
+pareho lang, wala namang makakakita nito kundi development. */
 const safeErrorMessage = (error) =>
   process.env.NODE_ENV === 'development' ? (error?.message ?? error) : undefined;
 

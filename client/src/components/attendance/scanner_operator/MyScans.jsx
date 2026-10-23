@@ -9,10 +9,11 @@ import "./MyScans.css";
 
 const PAGE_SIZE = 10;
 
-/* Every attendance record this operator has personally scanned in, across
- every event — not just the last few from this browser session. Filtered
-server-side using the signed-in account's stable ID, with legacy-name matching
-for older records. The browser does not choose which operator to query.*/
+/* Lahat ng attendance record na personal na na-scan ng operator na ito, sa
+lahat ng event - hindi lang yung last few mula sa browser session na ito.
+Filtered ito server-side gamit ang stable ID ng signed-in account, may
+legacy-name matching pa para sa mga older records. Hindi ang browser ang
+pumipili kung aling operator ang i-query. */
 export default function MyScans({ user }) {
   const { page, limit, setPage } = usePagination(1, PAGE_SIZE);
   const [records, setRecords] = useState([]);

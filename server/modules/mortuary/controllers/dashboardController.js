@@ -13,8 +13,9 @@ const getClaimFinancialTotals = async (match) => {
   const isReleased = { $ne: [{ $ifNull: ['$payout.amount', null] }, null] };
 
   const [claimTotals] = await Claim.aggregate([
-    // The dashboards total every claim; the Claims Income Report passes its
-    // current search filter so the report footer matches the rows shown.
+    /* Tinotal ng dashboards yung every claim; ipinapasa ng Claims Income
+    Report yung current search filter niya para tugma yung report footer
+    sa mga rows na ipinapakita. */
     ...(match ? [{ $match: match }] : []),
     {
       $group: {
@@ -111,9 +112,9 @@ const getTreasurerDashboard = async (req, res) => {
     const GOOD_STANDING_THRESHOLD = 5000;
     const EXCELLENT_STANDING_THRESHOLD = 10000;
 
-    // One aggregation for every active member's current balance instead of a
-    // Ledger.findOne() per member in the loop below (was an N+1 query on
-    // every treasurer dashboard load).
+    /* Isang aggregation lang para sa current balance ng every active member
+    sa halip na Ledger.findOne() per member sa loop sa baba (dati ay N+1
+    query sa every treasurer dashboard load). */
     const balancesByMember = await getLatestBalancesByMember(members.map((member) => member.memberId));
 
     for (const member of members) {
@@ -129,8 +130,8 @@ const getTreasurerDashboard = async (req, res) => {
       } else if (balance >= GOOD_STANDING_THRESHOLD) {
         goodStandingCount++;
       } else {
-        // Fair standing (between minimum and good)
-        // This will be calculated as: activeMembers - (low + good + excellent)
+        /* Fair standing (sa gitna ng minimum at good) - ito ay
+        kakalkulahin as: activeMembers - (low + good + excellent) */
       }
     }
 
@@ -167,8 +168,8 @@ const getTreasurerDashboard = async (req, res) => {
         lowBalanceMembers: lowBalanceCount,
         negativeBalanceMembers: negativeBalanceCount,
         totalCollected,
-        // Death-fund assessment totals across all claims — see
-        // getClaimFinancialTotals for why this is separate from fundBalance.
+        /* Death-fund assessment totals sa lahat ng claims - tingnan yung
+        getClaimFinancialTotals kung bakit separate ito sa fundBalance. */
         totalDeductionsCollected,
         totalReleased,
         netClaimsBalance,
@@ -199,11 +200,11 @@ const getTreasurerDashboard = async (req, res) => {
   }
 };
 
-// Admin dashboard — member counts, claim counts by status, recent claim
-// activity. Note: adminRoutes.js previously wired GET /dashboard to
-// getDashboard above, which requires a memberId route param that route
-// never supplied (a pre-existing 404 on that endpoint) — this function is
-// the one actually meant for the admin-facing dashboard.
+/* Admin dashboard - member counts, claim counts by status, recent claim
+activity. Note: dati itong GET /dashboard sa adminRoutes.js ay naka-wire sa
+getDashboard sa taas, na nangangailangan ng memberId route param na hindi
+naman nasusupply ng route na yun (pre-existing 404 sa endpoint na yun) -
+ito talaga yung function na para sa admin-facing dashboard. */
 const getAdminDashboard = async (req, res) => {
   try {
     const [totalMembers, activeMembers, inactiveMembers, deceasedMembers] = await Promise.all([
@@ -233,8 +234,8 @@ const getAdminDashboard = async (req, res) => {
 
     const { totalDeductionsCollected, totalReleased, netClaimsBalance } = await getClaimFinancialTotals();
 
-    // Recent claim activity — flatten the last few statusHistory entries
-    // across the most recently updated claims.
+    /* Recent claim activity - flatten yung last few statusHistory entries
+    galing sa pinaka-recently updated claims. */
     const recentClaims = await Claim.find()
       .sort({ updatedAt: -1 })
       .limit(10)
@@ -255,12 +256,13 @@ const getAdminDashboard = async (req, res) => {
       .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt))
       .slice(0, 10);
 
-    // Claims that actually need attention right now — by current status,
-    // not by scanning history. recentClaimActivities above is a flattened
-    // statusHistory log, so a claim already approved/released still has old
-    // "pending_requirements"/"pending_deduction" entries in it; filtering
-    // that log for the notification bell made already-resolved claims keep
-    // showing up as still needing attention.
+    /* Yung claims na talagang kailangan ng attention ngayon - by current
+    status, hindi by scanning history. Yung recentClaimActivities sa taas
+    ay flattened statusHistory log, kaya yung claim na approved/released na
+    ay meron pa ring lumang "pending_requirements"/"pending_deduction"
+    entries dito; kung ifilter yung log na yun para sa notification bell,
+    sumulpot yung mga already-resolved claims na parang kailangan pa rin ng
+    attention. */
     const claimsNeedingAttention = await Claim.find({
       status: { $in: ['pending_requirements', 'pending_deduction'] },
     })
@@ -282,9 +284,9 @@ const getAdminDashboard = async (req, res) => {
           ...claimCountsByStatus,
           totalDeductionsCollected,
           totalReleased,
-          // The cooperative's income from the claims side: the surplus kept
-          // once a claim is disbursed. Separate from members' own
-          // contribution balances (fundBalance).
+          /* Ito yung income ng cooperative galing sa claims side: yung
+          surplus na naiwan once na-disburse na yung claim. Separate ito
+          sa sariling contribution balances ng members (fundBalance). */
           netClaimsBalance,
         },
         recentClaimActivities,

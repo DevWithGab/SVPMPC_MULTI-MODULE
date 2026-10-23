@@ -5,8 +5,9 @@ const User = require('../shared/models/User');
 
 async function resetPassword() {
   const password = randomBytes(18).toString('base64url');
-  // Query updates do not run the password-hashing save hook. Hash explicitly,
-  // and increment the version atomically so concurrent resets each revoke sessions.
+  /* Hindi tumatakbo yung password-hashing save hook sa query updates, kaya
+  manual hash na lang dito, at atomic yung pag-increment ng version para
+  yung mga concurrent resets, lahat sila nagre-revoke ng sessions. */
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await User.findOneAndUpdate(
     { username: 'superadmin', role: 'super_admin' },

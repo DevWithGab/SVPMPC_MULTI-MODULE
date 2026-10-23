@@ -73,11 +73,11 @@ const confirmAndStartImport = async (req, res) => {
   try {
     const { operationId } = req.body;
 
-    // typeof check closes a NoSQL operator-injection hole: a crafted body
-    // like {"operationId":{"$ne":null}} passes the !operationId truthiness
-    // check (a non-empty object is truthy) and turns the findOne below into
-    // a real query operator, matching whichever import operation Mongo's
-    // query planner returns first instead of the one actually named.
+    /* Yung typeof check sinasara niya yung NoSQL operator-injection hole: yung
+    body na {"operationId":{"$ne":null}} makaka-pasa sa !operationId truthiness
+    check (truthy yung non-empty object) at magiging totoong query operator
+    yung findOne sa baba, so kung ano man yung import operation na ibabalik
+    ng Mongo's query planner first ang matatama, hindi yung talagang tinukoy. */
     if (!operationId || typeof operationId !== 'string') {
       return res.status(400).json({ message: 'Operation ID required' });
     }

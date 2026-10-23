@@ -46,13 +46,14 @@ const restoreMembers = async (records) => {
   return result;
 };
 
-// A member's balance is never a field on the Member document — it's derived
-// from their latest Ledger entry (see shared/utils understanding throughout
-// this module). A backup that only captures Members + Contributions can't
-// actually restore anyone's balance: the running history of deductions,
-// claim payouts, and adjustments that produced it is a separate collection
-// this endpoint supplies raw (unpaginated, unreshaped) so it round-trips
-// faithfully through restoreBackup below.
+/* Hindi talaga field sa Member document yung balance ng isang member - derived
+ito galing sa latest Ledger entry nila (tingnan yung shared/utils understanding
+sa buong module na ito). Yung backup na nag-capture lang ng Members +
+Contributions ay hindi talaga makaka-restore ng balance ng kahit sino: yung
+running history ng deductions, claim payouts, at adjustments na nagproduce
+nito ay separate collection na sino-supply ng endpoint na ito raw
+(unpaginated, unreshaped) para round-trip siya nang faithful sa restoreBackup
+sa baba. */
 const getLedgerExport = async (req, res) => {
   try {
     const ledgers = await Ledger.find({}).sort({ createdAt: 1 }).lean();
@@ -63,11 +64,11 @@ const getLedgerExport = async (req, res) => {
   }
 };
 
-// Restoring from a backup upserts by each collection's natural key — an
-// existing record with the same id gets its fields overwritten, a new one
-// gets created. It never deletes anything not present in the backup, so a
-// partial or older backup can't wipe out newer data that isn't in the file.
-// (Same pattern as the Attendance module's backup/restore.)
+/* Pag nagrestore galing sa backup, nag-upsert ito base sa natural key ng bawat
+collection - yung existing record na may same id ay nao-overwrite yung fields,
+yung bago ay nagagawa. Hindi ito nagde-delete ng kahit ano na wala sa backup,
+kaya hindi mawiwipe ng partial o lumang backup yung newer data na wala sa
+file. (Parehong pattern ng Attendance module's backup/restore.) */
 const upsertMany = async (Model, key, records) => {
   const result = { created: 0, updated: 0, errors: [] };
   if (!Array.isArray(records)) return result;
@@ -80,8 +81,9 @@ const upsertMany = async (Model, key, records) => {
     }
 
     try {
-      // Strip Mongo-internal fields — these must never be copied from the
-      // backup file, they belong to whatever document ends up storing this.
+      /* Tinatanggal yung Mongo-internal fields - hindi dapat kopyahin ito
+      galing sa backup file, dapat sa kung anong document man ang
+      mag-store nito. */
       const { _id, __v, createdAt, updatedAt, ...fields } = record;
       const existing = await Model.findOne({ [key]: keyValue });
       const memberId = fields.memberId ?? existing?.memberId;
@@ -114,12 +116,13 @@ const upsertMany = async (Model, key, records) => {
   return result;
 };
 
-// Restores from the same JSON shape the "Complete System Backup" button
-// downloads: { members, contributions, ledgers }. Any subset of those three
-// arrays is accepted, so a members-only or contributions-only export also
-// still works. ledgers is what actually reconstructs every member's
-// balance — Member itself has no balance field, so a backup without it
-// restores profiles and payment records but leaves every balance at zero.
+/* Nagre-restore galing sa same JSON shape ng "Complete System Backup" button
+downloads: { members, contributions, ledgers }. Tatanggapin ang kahit anong
+subset ng tatlong arrays na ito, kaya gumagana rin yung members-only o
+contributions-only export. Yung ledgers ang talagang nagre-reconstruct ng
+balance ng bawat member - walang balance field talaga yung Member mismo,
+kaya kung walang ledgers yung backup, nare-restore lang yung profiles at
+payment records pero naiiwan sa zero yung bawat balance. */
 const restoreBackup = async (req, res) => {
   try {
     const { members, contributions, ledgers } = req.body || {};

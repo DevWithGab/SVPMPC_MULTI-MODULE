@@ -5,9 +5,9 @@ const requirementItemSchema = new mongoose.Schema(
     submitted: { type: Boolean, default: false },
     received: { type: Boolean, default: false },
     verified: { type: Boolean, default: false },
-    // Requirements are added to each claim because physical requirements may
-    // differ between individuals. The label is stored with the claim so it
-    // remains readable without a global settings record.
+    /* Idinaragdag ang requirements per claim dahil puwedeng magkaiba ang physical
+    requirements ng bawat indibidwal. Naitatago ang label kasama ng claim para
+    mabasa pa rin ito kahit walang global settings record. */
     label: { type: String },
   },
   { _id: false }
@@ -25,8 +25,8 @@ const claimSchema = new mongoose.Schema(
       required: true,
       ref: 'Member',
     },
-    // Snapshotted at filing time, same rationale as the beneficiary fields
-    // below — lets list/search views read straight off Claim with no join.
+    /* Snapshotted sa filing time, parehong rationale ng beneficiary fields sa baba -
+    para direktang makabasa ang list/search views mula sa Claim na walang join. */
     memberName: {
       type: String,
       required: true,
@@ -36,8 +36,8 @@ const claimSchema = new mongoose.Schema(
       required: true,
       ref: 'Beneficiary',
     },
-    // Snapshotted at filing time — a Beneficiary record can change later,
-    // the claim must retain what was true when it was filed.
+    /* Snapshotted sa filing time - puwedeng magbago ang Beneficiary record mamaya,
+    pero dapat itago ng claim kung ano ang totoo nung na-file ito. */
     beneficiaryName: {
       type: String,
       required: true,
@@ -70,12 +70,12 @@ const claimSchema = new mongoose.Schema(
         'pending_requirements',
         'approved',
         'pending_deduction',
-        // Transient lock states: a claim sits here only for the duration of
-        // processClaimDeduction/releaseClaim's own request — claiming one
-        // atomically (findOneAndUpdate with the prior status as the filter)
-        // is what stops two concurrent requests from both doing the money
-        // math for the same claim. Reverted back on failure; see those
-        // functions in treasurerClaimController.js for why this exists.
+        /* Transient lock states ito: nandito lang muna ang claim habang tumatakbo ang
+        sariling request ng processClaimDeduction/releaseClaim - ang pag-claim nito
+        atomically (findOneAndUpdate gamit ang prior status bilang filter) ang
+        pumipigil sa dalawang concurrent request na magkasabay gumawa ng money math
+        para sa parehong claim. Ibabalik kapag nagfail; tingnan ang mga function na
+        iyon sa treasurerClaimController.js para malaman kung bakit ito existing. */
         'deduction_processing',
         'deduction_processed',
         'releasing',

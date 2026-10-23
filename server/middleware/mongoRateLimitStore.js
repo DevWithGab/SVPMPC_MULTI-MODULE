@@ -8,8 +8,9 @@ const getCollection = () => {
   return mongoose.connection.db.collection(COLLECTION);
 };
 
-// Called after connecting and before accepting HTTP traffic. TTL is cleanup
-// only: bucket keys determine expiration even if MongoDB deletes rows late.
+/* Tinatawag ito after connecting at before accepting HTTP traffic. Yung TTL
+cleanup lang: bucket keys ang nagde-determine ng expiration kahit late
+mag-delete ng rows ang MongoDB. */
 const ensureRateLimitIndexes = async (collection = getCollection()) => {
   await collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'rate_limit_expiry' });
 };
@@ -27,9 +28,10 @@ class MongoRateLimitStore {
     this.windowMs = windowMs;
   }
 
-  // Capture the window in the key used by express-rate-limit. A successful
-  // request finishing later can decrement only its original window, never
-  // another request's new window. Hash IPs/account identifiers before storage.
+  /* I-capture yung window sa key na ginagamit ng express-rate-limit. Kung
+  matapos ang successful request mamaya, puwede lang nitong i-decrement
+  yung original window niya, hindi yung bagong window ng ibang request.
+  Hash muna ang IPs/account identifiers bago i-store. */
   key(identifier) {
     const expiresAt = (Math.floor(this.now() / this.windowMs) + 1) * this.windowMs;
     const digest = createHash('sha256').update(String(identifier)).digest('hex');
@@ -73,9 +75,10 @@ class MongoRateLimitStore {
 
   async decrement(key) {
     const { _id } = this.entry(key);
-    // This runs after a successful response has already finished. If the
-    // database goes down then, retaining the hit is the conservative option.
-    // Do not reject an unawaited response-finish callback in the limiter.
+    /* Tumatakbo ito after matapos na ang successful response. Kung bumagsak
+    ang database nung oras na, mas conservative option na i-retain lang
+    yung hit. Hindi dapat mag-reject ng unawaited response-finish callback
+    sa limiter. */
     await this.run(collection => collection.updateOne({ _id, totalHits: { $gt: 0 } }, { $inc: { totalHits: -1 } }, operationOptions))
       .catch(() => console.error('Unable to release a successful request from the shared rate-limit counter.'));
   }

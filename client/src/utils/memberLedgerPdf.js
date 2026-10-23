@@ -13,8 +13,9 @@ const beneficiaryText = value => Array.isArray(value)
   ? value.map(person => typeof person === 'string' ? person : person.name ?? person.beneficiaryName ?? '').filter(Boolean).join(', ')
   : String(value || '');
 
-// Printing and downloading share this document, including repeated member
-// details on continuation pages and full reference numbers without truncation.
+/* Pareho lang ang document na ginagamit ng printing at downloading, kasama
+yung repeated member details sa continuation pages at full reference
+numbers na walang truncation. */
 export const createMemberLedgerPdf = (member, entries, { logoDataUrl = null, filtered = false } = {}) => {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   doc.setProperties({ title: `Mutual Assistance Fund Ledger - ${member.name}`, author: 'SVPMPC' });
@@ -83,8 +84,8 @@ const loadLogo = () => {
 };
 
 export const outputMemberLedgerPdf = async (member, entries, { print = false, filtered = false } = {}) => {
-  // Open immediately during the click so fetching the logo does not trigger
-  // popup blocking when the print document is ready.
+  /* I-open agad habang nasa click event para pag kinuha yung logo, hindi
+  na ma-trigger yung popup blocking pagdating ng print document. */
   const printWindow = print ? window.open('', '_blank') : null;
   if (print && !printWindow) throw new Error('Allow popups to print the ledger.');
   try {

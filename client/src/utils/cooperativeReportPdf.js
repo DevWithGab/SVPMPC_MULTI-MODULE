@@ -2,8 +2,9 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { drawCooperativeLetterhead } from './cooperativePdfLetterhead.js';
 
-// Mortuary reports follow the cooperative's ledger form: the same letterhead,
-// centered report title, black ruled tables, and numbered continuation pages.
+/* Sinusunod ng Mortuary reports yung ledger form ng cooperative: parehong
+letterhead, centered report title, black ruled tables, at numbered
+continuation pages. */
 export const createCooperativeReportPdf = ({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   doc.setProperties({ title, author: 'St. Vincent Parish Multi-Purpose Cooperative', subject: 'Mutual Assistance Fund' });

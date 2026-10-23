@@ -1,7 +1,7 @@
 import React from 'react';
 
-// Mirrors mortuary/shared/StatCard's color set so both modules' stat tiles
-// draw from the same palette.
+/* Sinusunod dito ang color set ng mortuary/shared/StatCard para parehong
+magkuha ng kulay ang stat tiles ng dalawang module mula sa same palette. */
 const COLOR_STYLES = {
   emerald: { bg: 'bg-green-50', border: 'border-green-100', text: 'text-coop-green' },
   blue: { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-600' },

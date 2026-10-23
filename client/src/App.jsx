@@ -13,9 +13,10 @@ import { BrowserRouter, Navigate, Route, Routes, Link, useLocation, useNavigate 
 import { readSession, portalPath } from './utils/navigation';
 import { MODULE_ROLES } from './utils/constants';
 
-// Which component renders for each (module, role) pair. The set of pairs
-// that actually exist is defined once in constants.js (ROLE_MODULES) — this
-// map only has to say WHAT to render for each one, not which ones are valid.
+/* Ito yung nagsasabi kung anong component ang ira-render para sa bawat (module, role)
+pair. Yung mismong listahan ng mga pair na valid ay naka-define na sa constants.js
+(ROLE_MODULES) - dito lang kailangan sabihin kung ANO ang ipapakita sa bawat isa,
+hindi kung alin sa mga pair ang valid. */
 const PORTAL_COMPONENTS = {
   '/mortuary/admin': MortuaryAdminPortal,
   '/mortuary/treasurer': MortuaryTreasurerPortal,
@@ -24,9 +25,9 @@ const PORTAL_COMPONENTS = {
   '/attendance/admin': AttendanceAdminPortal,
 };
 
-// Derived from MODULE_ROLES so a role/module added in constants.js without a
-// matching entry here is a loud dev-console warning instead of a silent
-// login-routing dead end.
+/* Galing ito sa MODULE_ROLES, kaya kung may role/module na idinagdag sa constants.js
+na walang kaparehas na entry dito, malakas na dev-console warning agad ang lalabas
+imbes na tahimik lang na mapupunta sa dead end sa login routing. */
 const portals = Object.fromEntries(
   Object.entries(MODULE_ROLES).flatMap(([module, roles]) => roles.map(role => {
     const path = portalPath(module, role);
@@ -87,14 +88,14 @@ function AppRoutes() {
     </Routes>
   );
 
-  // Only the two /admin portals fill exactly 100dvh internally and manage
-  // their own scrolling — stacking the superadmin nav bar above them needs
-  // this height-constrained flex column so the nav bar gets its own space
-  // instead of the portal's full 100dvh overflowing past it (that's what
-  // hid the sidebar's collapse toggle below the fold). Every other
-  // superadmin route (the hub itself, the login screen) relies on normal
-  // page scrolling via min-h-screen, so it must NOT be wrapped the same
-  // way — doing so clips it against overflow-hidden with no way to scroll.
+  /* Dalawang /admin portals lang ang pumupuno ng exact 100dvh sa loob at nag-manage
+  ng sarili nilang scrolling - kapag nilagay sa taas ang superadmin nav bar, kailangan
+  nito itong height-constrained flex column para may sariling space ang nav bar imbes
+  na ma-overflow ng buong 100dvh ng portal papalagpas dito (dahil dito nahihide yung
+  collapse toggle ng sidebar sa ibaba). Yung ibang superadmin routes (hub mismo, login
+  screen) ay umaasa sa normal page scrolling gamit ang min-h-screen, kaya HINDI dapat
+  i-wrap ng ganito - kapag ginawa, ma-clip ito laban sa overflow-hidden na walang
+  paraan para mag-scroll. */
   const isAdminPortalRoute = location.pathname === '/attendance/admin' || location.pathname === '/mortuary/admin';
   if (isSuperAdmin && isAdminPortalRoute) {
     return (

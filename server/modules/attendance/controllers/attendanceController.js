@@ -268,8 +268,8 @@ const generateReport = async (req, res) => {
   try {
     const { eventId, generatedBy } = req.body;
 
-    // Same NoSQL operator-injection guard as recordAttendance above — eventId
-    // is never legitimately anything but a string.
+    /* Parehong NoSQL operator-injection guard ito na gaya ng recordAttendance
+    sa itaas - hindi talaga puwedeng iba yung eventId kundi string. */
     if (!eventId || !generatedBy || typeof eventId !== 'string') {
       return res.status(400).json({ message: 'Missing required fields' });
     }
@@ -316,18 +316,19 @@ const getAllAttendance = async (req, res) => {
     const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
     const { scannedBy } = req.query;
 
-    // typeof check closes the same NoSQL operator-injection hole already
-    // fixed on several req.body fields in this app (e.g. recordAttendance
-    // above): Express's query-string parser turns a crafted
-    // ?scannedBy[$ne]=x into an OBJECT, which — left unchecked — would be
-    // embedded directly into the filter below and interpreted as a real
-    // Mongo query operator instead of a literal scannedBy value.
+    /* Yung typeof check ay nagsasara ng parehong NoSQL operator-injection
+    hole na na-fix na sa ilang req.body fields ng app na ito (e.g.
+    recordAttendance sa itaas): ginagawang OBJECT ng query-string parser ng
+    Express yung crafted na ?scannedBy[$ne]=x, na kung hindi ma-check ay
+    direktang ma-embed sa filter sa baba at mabibasa bilang totoong Mongo
+    query operator imbes na literal na scannedBy value. */
     if (scannedBy !== undefined && typeof scannedBy !== 'string') {
       return res.status(400).json({ message: 'Invalid scannedBy filter' });
     }
 
-    // My Scans uses the authenticated stable account ID. Keep legacy records
-    // searchable by trusted account names, without trusting a supplied name.
+    /* Ginagamit ng My Scans yung authenticated stable account ID.
+    Panatilihing searchable yung legacy records gamit ang trusted account
+    names, pero hindi dapat i-trust yung name na supplied. */
     let filter = scannedBy ? { scannedBy } : {};
     if (req.user?.role === 'scanner_operator' && (scannedBy || req.query.mine === 'true')) {
       const names = [req.user.username, req.user.fullName].filter(Boolean);

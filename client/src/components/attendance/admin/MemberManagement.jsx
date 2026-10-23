@@ -24,12 +24,12 @@ import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "../secretary/Dashboard.css";
 import "./MemberManagement.css";
 
-/* A member's QR is in exactly one of three states — this is the single
-source of truth the whole screen (badges, filters, actions) reads from.*/
+/* Tatlo lang ang posibleng state ng QR ng member - ito ang single source of
+truth na ginagamit ng buong screen (badges, filters, actions). */
 const qrState = (member) => {
   if (!member?.qrCodeGenerated) return "none";
-  /* A deceased member's QR must never read as "active" here even if the
-   qrCodeActive flag itself was never flipped off.*/
+  /* Hindi dapat basahin bilang "active" ang QR ng deceased member dito, kahit
+  hindi pa na-flip off ang qrCodeActive flag mismo. */
   if (member.status === "deceased") return "inactive";
   return member.qrCodeActive === false ? "inactive" : "active";
 };
@@ -40,9 +40,9 @@ const QR_STATE_META = {
   inactive: { label: "QR Inactive", className: "bg-amber-100 text-amber-800" },
 };
 
-/*Member.status is shared with the Mortuary module — filing a death claim
- there flips a member to 'deceased', which this screen needs to surface
-(and gate QR issuance on) instead of treating every member as active.*/
+/* Shared ang Member.status sa Mortuary module - kapag nag-file ng death claim
+dun, napupunta ang member sa 'deceased', kaya kailangan ito i-surface dito
+(at i-gate yung QR issuance) imbes na ituring active lahat ng member. */
 const MEMBER_STATUS_META = {
   active: { label: "Member Active", className: "bg-green-100 text-green-800" },
   deceased: {
@@ -148,10 +148,10 @@ const downloadQRCode = async (member) => {
   URL.revokeObjectURL(url);
 };
 
-/*The QR management console for one member — every admin action from the
-// spec (generate, view, download, print, regenerate, deactivate,
-// reactivate, check status) lives here so a table/grid row only ever needs
-one entry point instead of a wall of icon buttons.*/
+/* Ito ang QR management console para sa isang member - lahat ng admin action
+mula sa spec (generate, view, download, print, regenerate, deactivate,
+reactivate, check status) ay nandito, kaya isang entry point lang kailangan
+ng table/grid row imbes na puno ng icon buttons. */
 const QRManagerModal = ({ member, onClose, onUpdated }) => {
   const [current, setCurrent] = useState(member);
   const [busy, setBusy] = useState(null); // which action is in flight
@@ -175,8 +175,9 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
       if (response.member) {
         applyUpdate(response.member);
       } else {
-        /* generateMemberQR (bulk endpoint under the hood) doesn't echo the
-         updated member back — pull its fresh state explicitly instead.*/
+        /* Hindi ibinabalik ni generateMemberQR (bulk endpoint pala sa ilalim)
+        yung updated member - kaya kunin na lang ang fresh state nito
+        explicitly. */
         const status = await memberAPI.getMemberQRStatus(current.memberId);
         applyUpdate({ ...current, ...status });
       }
@@ -424,8 +425,8 @@ const MemberManagement = () => {
     }
   };
 
-  /* Keep the roster and the open modal (if any) in sync with a single
-   member's updated QR state, without a full refetch.*/
+  /* Pinapanatili dito na sync ang roster at ang open modal (kung meron) sa
+  updated QR state ng isang member, walang full refetch. */
   const patchMember = (updated) => {
     setMembers((prev) =>
       prev.map((m) =>

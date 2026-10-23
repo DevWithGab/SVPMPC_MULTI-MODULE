@@ -12,17 +12,18 @@ router.put('/staff/:userId', staff.update);
 router.delete('/staff/:userId', staff.remove);
 router.post('/staff/:userId/reset-password', staffActionLimiter, staff.resetPassword);
 
-// This whole tree sits under /api/admin, which server.js only gates with
-// authorizeAdminOnly (role 'admin' OR 'super_admin') — with no module check,
-// that let an attendance-only or mortuary-only admin read and write members
-// outside their own module via this shared, unscoped path (confirmed live:
-// an attendance.admin token read a mortuary-only member's beneficiary data
-// and rewrote its `modules` array to grant itself access). The client only
-// ever reaches this path from SuperAdmin.jsx — every module-scoped admin
-// already has their own properly-restricted member endpoints under
-// /api/attendance/admin and /api/mortuary/admin — so restricting it to
-// super_admin, same as /staff above, closes the gap with no loss of any
-// legitimate functionality.
+/* Nasa ilalim ng /api/admin yung buong tree na ito, at gi-gate lang ito ng
+server.js gamit ang authorizeAdminOnly (role 'admin' OR 'super_admin') - kung
+walang module check, puwedeng makabasa at maka-write ng members ang isang
+attendance-only o mortuary-only admin sa labas ng own module nila gamit itong
+shared, unscoped path (confirmed live: isang attendance.admin token nakabasa
+ng beneficiary data ng isang mortuary-only member at na-rewrite pa yung
+`modules` array niya para bigyan ang sarili ng access). Lagi lang galing sa
+SuperAdmin.jsx ang client papunta dito - bawat module-scoped admin may sarili
+na properly-restricted member endpoints sa ilalim ng /api/attendance/admin at
+/api/mortuary/admin - kaya ang pag-restrict dito sa super_admin, kagaya ng
+/staff sa taas, nag-close ng gap na ito na walang nawawalang legitimate
+functionality. */
 router.use('/members', authorizeRoles('super_admin'));
 
 // Create a member record

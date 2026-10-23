@@ -3,8 +3,9 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const { createHash } = require('node:crypto');
 const { MongoRateLimitStore } = require('./mongoRateLimitStore');
 
-// All processes use the application's MongoDB database. Separate namespaces
-// prevent one kind of action from consuming another action's allowance.
+/* Lahat ng processes gumagamit ng application's MongoDB database. Yung
+separate namespaces ang nagpipigil para hindi maubos ng isang kind of
+action yung allowance ng ibang action. */
 const sharedLimiter = (prefix, options) => {
   const store = new MongoRateLimitStore({ prefix });
   const identify = options.keyGenerator || (req => ipKeyGenerator(req.ip));
@@ -16,8 +17,9 @@ const sharedLimiter = (prefix, options) => {
   });
 };
 
-// One counter per login identifier, across IPs, modules, and roles. Hashing
-// keeps keys bounded and avoids storing usernames/emails in the limiter store.
+/* Isang counter per login identifier, across IPs, modules, at roles. Yung
+hashing ang nagpapanatili ng keys bounded at umiiwas mag-store ng
+usernames/emails sa limiter store. */
 const loginKeyGenerator = (req) => {
   const username = typeof req.body?.username === 'string'
     ? req.body.username.trim().toLowerCase()
@@ -25,8 +27,9 @@ const loginKeyGenerator = (req) => {
   return createHash('sha256').update(username).digest('hex');
 };
 
-// An independent IP limit also catches password spraying across usernames.
-// The higher threshold accommodates staff sharing the same office connection.
+/* May independent IP limit din para mahuli yung password spraying across
+usernames. Mas mataas yung threshold para kasya yung staff na shared ang
+office connection. */
 const loginIpLimiter = sharedLimiter('login-ip', {
   windowMs: 5 * 60 * 1000,
   max: 100,
@@ -44,13 +47,14 @@ const loginLimiter = sharedLimiter('login-account', {
   legacyHeaders: false,
   message: { message: 'Too many login attempts. Please try again in 5 minutes.' },
   keyGenerator: loginKeyGenerator,
-  // Failed logins consume the limit; a successful one doesn't count against
-  // the user for the rest of the window.
+  /* Yung failed logins ang kumokonsumo ng limit; kung successful, hindi na
+  ito bibilangin against the user para sa rest of the window. */
   skipSuccessfulRequests: true,
 });
 
-// Same brute-force exposure on change-password: an attacker with a stolen
-// session/userId could otherwise guess the current password unlimited times.
+/* Parehong brute-force exposure ito sa change-password: puwedeng gamitin ng
+attacker na may stolen session/userId para guess ng unlimited times yung
+current password kung wala nito. */
 const changePasswordLimiter = sharedLimiter('change-password', {
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -60,17 +64,17 @@ const changePasswordLimiter = sharedLimiter('change-password', {
   skipSuccessfulRequests: true,
 });
 
-// These run after authenticateToken, so req.user is always set — keying on
-// the account itself (not just IP) stops a stolen/compromised token from
-// hammering these endpoints from a shared office IP without throttling every
-// other admin behind the same address. IP is only a fallback for the
-// theoretical case this runs before auth.
+/* Tumatakbo ito after authenticateToken, kaya laging set ang req.user -
+yung pag-key sa account mismo (hindi lang IP) ang pumipigil sa isang
+stolen/compromised token na mag-hammer ng mga endpoints na ito mula sa
+shared office IP without throttling sa ibang admin na kapareho ng address.
+Fallback lang yung IP para sa theoretical case na tumakbo ito before auth. */
 const accountKeyGenerator = (req) => req.user?.userId || ipKeyGenerator(req.ip);
 
-// Staff creation and password reset were previously unbounded — a
-// compromised super_admin token (or a buggy client retry loop) could spam
-// account creation or repeatedly force-reset another staffer's credentials
-// with no limit at all.
+/* Unbounded dati yung staff creation at password reset - puwedeng mag-spam
+ng account creation o paulit-ulit na force-reset ng credentials ng ibang
+staffer ang isang compromised super_admin token (o buggy client retry
+loop) dahil walang limit talaga. */
 const staffActionLimiter = sharedLimiter('staff-action', {
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -80,9 +84,9 @@ const staffActionLimiter = sharedLimiter('staff-action', {
   keyGenerator: accountKeyGenerator,
 });
 
-// Bulk CSV imports (members, contributions, ledger) are heavy, rare,
-// deliberate admin actions — unlike staff changes they also cost real
-// processing time per request, so the cap is tighter.
+/* Heavy, rare, at deliberate admin actions yung bulk CSV imports (members,
+contributions, ledger) - di kagaya ng staff changes, may real processing
+time pa sila per request, kaya mas tight ang cap. */
 const bulkUploadLimiter = sharedLimiter('bulk-upload', {
   windowMs: 15 * 60 * 1000,
   max: 10,

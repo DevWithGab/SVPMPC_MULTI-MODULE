@@ -1,20 +1,19 @@
-// Treasurer-side claim processing.
-//
-// Kept as its own file, separate from deductionController.js, so the two
-// money flows a claim drives stay visibly distinct in the codebase:
-//   - Flow A (collection/assessment): every OTHER active member is charged
-//     a small fixed amount into their own ledger when a member dies. This
-//     already existed as a blanket, manually-triggered action
-//     (processAutomaticDeduction); processClaimDeduction below is the same
-//     mechanism, run per-claim instead, using the configurable
-//     DeductionSetting rate and tagging every ledger row with the claimId.
-//   - Flow B (payout): the pool Flow A just collected — the sum of what was
-//     deducted from every other member's ledger for this claim — is paid out
-//     to the deceased member's beneficiary, capped at the Admin-configured
-//     BenefitCapSetting. Any surplus above the cap is the cooperative's
-//     income. The deceased member's OWN ledger balance is deliberately not
-//     the payout figure: it is their personal contribution balance, not the
-//     death benefit.
+/* Treasurer-side claim processing.
+
+Hiniwalay ito sa sarili nitong file, bukod sa deductionController.js, para manatiling
+klaro at distinct sa codebase yung dalawang money flow na dulot ng isang claim:
+  - Flow A (collection/assessment): sisingilin ang bawat ibang active member ng maliit
+    na fixed amount papunta sa sari-sariling ledger nila kapag namatay ang isang
+    member. Dati pa itong existing bilang blanket, manually-triggered action
+    (processAutomaticDeduction); ang processClaimDeduction sa baba ay parehong
+    mekanismo, tumatakbo lang per-claim, gamit ang configurable DeductionSetting rate
+    at tinatag ang bawat ledger row ng claimId.
+  - Flow B (payout): ang pool na kolekta ng Flow A - ang total na naibawas mula sa
+    ledger ng bawat ibang member para sa claim na ito - ay ibinabayad sa beneficiary
+    ng namatay na member, na may cap base sa Admin-configured BenefitCapSetting. Ang
+    kahit anong surplus pataas sa cap ay income ng cooperative. Ang OWN ledger
+    balance ng namatay na member ay sadyang hindi ang payout figure: personal
+    contribution balance niya ito, hindi ang death benefit. */
 const Claim = require('../models/Claim');
 const DeductionSetting = require('../models/DeductionSetting');
 const BenefitCapSetting = require('../models/BenefitCapSetting');
@@ -35,14 +34,14 @@ const {
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Matches DEFAULT_DEDUCTION_AMOUNT in deductionSettingController — used only if
-// no rate row exists yet (the Admin screen auto-seeds one on first view).
+/* Tumutugma ito sa DEFAULT_DEDUCTION_AMOUNT sa deductionSettingController - ginagamit
+lang kung walang rate row pa (auto-seeds ang Admin screen ng isa sa first view). */
 const FALLBACK_DEDUCTION_AMOUNT = 25;
 
-// The per-member deduction is set by the Admin in Deduction Settings and is not
-// the Treasurer's to choose, so both the preview and the real run resolve it
-// here rather than trusting anything off the request. That also guarantees the
-// amount previewed is the amount actually charged.
+/* Ang per-member deduction ay naka-set ng Admin sa Deduction Settings at hindi
+pagpipilian ng Treasurer, kaya parehong preview at real run ay rito rinesolve imbes
+na umasa sa kung ano man galing sa request. Dahil dito, siguradong yung amount na
+napreview ay yung talagang sisingilin. */
 const resolveDeductionRate = async () => {
   const setting = await DeductionSetting.findOne({ status: 'active' });
   return {
@@ -51,28 +50,28 @@ const resolveDeductionRate = async () => {
   };
 };
 
-// The benefit cap is set by the Admin in Fund Settings → Benefit Cap and is
-// not the Treasurer's to choose, so every payout calculation resolves it
-// here rather than trusting anything off the request — same pattern as
-// resolveDeductionRate above.
+/* Ang benefit cap ay naka-set ng Admin sa Fund Settings → Benefit Cap at hindi
+pagpipilian ng Treasurer, kaya rito rinesolve ang bawat payout calculation imbes na
+umasa sa kung ano man galing sa request - parehong pattern ng resolveDeductionRate sa
+taas. */
 const resolveBenefitCap = async () => {
   const setting = await BenefitCapSetting.findOne({ status: 'active' });
   return setting?.amount ?? DEFAULT_MAX_BENEFIT_AMOUNT;
 };
 
-// Both the Awaiting Release list and releaseClaim resolve the payout here so
-// the figure previewed is the figure actually released. totalCollected is
-// recorded on the claim at deduction time; the split formula lives in
-// config/claimBenefit so the dashboards report against the same rule — cap
-// is resolved once per request (see call sites) and passed in rather than
-// re-queried per claim.
+/* Parehong ang Awaiting Release list at releaseClaim ay rito rinesolve ang payout
+para yung figure na napreview ay yung talagang ireleases. Naitatala ang
+totalCollected sa claim nung oras ng deduction; nasa config/claimBenefit ang split
+formula para sumusunod ang dashboards sa parehong rule - rinesolve lang isang beses
+ang cap per request (tingnan ang call sites) at ipinapasa na lang imbes na
+re-queried per claim. */
 const resolvePayoutAmount = (claim, cap) => benefitPayoutFor(claim?.deduction?.totalCollected ?? 0, cap);
 
-// Every claim regardless of status — backs the Reports screen's Claims
-// Report and Deductions & Payouts tabs, which need the full list rather
-// than one lifecycle stage at a time like the methods below. Mirrors
-// claimController.getAllClaims (the Admin equivalent), scoped to the
-// Treasurer's own authenticated route instead.
+/* Lahat ng claim kahit anong status - ito ang backing ng Claims Report at
+Deductions & Payouts tabs ng Reports screen, na kailangan ng buong list imbes na
+isang lifecycle stage lang gaya ng mga method sa baba. Mirror ito ng
+claimController.getAllClaims (Admin equivalent), pero scoped sa authenticated route
+ng Treasurer. */
 const listAllClaims = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -105,9 +104,9 @@ const listAllClaims = async (req, res) => {
   }
 };
 
-// A claim sitting in "pending_deduction" IS the notification to the
-// Treasurer — this codebase has no generic in-app notification system
-// for claims, so a live query is the pragmatic mechanism.
+/* Ang claim na naka-"pending_deduction" ay mismong notification na sa Treasurer -
+walang generic in-app notification system ang codebase na ito para sa claims, kaya
+live query ang pragmatic mechanism dito. */
 const listPendingDeduction = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -143,9 +142,9 @@ const listAwaitingRelease = async (req, res) => {
     const total = await Claim.countDocuments(query);
     const claims = await Claim.find(query).sort({ dateFiled: 1 }).skip(skip).limit(limit).lean();
 
-    // The payout is derived from what was collected for the claim — the
-    // Treasurer does not get to choose it — so send the resolved split along
-    // explicitly for the disbursement form to display read-only.
+    /* Ang payout ay derived galing sa kolekta para sa claim - hindi pagpipilian ito ng
+    Treasurer - kaya ipapadala explicitly ang resolved split para maipakita read-only
+    ng disbursement form. */
     const cap = await resolveBenefitCap();
     const withPayout = claims.map((claim) => {
       const payoutAmount = resolvePayoutAmount(claim, cap);
@@ -168,8 +167,8 @@ const listAwaitingRelease = async (req, res) => {
   }
 };
 
-// The Claim Disbursement Report — every claim that has already been paid
-// out, for record-keeping (DV number, who released it, when, how much).
+/* Ang Claim Disbursement Report - lahat ng claim na naibayad na, para sa
+record-keeping (DV number, sino nagrelease, kailan, magkano). */
 const listReleasedClaims = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -200,16 +199,16 @@ const listReleasedClaims = async (req, res) => {
   }
 };
 
-// The Claims Income Report — one row per claim that has reached the deduction
-// stage, showing where its money went: collected from the members, released to
-// the beneficiary, and retained by the cooperative. This is the per-claim
-// breakdown behind the three dashboard tiles, so a Treasurer can see which
-// claims produced the totals rather than just the totals.
-//
-// Income is derived the same way getClaimFinancialTotals derives it, and for
-// the same reasons: the actual payout once a claim is settled, the capped
-// projection before then. Keeping the two in step is why the rule lives in
-// config/claimBenefit rather than being spelled out in either place.
+/* Ang Claims Income Report - isang row per claim na nakarating na sa deduction stage,
+nagpapakita kung saan napunta ang pera: kolekta mula sa members, release sa
+beneficiary, at retained ng cooperative. Ito ang per-claim breakdown sa likod ng
+tatlong dashboard tiles, para makita ng Treasurer kung aling mga claim ang
+gumawa ng totals imbes na totals lang.
+
+Derived ang income sa parehong paraan ng pagderive ni getClaimFinancialTotals, at sa
+parehong dahilan: ang actual payout kapag settled na ang claim, ang capped projection
+bago mangyari yun. Ang dahilan kung bakit nasa config/claimBenefit ang rule ay para
+manatiling sync ang dalawa imbes na isulat nang hiwalay sa bawat isa. */
 const listClaimFinancials = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -247,10 +246,10 @@ const listClaimFinancials = async (req, res) => {
         amountHeld: settled ? 0 : collected,
         // null until released, so the UI can show "pending" rather than ₱0.
         amountReleased: released,
-        // Income is recognised on release, so an unsettled claim contributes 0
-        // to the totals. The projections below are display-only: what this
-        // claim WILL release and retain, shown greyed out so a forecast is
-        // never mistaken for money that has already moved.
+        /* Nareresognize ang income pag narelease na, kaya 0 ang contribution ng unsettled
+        claim sa totals. Display-only lang ang projections sa baba: kung ano ang IRERELEASE
+        at IREREtain ng claim na ito, ipinapakita greyed out para hindi malito ang forecast
+        sa pera na talagang gumalaw na. */
         netIncome: settled ? round(collected - released) : 0,
         projectedRelease: benefitPayoutFor(collected, cap),
         projectedIncome: benefitSurplusFor(collected, cap),
@@ -262,8 +261,8 @@ const listClaimFinancials = async (req, res) => {
       };
     });
 
-    // Totals span every matching claim, not just the page being shown — a
-    // report footer that only added up the current page would be misleading.
+    /* Sakop ng totals lahat ng matching claim, hindi lang yung page na ipinapakita -
+    magiging misleading kung ang report footer ay idadagdag lang base sa current page. */
     const totals = await getClaimFinancialTotals(query);
 
     res.status(200).json({
@@ -303,9 +302,9 @@ const getClaimById = async (req, res) => {
   }
 };
 
-// Read-only dry run of Flow A — lets the Treasurer see exactly who and how
-// much this deduction will touch before committing to it. Same member
-// snapshot processClaimDeduction uses, just without writing anything.
+/* Read-only dry run ng Flow A - para makita ng Treasurer kung sino eksakto at
+magkano ang maaapektuhan ng deduction na ito bago ito icommit. Parehong member
+snapshot na ginagamit ng processClaimDeduction, wala lang itong isusulat. */
 const previewClaimDeduction = async (req, res) => {
   try {
     const { claimId } = req.params;
@@ -352,8 +351,8 @@ const previewClaimDeduction = async (req, res) => {
   }
 };
 
-// Flow A, per claim: charge every other active member the configured rate,
-// same mechanism as the blanket automatic-deduction, tagged to this claim.
+/* Flow A, per claim: sisingilin ang bawat ibang active member ng configured rate,
+parehong mekanismo ng blanket automatic-deduction, tinag sa claim na ito. */
 const processClaimDeduction = async (req, res) => {
   try {
     const { claimId } = req.params;
@@ -367,12 +366,12 @@ const processClaimDeduction = async (req, res) => {
       });
     }
 
-    // Atomically claim this request's exclusive right to process the
-    // deduction. If two requests for the same claim arrive together
-    // (double-click, a retried request, two open tabs), only the one that
-    // actually flips pending_deduction -> deduction_processing here wins —
-    // the other gets null back and is rejected below, instead of both
-    // charging every active member.
+    /* Atomically kinukuha dito ang exclusive right ng request na ito para iproseso ang
+    deduction. Kung dumating sabay ang dalawang request para sa parehong claim
+    (double-click, retried request, dalawang open tabs), yun lang talagang nakapagpalit
+    ng pending_deduction -> deduction_processing ang mananalo - ang isa ay makukuha ng
+    null pabalik at mareject sa baba, imbes na dalawa silang magsisingil sa lahat ng
+    active member. */
     const claim = await Claim.findOneAndUpdate(
       { claimId, status: 'pending_deduction' },
       { $set: { status: 'deduction_processing' } },
@@ -389,8 +388,8 @@ const processClaimDeduction = async (req, res) => {
       });
     }
 
-    // Declared here (not inside the try below) because the audit log and
-    // response built after that try block still need to read them.
+    /* Idineklara dito (hindi sa loob ng try sa baba) dahil kailangan pa rin itong basahin
+    ng audit log at response na gagawin pagkatapos ng try block na iyon. */
     let before, deductionAmount, totalCollected = 0, membersCharged = 0;
 
     try {
@@ -451,10 +450,9 @@ const processClaimDeduction = async (req, res) => {
 
       await claim.save();
     } catch (error) {
-      // Release the lock so this claim isn't stuck in "deduction_processing"
-      // forever just because the rate lookup, member snapshot, or final save
-      // failed partway through — the Treasurer can retry from the same
-      // pending_deduction state.
+      /* Ibabalik ang lock para hindi matagalang tigil ang claim sa "deduction_processing"
+      kapag nagfail sa gitna ang rate lookup, member snapshot, o final save - para
+      puwedeng i-retry ng Treasurer mula sa parehong pending_deduction state. */
       await Claim.updateOne({ claimId, status: 'deduction_processing' }, { $set: { status: 'pending_deduction' } });
       if (error.statusCode) {
         return res.status(error.statusCode).json({ success: false, message: error.message });
@@ -493,10 +491,10 @@ const processClaimDeduction = async (req, res) => {
   }
 };
 
-// Flow B, per claim: pay the pool collected in Flow A out to the beneficiary —
-// this is the Claim Disbursement recording step. A DV (Disbursement Voucher)
-// number is required since it's the physical paper trail the cooperative's own
-// accounting already relies on.
+/* Flow B, per claim: babayaran ang pool na kolekta sa Flow A papunta sa beneficiary -
+ito ang recording step ng Claim Disbursement. Required ang DV (Disbursement Voucher)
+number dahil ito ang physical paper trail na umaasa na rito mismo ang accounting ng
+cooperative. */
 const releaseClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
@@ -507,11 +505,11 @@ const releaseClaim = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A DV (Disbursement Voucher) number is required' });
     }
 
-    // Atomically claim this request's exclusive right to release the
-    // benefit — same reasoning as processClaimDeduction above: if two
-    // requests for the same claim arrive together, only the one that
-    // actually flips deduction_processed -> releasing here wins, so only
-    // one payout ledger entry can ever be created.
+    /* Atomically kinukuha dito ang exclusive right ng request na ito para irelease ang
+    benefit - parehong reasoning ng processClaimDeduction sa taas: kung dumating sabay
+    ang dalawang request para sa parehong claim, yun lang talagang nakapagpalit ng
+    deduction_processed -> releasing ang mananalo, kaya isa lang na payout ledger entry
+    ang magagawa kailanman. */
     const claim = await Claim.findOneAndUpdate(
       { claimId, status: 'deduction_processed' },
       { $set: { status: 'releasing' } },
@@ -528,16 +526,16 @@ const releaseClaim = async (req, res) => {
       });
     }
 
-    // Declared here (not inside the try below) because the audit log and
-    // response built after that try block still need to read them.
+    /* Idineklara dito (hindi sa loob ng try sa baba) dahil kailangan pa rin itong basahin
+    ng audit log at response na gagawin pagkatapos ng try block na iyon. */
     let before, payoutAmount, totalCollected, retainedAmount;
 
     try {
-      // The death benefit is the pool collected from the other members for this
-      // claim, capped at the Admin-configured benefit cap. The Treasurer may
-      // type a lower amount to release (e.g. a partial disbursement), but
-      // never more than that cap-bound ceiling — maxPayout is resolved
-      // server-side so the request can only ever request LESS, never more.
+      /* Ang death benefit ay ang pool na kolekta mula sa ibang members para sa claim na
+      ito, may cap base sa Admin-configured benefit cap. Puwedeng magtype ang Treasurer ng
+      mas mababang amount na irerelease (hal. partial disbursement), pero hindi puwedeng
+      lumagpas sa cap-bound ceiling na iyon - rinesolve server-side ang maxPayout para
+      ang request ay puwede lang humingi ng LESS, hindi ng more. */
       const cap = await resolveBenefitCap();
       totalCollected = claim.deduction?.totalCollected ?? 0;
       const maxPayout = resolvePayoutAmount(claim, cap);
@@ -553,10 +551,10 @@ const releaseClaim = async (req, res) => {
       }
 
       payoutAmount = Math.round(requestedAmount * 100) / 100;
-      // Surplus never released — whether withheld by the cap or by the
-      // Treasurer releasing less than the ceiling — is the cooperative's
-      // income. getClaimFinancialTotals reads claim.payout.amount directly, so
-      // it already agrees with whatever amount actually gets released here.
+      /* Ang surplus na hindi nairelease - withheld man dahil sa cap o dahil nagrelease ng
+      mas mababa ang Treasurer kaysa sa ceiling - ay income ng cooperative. Direktang
+      binabasa ni getClaimFinancialTotals ang claim.payout.amount, kaya tugma na ito sa
+      kung anumang amount na talagang nairelease dito. */
       retainedAmount = Math.round((totalCollected - payoutAmount) * 100) / 100;
 
       const parsedReleaseDate = releaseDate ? new Date(releaseDate) : new Date();
@@ -565,12 +563,12 @@ const releaseClaim = async (req, res) => {
       const currentBalance = await getLatestBalance(claim.memberId);
       before = claim.toObject();
 
-      // The payout passes THROUGH the deceased member's ledger rather than out of
-      // it: the money came from the assessment charged to the other members, so it
-      // is recorded credit-in/debit-out on the same row and leaves the deceased
-      // member's own contribution balance untouched. Only the released benefit is
-      // recorded here — the retained surplus is cooperative income and belongs to
-      // no member's ledger.
+      /* Dumadaan lang ang payout SA ledger ng namatay na member imbes na galing dito:
+      ang pera ay mula sa assessment na sisingilin sa ibang members, kaya naitatala ito
+      bilang credit-in/debit-out sa same row at hindi nagagalaw ang sariling contribution
+      balance ng namatay na member. Ang released benefit lang ang naitatala dito - ang
+      retained surplus ay income ng cooperative at wala itong lipat sa kahit kaninong
+      ledger. */
       const ledgerEntry = new Ledger({
         ledgerId: uuidv4(),
         memberId: claim.memberId,
@@ -609,10 +607,9 @@ const releaseClaim = async (req, res) => {
 
       await claim.save();
     } catch (error) {
-      // Release the lock so this claim isn't stuck in "releasing" forever
-      // just because a validation check or the final save failed partway
-      // through — the Treasurer can retry from the same deduction_processed
-      // state.
+      /* Ibabalik ang lock para hindi matagalang tigil ang claim sa "releasing" kapag
+      nagfail sa gitna ang validation check o final save - para puwedeng i-retry ng
+      Treasurer mula sa parehong deduction_processed state. */
       await Claim.updateOne({ claimId, status: 'releasing' }, { $set: { status: 'deduction_processed' } });
       if (error.statusCode) {
         return res.status(error.statusCode).json({ success: false, message: error.message });

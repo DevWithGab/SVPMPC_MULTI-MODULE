@@ -46,8 +46,9 @@ router.post('/events/:eventId/reopen', eventController.reopenEvent);
 router.get('/attendance', attendanceController.getAllAttendance);
 router.post('/attendance', attendanceController.recordAttendance);
 
-// Database backup/restore — restore is a bulk write over live data, so it
-// gets the same strict admin-only gate as the QR lifecycle actions above.
+/* Database backup/restore - bulk write over live data yung restore, kaya
+parehong strict admin-only gate ang binigay dito gaya ng QR lifecycle
+actions sa itaas. */
 router.post('/backup/restore', authorizeAttendanceAdminOnly, backupController.restoreBackup);
 
 module.exports = router;

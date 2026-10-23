@@ -2,13 +2,14 @@ const { Member } = require('../../../shared/models');
 const { Ledger, Beneficiary, Claim } = require('../models');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// This module hands out plain 6-digit sequential memberIds. Member docs
-// created elsewhere (the shared admin controller's MEM-<uuid> passbook
-// numbers, TEST- fixtures, etc.) sort AFTER any 6-digit number
-// lexicographically, so a plain memberId-descending sort could pick one of
-// those up as "last" and compute parseInt(...) + 1 = NaN — confirmed live,
-// this created a real member with memberId "000NaN". Matching only 6-digit
-// IDs keeps this generator entirely within its own numbering space.
+/* Yung module na ito ang nagbibigay ng plain 6-digit sequential memberIds.
+Yung Member docs na ginawa sa ibang lugar (shared admin controller's
+MEM-<uuid> passbook numbers, TEST- fixtures, etc.) ay sort AFTER sa kahit
+anong 6-digit number lexicographically, kaya puwedeng mapili ng plain
+memberId-descending sort yung isa sa mga yun bilang "last" at compute
+parseInt(...) + 1 = NaN - confirmed live ito, nagresulta ng totoong member
+na may memberId na "000NaN". Yung pag-match lang sa 6-digit IDs ang
+nagpapanatili nitong generator sa loob lang ng sariling numbering space. */
 const SEQUENTIAL_MEMBER_ID_PATTERN = /^\d{6}$/;
 const nextSequentialMemberId = async () => {
   const lastMember = await Member.findOne({ memberId: SEQUENTIAL_MEMBER_ID_PATTERN }).sort({ memberId: -1 });
@@ -16,11 +17,11 @@ const nextSequentialMemberId = async () => {
   return nextId.toString().padStart(6, '0');
 };
 
-// Builds and saves a Member with a freshly generated sequential ID,
-// retrying if a concurrent request's insert claims the same ID first.
-// memberId's unique index is the real guard; this just keeps that benign
-// race from surfacing as a raw 500 (createMember) or an ugly per-row error
-// (bulkCreateMembers) instead of quietly retrying with the next ID.
+/* Gumagawa at nag-save ng Member gamit ang bagong-generate na sequential ID,
+tumitry ulit kung na-claim na yung parehong ID ng concurrent request's insert.
+Yung memberId's unique index ang totoong guard; ito ay para lang hindi
+sumulpot yung benign race bilang raw 500 (createMember) o ugly per-row error
+(bulkCreateMembers) sa halip na tahimik na mag-retry gamit yung next ID. */
 const MAX_MEMBER_ID_RETRIES = 5;
 const createMemberWithRetry = async (buildMemberDoc) => {
   let lastError;
@@ -52,12 +53,12 @@ const adminController = {
         query.status = status;
       }
 
-      // Search by name or memberId if provided — Member.js's text index
-      // (member_search_text), replacing an unanchored $regex $or that was a
-      // full collection scan regardless of this model's other indexes
-      // (confirmed via explain(): COLLSCAN at 10k members). Matches whole
-      // tokens, not substrings — "mar" no longer matches "Maria"; a partial
-      // memberId fragment no longer matches either.
+      /* Nag-search by name o memberId kung provided - gamit yung Member.js's text
+      index (member_search_text), pinalitan yung unanchored $regex $or na dating
+      full collection scan kahit meron namang ibang indexes yung model na ito
+      (confirmed via explain(): COLLSCAN sa 10k members). Nag-match ng whole
+      tokens, hindi substrings - "mar" hindi na nag-match sa "Maria"; partial
+      memberId fragment hindi na rin nag-match. */
       if (search) {
         query.$text = { $search: search };
       }
@@ -110,9 +111,9 @@ const adminController = {
     try {
       const { name, contact, barangay, address, status = 'active' } = req.body;
 
-      // Barangay and address are separate required fields on Member — the
-      // barangay is what the treasurer screens filter and group by, so it
-      // can't be a placeholder or be inferred from the address text.
+      /* Separate required fields sa Member yung barangay at address - yung
+      barangay ang ginagamit ng treasurer screens para mag-filter at mag-group,
+      kaya hindi puwedeng placeholder lang o infer galing sa address text. */
       if (!name || !contact || !barangay || !address) {
         return res.status(400).json({
           success: false,
@@ -175,8 +176,9 @@ const adminController = {
       const { memberId } = req.params;
       const updateData = req.body;
 
-      // Members are shared. Profile edits still use an explicit field allowlist;
-      // QR data and module assignments cannot be changed through this endpoint.
+      /* Shared yung Members. Gumagamit pa rin ng explicit field allowlist yung
+      profile edits; hindi puwedeng baguhin dito yung QR data at module
+      assignments. */
       const fields = {};
       if (updateData.name) fields.memberName = updateData.name;
       if (updateData.contact) fields.phoneNumber = updateData.contact;
@@ -229,9 +231,9 @@ const adminController = {
         });
       }
 
-      // Deleting a member whose memberId is still referenced elsewhere would
-      // leave those records pointing at nothing — check every place that
-      // references it, not just the ledger, before allowing it.
+      /* Kung i-delete yung member na yung memberId niya ay ginagamit pa sa ibang
+      lugar, maiiwan nang walang reference yung mga records na yun - i-check muna
+      lahat ng lugar na gumagamit nito, hindi lang ledger, bago payagan. */
       const [claimCount, beneficiaryCount] = await Promise.all([
         Claim.countDocuments({ memberId }),
         Beneficiary.countDocuments({ memberId }),
@@ -294,11 +296,11 @@ const adminController = {
       const createdMembers = [];
       const errors = [];
 
-      // Each row asks createMemberWithRetry for a fresh ID at save time,
-      // rather than reserving a block of IDs up front — a pre-computed
-      // nextId/nextId++ here would go stale (and silently collide) against
-      // a concurrent single createMember call or another bulk upload
-      // running at the same time, with no way to recover mid-loop.
+      /* Bawat row ay humihingi ng fresh ID kay createMemberWithRetry sa save time,
+      hindi nagre-reserve ng block of IDs up front - kung pre-computed na
+      nextId/nextId++ dito, go stale ito (at silently collide) laban sa isang
+      concurrent single createMember call o ibang bulk upload na tumatakbo sa
+      same time, na walang paraan para ma-recover mid-loop. */
       for (const memberData of members) {
         try {
           const { name, contact, barangay, address, status = 'active' } = memberData;

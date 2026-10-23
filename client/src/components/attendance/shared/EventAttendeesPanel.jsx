@@ -5,13 +5,14 @@ import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
 import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
 
-/* Shows who actually showed up to an event vs. who didn't — rendered as the
-body of its own page (not a modal, not a cramped scroll box inside a
-card). "Absent" is every active member without a present log for this
-event — there's no separate "invited/expected" roster in this app, so
-active membership is the whole pool compared against. A name/ID search
-sits alongside the All/Present/Absent filter so a specific member can be
-found quickly, and the list itself is paginated instead of a single long scroll.*/
+/* Ipinapakita dito kung sino talaga ang dumalo sa event kumpara sa hindi -
+nirender bilang body ng sarili nitong page (hindi modal, hindi cramped
+scroll box sa loob ng card). "Absent" ay bawat active member na walang
+present log para sa event na ito - walang separate na "invited/expected"
+roster dito sa app, kaya ang active membership ang buong pool na
+pinagkukumpara. May name/ID search sa tabi ng All/Present/Absent filter
+para madaling mahanap ang isang specific member, at paginated ang list
+imbes na isang mahabang scroll. */
 
 export default function EventAttendeesPanel({
   event,
@@ -83,8 +84,9 @@ export default function EventAttendeesPanel({
   const currentPage = Math.min(page, totalPages);
   const pagedList = visibleList.slice((currentPage - 1) * limit, currentPage * limit);
 
-  /* The result set's size changes whenever the filter or search changes —
-  reset to page 1 so pagination doesn't strand the viewer on an empty page.*/
+  /* Nagbabago ang size ng result set tuwing magbabago ang filter o search -
+  i-reset sa page 1 para hindi maiwan ang viewer sa isang walang-laman na
+  page dahil sa pagination. */
   useEffect(() => {
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps

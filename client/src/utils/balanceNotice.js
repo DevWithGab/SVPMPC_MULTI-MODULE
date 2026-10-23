@@ -2,30 +2,30 @@ import { buildCooperativeNoticeMarkup, COOPERATIVE_NOTICE_STYLES, drawCooperativ
 import { jsPDF } from 'jspdf';
 import { sanitizeNoticeHtml } from './sanitizeHtml.js';
 
-// Balance-threshold notices — shared between the per-member "Print Notice"
-// action on the Member Ledger and the bulk "print all by threshold" action
-// on Notices, so both stay on the same thresholds and letter
-// template instead of drifting apart.
-//
-// Thresholds are admin-configurable (Mortuary Admin → Notice Thresholds,
-// backed by NoticeThresholdSetting on the server) rather than fixed in code.
-// Every function here takes the current thresholds as a parameter instead of
-// reading a hardcoded constant; DEFAULT_NOTICE_THRESHOLDS is only the
-// fallback shown before the real settings have loaded, and matches the
-// server's own auto-seeded defaults.
+/* Balance-threshold notices - shared ito sa pagitan ng per-member "Print
+Notice" action sa Member Ledger at yung bulk "print all by threshold"
+action sa Notices, para parehas lang silang thresholds at letter template
+ang gagamitin imbes na maghiwalay.
+
+Admin-configurable yung thresholds (Mortuary Admin -> Notice Thresholds,
+suportado ng NoticeThresholdSetting sa server) imbes na fixed sa code.
+Kinukuha ng bawat function dito yung current thresholds bilang parameter
+imbes magbasa ng hardcoded constant; yung DEFAULT_NOTICE_THRESHOLDS ay
+fallback lang na ipinapakita bago pa ma-load yung totoong settings, at
+tugma sa auto-seeded defaults ng server. */
 export const DEFAULT_NOTICE_THRESHOLDS = {
   targetBalance: 1000,
   notice1Min: 700,
   notice1Max: 900,
   notice2Min: 300,
   notice2Max: 699,
-  // The ENTIRE letter body (title through signatures) is one admin-editable
-  // block of plain text, paragraphs separated by a blank line. Available
-  // placeholders: {noticeLabel} {name} {address} {passbook} {balance}
-  // {amountNeeded} {targetBalance} {managerName}. {balance} and
-  // {amountNeeded} are always bolded wherever they appear; everything else
-  // substitutes as plain text. The letterhead (logo + org name) is rendered
-  // separately and is not part of this template.
+  /* Yung BUONG letter body (title hanggang signatures) ay isang
+  admin-editable block ng plain text, na pinaghihiwalay ng blank line yung
+  mga paragraphs. Available placeholders: {noticeLabel} {name} {address}
+  {passbook} {balance} {amountNeeded} {targetBalance} {managerName}.
+  Laging bolded yung {balance} at {amountNeeded} saan man sila lumabas;
+  plain text naman ang substitute sa iba. Yung letterhead (logo + org
+  name) ay hiwalay na na-render at hindi na kasama sa template na ito. */
   noticeBodyTemplate:
     '{noticeLabel} — MORTUARY AID FUND PROGRAM\n\nName: {name}\nAddress: {address}\nPassbook No.: {passbook}\n\nSir/Madam:\n\nThis is to inform you that your deposit under the Mortuary Aid Fund Program has only a balance of {balance}. Please make an additional deposit of {amountNeeded} immediately to make your current balance of {targetBalance} from receipt of this notice to enjoy the benefit of this program.\n\nThank you and God Bless!\n\nReceived by: _______________________\nDate received: _______________________\n\nVery truly yours,\n\n_______________________\n{managerName}',
   finalNoticeBodyTemplate:
@@ -75,13 +75,14 @@ export const NOTICE_STYLES = `
   .notice-body p, .notice-body div { margin: 0 0 12px; }
 `;
 
-// The admin now edits the letter as a real document (Mortuary Admin →
-// Notice Thresholds → Edit Document), so noticeBodyTemplate/
-// finalNoticeBodyTemplate store HTML straight from that editor, not escaped
-// plain text. Older rows saved before that editor existed still hold plain
-// text (paragraphs separated by a blank line) — this detects that case by
-// checking for a block tag and converts it once so it displays correctly
-// both in the editor and when printed.
+/* Nag-edit na ngayon yung admin sa letter bilang totoong document
+(Mortuary Admin -> Notice Thresholds -> Edit Document), kaya yung
+noticeBodyTemplate/finalNoticeBodyTemplate ay nag-store ng HTML diretso
+galing sa editor na yun, hindi escaped plain text. Yung mga older rows na
+na-save bago pa magkaroon ng editor na yun ay plain text pa rin (paragraphs
+na pinaghihiwalay ng blank line) - dito nadedetect yung case na iyon by
+checking for a block tag, at kinoconvert ito isang beses para mag-display
+nang tama sa editor at sa pag-print. */
 export const legacyPlainTextToHtml = (value) => {
   const text = String(value || '');
   if (/<(p|div|br)[\s/>]/i.test(text)) return text;
@@ -93,11 +94,11 @@ export const legacyPlainTextToHtml = (value) => {
     .join('');
 };
 
-// Substitutes placeholders directly into admin-authored HTML (trusted —
-// written via the in-app editor and sanitized on save). Only the data
-// VALUES being interpolated are escaped, since those come from member
-// records, not the admin. {balance}/{amountNeeded} are always bolded
-// wherever they appear in the template.
+/* Sino-substitute ang placeholders diretso papunta sa admin-authored HTML
+(trusted - sinulat via in-app editor at sanitized nang isave). Yung data
+VALUES na iniinterpolate lang ang escaped, kasi galing ito sa member
+records, hindi sa admin. Laging bolded yung {balance}/{amountNeeded}
+saan man sila lumabas sa template. */
 export const substitutePlaceholders = (templateHtml, values) =>
   String(templateHtml || '')
     .replace(/\{noticeLabel\}/g, esc(values.noticeLabel))
@@ -109,10 +110,11 @@ export const substitutePlaceholders = (templateHtml, values) =>
     .replace(/\{targetBalance\}/g, esc(values.targetBalanceText))
     .replace(/\{managerName\}/g, esc(values.managerName));
 
-// Fills in one member's letter body (post-placeholder-substitution HTML),
-// shared by the print path (wrapped in the markup below) and the native PDF
-// path (parsed directly — see parseRichTextBody). Returns level: null when
-// the member's balance doesn't currently need a notice.
+/* Pinupuno dito yung letter body ng isang member (post-placeholder-
+substitution HTML), shared ng print path (wrapped sa markup sa baba) at
+yung native PDF path (parsed directly - tignan yung parseRichTextBody).
+Nagbabalik ng level: null kung hindi na kailangan ng notice yung balance
+ng member sa ngayon. */
 const buildNoticeBodyHtml = (member, managerName, thresholds) => {
   const level = getNoticeLevel(member.balance, thresholds);
   if (!level) return { level: null, html: '' };
@@ -122,12 +124,12 @@ const buildNoticeBodyHtml = (member, managerName, thresholds) => {
     ? (thresholds?.finalNoticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.finalNoticeBodyTemplate)
     : (thresholds?.noticeBodyTemplate || DEFAULT_NOTICE_THRESHOLDS.noticeBodyTemplate);
 
-  // The template itself is the untrusted part here (admin-authored, stored
-  // HTML — see substitutePlaceholders' own comment on why the substituted
-  // member VALUES don't need this, they're already esc()'d). Sanitizing
-  // post-substitution covers both consumers of this function in one place:
-  // the print path below (document.write) and the native PDF path's
-  // parseRichTextBody.
+  /* Yung template mismo ang untrusted part dito (admin-authored, stored
+  HTML - tignan yung comment ni substitutePlaceholders kung bakit hindi
+  na kailangan nito yung substituted member VALUES, naka-esc() na sila).
+  Yung sanitizing post-substitution ay sakop na ang dalawang consumer ng
+  function na ito sa isang lugar lang: yung print path sa baba
+  (document.write) at yung parseRichTextBody ng native PDF path. */
   const html = sanitizeNoticeHtml(substitutePlaceholders(legacyPlainTextToHtml(template), {
     noticeLabel: NOTICE_LEVEL_LABELS[level].toUpperCase(),
     name: member.name,
@@ -142,11 +144,11 @@ const buildNoticeBodyHtml = (member, managerName, thresholds) => {
   return { level, html };
 };
 
-// Builds just one member's letter (no outer <html>/<head>) so it can be
-// dropped into either a single-notice print window or a batch one with
-// several members concatenated as separate pages. Everything below the
-// letterhead — title, fields, body, signatures — is the admin's own
-// document; only the letterhead (branding) is fixed.
+/* Gumagawa lang ito ng letter ng isang member (walang outer <html>/<head>)
+para pwede itong ilagay sa single-notice print window o sa batch one na
+may ilang members na pinagsama bilang separate pages. Lahat ng nasa baba
+ng letterhead - title, fields, body, signatures - ay sariling document na
+ng admin; yung letterhead (branding) lang ang fixed. */
 const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
   const { level, html: bodyHtml } = buildNoticeBodyHtml(member, managerName, thresholds);
   if (!level) return '';
@@ -170,11 +172,11 @@ const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
   `;
 };
 
-// Same window.open + document.write pattern used elsewhere in the app for
-// printable output (e.g. claim disbursement receipts, QR cards). Prints
-// render in a bare window with no app stylesheet loaded, so they were never
-// affected by the html2canvas/oklch issue the PDF path below used to hit —
-// no change needed here.
+/* Parehong window.open + document.write pattern na ginagamit sa ibang
+parte ng app para sa printable output (hal. claim disbursement receipts,
+QR cards). Nag-render yung prints sa bare window na walang loaded app
+stylesheet, kaya hindi na naapektuhan yung html2canvas/oklch issue na
+dating nadadapuan ng PDF path sa baba - walang kailangang baguhin dito. */
 export const printBalanceNotice = (member, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
   const level = getNoticeLevel(member.balance, thresholds);
   if (!level) return;
@@ -182,8 +184,8 @@ export const printBalanceNotice = (member, managerName, thresholds = DEFAULT_NOT
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
-  // Absolute URL — a print window's about:blank document can't reliably
-  // resolve a root-relative asset path against the app's origin.
+  /* Absolute URL ito - hindi reliable ni-resolve ng about:blank document
+  ng print window yung root-relative asset path against sa origin ng app. */
   const logoUrl = `${window.location.origin}/SVPMPC-LOGO(MAIN).png`;
   const markup = buildNoticeMarkup(member, managerName, logoUrl, thresholds);
 
@@ -203,11 +205,11 @@ export const printBalanceNotice = (member, managerName, thresholds = DEFAULT_NOT
   printWindow.document.close();
 };
 
-// Prints every member at the given notice level as one combined job — one
-// letter per page — instead of opening and printing each member's notice
-// individually, which doesn't scale once there are dozens of members below
-// the sustaining balance. Returns how many notices were queued so the
-// caller can confirm/report the batch size.
+/* Pinipirint dito yung bawat member sa given notice level bilang isang
+combined job - isang letter per page - imbes buksan at iprint isa-isa
+yung notice ng bawat member, na hindi na kakayanin pag dumoble-dosena na
+yung members na below sustaining balance. Nagbabalik ng bilang kung ilang
+notices ang naqueue para ma-confirm/report ng caller yung batch size. */
 export const printBalanceNoticesBulk = (members, level, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
   const targets = members.filter((m) => getNoticeLevel(m.balance, thresholds) === level);
   if (targets.length === 0) return 0;
@@ -236,12 +238,13 @@ export const printBalanceNoticesBulk = (members, level, managerName, thresholds 
 };
 
 // ── PDF downloads ──────────────────────────────────────────────────────
-// Renders each letter as native PDF text (vector) instead of rasterizing a
-// DOM screenshot — orders of magnitude faster for a batch, and the file
-// size stays small regardless of how many members are included. Mirrors
-// the server-side port of this same approach in
-// server/modules/mortuary/services/noticeLetterPdfService.js — keep the two
-// in sync if the letter layout ever changes.
+/* Nirerender dito yung bawat letter bilang native PDF text (vector) imbes
+rasterize ng DOM screenshot - mas mabilis ng maraming order of magnitude
+para sa batch, at manatiling maliit yung file size kahit gaano karami
+yung members na kasama. Mirror ito ng server-side port ng parehong
+approach na ito sa
+server/modules/mortuary/services/noticeLetterPdfService.js - panatilihing
+sync yung dalawa kung magbabago man yung letter layout. */
 const decodeEntities = (text) =>
   text
     .replace(/&lt;/g, '<')
@@ -250,11 +253,12 @@ const decodeEntities = (text) =>
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&');
 
-// Tokenizes one <br>-separated line's inner HTML into styled runs. Only
-// recognizes the tags this app ever actually produces (see
-// NoticeLetterEditorModal.jsx's toolbar: bold/italic/underline/justify) —
-// any other markup is stripped but its text content is kept, so a stray
-// paste never throws or silently drops content.
+/* Tokinenize dito yung isang <br>-separated line's inner HTML papunta sa
+styled runs. Yung tags lang na talagang ginagawa ng app na ito ang
+nareresognize (tignan yung toolbar ng NoticeLetterEditorModal.jsx:
+bold/italic/underline/justify) - yung ibang markup ay strinip pero
+napanatili yung text content niya, kaya walang throw o tahimik na
+nawawalang content kung saglit mag-paste ng stray markup. */
 const parseRuns = (lineHtml) => {
   const runs = [];
   let bold = 0;
@@ -277,12 +281,12 @@ const parseRuns = (lineHtml) => {
   return runs;
 };
 
-// Parses letter-body HTML (p/div blocks, br line breaks, bold/italic/
-// underline inline tags, optional text-align style) into
-// [{ align, lines: [[run, ...], ...] }] — one entry per paragraph, each
-// split into <br>-separated lines of styled runs. Deliberately not a full
-// HTML parser (no DOMParser/jsdom dependency) since the tag set this app
-// produces is small and fixed.
+/* Pina-parse dito yung letter-body HTML (p/div blocks, br line breaks,
+bold/italic/underline inline tags, optional text-align style) papunta sa
+[{ align, lines: [[run, ...], ...] }] - isang entry per paragraph, bawat
+isa hinati sa <br>-separated lines ng styled runs. Sinadya na hindi full
+HTML parser ito (walang DOMParser/jsdom dependency) dahil maliit at fixed
+lang yung tag set na ginagawa ng app na ito. */
 export const parseRichTextBody = (html) => {
   const source = String(html || '');
   const paragraphs = [];
@@ -298,9 +302,9 @@ export const parseRichTextBody = (html) => {
     const lines = inner.split(/<br\s*\/?>/i).map(parseRuns);
     paragraphs.push({ align, lines });
   }
-  // legacyPlainTextToHtml always wraps content in <p> blocks, so this is a
-  // defensive fallback rather than an expected path — keeps unexpected
-  // input visible instead of silently vanishing.
+  /* Laging ibinabalot ng legacyPlainTextToHtml yung content sa <p> blocks,
+  kaya defensive fallback lang ito imbes na expected path - pinapanatili
+  nitong visible yung unexpected input imbes na tahimik na mawala. */
   if (!foundBlock && source.trim()) {
     paragraphs.push({ align: 'justify', lines: [parseRuns(source)] });
   }
@@ -314,12 +318,13 @@ const fontStyleFor = (run) => {
   return 'normal';
 };
 
-// Lays out parsed paragraphs as native PDF text: greedy word-wrap,
-// bold/italic via font switching, underline drawn manually (jsPDF has no
-// built-in text-decoration), and justify-stretching every wrapped line
-// except the last line of each paragraph line (matching normal typeset
-// justified-text behavior — text-align-last defaults to non-justify).
-// Adds pages on overflow. Returns the y position after the last line drawn.
+/* Ina-layout dito yung parsed paragraphs bilang native PDF text: greedy
+word-wrap, bold/italic via font switching, underline drawn manually (walang
+built-in text-decoration ang jsPDF), at justify-stretching sa bawat wrapped
+line maliban sa last line ng bawat paragraph line (tugma sa normal typeset
+justified-text behavior - default sa non-justify yung text-align-last).
+Nagdadagdag ng pages sa overflow. Nagbabalik ng y position matapos yung
+huling line na nadrawing. */
 export const drawRichTextBody = (doc, paragraphs, { x, y, maxWidth, lineHeight, fontSize, pageHeight, topMargin }) => {
   doc.setFontSize(fontSize);
   const spaceWidth = doc.getTextWidth(' ');
@@ -361,13 +366,15 @@ export const drawRichTextBody = (doc, paragraphs, { x, y, maxWidth, lineHeight, 
 
   paragraphs.forEach((paragraph) => {
     paragraph.lines.forEach((runs) => {
-      // Flatten runs into individual words carrying their own style, so a
-      // bold/italic toggle mid-sentence never gets lost at a wrap point.
+      /* Niflatten dito yung runs papunta sa individual words na may
+      sariling style, para hindi mawala yung bold/italic toggle mid-sentence
+      sa wrap point. */
       const words = [];
       runs.forEach((run) => {
         const style = fontStyleFor(run);
-        // Built-in Times has no peso glyph. Normalize before measuring so
-        // the visible amount and its allocated width agree.
+        /* Walang peso glyph ang built-in Times. I-normalize muna bago
+        sukatin para magtugma yung visible amount at yung allocated width
+        nito. */
         run.text.replace(/(-?)₱/g, 'PHP $1').split(/\s+/).filter(Boolean).forEach((text) => {
           doc.setFont('times', style);
           words.push({ text, style, underline: run.underline, width: doc.getTextWidth(text) });
@@ -396,12 +403,13 @@ export const drawRichTextBody = (doc, paragraphs, { x, y, maxWidth, lineHeight, 
 
 const LOGO_SIZE_PT = 42; // ~56px at 96dpi, matching the print/editor letterhead size
 
-// Draws the fixed letterhead (logo + org name, centered) at the top of a
-// page and returns the y position the letter body should start at. Always
-// passes the same `alias` to addImage so jsPDF embeds the logo once and
-// reuses it across every page instead of re-embedding per page — confirmed
-// live: without the alias, a 2-page document with the same ~1MB logo image
-// ballooned to 16.7MB; with it, a 20-page document stayed ~1.15MB.
+/* Dinadrawing dito yung fixed letterhead (logo + org name, centered) sa
+taas ng page at nagbabalik ng y position kung saan dapat magsimula yung
+letter body. Laging ipinapasa yung parehong `alias` sa addImage para
+isang beses lang ma-embed ng jsPDF yung logo at gamitin ulit sa bawat page
+imbes mag-re-embed per page - confirmed live: kung walang alias, yung
+2-page document na may parehong ~1MB logo image ay naging 16.7MB; kapag
+may alias, yung 20-page document ay nanatiling ~1.15MB. */
 const drawNoticeLetterhead = (doc, logoDataUrl, { x, y, maxWidth }) => {
   const centerX = x + maxWidth / 2;
   if (logoDataUrl) {
@@ -429,11 +437,12 @@ const drawNoticeLetterhead = (doc, logoDataUrl, { x, y, maxWidth }) => {
 
 const PAGE_MARGIN_PT = 54; // ~0.75in
 
-// Draws one member's full notice (letterhead + body) onto the PDF's current
-// page. Caller is responsible for calling doc.addPage() beforehand for
-// every member after the first. Returns false if the member doesn't
-// currently need a notice (caller should have already filtered for this,
-// but kept defensive since this draws destructively).
+/* Dinadrawing dito yung full notice ng isang member (letterhead + body)
+sa current page ng PDF. Responsibilidad ng caller na tawagin yung
+doc.addPage() beforehand para sa bawat member matapos yung una. Nagbabalik
+ng false kung hindi na kailangan ng notice yung member sa ngayon (dapat
+na-filter na ito ng caller, pero iniwan pa ring defensive dahil
+destructive yung draw na ito). */
 const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUrl) => {
   const { level, html: bodyHtml } = buildNoticeBodyHtml(member, managerName, thresholds);
   if (!level) return false;
@@ -461,8 +470,9 @@ const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUr
   return true;
 };
 
-// Fetched once and cached for the life of the tab — a bulk run of hundreds
-// of members shouldn't re-fetch the same static asset per member.
+/* Kinukuha isang beses at ini-cache para sa buong buhay ng tab - hindi
+dapat mag-re-fetch ulit ang bulk run ng daan-daang members ng parehong
+static asset per member. */
 let cachedLogoDataUrl;
 const getLogoDataUrl = async () => {
   if (cachedLogoDataUrl !== undefined) return cachedLogoDataUrl;
@@ -483,10 +493,11 @@ const getLogoDataUrl = async () => {
 
 const filenameSafe = (value) => String(value || '').trim().replace(/[^\w\- ]+/g, '').replace(/\s+/g, '-');
 
-// Downloads one member's notice as a PDF instead of (or in addition to)
-// printing it — same letter content, same thresholds/template, just saved
-// to disk rather than sent to a printer. Returns false if the member
-// doesn't currently need a notice.
+/* Nidadownload dito yung notice ng isang member bilang PDF imbes (o
+dagdag pa) sa pag-print nito - parehong letter content, parehong
+thresholds/template, naka-save lang sa disk imbes na ipadala sa printer.
+Nagbabalik ng false kung hindi na kailangan ng notice yung member sa
+ngayon. */
 export const downloadBalanceNoticePDF = async (member, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
   const level = getNoticeLevel(member.balance, thresholds);
   if (!level) return false;
@@ -498,13 +509,13 @@ export const downloadBalanceNoticePDF = async (member, managerName, thresholds =
   return true;
 };
 
-// Downloads every member at the given notice level as one combined PDF —
-// one letter per page — mirroring printBalanceNoticesBulk but saved to
-// disk. Native text rendering (no per-member screenshot/rasterize step)
-// means this loop is now plain synchronous CPU work, not an awaited
-// DOM-capture per member — hundreds of members generate in a fraction of a
-// second instead of potentially minutes. Returns how many notices were
-// included.
+/* Nidadownload dito yung bawat member sa given notice level bilang isang
+combined PDF - isang letter per page - mirror ng printBalanceNoticesBulk
+pero naka-save sa disk. Dahil sa native text rendering (walang per-member
+screenshot/rasterize step), plain synchronous CPU work na lang itong loop,
+hindi na awaited DOM-capture per member - daan-daang members ang
+nageneragte sa isang fraction of a second imbes posibleng minuto. Nagbabalik
+ng bilang kung ilang notices ang naincluded. */
 export const downloadBalanceNoticesBulkPDF = async (members, level, managerName, thresholds = DEFAULT_NOTICE_THRESHOLDS) => {
   const targets = members.filter((m) => getNoticeLevel(m.balance, thresholds) === level);
   if (targets.length === 0) return 0;

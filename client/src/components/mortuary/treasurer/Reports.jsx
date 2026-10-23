@@ -29,8 +29,8 @@ const STANDING_BADGE_STYLES = {
   'Negative Balance': 'bg-red-50 text-red-700 border-red-200',
 };
 
-// 'YYYY-MM' for monthly, 'YYYY' for annually — sorts correctly as plain
-// strings, which is why month is zero-padded.
+/* 'YYYY-MM' for monthly, 'YYYY' for annually - tama yung sort kahit plain
+strings lang, kaya zero-padded yung month. */
 const getPeriodKey = (dateValue, granularity) => {
   const d = new Date(dateValue);
   if (Number.isNaN(d.getTime())) return null;
@@ -80,10 +80,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   const reportError = membersError || (needsClaims ? claimsError : '');
   const exportDisabled = exporting || reportLoading || !!reportError;
 
-  // Contributions and claims don't carry a barangay of their own — only the
-  // member record does — so every other report type (everything except
-  // Financial Summary, which is a fund-wide total and deliberately stays
-  // unscoped) resolves it through this memberId -> barangay lookup.
+  /* Yung contributions at claims walang sariling barangay - yung member
+  record lang meron - kaya lahat ng ibang report type (lahat except Financial
+  Summary, na fund-wide total talaga at sadyang hindi scoped) kinukuha yung
+  barangay through sa memberId -> barangay lookup na ito. */
   const barangayByMemberId = useMemo(() => {
     const map = new Map();
     members.forEach((m) => {
@@ -102,8 +102,9 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
 
   const deceasedMembers = useMemo(() => members.filter((m) => m.status === 'deceased'), [members]);
 
-  // Active members ranked worst-balance-first so the treasurer can act on
-  // the ones nearest a balance notice without re-sorting.
+  /* Active members ranked worst-balance-first para madali makita ng
+  treasurer yung mga malapit na mag-receive ng balance notice, hindi na
+  kailangan mag re-sort. */
   const memberStandingList = useMemo(() => {
     return members
       .filter((m) => m.status === 'active')
@@ -117,8 +118,9 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       .sort((a, b) => a.balance - b.balance);
   }, [members, minimumBalance]);
 
-  // Per-claim deduction/payout line items — richer than a single aggregate
-  // total since it shows exactly which claims funded the collected amount.
+  /* Per-claim deduction/payout line items - mas detalyado kesa sa isang
+  aggregate total kasi makikita exactly kung aling claims nag-fund sa
+  collected amount. */
   const deductionsData = useMemo(() => {
     return claims.map((c) => ({
       claimId: c.claimId,
@@ -132,10 +134,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     }));
   }, [claims]);
 
-  // Filtered-by-barangay versions of every non-summary report's data.
-  // Financial Summary intentionally keeps reading the unfiltered arrays
-  // above (contributions, claims, deductionsData, members) everywhere else
-  // in this file.
+  /* Filtered-by-barangay versions ng data ng lahat ng non-summary report.
+  Yung Financial Summary sadyang binabasa yung unfiltered arrays sa taas
+  (contributions, claims, deductionsData, members) sa ibang parte ng file
+  na ito. */
   const filteredContributions = useMemo(
     () => (barangayFilter === 'all' ? contributions : contributions.filter((c) => matchesBarangay(barangayByMemberId.get(String(c.member_id))))),
     [contributions, barangayFilter, barangayByMemberId],
@@ -165,10 +167,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     [deductionsData, barangayFilter, barangayByMemberId],
   );
 
-  // Financial Summary's Monthly/Annually breakdown — each period bucket
-  // sums contributions by payment date, deductions by when they were
-  // processed, and payouts by when they were released (each can land in a
-  // different period than when the claim itself was filed).
+  /* Monthly/Annually breakdown ng Financial Summary - bawat period bucket
+  nagsum ng contributions base sa payment date, deductions base kung kailan
+  na-process, at payouts base kung kailan na-release (puwedeng magkaiba ang
+  period kesa sa pagkafile mismo ng claim). */
   const periodBreakdown = useMemo(() => {
     const buckets = new Map();
     const ensure = (key) => {
@@ -360,10 +362,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       });
     }
 
-    // Without a BOM, Excel guesses the file's encoding from the system
-    // codepage instead of reading it as UTF-8 — the multi-byte ₱ (U+20B1)
-    // then gets misread as unrelated CJK characters. Same fix already used
-    // by the backup CSV exports.
+    /* Kung walang BOM, mag-guess si Excel ng encoding base sa system
+    codepage imbes na basahin as UTF-8 - yung multi-byte ₱ (U+20B1) mamali-
+    mali mabasa bilang unrelated CJK characters. Parehong fix na ginamit na
+    sa backup CSV exports. */
     const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);

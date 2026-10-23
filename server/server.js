@@ -19,11 +19,11 @@ const { authenticateToken, authorizeModule, authorizeAdminOnly, requirePasswordC
 const app = express();
 configureProxy(app);
 
-// Real browser-facing origins allowed to call this API, e.g.
-// "http://localhost:5173" or a comma-separated list for multiple
-// environments. Falls back to the local dev client's own origin (never to
-// '*') if CORS_ORIGIN is unset, so a missing/blank value can't silently
-// reopen this to every origin.
+/* Yung real browser-facing origins na puwedeng tumawag sa API na ito, e.g.
+"http://localhost:5173" o comma-separated list kung maraming environments.
+Babalik sa local dev client's own origin (hindi sa '*') kapag unset yung
+CORS_ORIGIN, para yung missing/blank value hindi tahimik na mag-reopen nito
+sa lahat ng origin. */
 const DEFAULT_DEV_ORIGIN = 'http://localhost:5173';
 const corsOrigins = (process.env.CORS_ORIGIN || '').split(',').map(origin => origin.trim()).filter(Boolean);
 if (!corsOrigins.length) {
@@ -39,22 +39,23 @@ app.use(cors({
   credentials: false
 }));
 app.use(helmet({
-  // QR code images under /uploads are deliberately loaded cross-origin, as
-  // <img src="http://<api-origin>/uploads/qrcodes/...">, by the SPA running
-  // on its own dev/prod origin — helmet's default same-origin CORP would
-  // have the browser block that load even though CORS itself allows it.
+  /* Sinadya talagang cross-origin yung pag-load ng QR code images sa /uploads,
+  gaya ng <img src="http://<api-origin>/uploads/qrcodes/...">, dahil galing
+  sa SPA na tumatakbo sa sarili nitong dev/prod origin - kung helmet's default
+  same-origin CORP, mabe-block ng browser yung load kahit pumayag naman yung CORS. */
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
-// Nothing here needs anywhere near 50MB: file uploads (CSV, bulk import) go
-// through multer's own disk storage, not JSON/urlencoded bodies. The one
-// JSON endpoint that carries a sizeable payload (pasted CSV text for the
-// treasurer's bulk payment upload) is itself capped at 1MB by paymentCsv.js.
+/* Walang nangailangan dito ng malapit sa 50MB: dumadaan yung file uploads
+(CSV, bulk import) sa multer's own disk storage, hindi sa JSON/urlencoded
+bodies. Yung isang JSON endpoint na may malaking payload (pasted CSV text
+para sa treasurer's bulk payment upload) may sariling 1MB cap sa paymentCsv.js. */
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Serve static files for uploads
-// QR images are rendered from their existing MongoDB IDs so local files
-// disappearing during a deploy/restart cannot break issued member cards.
+/* Nire-render yung QR images gamit yung existing MongoDB IDs nila, kaya kung
+mawala yung local files sa deploy/restart, hindi masisira yung mga naibigay
+na member cards. */
 app.use('/uploads/qrcodes', qrImageRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -95,10 +96,10 @@ let httpServer;
 
 const startServer = async () => {
   try {
-    // Fail loudly at startup instead of letting every login/auth-check fail
-    // silently later — jwt.sign/jwt.verify must agree on the same secret,
-    // and a missing one previously fell back to a hardcoded, predictable
-    // string in some call sites but not others.
+    /* Mag-fail agad at maingay sa startup kaysa hayaang tahimik na mag-fail
+    yung bawat login/auth-check mamaya - dapat parehas lang ang secret na
+    ginagamit ng jwt.sign/jwt.verify, at dati yung missing value nagfall-back
+    sa hardcoded, predictable string sa ibang call sites pero hindi sa lahat. */
     if (!process.env.JWT_SECRET) {
       throw new Error('JWT_SECRET is not set. Copy .env.example to .env and set a real random JWT_SECRET before starting the server.');
     }
@@ -124,13 +125,14 @@ const startServer = async () => {
   }
 };
 
-// A platform restart/redeploy sends SIGTERM (Docker, most PaaS hosts); a
-// terminal Ctrl+C sends SIGINT. Left unhandled, the process dies the instant
-// the signal arrives — whatever request is mid-flight (e.g. a ledger write
-// sitting between its atomic lock and the matching release, see
-// treasurerClaimController.js) gets cut off part-way instead of finishing or
-// cleanly rolling back. Closing the HTTP server first stops new connections
-// and lets in-flight requests finish before the Mongo connection goes away.
+/* Nagpapadala ng SIGTERM yung platform restart/redeploy (Docker, most PaaS
+hosts); SIGINT naman galing sa terminal Ctrl+C. Kung hindi hinahandle ito,
+namamatay agad yung process pagdating ng signal - kaya anumang request na
+mid-flight (e.g. ledger write na nasa gitna ng atomic lock at matching
+release, tingnan ang treasurerClaimController.js) maputol sa kalagitnaan
+imbes na matapos o mag-rollback nang maayos. Kapag isinara muna yung HTTP
+server, natitigil yung bagong connections at nakakatapos muna yung mga
+in-flight requests bago mawala yung Mongo connection. */
 const shutdown = (signal) => {
   console.log(`\n${signal} received: closing server gracefully...`);
   if (!httpServer) {

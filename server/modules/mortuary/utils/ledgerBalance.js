@@ -1,21 +1,25 @@
 const Ledger = require('../models/Ledger');
 
-// A ledger row's `balance` column is a RUNNING TOTAL, written in the order rows
-// are posted. So "what is this member's balance right now" means "the balance
-// carried on the most recently POSTED row" — ordered by createdAt, never by
-// transactionDate.
-//
-// transactionDate is the human-entered *effective* date. It can be back-dated
-// (importing historical statements) or land in the future: a date-only value
-// like "2026-09-17" parses to UTC midnight, which is 08:00 that morning in PHT.
-// Ordering the running balance by it lets one such row out-sort every deduction
-// posted after it, so each new deduction re-reads the same stale balance, writes
-// the same result, and the member's balance appears frozen. That was a real bug:
-// 50 members sat at exactly ₱1,000 through four ₱900 assessments because a
-// bulk-uploaded contribution dated "tomorrow" masked every one of them.
-//
-// _id breaks ties — it is monotonic, so two rows created in the same
-// millisecond still resolve in insertion order.
+/* Ang `balance` column ng ledger row ay RUNNING TOTAL, isinusulat base sa
+pagkaka-post ng rows. Kaya ang "ano ang balance ng member ngayon" ay
+nangangahulugang "yung balance na dala ng pinaka-huling POSTED row" -
+naka-order by createdAt, hindi sa transactionDate.
+
+Ang transactionDate ay yung human-entered *effective* date. Puwede itong
+i-back-date (pag-import ng historical statements) o mapunta sa future:
+isang date-only value tulad ng "2026-09-17" ay pumapasok bilang UTC
+midnight, na 08:00 ng umaga sa PHT. Kung i-order ang running balance base
+dito, puwedeng ma-out-sort ng isang row ang lahat ng deduction na
+na-post after nito, kaya bawat bagong deduction ay babasa ulit ng
+parehong stale balance, isusulat ang parehong result, at magmumukhang
+frozen ang balance ng member. Totoong bug ito dati: 50 members ay
+naka-stuck sa eksaktong ₱1,000 kahit apat na ₱900 assessments na, dahil
+sa isang bulk-uploaded contribution na "tomorrow" ang date, na nagtago
+sa lahat sa kanila.
+
+Ang _id ang pumuputol ng tie - monotonic ito, kaya dalawang rows na
+nagawa sa parehong millisecond ay naresolba pa rin base sa insertion
+order. */
 const POSTING_ORDER = { createdAt: 1, _id: 1 };
 const LATEST_FIRST = { createdAt: -1, _id: -1 };
 
@@ -25,13 +29,14 @@ const getLatestBalance = async (memberId) => {
   return latest ? latest.balance : 0;
 };
 
-// Batch version of getLatestBalance — one aggregation instead of one
-// findOne() per member, for hot paths (e.g. the treasurer dashboard) that
-// need every member's current balance at once. $sort before $group so each
-// group's $first is that member's most-recently-posted row, same ordering
-// LATEST_FIRST gives findOne(). Members with no ledger rows are simply
-// absent from the returned map — callers treat a missing entry as 0, same
-// as getLatestBalance's own fallback.
+/* Batch version ito ng getLatestBalance - isang aggregation lang imbes na
+isang findOne() per member, para sa hot paths (hal. treasurer dashboard) na
+kailangan ng current balance ng lahat ng member nang sabay-sabay. $sort
+muna bago $group para yung $first ng bawat group ay yung
+most-recently-posted row ng member, parehong ordering na binibigay ng
+LATEST_FIRST sa findOne(). Yung mga member na walang ledger rows ay wala
+lang sa returned map - itinuturing ng callers na 0 ang missing entry,
+kagaya din ng fallback ng getLatestBalance mismo. */
 const getLatestBalancesByMember = async (memberIds) => {
   const rows = await Ledger.aggregate([
     { $match: { memberId: { $in: memberIds } } },
@@ -41,10 +46,11 @@ const getLatestBalancesByMember = async (memberIds) => {
   return new Map(rows.map((row) => [row._id, row.balance]));
 };
 
-// Rewrites every `balance` for a member as the running total in posting order.
-// Returns what would change so callers can dry-run before committing; pass
-// { apply: true } to actually write. Used to repair rows saved while the old
-// transactionDate ordering was in force.
+/* Isinusulat ulit ang bawat `balance` ng member bilang running total base sa
+posting order. Ibinabalik kung ano ang magbabago para makapag-dry-run muna
+ang callers bago mag-commit; i-pass ang { apply: true } para talagang
+isulat. Ginagamit ito para ayusin yung rows na na-save noong gamit pa ang
+lumang transactionDate ordering. */
 const recomputeMemberBalances = async (memberId, { apply = false } = {}) => {
   const rows = await Ledger.find({ memberId }).sort(POSTING_ORDER);
   let running = 0;

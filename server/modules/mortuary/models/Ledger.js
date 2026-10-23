@@ -61,9 +61,10 @@ ledgerSchema.index({ memberId: 1 });
 ledgerSchema.index({ transactionType: 1 });
 ledgerSchema.index({ transactionDate: -1 });
 ledgerSchema.index({ memberId: 1, transactionDate: -1 });
-// Backs the posting-order balance lookup in utils/ledgerBalance — the running
-// `balance` column follows the order rows were written, not their effective
-// transactionDate, so this is the index every "current balance" read uses.
+/* Ito ang backing ng posting-order balance lookup sa utils/ledgerBalance - sumusunod
+ang running `balance` column sa order kung kailan naisulat ang rows, hindi sa
+effective transactionDate nila, kaya ito ang index na ginagamit ng bawat
+"current balance" read. */
 ledgerSchema.index({ memberId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Ledger', ledgerSchema);

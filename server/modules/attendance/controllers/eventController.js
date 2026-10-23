@@ -47,7 +47,7 @@ const getEventFilter = (identifier) => {
   return { eventId: identifier };
 };
 
-// Function to check and update completed events
+// check and update finished events
 const checkAndUpdateCompletedEvents = async () => {
   try {
     const events = await Event.find({ status: { $in: ['upcoming', 'active'] } });
@@ -60,9 +60,9 @@ const checkAndUpdateCompletedEvents = async () => {
 const eventStatusTimer = setInterval(checkAndUpdateCompletedEvents, 60 * 1000);
 eventStatusTimer.unref();
 
-/*Ang route ang nagtatakda kung kailangan ng approval, 
-para hindi basta lumabas na “Upcoming” ang Secretary-created event
-at malaktawan ang Admin's Pending Approvals list. */
+/* Ang route ang nagsasabi kung kailangan pa ng approval - para hindi
+basta lumabas na "Upcoming" yung event na ginawa ng Secretary, at
+ma-miss sa Pending Approvals list ng Admin. */
 const handleCreateEvent = async (req, res, { autoApprove }) => {
   try {
     const { eventName, eventDate, eventTime, startTime, endTime, location, description, type, createdBy } = req.body;
@@ -75,7 +75,7 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
       eventId: uuidv4(),
       eventName,
       eventDate,
-      eventTime: startTime, // keep eventTime for backward compatibility, set to startTime
+      eventTime: startTime, // keep eventTime for backward compatibility, same as startTime
       startTime,
       endTime,
       location,
@@ -87,7 +87,7 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
 
     const saved = await newEvent.save();
 
-    // Log audit event
+    // log the audit event
     await createAuditLog({
       userId: req.user?.userId || req.user?.id || createdBy,
       userName: req.user?.fullName || req.user?.name || req.user?.username || createdBy,
@@ -112,7 +112,7 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
       event: saved,
     });
   } catch (error) {
-    // Log failed attempt
+    // log the failed attempt
     await createAuditLog({
       userId: req.user?.userId || req.user?.id,
       userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
@@ -132,24 +132,24 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
   }
 };
 
-// Used by the Secretary, legacy, and member routers: always lands in
-// pending_approval so it appears in the Admin's Pending Approvals queue.
+/* Ginagamit ng Secretary, legacy, at member routes - laging pending_approval
+muna para makita ng Admin sa Pending Approvals list. */
 const createEvent = (req, res) => handleCreateEvent(req, res, { autoApprove: false });
 
-// Used only by the Admin router: an Admin-authored event has no one above it
-// to approve it, so it publishes straight to upcoming.
+/* Admin route lang gumagamit nito - walang mag-a-approve sa Admin, kaya
+diretso na sa "upcoming" status. */
 const createEventAsAdmin = (req, res) => handleCreateEvent(req, res, { autoApprove: true });
 
-// Get all events (supports filtering via query params) - with pagination
+// get all events, with filters and pagination
 const getAllEvents = async (req, res) => {
   try {
-    // Check and update completed events
+    // check and update finished events
     await checkAndUpdateCompletedEvents();
 
     const { q, location, status } = req.query;
     const { page, limit, skip } = require('../../../shared/utils/pagination').getPaginationParams(req.query);
 
-    // Build filter from query params
+    // build filter from query params
     const filter = {};
 
     if (location) {
@@ -162,14 +162,14 @@ const getAllEvents = async (req, res) => {
 
     if (q) {
       const regex = new RegExp(q, 'i');
-      // search in eventName and location
+      // search eventName and location
       filter.$or = [{ eventName: regex }, { location: regex }];
     }
 
-    // Get total count for pagination
+    // get total count for pagination
     const total = await Event.countDocuments(filter);
 
-    // Get paginated events
+    // get events, one page at a time
     const events = await Event.find(filter)
       .sort({ eventDate: -1, startTime: -1 })
       .skip(skip)
@@ -182,7 +182,7 @@ const getAllEvents = async (req, res) => {
   }
 };
 
-// Get event by ID
+// find event by ID
 const getEventById = async (req, res) => {
   try {
     const eventId = req.params.eventId || req.params.id;
@@ -199,7 +199,7 @@ const getEventById = async (req, res) => {
   }
 };
 
-// Update event
+// update the event
 const updateEvent = async (req, res) => {
   try {
     const eventId = req.params.eventId || req.params.id;
@@ -207,19 +207,17 @@ const updateEvent = async (req, res) => {
     const allowedFields = ['eventName', 'eventDate', 'eventTime', 'startTime', 'endTime', 'location', 'description', 'type'];
     const updates = Object.fromEntries(allowedFields.filter((field) => req.body[field] !== undefined).map((field) => [field, req.body[field]]));
 
-    // Get original event for audit trail
+    // get original event, needed for audit trail
     const originalEvent = await Event.findOne(filter);
     if (!originalEvent) {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    /* The Secretary can only edit an event before it's been acted on
-    (draft/pending/rejected) — once it's approved or closed, it's the
-    Admin's to manage. The Admin isn't bound by that lifecycle: this same
-    controller backs both the Secretary's and the Admin's update route,
-    and only the latter authenticates as 'admin', so that's the signal
-    to allow editing regardless of status (including a closed, i.e.
-    time-exceeded, event).*/
+    /* Puwede lang i-edit ng Secretary yung event kung draft/pending/rejected
+    pa - pag approved o closed na, Admin na ang bahala dun. Si Admin wala
+    namang ganitong restriction: parehong route (Secretary at Admin) ang
+    gumagamit nitong controller, pero 'admin' role lang ang makaka-edit
+    kahit anong status, kasama na yung closed na event. */
     
     if (
       !['draft', 'pending_approval', 'rejected'].includes(originalEvent.status) &&
@@ -231,7 +229,7 @@ const updateEvent = async (req, res) => {
     updates.status = originalEvent.status === 'rejected' ? 'rejected' : originalEvent.status;
     const event = await Event.findOneAndUpdate(filter, updates, { new: true, runValidators: true });
 
-    // Log audit event
+    // log the audit event
     await createAuditLog({
       userId: req.user?.userId || req.user?.id,
       userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
@@ -256,7 +254,7 @@ const updateEvent = async (req, res) => {
       event: event,
     });
   } catch (error) {
-    // Log failed attempt
+    // log the failed attempt
     await createAuditLog({
       userId: req.user?.userId || req.user?.id,
       userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
@@ -286,9 +284,9 @@ const transitionEvent = async (req, res, nextStatus, allowedStatuses, message) =
   if (req.body?.reason) event.rejectionReason = req.body.reason;
   await event.save();
 
-  // Covers submit/cancel/resubmit/reject (approveEvent logs its own, below)
-  // — same action reopenEvent already uses for this same kind of change,
-  // so no new AuditLog.action enum value is needed.
+  /* Ito yung ginagamit ng submit/cancel/resubmit/reject (may sarili naman
+  si approveEvent sa baba). Parehong action string lang ang ginagamit kagaya
+  ng reopenEvent, kaya di na kailangan gumawa ng bagong AuditLog.action value. */
   await createAuditLog({
     userId: req.user?.userId || req.user?.id,
     userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
@@ -344,10 +342,10 @@ const rejectEvent = (req, res) => {
   if (!req.body?.reason?.trim()) return res.status(400).json({ message: 'A rejection reason is required' });
   return transitionEvent(req, res, 'rejected', ['pending_approval'], 'rejected');
 };
-// Reopening a closed event needs a new future schedule — its old date/time
-// already passed, so leaving it untouched would just have the 60s status
-// timer (refreshEventStatus) close it again on the next tick. The Admin
-// must also give a reason, which is kept on the event for the audit trail.
+/* Pag i-reopen ang closed event, kailangan ng bagong schedule sa hinaharap -
+kasi yung luma, lagpas na, babalik lang agad sa closed pag na-check ulit ng
+60s timer (refreshEventStatus). Required din ang reason galing sa Admin,
+nilalagay sa event para sa audit trail. */
 const reopenEvent = async (req, res) => {
   const eventId = req.params.eventId || req.params.id;
   const event = await Event.findOne(getEventFilter(eventId));
@@ -394,9 +392,9 @@ const reopenEvent = async (req, res) => {
   return res.json({ message: 'Event reopened successfully', event });
 };
 
-// Delete event — Admin only, and only once an event is Closed. Events still
-// in play (pending/upcoming/active) go through reject/cancel/reopen instead,
-// so a live event can't be wiped out by mistake.
+/* Pwede lang mag-delete ng event ang Admin, at closed na dapat muna. Yung
+mga buhay pa (pending/upcoming/active) dapat sa reject/cancel/reopen
+dumaan, para hindi mabura ng mali yung live na event. */
 const deleteEvent = async (req, res) => {
   try {
     const eventId = req.params.eventId || req.params.id;
@@ -413,7 +411,7 @@ const deleteEvent = async (req, res) => {
 
     const event = await Event.findOneAndDelete(filter);
 
-    // Log audit event
+    // log the audit event
     await createAuditLog({
       userId: req.user?.userId || req.user?.id,
       userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
@@ -437,7 +435,7 @@ const deleteEvent = async (req, res) => {
       message: 'Event deleted successfully',
     });
   } catch (error) {
-    // Log failed attempt
+    // log the failed attempt
     await createAuditLog({
       userId: req.user?.userId || req.user?.id,
       userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',

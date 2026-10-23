@@ -72,14 +72,15 @@ router.get('/notice-thresholds/current', authenticateToken, authorizeAdminOnly, 
 router.get('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getThresholdHistory);
 router.post('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.updateThresholds);
 
-// Death benefit cap — the maximum payout released per claim (anything
-// collected above it is retained as cooperative income).
+/* Death benefit cap - ito yung maximum payout na pwedeng irelease per claim
+(kung may lumagpas pa sa cap, napupunta na yun sa cooperative income). */
 router.get('/benefit-cap/current', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCurrentCap);
 router.get('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCapHistory);
 router.post('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.updateCap);
 
-// Database backup/restore — restore is a bulk write over live data, so it
-// gets the same explicit auth as the other consequential routes above.
+/* Database backup/restore - yung restore ay bulk write sa live data, kaya
+same explicit auth din ang ginagamit nito kagaya ng ibang consequential
+routes sa taas. */
 router.get('/backup/ledger', authenticateToken, authorizeAdminOnly, backupController.getLedgerExport);
 router.post('/backup/restore', authenticateToken, authorizeAdminOnly, backupController.restoreBackup);
 

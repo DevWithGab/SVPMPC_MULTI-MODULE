@@ -4,7 +4,7 @@ import { Button } from './button';
 
 /**
  * Pagination Component
- * Provides navigation controls for paginated data
+ * Nagbibigay ng navigation controls para sa paginated data
  */
 export const Pagination = ({ 
   currentPage = 1, 
@@ -137,7 +137,7 @@ export const Pagination = ({
 
 /**
  * Pagination Info Component
- * Shows current page information (e.g., "Showing 1-10 of 100")
+ * Ipinapakita yung current page information (hal., "Showing 1-10 of 100")
  */
 export const PaginationInfo = ({ 
   currentPage = 1, 
@@ -159,7 +159,7 @@ export const PaginationInfo = ({
 
 /**
  * Items Per Page Selector
- * Allows users to change the number of items displayed per page
+ * Pwedeng baguhin ng user yung number of items na ipinapakita per page
  */
 export const ItemsPerPageSelector = ({ 
   value = 10, 

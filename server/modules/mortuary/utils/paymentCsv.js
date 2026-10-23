@@ -2,8 +2,9 @@ const MAX_ROWS = 1000;
 const MAX_BYTES = 1024 * 1024;
 const HEADERS = ['member_id', 'amount', 'payment_date', 'reference_number'];
 const OPTIONAL = ['payment_method', 'notes'];
-// CSVs use month-first dates. Keep ISO input compatible and normalize both
-// before payment comparison/storage, so changing format cannot post twice.
+/* Month-first dates ang ginagamit ng CSVs. Panatilihing compatible ang ISO
+input at i-normalize pareho bago ikumpara/isave ang payment, para hindi
+makapag-post nang dalawang beses kahit magpalit ng format. */
 function normalizePaymentDate(value) {
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   const monthFirst = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})$/.exec(value);

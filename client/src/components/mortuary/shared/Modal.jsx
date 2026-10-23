@@ -2,11 +2,12 @@ import React, { useEffect, useId, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
-// `maxWidth` takes a single Tailwind max-w-* class (default max-w-md) — kept
-// as its own prop rather than folded into `className` so a caller widening
-// the modal (e.g. maxWidth="max-w-2xl") can't end up with two conflicting
-// max-w-* utility classes on the same element, which Tailwind does not
-// reliably resolve by DOM order. `className` is for anything else.
+/* Yung `maxWidth` ay kumukuha ng isang Tailwind max-w-* class (default
+max-w-md) - hiniwalay sa sariling prop imbes na i-fold sa `className` para
+yung caller na nag-widen ng modal (e.g. maxWidth="max-w-2xl") ay hindi
+magkaroon ng two conflicting max-w-* utility classes sa same element, na
+hindi reliably resolved ng Tailwind by DOM order. Si `className` naman ay
+para sa ibang bagay. */
 const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-md', className = '', accessible = false }) => {
   const dialogRef = useRef(null);
   const closeRef = useRef(onClose);

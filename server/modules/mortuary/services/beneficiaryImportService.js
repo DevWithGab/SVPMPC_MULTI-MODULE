@@ -1,11 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 
-// Unlike payments, registering a beneficiary has nothing to double-credit —
-// re-running the same row just supersedes the current active record again,
-// exactly what the single "Update Beneficiary" endpoint already does on a
-// second submission. So there's no reservation/idempotency-key machinery
-// here, only member-existence checks up front (preview) and the same
-// supersede-then-insert write beneficiaryController.updateBeneficiary uses.
+/* Hindi ito parang payments na may double-credit risk - pag na-re-run ulit
+ang same row, supersede lang ulit ang current active record, tulad din ng
+ginagawa ng "Update Beneficiary" endpoint sa second submission. Kaya wala
+nang reservation/idempotency-key machinery dito, member-existence checks
+lang up front (preview) at yung same supersede-then-insert write na
+ginagamit ni beneficiaryController.updateBeneficiary. */
 function createBeneficiaryImportService({ Member, Beneficiary }) {
   async function preview(rows) {
     const valid = rows.filter(row => !row.errors.length);
@@ -53,11 +53,11 @@ function createBeneficiaryImportService({ Member, Beneficiary }) {
     const checked = await preview(rows);
     if (checked.some(row => row.errors.length)) return { blocked: true, rows: checked };
     const results = [];
-    // Sequential, not parallel — two rows in the same upload could (after the
-    // CSV's own duplicate-Passbook-No. check) still race the same member via
-    // a concurrent edit from the single Update Beneficiary screen; running
-    // one row at a time keeps each row's own supersede-then-insert atomic
-    // relative to the others in this batch.
+    /* Sequential, hindi parallel - puwede pa ring magkaroon ng race ang dalawang
+    row sa parehong upload (kahit pumasa na sa CSV's duplicate-Passbook-No.
+    check) kung may concurrent edit mula sa Update Beneficiary screen; kaya
+    isa-isang row ang pinoproseso para atomic yung supersede-then-insert ng
+    bawat row kumpara sa iba pang row sa batch na ito. */
     for (const row of rows) {
       try { results.push(await record(row, updatedBy)); }
       catch (error) {

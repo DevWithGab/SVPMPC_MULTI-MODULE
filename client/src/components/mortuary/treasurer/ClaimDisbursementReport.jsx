@@ -8,10 +8,10 @@ import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
 import { printClaimReceipt } from './claimReceipt';
 
-// A read-only history of every claim that has already been paid out —
-// the record-keeping counterpart to the "Awaiting Release" action tab.
-// The table only shows enough to scan the list; everything else (DV
-// number, claim ID, released by, remarks) lives in the details modal.
+/* Read-only history ito ng lahat ng claim na na-release na - parang record-keeping
+counterpart ng "Awaiting Release" action tab. Sa table, konti lang ipinapakita
+para sa pag-scan ng list; yung iba pang detalye (DV number, claim ID, released by,
+remarks) nasa details modal na. */
 export default function ClaimDisbursementReport() {
   const [claims, setClaims] = useState([]);
   const [total, setTotal] = useState(0);

@@ -7,13 +7,14 @@ const { getLatestBalance } = require('../utils/ledgerBalance');
 const { withMemberPaymentLock } = require('../utils/paymentLock');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// Same dedup-key/upsert pattern as paymentImportService.js's CSV import path
-// (see paymentId/samePayment there). A deterministic id from
-// (memberId, referenceNumber) means a double-click or a retried request after
-// a dropped connection reuses the same contribution and ledger rows instead
-// of creating a second credit, and a crash between the two saves is
-// recoverable — resubmitting with the same reference number just finishes
-// the missing half instead of re-crediting.
+/* Parehong dedup-key/upsert pattern gaya ng paymentImportService.js's CSV
+import path (tingnan yung paymentId/samePayment dun). Yung deterministic id
+galing sa (memberId, referenceNumber) ay nangangahulugang hindi na
+gagawa ng second credit yung double-click o retried request pagkatapos ng
+dropped connection - gagamitin lang ulit yung same contribution at ledger
+rows. At kung mag-crash sa pagitan ng dalawang saves, recoverable ito -
+yung resubmit gamit yung same reference number ay tatapusin lang yung
+nawawalang half sa halip na mag-re-credit. */
 const manualPaymentId = (memberId, referenceNumber) =>
   `MANUAL-${createHash('sha256').update(JSON.stringify([memberId, referenceNumber])).digest('hex')}`;
 const samePayment = (stored, entry) =>
@@ -38,14 +39,15 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
 
     console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
 
-    // typeof check closes a NoSQL operator-injection hole: a crafted body
-    // like {"memberId":{"$ne":null},...} passes the !memberId truthiness
-    // check (a non-empty object is truthy) and turns the findOne below into
-    // a real query operator, matching whichever member Mongo's query
-    // planner returns first. The String(...) cast on line 25 only protects
-    // the in-memory lock key, not this query — memberId is never
-    // legitimately anything but a string, so rejecting the wrong type here
-    // is exactly as correct as rejecting a missing one.
+    /* Isinasara ng typeof check yung NoSQL operator-injection hole: kung
+    crafted body gaya ng {"memberId":{"$ne":null},...} ay makakapasa sa
+    !memberId truthiness check (truthy yung non-empty object) at ginagawang
+    real query operator yung findOne sa baba, matching kung sino man ang
+    unang ibalik ng Mongo's query planner. Yung String(...) cast sa line 25
+    ay pino-protect lang yung in-memory lock key, hindi yung query na ito -
+    hindi naman talaga legitimate na hindi string yung memberId, kaya tama
+    lang na i-reject din ang wrong type dito gaya ng pag-reject sa missing
+    one. */
     if (!memberId || typeof memberId !== 'string' || !Number.isFinite(amount) || amount <= 0 || !trimmedReference) {
       console.log('❌ Missing required fields:', { memberId, amount, referenceNumber });
       return res.status(400).json({ message: 'Missing required fields: Passbook No., amount, and reference number' });
@@ -60,11 +62,11 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
     const id = manualPaymentId(memberId, trimmedReference);
     const entry = { amount, paymentDate: finalPaymentDate, paymentMethod: finalPaymentMethod };
 
-    // Reserve the contribution row first and atomically: the unique index on
-    // contributionId means concurrent/duplicate requests for the same
-    // (memberId, referenceNumber) race on the same _id and only one of them
-    // actually inserts — any other racer (or a later retry) just reads back
-    // what the first one wrote.
+    /* Rereserve muna yung contribution row atomically: yung unique index
+    sa contributionId ay nangangahulugang kung may concurrent/duplicate
+    requests para sa same (memberId, referenceNumber), magrace sila sa
+    same _id at isa lang sa kanila ang talagang mag-insert - basta yung
+    ibang racer (o later retry) ay babasa lang ng isinulat na ng una. */
     let contribution;
     try {
       contribution = await Contribution.findOneAndUpdate(
@@ -95,9 +97,9 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
 
     const existingLedger = await Ledger.findOne({ ledgerId: id });
     if (existingLedger) {
-      // Same (memberId, referenceNumber) was already fully posted — a
-      // double-click or a retried request after the first one actually
-      // succeeded. Report what's already there instead of crediting again.
+      /* Yung same (memberId, referenceNumber) ay fully posted na - double-click
+      o retried request pagkatapos talagang nag-succeed yung una. I-report
+      lang yung nandun na sa halip na mag-credit ulit. */
       return res.status(200).json({
         success: true,
         message: 'This contribution was already recorded.',
@@ -107,8 +109,9 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
       });
     }
 
-    // Posting order — see utils/ledgerBalance for why transactionDate must not
-    // decide this. Shared by every balance lookup in the module.
+    /* Posting order - tingnan yung utils/ledgerBalance kung bakit hindi
+    dapat transactionDate ang magdesisyon dito. Shared ito ng lahat ng
+    balance lookup sa module na ito. */
     const currentBalance = await getLatestBalance(memberId);
     const computedBalance = Math.round((currentBalance + amount) * 100) / 100;
 
@@ -126,15 +129,16 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
           referenceId: contribution.referenceNumber,
           recordedBy,
           paymentMethod: finalPaymentMethod,
-          // Always stamp the actual posting time (matches recordPayout,
-          // processAutomaticDeduction, releaseClaim, etc). Using the
-          // treasurer-editable payment date here (often just a date with no
-          // time, e.g. "2026-08-16") made new contributions sort *before*
-          // same-day entries that carry a real time-of-day, so every "current
-          // balance" lookup (sorted by transactionDate desc) kept surfacing
-          // the older entry and the member's balance looked stuck. The
-          // user-chosen payment date is still preserved on the Contribution
-          // record itself (paymentDate, above) for reporting.
+          /* Laging i-stamp yung actual posting time (tugma sa recordPayout,
+          processAutomaticDeduction, releaseClaim, etc). Yung paggamit sa
+          treasurer-editable payment date dito (madalas date lang na walang
+          time, e.g. "2026-08-16") ay nagiging dahilan para mag-sort *before*
+          yung bagong contributions kumpara sa same-day entries na may
+          totoong time-of-day, kaya yung "current balance" lookup (sorted by
+          transactionDate desc) ay laging sumulpot yung older entry at
+          mukhang stuck yung balance ng member. Yung user-chosen payment
+          date ay nakapreserve pa rin sa Contribution record mismo
+          (paymentDate, sa taas) para sa reporting. */
           transactionDate: new Date(),
         } },
         { upsert: true, new: true, runValidators: true }
@@ -168,9 +172,10 @@ const getContributionHistory = async (req, res) => {
       return res.status(404).json({ message: 'Member not found' });
     }
 
-    // paymentDate is often just a date with no time (defaults to "today"),
-    // so same-day payments tie on it; createdAt breaks the tie so the most
-    // recently recorded payment always sorts first.
+    /* Madalas date lang na walang time yung paymentDate (defaults to
+    "today"), kaya nagtie yung same-day payments dito; createdAt ang
+    nagbreak ng tie para yung pinaka-recently recorded payment ang laging
+    unang sort. */
     const contributions = await Contribution.find({ memberId })
       .sort({ paymentDate: -1, createdAt: -1 })
       .limit(parseInt(limit));
@@ -203,9 +208,10 @@ const getAllContributions = async (req, res) => {
     // Get total count for pagination
     const total = await Contribution.countDocuments(query);
 
-    // Get paginated contributions — paymentDate is often just a date with no
-    // time (defaults to "today"), so same-day payments tie on it; createdAt
-    // breaks the tie so the most recently recorded payment sorts first.
+    /* Kinukuha yung paginated contributions - madalas date lang na walang
+    time yung paymentDate (defaults to "today"), kaya nagtie yung same-day
+    payments dito; createdAt ang nagbreak ng tie para yung pinaka-recently
+    recorded payment ang unang sort. */
     const contributions = await Contribution.find(query)
       .sort({ paymentDate: -1, createdAt: -1 })
       .skip(skip)

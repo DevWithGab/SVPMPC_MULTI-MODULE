@@ -25,12 +25,12 @@ export const useAttendance = () => {
     if (user && token) {
       setLoading(true);
       try {
-        // getAllAttendance() alone caps at the server's default page size
-        // (10) — loadDashboardRecords pages through every record, same fix
-        // applied to AdminPortal.jsx and Secretary's own Dashboard/Reports
-        // screens. Without this, every consumer of this hook (Secretary and
-        // Scanner Operator portals) silently undercounts attendance once an
-        // event passes 10 total scans system-wide.
+        /* Yung getAllAttendance() lang, naka-cap sa default page size ng server
+        (10) - si loadDashboardRecords ang nag-page through sa lahat ng record,
+        same fix na ginawa sa AdminPortal.jsx at sa Dashboard/Reports screens
+        ng Secretary. Kung wala nito, lahat ng gumagamit ng hook na ito
+        (Secretary at Scanner Operator portals) ay mali yung count ng
+        attendance pag lumagpas na ng 10 total scans ang event system-wide. */
         const [attendanceData, eventsData] = await Promise.all([
           loadDashboardRecords(attendanceAPI.getAllAttendance, 'attendance'), eventAPI.getAllEvents(),
         ]);

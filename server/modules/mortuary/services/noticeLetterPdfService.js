@@ -1,11 +1,11 @@
 const { drawCooperativeNotice } = require('./cooperativeNotice');
-// Server-side port of client/src/utils/balanceNotice.js's native PDF
-// renderer (parseRichTextBody/drawRichTextBody/drawNoticeLetterhead), used
-// for large batches that are generated in the background instead of in the
-// Treasurer's browser tab (see noticeBatchController.js). There's no
-// client/server shared-code path in this repo, so this is a hand port
-// rather than an import — keep the two in sync if the letter layout or
-// template placeholders ever change.
+/* Server-side port ito ng native PDF renderer ng
+client/src/utils/balanceNotice.js (parseRichTextBody/drawRichTextBody/
+drawNoticeLetterhead), ginagamit para sa large batches na ginegenerate sa
+background imbes na sa browser tab ng Treasurer (tingnan ang
+noticeBatchController.js). Walang client/server shared-code path sa repo
+na ito, kaya hand port ito at hindi import - i-sync palagi yung dalawa kung
+magbago ang letter layout o template placeholders. */
 const fs = require('fs');
 const path = require('path');
 const { jsPDF } = require('jspdf');
@@ -243,10 +243,11 @@ const drawNoticeLetterhead = (doc, logoDataUrl, { x, y, maxWidth }) => {
   const centerX = x + maxWidth / 2;
   if (logoDataUrl) {
     try {
-      // Always the same alias — jsPDF then embeds the logo once and reuses
-      // it across every page instead of re-embedding per page. Confirmed
-      // live: without this, a 2-page doc with the same ~1MB logo ballooned
-      // to 16.7MB; with it, a 20-page doc stayed ~1.15MB.
+      /* Laging same alias ang gamit - kaya isang embed lang ang gagawin ni
+      jsPDF sa logo at reuse na lang sa bawat page imbes na mag-re-embed per
+      page. Na-confirm live: kung wala nito, yung 2-page doc na may ~1MB
+      logo tumaas sa 16.7MB; pag may ito, yung 20-page doc nanatiling
+      ~1.15MB. */
       doc.addImage(logoDataUrl, 'PNG', centerX - LOGO_SIZE_PT / 2, y, LOGO_SIZE_PT, LOGO_SIZE_PT, 'notice-logo', 'FAST');
     } catch (error) {
       console.error('Unable to draw notice letterhead logo:', error.message);
@@ -295,13 +296,14 @@ const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUr
   return true;
 };
 
-// Builds the full multi-page PDF for every member at the given notice
-// level and writes it to outputPath. Returns how many members were
-// included. Synchronous CPU work (no screenshots, no DOM) — fast enough
-// that even a 1,000-member batch is expected to take low single-digit
-// seconds, but this still runs inside a background job (see
-// noticeBatchController.js) so the HTTP request never has to hold the
-// connection open for however long generation takes.
+/* Gumagawa nito ng full multi-page PDF para sa lahat ng member sa given
+notice level, tapos isusulat sa outputPath. Ibabalik kung ilang members
+ang na-include. Synchronous CPU work lang ito (walang screenshots, walang
+DOM) - mabilis naman kahit 1,000-member batch, expected na low
+single-digit seconds lang, pero tumatakbo pa rin ito sa loob ng background
+job (tingnan ang noticeBatchController.js) para hindi na kailangang
+i-hold open ng HTTP request yung connection kung gaano man tagal ang
+generation. */
 const generateNoticeBatchPdf = async (members, level, managerName, thresholds, outputPath) => {
   const targets = members.filter((m) => getNoticeLevel(m.balance, thresholds) === level);
   if (targets.length === 0) return 0;

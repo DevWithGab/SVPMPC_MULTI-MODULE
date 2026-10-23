@@ -67,12 +67,12 @@ attendanceSchema.index({ eventId: 1 });
 attendanceSchema.index({ scanTime: -1 });
 attendanceSchema.index({ eventId: 1, scanTime: -1 });
 attendanceSchema.index({ scannedByUserId: 1, scanTime: -1 });
-// Every write path only ever creates a 'present' row (status: 'absent' is
-// declared in the enum above but nothing in this codebase currently creates
-// one), so a member can have at most one Attendance row per event — this is
-// the real duplicate-scan guard; the application-level findOne check in
-// attendanceController.js's recordAttendance is just a faster, friendlier
-// first pass that can lose a race to this.
+/* Laging 'present' row lang ang ginawa ng every write path (declared sa
+enum sa itaas yung status: 'absent' pero walang gumagawa nito sa codebase
+na ito ngayon), kaya isa lang ang puwedeng Attendance row ng member per
+event - ito na yung totoong duplicate-scan guard; yung application-level
+findOne check sa recordAttendance ng attendanceController.js ay mas
+mabilis at friendlier na first pass lang na puwedeng matalo sa race dito. */
 attendanceSchema.index({ memberId: 1, eventId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

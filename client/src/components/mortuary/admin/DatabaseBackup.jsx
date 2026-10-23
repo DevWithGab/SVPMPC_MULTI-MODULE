@@ -15,11 +15,11 @@ import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
 import "../treasurer/Dashboard.css";
 import "./DatabaseBackup.css";
 
-// The `members` prop comes back from the Mortuary admin member listing
-// reshaped for that screen's own display (id/name/contact instead of the
-// real Member schema fields) — dumping it as-is into the backup would make
-// restore unable to recreate missing members, since the schema has no
-// "name" or "contact" path. Existing shared profiles are preserved on restore.
+/* Yung `members` prop galing sa Mortuary admin member listing, na-reshape
+na para sa display ng screen na yun (id/name/contact imbes na yung totoong
+Member schema fields) - pag dumped as-is sa backup, hindi magagawang
+i-recreate ng restore ang mga missing members, dahil walang "name" o
+"contact" path sa schema. Existing shared profiles ay preserved sa restore. */
 const normalizeMemberForBackup = (m) => ({
   memberId: m.memberId || m.id,
   memberName: m.memberName || m.name,
@@ -67,10 +67,10 @@ export default function DatabaseBackup({
   const [restoreResult, setRestoreResult] = useState(null); // { summary } | { error }
   const [parseError, setParseError] = useState("");
 
-  // A member's balance isn't a field on Member — it's derived from the
-  // latest entry in their Ledger history. Fetched separately (and lazily,
-  // only while this screen is open) since it can grow large and nothing
-  // else on the admin dashboard needs it.
+  /* Hindi field sa Member yung balance ng member - derived ito sa latest
+  entry ng Ledger history nila. Fetched separately (at lazily, habang bukas
+  lang itong screen) dahil puwede itong lumaki at wala namang ibang parte
+  ng admin dashboard na kailangan nito. */
   const [ledgers, setLedgers] = useState([]);
   const [loadingLedgers, setLoadingLedgers] = useState(true);
   const [ledgerLoadError, setLedgerLoadError] = useState("");

@@ -117,10 +117,11 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
                        UID: {m.id?.toString().padStart(6, '0') || '000000'} • {getBarangay(m)}
                      </p>
                    </div>
-                   {/* Callers that have no balance to show omit it entirely —
-                       rendering ₱0 would read as a real balance and, being under
-                       the low-balance threshold, would paint every member red.
-                       A genuine 0 still shows, hence the nullish check. */}
+                   {/* Yung mga callers na walang balance na ipapakita ay
+                       nag-o-omit nito entirely - pag naka-render ang ₱0,
+                       mababasa itong real balance at, dahil under sa
+                       low-balance threshold, pulang-pula ang every member.
+                       Nagpapakita pa rin ang genuine 0, kaya may nullish check. */}
                    {m.balance != null && (
                      <div className="text-right">
                         <p className={`text-xs font-black ${m.balance >= 1000 ? 'text-coop-green' : 'text-rose-500'}`}>

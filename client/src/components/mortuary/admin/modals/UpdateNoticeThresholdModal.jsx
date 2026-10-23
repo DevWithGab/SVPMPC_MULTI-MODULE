@@ -5,10 +5,10 @@ import Button from '../../../shared/ui/Button';
 import Input from '../../../shared/ui/Input';
 import { noticeThresholdSettingAPI } from '../../../../services/api';
 
-// Numeric thresholds only — the letter content itself is edited as a
-// document via NoticeLetterEditorModal, not here. Submitting this form
-// still carries the existing letter content forward unchanged (the server
-// requires it on every update since each save supersedes the whole row).
+/* Numeric thresholds lang dito - yung letter content mismo ay na-edit as
+a document via NoticeLetterEditorModal, hindi dito. Pag nag-submit nitong
+form, dinadala pa rin ang existing letter content unchanged (kailangan ito
+ng server sa every update dahil sinupersede ng each save ang whole row). */
 export default function UpdateNoticeThresholdModal({ isOpen, onClose, current, user, onSaved }) {
   const [form, setForm] = useState({
     targetBalance: '',

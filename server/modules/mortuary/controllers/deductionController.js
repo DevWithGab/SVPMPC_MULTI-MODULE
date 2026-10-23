@@ -7,32 +7,35 @@ const { getPaginationParams, buildPaginationMeta } = require('../../../shared/ut
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
-// Same deterministic-id dedup pattern as contributionController's
-// manualPaymentId: a double-click, a retried request, or a second treasurer
-// tab resubmitting the same "deceased member" run must not post a second
-// debit to every active member. Ledger.ledgerId is unique, so a repeat call
-// for the same (deceasedMemberName, memberId) upserts onto the same row
-// instead of creating a new one — confirmed this was previously unguarded
-// (no key at all) and would re-debit every active member on every retry.
+/* Parehong deterministic-id dedup pattern gaya ng contributionController's
+manualPaymentId: hindi dapat magpost ng second debit sa every active member
+yung double-click, retried request, o second treasurer tab na nag-resubmit
+ng same "deceased member" run. Unique yung Ledger.ledgerId, kaya yung
+repeat call para sa same (deceasedMemberName, memberId) ay upsert lang sa
+same row sa halip na gumawa ng bago - confirmed na dati itong unguarded
+(walang key at all) at mag-re-debit ng every active member sa every
+retry. */
 const autoDeductionId = (deceasedMemberName, memberId) =>
   `AUTO-DEDUCT-${createHash('sha256').update(JSON.stringify([deceasedMemberName.trim().toLowerCase(), memberId])).digest('hex')}`;
 
 // Constants
 const MINIMUM_BALANCE = 1000; // 1000 pesos minimum balance
-// Matches FALLBACK_DEDUCTION_AMOUNT in treasurerClaimController.js /
-// DEFAULT_DEDUCTION_AMOUNT in deductionSettingController.js — used only if
-// no rate row exists yet (the Admin screen auto-seeds one on first view).
+/* Matches FALLBACK_DEDUCTION_AMOUNT sa treasurerClaimController.js /
+DEFAULT_DEDUCTION_AMOUNT sa deductionSettingController.js - ginagamit lang
+kung walang rate row pa (ang Admin screen ay auto-seeds ng isa sa first
+view). */
 const FALLBACK_DEDUCTION_AMOUNT = 25;
 
-// Same resolver as treasurerClaimController.js's resolveDeductionRate: the
-// per-member amount is set by the Admin in Deduction Settings and is not the
-// Treasurer's to choose, so this blanket action must resolve it here rather
-// than trust anything off the request — processAutomaticDeduction used to
-// accept a client-supplied customAmount and otherwise fell back to a
-// hardcoded ₱25, silently ignoring whatever rate the Admin had actually
-// configured. Kept as its own small copy rather than imported from
-// treasurerClaimController.js, since that file already imports
-// getMemberBalanceSnapshots FROM this one — importing back would be circular.
+/* Parehong resolver gaya ng treasurerClaimController.js's resolveDeductionRate:
+yung per-member amount ay itinatakda ng Admin sa Deduction Settings at hindi
+pagpipilian ng Treasurer, kaya dapat i-resolve ito ng blanket action na ito
+dito sa halip na magtiwala sa kung ano man galing sa request -
+processAutomaticDeduction dati ay tumatanggap ng client-supplied customAmount
+at kung wala, bumabalik sa hardcoded ₱25, silently na-iignore kung ano man
+yung rate na talagang configured ng Admin. Kept ito as its own small copy sa
+halip na i-import galing sa treasurerClaimController.js, dahil yung file na
+yun ay nag-import na ng getMemberBalanceSnapshots FROM dito - circular na
+yun kung babalikan. */
 const resolveDeductionRate = async () => {
   const setting = await DeductionSetting.findOne({ status: 'active' });
   return setting?.amount ?? FALLBACK_DEDUCTION_AMOUNT;
@@ -41,10 +44,11 @@ const resolveDeductionRate = async () => {
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter, includeAllStatuses }) => {
-  // Every caller except the Treasurer's Reports screen wants only active
-  // members (that's what "balance management" means day to day) — Reports
-  // needs every status to report on deceased/inactive members too, so it
-  // opts out of this default instead of this helper growing a status enum.
+  /* Lahat ng caller maliban sa Treasurer's Reports screen ay gusto lang ng
+  active members (yun naman talaga ang ibig sabihin ng "balance management"
+  day to day) - kailangan ng Reports yung every status para mareport din
+  ang deceased/inactive members, kaya opt-out siya sa default na ito sa
+  halip na paramihin ng status enum yung helper na ito. */
   const match = includeAllStatuses ? {} : { status: 'active' };
   const andConditions = [];
 
@@ -53,11 +57,12 @@ const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter, includeAllSt
   }
 
   if (barangayFilter && barangayFilter !== 'All') {
-    // The filter value comes from the list of distinct Member.barangay values,
-    // so match that field exactly. Legacy members saved before barangay was
-    // captured separately have it blank — only those fall back to matching the
-    // address text, otherwise a member living on a street named after another
-    // barangay would be filtered into the wrong one.
+    /* Galing sa list ng distinct Member.barangay values yung filter value,
+    kaya dapat exact match sa field na yun. Yung legacy members na na-save
+    bago pa nakuha separately yung barangay ay blangko - sila lang ang
+    babalik sa matching sa address text, kung hindi mapupunta sa maling
+    barangay yung isang member na nakatira sa street na pangalan ng ibang
+    barangay. */
     const exactBarangay = new RegExp(`^${escapeRegex(barangayFilter)}$`, 'i');
     andConditions.push({
       $or: [
@@ -75,39 +80,39 @@ const buildBalanceMatch = ({ memberIds, searchTerm, barangayFilter, includeAllSt
   }
 
   if (searchTerm) {
-    // Member.js's text index (member_search_text), replacing an unanchored
-    // $regex $or that was a full collection scan regardless of this
-    // model's other indexes (confirmed via explain(): COLLSCAN at 10k
-    // members). $text must be a top-level query key, not nested inside
-    // $or/$and, so it's set directly on match rather than pushed onto
-    // andConditions. Matches whole tokens, not substrings — "mar" no
-    // longer matches "Maria"; a partial memberId/phone fragment no longer
-    // matches either.
+    /* Gamit yung Member.js's text index (member_search_text), pinalitan
+    yung unanchored $regex $or na dating full collection scan kahit meron
+    namang ibang indexes yung model na ito (confirmed via explain():
+    COLLSCAN sa 10k members). Dapat top-level query key yung $text, hindi
+    nested sa $or/$and, kaya direktang nilagay sa match sa halip na idagdag
+    sa andConditions. Nag-match ng whole tokens, hindi substrings - "mar"
+    hindi na nag-match sa "Maria"; partial memberId/phone fragment hindi na
+    rin nag-match. */
     match.$text = { $search: searchTerm };
   }
 
   return match;
 };
 
-// Was a single Member.aggregate() whose $lookup ran one correlated
-// sub-query (match + sort + limit 1) into Ledger PER MATCHED MEMBER —
-// correct, but a per-document correlated subquery doesn't scale with
-// member count no matter how well-indexed each individual lookup is.
-// Measured at 10,000 members / 200,000 ledger rows: the $lookup stage
-// alone cost ~6.9s on top of the ~0.4s $match, and the real HTTP endpoint
-// (GET /mortuary/treasurer/balances/all) took 9.2s for one request and
-// 13-14s per request under just 5 concurrent ones.
-//
-// Same result, computed as two plain queries instead: one pass over
-// Ledger to get every member's latest-by-posting-order balance (sort +
-// group, using the existing {memberId:1, createdAt:-1} index — the
-// $match here is the SAME filter the old $lookup applied per-document,
-// just applied once up front), then merge that onto the already-fetched
-// Member list in application code. Measured equivalent: ~0.7s for the
-// Ledger side at the same volume — the Member $match/$find side is
-// unchanged from before (buildBalanceMatch, same indexes, same filters).
-// No behavior change: identical filtering, sorting, summary math, and
-// pagination contract as the pipeline this replaces.
+/* Dati isang Member.aggregate() lang na yung $lookup niya ay tumatakbo ng
+isang correlated sub-query (match + sort + limit 1) papuntang Ledger PER
+MATCHED MEMBER - tama naman, pero hindi talaga naka-scale sa member count
+yung per-document correlated subquery kahit gaano pa well-indexed ang
+bawat individual lookup. Measured sa 10,000 members / 200,000 ledger rows:
+umabot ng ~6.9s yung $lookup stage sa ibabaw ng ~0.4s $match, at yung
+totoong HTTP endpoint (GET /mortuary/treasurer/balances/all) ay 9.2s para
+sa isang request at 13-14s per request kung 5 concurrent lang.
+
+Parehong result, pero computed as two plain queries sa halip: isang pass
+sa Ledger para makuha yung latest-by-posting-order balance ng every member
+(sort + group, gamit yung existing {memberId:1, createdAt:-1} index - yung
+$match dito ay SAME filter na ginamit ng lumang $lookup per-document, isang
+beses lang applied up front), tapos merge yun sa already-fetched Member
+list sa application code. Measured equivalent: ~0.7s para sa Ledger side sa
+same volume - hindi nagbago yung Member $match/$find side (buildBalanceMatch,
+same indexes, same filters). Walang behavior change: identical filtering,
+sorting, summary math, at pagination contract gaya ng pipeline na pinalitan
+nito. */
 const getMemberBalanceSnapshots = async ({
   memberIds,
   searchTerm = '',
@@ -129,10 +134,10 @@ const getMemberBalanceSnapshots = async ({
   if (matchedMemberIds.length > 0) {
     const latestLedgerRows = await Ledger.aggregate([
       { $match: { memberId: { $in: matchedMemberIds } } },
-      // Posting order (compound index: memberId + createdAt). Ordering by
-      // transactionDate here is what froze member balances — a row dated
-      // ahead of "now" masked every deduction posted after it. See
-      // utils/ledgerBalance.
+      /* Posting order (compound index: memberId + createdAt). Yung
+      pag-order by transactionDate dito ang nagpafreeze ng member balances -
+      yung row na dated ahead of "now" ay nagmask ng every deduction na
+      naipost after nito. Tingnan yung utils/ledgerBalance. */
       { $sort: { memberId: 1, createdAt: -1, _id: -1 } },
       { $group: { _id: '$memberId', balance: { $first: '$balance' }, transactionDate: { $first: '$transactionDate' } } },
     ]).allowDiskUse(true);
@@ -161,9 +166,9 @@ const getMemberBalanceSnapshots = async ({
     };
   });
 
-  // Same tie-break as the replaced $sort: {balance:1, memberName:1} —
-  // plain string comparison, not locale-aware, to match Mongo's own
-  // byte-wise string ordering.
+  /* Parehong tie-break gaya ng pinalitang $sort: {balance:1, memberName:1} -
+  plain string comparison, hindi locale-aware, para tumugma sa byte-wise
+  string ordering ni Mongo mismo. */
   members.sort((a, b) => a.balance - b.balance || (a.memberName < b.memberName ? -1 : a.memberName > b.memberName ? 1 : 0));
 
   const totalMembers = members.length;
@@ -237,12 +242,13 @@ const getAllMemberBalances = async (req, res) => {
   }
 };
 
-// Process automatic deduction for all members (triggered when someone dies).
-// A blanket, non-claim-linked counterpart to processClaimDeduction in
-// treasurerClaimController.js — see this module's header comment there
-// ("Flow A") for how the two relate. Real money movement across every
-// active member, so it resolves the Admin-configured rate the same way the
-// claim-linked flow does, and is audit-logged the same way too.
+/* Nagproseso ng automatic deduction para sa lahat ng members (triggered kung
+may namatay). Blanket, non-claim-linked counterpart ito ng
+processClaimDeduction sa treasurerClaimController.js - tingnan yung header
+comment ng module na yun ("Flow A") kung paano magkaugnay yung dalawa. Real
+money movement ito across every active member, kaya kinakailangan niyang
+i-resolve yung Admin-configured rate sa parehong paraan ng claim-linked
+flow, at audit-logged din sa parehong paraan. */
 const processAutomaticDeduction = async (req, res) => {
   try {
     const { deceasedMemberName } = req.body;
@@ -268,11 +274,12 @@ const processAutomaticDeduction = async (req, res) => {
         const currentBalance = member.balance || 0;
         const newBalance = Math.round((currentBalance - deductionAmount) * 100) / 100;
 
-        // Same two-step check-then-reserve shape as recordContribution: a
-        // plain pre-check first (cheap, covers the common case — an admin
-        // re-running the same deceased-member deduction after it already
-        // went through), backed by the unique ledgerId index + an 11000
-        // catch for the rare race where two requests land at the same time.
+        /* Parehong two-step check-then-reserve shape gaya ng
+        recordContribution: plain pre-check muna (cheap, covers yung common
+        case - admin na nag-re-run ng same deceased-member deduction
+        pagkatapos nitong matapos na), backed ng unique ledgerId index + isang
+        11000 catch para sa rare race kung sabay dumating ang dalawang
+        requests. */
         let ledgerEntry = await Ledger.findOne({ ledgerId: id });
         let alreadyProcessed = Boolean(ledgerEntry);
         if (!ledgerEntry) {
@@ -300,9 +307,10 @@ const processAutomaticDeduction = async (req, res) => {
           memberName: member.memberName,
           phoneNumber: member.phoneNumber,
           previousBalance: currentBalance,
-          // Report what's actually posted, not a fresh (and on a repeat
-          // call, wrong) recomputation — mirrors recordContribution
-          // returning existingLedger.balance for an already-posted row.
+          /* I-report kung ano talaga yung naipost, hindi fresh (at sa repeat
+          call, mali) na recomputation - mirrors nito yung recordContribution
+          na nagbabalik ng existingLedger.balance para sa already-posted
+          row. */
           newBalance: ledgerEntry.balance,
           deductionAmount: deductionAmount,
           isLowBalance: ledgerEntry.balance < MINIMUM_BALANCE,
@@ -402,8 +410,8 @@ module.exports = {
   getAllMemberBalances,
   processAutomaticDeduction,
   checkLowBalanceMembers,
-  // Exported so the per-claim deduction flow (treasurerClaimController.js)
-  // can reuse the same "active member balance snapshot" logic instead of
-  // duplicating it.
+  /* Exported para magamit din ng per-claim deduction flow
+  (treasurerClaimController.js) yung parehong "active member balance
+  snapshot" logic sa halip na i-duplicate ito. */
   getMemberBalanceSnapshots,
 };

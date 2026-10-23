@@ -1,5 +1,6 @@
-// Official cooperative forms for all three notices. Keep the
-// server counterpart in sync so background batches match browser downloads.
+/* Official cooperative forms ito para sa lahat ng tatlong notices.
+Panatilihing sync yung server counterpart para tumugma yung background
+batches sa browser downloads. */
 export const NOTICE_MANAGER = 'MONINA C. GUZMAN';
 export const getNoticeManagerName = settings => String(settings?.noticeManagerName || '').trim() || NOTICE_MANAGER;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -107,8 +108,9 @@ export const drawCooperativeNotice = (doc, member, level, target, logo, settings
   if (level === 3) return drawLastNotice(doc, member, target, logo, settings);
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
-  // Coordinates follow the landscape form; long member fields wrap and push
-  // the body down rather than colliding with the salutation.
+  /* Sinusunod ng coordinates yung landscape form; yung mahahabang member
+  fields ay nagwrap at itinutulak ang body pababa imbes na mag-collide
+  sa salutation. */
   const text = (value, x, y, size = 14, bold = false, options = {}) => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size);
     doc.text(Array.isArray(value) ? value : String(value ?? ''), x, y, options);
@@ -192,6 +194,7 @@ const drawLastNotice = (doc, member, target, logo, settings) => {
   doc.setTextColor(0, 0, 0);
 };
 
+<<<<<<< Updated upstream
 const drawManager = (doc, text, settings, y) => {
   const name = getNoticeManagerName(settings);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
@@ -204,6 +207,11 @@ const drawManager = (doc, text, settings, y) => {
 
 // Reserve room for the signature and receipt. Long edited messages continue
 // on another page instead of overlapping those fields or being cut off.
+=======
+/* Nireserba yung space para sa signature at receipt. Yung mahahabang
+edited messages ay magpapatuloy sa ibang page imbes na magtabi sa mga
+field na iyon o maputol. */
+>>>>>>> Stashed changes
 const drawMessage = (doc, value, startY, level) => {
   let y = startY;
   const pageHeight = doc.internal.pageSize.getHeight();

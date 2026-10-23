@@ -63,8 +63,8 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
   const viewedEvent = eventList.find(event => viewedEventId &&
     (event.eventId || event._id || event.id) === viewedEventId) || viewedEventRecord;
   const phtDateTime = (date, time) => `${date}T${time || "00:00"}:00+08:00`;
-  // Every Secretary event is a General Assembly — there's no type picker
-  // in the form, so this never varies.
+  /* Lahat ng Secretary event ay General Assembly - walang type picker sa
+  form, kaya hindi ito nagbabago kailanman. */
   const EVENT_TYPE = "General Assembly";
   const [newEvent, setNewEvent] = useState({
     name: "",
@@ -411,9 +411,9 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
     }
   };
 
-  /* Human-readable labels for each lifecycle status. "Upcoming", "Active" and
-  "Close" are set automatically by the system based on PHT start/end time;
-  the Secretary never sets these directly.*/
+  /* Human-readable labels ito para sa bawat lifecycle status. "Upcoming",
+  "Active", at "Close" ay automatic na nase-set ng system base sa PHT
+  start/end time; hindi ito direktang ise-set ng Secretary. */
   const getStatusLabel = (status) =>
     eventStatusLabels[status] || status || "Not recorded";
 

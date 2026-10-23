@@ -37,9 +37,10 @@ const deductionSettingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// "Update Rate" supersedes the currently-active row and inserts a new one —
-// this partial unique index enforces "at most one active row" at the DB
-// level, the same technique used for staffId uniqueness in shared/models/User.js.
+/* Nagsusupersede ang "Update Rate" sa currently-active row at nagiinsert ng bago -
+ang partial unique index na ito ang nagpapatupad ng "at most one active row" sa
+DB level, parehong technique na ginamit para sa staffId uniqueness sa
+shared/models/User.js. */
 deductionSettingSchema.index(
   { status: 1 },
   { unique: true, partialFilterExpression: { status: 'active' } }

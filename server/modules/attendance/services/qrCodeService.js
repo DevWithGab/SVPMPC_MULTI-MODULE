@@ -17,8 +17,9 @@ const buildMemberQRCodePayload = (member, qrCodeId) => ({
   qrId: qrCodeId || member.qrCode || null,
 });
 
-// Render from the issued ID stored in MongoDB. Rebuilding a missing image
-// must never issue a new ID, because that would invalidate printed cards.
+/* Nire-render galing sa issued ID na naka-store sa MongoDB. Pag rebuild ng
+missing image, bawal mag-issue ng bagong ID kasi mag-invalidate yun ng mga
+printed cards. */
 const renderQRCodePng = (member, qrCodeId = member.qrCode) =>
   QRCode.toBuffer(JSON.stringify(buildMemberQRCodePayload(member, qrCodeId)), QR_OPTIONS);
 
@@ -26,8 +27,9 @@ const generateQRCode = async (member) => {
   try {
     const qrCodeId = uuidv4();
     const qrCodeFileName = `${member.memberId}_${qrCodeId}.png`;
-    // Validate rendering before the controller saves issuance. The image is
-    // served on demand; no persistent filesystem is required on Render.
+    /* Ginagamit para i-validate yung rendering bago i-save ng controller yung
+    issuance. On-demand naman i-serve yung image, kaya walang kailangang
+    persistent filesystem sa Render. */
     await renderQRCodePng(member, qrCodeId);
 
     // Return QR code URL and ID

@@ -7,14 +7,14 @@ const aliases = {
   beneficiaryname: 'beneficiary_name', contactnumber: 'contact_number', mobilenumber: 'contact_number',
 };
 
-// PH mobile numbers: 11 digits, starting with 09 — mirrors
-// beneficiaryController.js's PH_PHONE_REGEX, the single-register backstop.
+/* PH mobile numbers - 11 digits, nagsisimula sa 09 - sumusunod ito sa
+PH_PHONE_REGEX ng beneficiaryController.js, ang single-register backstop. */
 const PH_PHONE_REGEX = /^09\d{9}$/;
 
-// Strict CSV reader: quoted commas, escaped quotes, CRLF, BOM and multiline
-// notes. Copied from paymentCsv.js's reader — same format family, kept as
-// its own copy rather than a shared extraction so each importer's row cap
-// and column set stay independently editable.
+/* Strict CSV reader - sinusuportahan ang quoted commas, escaped quotes, CRLF,
+BOM, at multiline notes. Kinopya mula sa reader ng paymentCsv.js - same
+format family, pero sarili nitong copy imbes na shared extraction para
+independent na mae-edit ang row cap at column set ng bawat importer. */
 function readCsv(text) {
   const rows = [];
   let row = [], cell = '', quoted = false, closed = false;

@@ -11,8 +11,9 @@ const pickFields = (record, allowed) => Object.fromEntries(
 );
 const validRecordId = value => typeof value === 'string' && value.trim().length > 0;
 
-// Attendance can recover QR data, but cannot rewrite the shared profile,
-// mortuary eligibility/status, beneficiaries, or module assignments.
+/* Puwedeng i-recover ng Attendance yung QR data, pero hindi puwedeng
+i-rewrite yung shared profile, mortuary eligibility/status, beneficiaries,
+o module assignments. */
 const restoreMembers = async (records) => {
   const result = { created: 0, updated: 0, errors: [] };
   for (const record of records) {
@@ -66,8 +67,9 @@ const upsertMany = async (Model, key, records) => {
     }
 
     try {
-      // Strip Mongo-internal fields — these must never be copied from the
-      // backup file, they belong to whatever document ends up storing this.
+      /* I-strip yung Mongo-internal fields - hindi dapat kopyahin ito mula
+      sa backup file, pag-aari ito ng kung anong document ang magsto-store
+      nito. */
       const { _id, __v, createdAt, updatedAt, ...fields } = record;
       const existing = await Model.findOne({ [key]: keyValue });
 

@@ -36,8 +36,8 @@ import { formatDate } from "../../../utils/date";
 import { loadDashboardRecords } from '../../../utils/attendanceDashboard';
 import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
 
-/*Page through everything, same loop
-LiveAttendanceList's fetchEventAttendance already uses for this reason.*/
+/* Dito pumapage through sa lahat, parehong loop na ginagamit na ni
+LiveAttendanceList's fetchEventAttendance sa parehong dahilan. */
 const ATTENDANCE_FETCH_PAGE_SIZE = 100;
 
 export default function AttendanceReports({ attendanceLogs, events }) {
@@ -57,9 +57,10 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const [loadErrors, setLoadErrors] = useState({});
   const [reload, setReload] = useState(0);
   const [exporting, setExporting] = useState(false);
-  // Which per-event row (by its eventKey, see the table below) is currently
-  // exporting, so only that row's button shows a spinner — the other rows
-  // just go disabled via exportDisabled, same as before.
+  /* Ito ang per-event row (base sa eventKey niya, tignan ang table sa baba)
+  na kasalukuyang exporting, kaya ang spinner ay lalabas lang sa button ng
+  row na ito - yung ibang rows ay disabled lang via exportDisabled, parang
+  dati. */
   const [exportingEventId, setExportingEventId] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [search, setSearch] = useState("");
@@ -406,9 +407,10 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const handleExportAttendeesByBarangayPDF = (event) =>
     exportRecords("pdf", event);
 
-  /*Clicking an event replaces this whole screen with its own page (not a
-  modal, not an inline-expanding row) — a dedicated place to search for a
-  specific member and see present/absent, with a way back to the report.*/
+  /* Kapag na-click ang isang event, papalitan ng sarili nitong page ang
+  buong screen (hindi modal, hindi inline-expanding row) - dedicated na
+  lugar para maghanap ng specific member at makita ang present/absent, may
+  paraan pabalik sa report. */
   if (viewingEvent) {
     return (
       <div ref={attendeesTopRef} className="attendance-reports space-y-6 pb-12">

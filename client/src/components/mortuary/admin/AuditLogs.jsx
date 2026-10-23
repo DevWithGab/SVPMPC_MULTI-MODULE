@@ -24,8 +24,8 @@ import "../treasurer/Dashboard.css";
 import "../treasurer/MemberBalances.css";
 import "./AuditLogs.css";
 
-/*Plain-language labels so the log reads as a story of what happened to a
-claim, not a dump of internal action codes.*/
+/* Plain-language labels para yung log ay basahin na parang kwento ng
+nangyari sa claim, hindi dump ng internal action codes. */
 const ACTION_LABELS = {
   claim_created: "Claim Filed",
   claim_approved: "Claim Approved",
@@ -64,9 +64,10 @@ const ROLE_LABELS = {
   secretary: "Secretary",
   member: "Member",
 };
-/*CSS `capitalize` only affects the first letter of each space-separated
-word, so a raw role like "super_admin" rendered as "Super_admin" — the
-underscore stayed visible. This gives every role a real display name.*/
+/* Ang CSS `capitalize` ay apektado lang sa unang letra ng bawat
+space-separated word, kaya yung raw role na "super_admin" ay nagiging
+"Super_admin" - nakikita pa rin yung underscore. Dito, binibigyan ang
+bawat role ng totoong display name. */
 const roleLabel = (role) =>
   ROLE_LABELS[role] ||
   (role || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -97,8 +98,8 @@ const AuditLogs = () => {
   const [stats, setStats] = useState(null);
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  /*This screen only ever shows the Mortuary module's own trail — module
-  is fixed, not a user-editable filter.*/
+  /* Ipinapakita lang ng screen na ito yung sariling trail ng Mortuary
+  module - fixed ang module, hindi ito isang user-editable filter. */
   const fetchAuditLogs = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -163,9 +164,9 @@ const AuditLogs = () => {
   const handleExportPDF = async () => {
     if (!logs.length || exportingPdf) return;
     setExportingPdf(true);
-    // jsPDF table rendering runs synchronously on the main thread, so this
-    // yields one tick before it starts — otherwise the "Preparing…" state
-    // would never actually paint before the call blocks the browser.
+    /* Synchronous yung jsPDF table rendering sa main thread, kaya nagbigay
+    muna tayo ng isang tick bago ito magsimula - kung hindi, hindi talaga
+    mapapaint yung "Preparing…" state bago i-block ng call yung browser. */
     await new Promise((resolve) => setTimeout(resolve, 0));
     try {
       createAuditPdf({

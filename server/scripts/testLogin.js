@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 const User = require('../shared/models/User');
 
-// Read-only diagnostics. Verify actual passwords through the application's
-// rate-limited login; this utility must never test defaults or reset an account.
+/* Read-only diagnostics lang ito. Para i-verify ang actual passwords, dumaan
+sa rate-limited login ng application - hindi dapat gamitin itong utility para
+tumest ng defaults o mag-reset ng account. */
 async function checkSuperAdminAccount() {
   const user = await User.findOne({ username: 'superadmin', role: 'super_admin' })
     .select('username role status isTemporaryPassword -_id');

@@ -1,5 +1,5 @@
-// Shared display metadata for the Claim lifecycle — kept in one place so the
-// list, details, and modals all agree on labels/colors/order.
+/* Shared display metadata para sa Claim lifecycle - nilagay sa isang lugar
+para ang list, details, at modals ay pareho ang labels/colors/order. */
 
 export const CLAIM_STATUS_META = {
   pending_requirements: {
@@ -52,9 +52,10 @@ export const CLAIM_STATUS_META = {
   },
 };
 
-// Drives the status filter dropdown. 'approved' is deliberately absent: the
-// enum still allows it, but approveClaim moves a claim straight to
-// 'pending_deduction', so offering it as a filter would always return nothing.
+/* Ito ang nag-drive sa status filter dropdown. Sinadyang absent yung
+'approved': pinapayagan pa rin ito ng enum, pero ang approveClaim ay
+diretso nang nagmo-move ng claim sa 'pending_deduction', kaya kung
+ioffer ito as a filter, laging walang resulta. */
 export const CLAIM_STATUS_ORDER = [
   'pending_requirements',
   'pending_deduction',
@@ -63,14 +64,15 @@ export const CLAIM_STATUS_ORDER = [
   'rejected',
 ];
 
-// Who a claim is waiting on at each status, and what the next step is called.
-// A status badge says what a claim IS; this says what someone should DO about
-// it, which is what the list view needs to label its action button and to mark
-// the rows that need the Admin rather than the Treasurer.
-//
-//   actor 'admin'     - the Admin acts next; render as the primary call to action
-//   actor 'treasurer' - handed off, the Admin can only look
-//   actor null        - settled, nothing left to do
+/* Sino ang hinihintay sa each status ng claim, at ano ang tawag sa next
+step. Yung status badge ay sinasabi kung ano ang claim; ito naman ang
+sinasabi kung ano ang dapat GAWIN ng isang tao tungkol dito, na kailangan
+ng list view para i-label ang action button nito at markahan ang mga rows
+na kailangan ng Admin imbes na ng Treasurer.
+
+   actor 'admin'     - the Admin acts next; render as the primary call to action
+   actor 'treasurer' - handed off, the Admin can only look
+   actor null        - settled, nothing left to do */
 export const CLAIM_STATUS_ACTION = {
   pending_requirements: { actor: 'admin', label: 'Review Requirements', hint: 'Needs your review' },
   approved: { actor: 'admin', label: 'Review Claim', hint: 'Needs your review' },
@@ -86,9 +88,9 @@ export const getClaimAction = (status) =>
 export const getClaimStatusMeta = (status) =>
   CLAIM_STATUS_META[status] || CLAIM_STATUS_META.pending_requirements;
 
-// Requirements are entered on each claim because physical requirements may
-// differ between individuals. An empty checklist is intentionally incomplete
-// and the server also requires at least one item before approval.
+/* Pinapasok ang requirements sa each claim dahil magkaiba ang physical
+requirements ng bawat individual. Sinadyang incomplete ang empty checklist
+at kinakailangan din ng server ng at least one item bago mag-approve. */
 export const isClaimFullySubmitted = (requirements) =>
   Object.keys(requirements || {}).length > 0 &&
   Object.values(requirements || {}).every((r) => r?.submitted);

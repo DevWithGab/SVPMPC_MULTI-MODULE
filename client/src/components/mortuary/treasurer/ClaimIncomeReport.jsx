@@ -7,8 +7,9 @@ import { usePagination } from '../../../hooks/usePagination';
 import { loadAllPages } from '../../../utils/loadAllPages';
 import { treasurerAPI } from '../../../services/api';
 
-// Per-claim collections, benefits, and retained income. Unreleased claims
-// show projected released amounts and income; totals recognise them on release.
+/* Per-claim collections, benefits, at retained income. Kung unreleased pa yung
+claim, ipinapakita yung projected released amounts at income; mabibilang lang
+sa totals pag na-release na. */
 
 const peso = (value) =>
   `₱${Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -59,9 +60,9 @@ export default function ClaimIncomeReport() {
 
   const totalPages = Math.ceil(total / limit) || 1;
 
-  // Exports every claim matching the current search, not just the page on
-  // screen — the on-screen table is now paginated, but the CSV should still
-  // be the complete report.
+  /* I-export lahat ng claim na match sa current search, hindi lang yung page
+  na nakikita sa screen - paginated na kasi yung on-screen table, pero dapat
+  kumpleto pa rin yung CSV report. */
   const exportCSV = async () => {
     if (!total || exporting) return;
     setExporting(true);
@@ -124,8 +125,9 @@ export default function ClaimIncomeReport() {
         </div>
       </div>
 
-      {/* Totals span every claim matching the current search, not just the rows
-          on screen, so these agree with the dashboard tiles when unfiltered. */}
+      {/* Sakop ng totals lahat ng claim na match sa current search, hindi lang
+          yung rows na nakikita sa screen, kaya tugma sa dashboard tiles pag
+          unfiltered. */}
       <AttendanceMetricGrid label="Claims summary totals" busy={loading} items={[
         ['Total deductions collected', loading ? '—' : peso(totals?.totalDeductionsCollected), 'Held, awaiting release', TrendingUp],
         ['Total claims released', loading ? '—' : peso(totals?.totalReleased), maxBenefit ? 'Benefits paid out (max ' + peso(maxBenefit) + '/claim)' : 'Benefits paid out', TrendingDown],
@@ -164,8 +166,9 @@ export default function ClaimIncomeReport() {
                       </td>
                       <td className="px-5 py-3.5 text-sm text-right tabular-nums">
                         {pending ? (
-                          // Not yet disbursed — show what it will release, marked
-                          // as a projection so it isn't read as money already out.
+                          /* Hindi pa na-disburse - ipinapakita kung magkano
+                          irerelease, minarkahan as projection para hindi
+                          akalain na pera na talagang nalabas na. */
                           <span className="text-slate-400 italic">{peso(r.projectedRelease)} pending</span>
                         ) : (
                           <span className="font-semibold text-rose-600">{peso(r.amountReleased)}</span>

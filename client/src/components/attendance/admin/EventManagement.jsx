@@ -113,14 +113,15 @@ const EventManagement = ({ events = [], setEvents }) => {
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // The server only flips an approved event's stored status from
-  // upcoming/active to closed on a background sweep (every 60s), so reading
-  // event.status straight off the fetched list could show "Active" for up to
-  // a minute or two after its actual end time. This recomputes
-  // upcoming/active/closed from the event's own schedule against a
-  // once-a-second clock — same correction Secretary's Event Management and
-  // Dashboard already apply — so the badges here close exactly on time
-  // regardless of how stale the persisted status is.
+  /* Ang server lang ang nagpapalit ng stored status ng approved event mula
+  upcoming/active papunta sa closed, at ginagawa niya ito sa background sweep
+  (every 60s) - kaya kung direkta lang basahin ang event.status mula sa fetched
+  list, pwedeng magpakita ng "Active" kahit isa o dalawang minuto na pasado ang
+  actual end time nito. Dito, kinukwenta ulit ang upcoming/active/closed base sa
+  sariling schedule ng event gamit ang once-a-second clock - parehong correction
+  na ginagamit na ng Secretary's Event Management at Dashboard - kaya tama lang
+  ang oras ng pagsara ng badges dito, kahit gaano pa katagal ang stale ng
+  persisted status. */
   const correctedEvents = useScheduledSecretaryEvents(events);
 
   const pendingEvents = useMemo(
@@ -190,9 +191,9 @@ const EventManagement = ({ events = [], setEvents }) => {
     }
   };
 
-  // A closed event's old date/time has already passed, so reopening it needs
-  // a new schedule — otherwise the 60s auto-status timer would just close it
-  // again right away. The Admin also has to say why it's being reopened.
+  /* Pasado na yung old date/time ng closed event, kaya kapag ire-reopen ito
+  kailangan ng bagong schedule - kung hindi, isasara ulit agad ito ng 60s
+  auto-status timer. Required din na ilagay ng Admin kung bakit ito ire-reopen. */
   const openReopenModal = (event) => {
     const todayPht = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Manila",
@@ -271,12 +272,12 @@ const EventManagement = ({ events = [], setEvents }) => {
     return "";
   };
 
-  /* Admin can edit any approved or closed event — including a closed
-  (time-exceeded) one, which it couldn't touch at all before. Date/time 
-  stay off-limits for a closed event here: the status-refresh timer only
-   watches upcoming/active events, so editing a closed event's schedule
-  through this form wouldn't bring it back out of 'closed' — that's what
-   the dedicated Reopen flow is for.*/
+  /* Puwede ng Admin i-edit ang kahit anong approved o closed event - kasama
+  na yung closed (time-exceeded) na dati hindi talaga magalaw. Pero yung
+  date/time ay off-limits dito para sa closed event: ang status-refresh timer
+  ay bumabantay lang sa upcoming/active events, kaya kung ie-edit ang schedule
+  ng closed event dito sa form, hindi naman ito babalik sa labas ng 'closed' -
+  dahil dito, yung dedicated Reopen flow ang gamitin para dun. */
   const openEditModal = (event) => {
     const parsedDate = new Date(event.eventDate || event.date);
     setEditingEvent(event);

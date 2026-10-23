@@ -114,11 +114,12 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports']);
   const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'awaiting-release', 'disbursement-report', 'income-report']); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
   const [members, setMembers] = useState([]);
-  // Separate from `members` above (which the balances aggregation scopes to
-  // active members only — exactly what Member Balances/Ledger need). Reports
-  // needs every status so Deceased/Inactive counts and the Deceased Members
-  // report aren't silently empty, so it gets its own full-roster fetch
-  // instead of widening `members` and risking those other screens.
+  /* Iba ito sa `members` sa taas (na yung balances aggregation lang ang
+  sakop, active members only - eksakto yung kailangan ng Member
+  Balances/Ledger). Kailangan ng Reports lahat ng status para hindi
+  mawala sa Deceased/Inactive counts at sa Deceased Members report,
+  kaya may sariling full-roster fetch ito imbes na palakihin yung
+  `members` na baka maapektuhan pa yung ibang screens. */
   const [reportMembers, setReportMembers] = useState([]);
   const [loadingReportMembers, setLoadingReportMembers] = useState(false);
   const [contributions, setContributions] = useState([]);
@@ -166,9 +167,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     return window.localStorage.getItem('treasurerSidebarCollapsed') === 'true';
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // The mobile nav drawer otherwise has no keyboard-reachable way to close
-  // without navigating — only the backdrop's onClick, which a keyboard-only
-  // user can't trigger.
+  /* Kung wala ito, walang keyboard-reachable way para isara yung mobile
+  nav drawer na hindi nag-navigate - yung backdrop's onClick lang ang
+  paraan, pero di kayang i-trigger ng keyboard-only user. */
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     const onKeyDown = (e) => { if (e.key === 'Escape') setIsMobileMenuOpen(false); };
@@ -185,11 +186,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     status: 'paid',
     referenceNumber: ''
   });
-  // Set when "Add Deposit" is opened from a specific member's ledger page —
-  // the Member field then shows this member locked/read-only instead of a
-  // search box, since the treasurer already picked them by being on their
-  // ledger. Null means the general "Record Payment" flow, which still
-  // searches across all members.
+  /* Naseset ito pag binuksan yung "Add Deposit" galing sa ledger page ng
+  isang specific member - yung Member field makikita na locked/read-only
+  na doon sa member na yun imbes na search box, kasi napili na siya ng
+  treasurer dahil nandoon na sa ledger niya. Pag null, general "Record
+  Payment" flow ito na kaya pa mag-search sa lahat ng members. */
   const [lockedContributionMember, setLockedContributionMember] = useState(null);
   const [selectedMemberId, setSelectedMemberId] = useUrlState('member', null);
   const selectedMemberLedger = ledgerSnapshot.memberId === selectedMemberId ? ledgerSnapshot.entries : [];
@@ -221,9 +222,9 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   }, [markLoaded, markFailed]);
 
-  // Full member roster (every status) for Reports — fetched lazily, only
-  // once the Reports tab is actually opened, since it's the one screen that
-  // needs more than the active-only balances list above.
+  /* Full member roster (lahat ng status) para sa Reports - fetched lazily,
+  pag binuksan na talaga yung Reports tab, kasi ito lang yung screen na
+  kailangan ng higit pa sa active-only balances list sa taas. */
   const fetchReportMembers = useCallback(async () => {
     setLoadingReportMembers(true);
     try {
@@ -243,10 +244,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   }, [markLoaded, markFailed]);
 
-  // Admin-configured balance notice thresholds (Notice 1/2/Final) — read-only
-  // here, so Member Ledger / Member Balances classify members the same way
-  // the Admin set in Mortuary Admin → Notice Thresholds. Falls back to
-  // DEFAULT_NOTICE_THRESHOLDS if this fails, so the screens stay usable.
+  /* Admin-configured balance notice thresholds (Notice 1/2/Final) - read-only
+  dito, para parehas yung classification ng Member Ledger / Member Balances
+  sa sinet ng Admin sa Mortuary Admin -> Notice Thresholds. Babalik sa
+  DEFAULT_NOTICE_THRESHOLDS kung mag-fail ito, para gumagana pa rin yung
+  mga screens. */
   const fetchNoticeThresholds = useCallback(async () => {
     try {
       const response = await api.get('/mortuary/treasurer/notice-thresholds');
@@ -328,12 +330,12 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   }, [markLoaded, markFailed]);
 
-  // A member's full ledger history, fetched from the dedicated per-member
-  // endpoint (not the old global /mortuary/ledger, which only ever returned
-  // the 10 most recent entries system-wide — nowhere near "since the start"
-  // for any individual member once other members had also transacted).
-  // The endpoint caps each page at 100 rows, so long histories are paged
-  // through in a loop rather than truncated to the first page.
+  /* Full ledger history ng member, kinukuha mula sa dedicated per-member
+  endpoint (hindi na yung old global /mortuary/ledger, na 10 most recent
+  entries system-wide lang talaga yung binabalik - malayo sa "since the
+  start" ng isang member pag may ibang members na nag-transact na rin).
+  May cap na 100 rows per page yung endpoint, kaya pinaged through sa loop
+  yung mahabang histories imbes na ma-truncate sa first page lang. */
   const fetchMemberLedgerEntries = memberId => loadAllPages(async page => {
     const response = await api.get(`/mortuary/treasurer/ledger/${encodeURIComponent(memberId)}`, {
       params: { page, limit: 100 },
@@ -358,8 +360,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     }
   };
 
-  // Counts for the Claims sidebar and view badges. limit: 1 keeps these cheap —
-  // only the pagination total is needed, not the actual rows.
+  /* Counts para sa Claims sidebar at view badges. Yung limit: 1 ang nagpapa-
+  cheap nito - kailangan lang yung pagination total, hindi na yung actual rows. */
   const fetchClaimsCounts = useCallback(async () => {
     try {
       const [pendingRes, releaseRes] = await Promise.all([
@@ -385,17 +387,17 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     setActiveTab('ledger', { member: member.id || member.memberId });
   };
 
-  // "Record Payment" (Contributions tab) — the general flow, searching
-  // across every member.
+  /* "Record Payment" (Contributions tab) - ito yung general flow, naghahanap
+  sa lahat ng member. */
   const openAddContribution = () => {
     setLockedContributionMember(null);
     setNewContribution((prev) => ({ ...prev, member_id: '' }));
     setIsAddContributionOpen(true);
   };
 
-  // "Add Deposit" from a specific member's ledger page — that member is
-  // already chosen by virtue of being on their ledger, so lock the Member
-  // field to them instead of making the treasurer search again.
+  /* "Add Deposit" galing sa ledger page ng specific member - napili na
+  yung member na yun dahil nandoon na sa ledger niya, kaya lock na lang
+  yung Member field sa kanya imbes na pahanapin ulit yung treasurer. */
   const openAddDepositForMember = (member) => {
     setLockedContributionMember(member);
     setNewContribution((prev) => ({ ...prev, member_id: (member.id || member.memberId)?.toString() || '' }));
@@ -408,10 +410,10 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     setLockedContributionMember(null);
   };
 
-  // The Record Contribution modal no longer lets the Treasurer pick a
-  // barangay up front — they just search for the member, and the member's
-  // real (required) Member.barangay field is displayed automatically once
-  // selected, read-only.
+  /* Hindi na papipiliin ng Record Contribution modal yung Treasurer ng
+  barangay agad - maghahanap na lang sila ng member, at yung totoong
+  (required) Member.barangay field ang automatic na lalabas once selected,
+  read-only. */
   const selectedContributionMember = members.find(
     (member) => (member.id || member.memberId)?.toString() === newContribution.member_id?.toString()
   );
@@ -534,10 +536,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  // `members` is otherwise only fetched once on mount, so a member added by
-  // the Super Admin (or elsewhere) after this portal loaded would silently
-  // be missing from the Record Contribution modal until a full page
-  // refresh. Re-fetch every time the modal opens so it's never stale.
+  /* Minsan lang kukunin yung `members` nang mag-mount, kaya kung may
+  idagdag na member ang Super Admin (o iba pa) matapos mag-load ang
+  portal na ito, hindi ito makikita sa Record Contribution modal hangga't
+  walang full page refresh. Kinukuha ulit ito kapag binuksan yung modal
+  para hindi na ito maging stale. */
   useEffect(() => {
     if (isAddContributionOpen) {
       fetchMembers();

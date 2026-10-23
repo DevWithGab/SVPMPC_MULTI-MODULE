@@ -40,10 +40,10 @@ const memberSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // Whether a generated QR is currently accepted for scanning. Kept
-    // separate from the shared `status` field below (active/inactive/
-    // deceased/staff) — that field also drives the Mortuary module, so a
-    // QR being deactivated here must never affect it.
+    /* Kung tinatanggap pa ba ang isang generated QR para sa scanning. Hiwalay
+    ito sa shared `status` field sa baba (active/inactive/deceased/staff) -
+    yung field na iyon nag-drive din ng Mortuary module, kaya kapag
+    na-deactivate dito yung QR, hindi dapat maapektuhan ang status niyan. */
     qrCodeActive: {
       type: Boolean,
       default: true,
@@ -53,10 +53,10 @@ const memberSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    // Free-text relationship of the above beneficiary to this member (e.g.
-    // "Spouse", "Child") — captured at registration so a future death claim
-    // isn't the first time it's ever asked for. Not the structured
-    // Beneficiary record used once a claim is actually filed.
+    /* Free-text relationship ng beneficiary sa member na ito (e.g. "Spouse",
+    "Child") - kinukuha na agad sa registration para hindi na ito ang unang
+    tanong pag dumating yung death claim sa future. Hindi ito yung structured
+    Beneficiary record na ginagamit kapag na-file na talaga ang claim. */
     beneficiaryRelationship: {
       type: String,
       default: '',
@@ -93,22 +93,24 @@ const memberSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Every newly registered member participates in both services, regardless of
-// which portal/import created them or any client-supplied module selection.
+/* Lahat ng bagong rehistradong member participate sa both services, kahit
+anong portal/import gumawa sa kanila o anumang client-supplied module
+selection. */
 memberSchema.pre('validate', function () {
   if (this.isNew) this.modules = ['attendance', 'mortuary'];
 });
 
 // Index for faster queries
 // Note: memberId already has unique index from schema definition
-// email is optional (members can be created with none, stored as '') — a
-// plain unique index would reject the second member ever created with a
-// blank email, so uniqueness is only enforced among members that actually
-// have a non-blank one. This is what actually prevents two concurrent
-// create-member requests for the same email from both succeeding — the
-// findOne precheck in adminController.js is just a faster, friendlier first
-// pass that can lose that race (same class of bug already closed for staff
-// usernames via User.username's own unique index).
+/* Optional yung email (puwede gawin yung member na walang email, naka-store
+bilang '') - kung plain unique index lang, mare-reject yung second member na
+gagawin na blank din ang email, kaya yung uniqueness enforced lang sa mga
+member na may non-blank na email talaga. Ito mismo yung talagang nag-prevent
+ng dalawang concurrent create-member requests para sa parehong email na
+pareho mag-succeed - yung findOne precheck sa adminController.js ay first
+pass lang na mas mabilis at friendly pero puwede matalo sa race (same class
+ng bug na na-close na dati para sa staff usernames via User.username's own
+unique index). */
 memberSchema.index(
   { email: 1 },
   { unique: true, partialFilterExpression: { email: { $type: 'string', $gt: '' } } }
@@ -119,20 +121,21 @@ memberSchema.index({ barangay: 1 }); // For barangay filtering
 memberSchema.index({ phoneNumber: 1 }); // For search
 memberSchema.index({ status: 1, memberName: 1 }); // Compound for filtered sorting
 
-// Backs the member-search box across getAllMembers (shared + mortuary admin)
-// and the Treasurer's balance search. These all used an unanchored,
-// case-insensitive $regex $or — measured via explain() at 10,000 members:
-// COLLSCAN, 10,000 docs examined to return 20, and it can't use any of the
-// single-field indexes above regardless, since only a prefix-anchored regex
-// can use a B-tree index. A $text index scales with result size instead of
-// collection size, at the cost of a real semantics change: it matches whole
-// tokens (word- and punctuation-split, e.g. "MEM-123456" tokenizes to
-// "mem"/"123456"), not arbitrary substrings — "mar" no longer matches
-// "Maria", and a partial memberId/phone fragment no longer matches either.
-// language: 'none' disables stemming and the English stop-word list (which
-// would otherwise silently drop short common words like "a"/"the" from a
-// search) — plain whole-token matching is more predictable for names,
-// addresses, and identifiers than linguistic stemming would be.
+/* Ito ang backing ng member-search box sa getAllMembers (shared + mortuary
+admin) at sa Treasurer's balance search. Dati gumagamit ito ng unanchored,
+case-insensitive $regex $or - measured via explain() sa 10,000 members:
+COLLSCAN, 10,000 docs examined para lang makabalik ng 20, at hindi niya
+magamit yung mga single-field indexes sa taas kasi prefix-anchored regex
+lang talaga ang puwedeng gumamit ng B-tree index. Yung $text index naman
+scales base sa result size imbes na collection size, pero may real semantics
+change: nagmamatch ito ng whole tokens (word- and punctuation-split, e.g.
+"MEM-123456" nagiging "mem"/"123456"), hindi na arbitrary substrings - kaya
+"mar" hindi na magmamatch sa "Maria", at hindi na magmamatch din ang partial
+memberId/phone fragment. Yung language: 'none' nag-disable ng stemming at ng
+English stop-word list (na kung hindi, puwedeng tahimik na i-drop yung mga
+short common words tulad ng "a"/"the" sa search) - mas predictable yung plain
+whole-token matching para sa names, addresses, at identifiers kaysa sa
+linguistic stemming. */
 memberSchema.index(
   { memberName: 'text', memberId: 'text', email: 'text', phoneNumber: 'text', address: 'text', beneficiaries: 'text' },
   { name: 'member_search_text', default_language: 'none' }

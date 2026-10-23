@@ -93,9 +93,9 @@ const AdminPortal = ({ onBack, user }) => {
     );
   });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  // The mobile nav drawer otherwise has no keyboard-reachable way to close
-  // without navigating — only the backdrop's onClick, which a keyboard-only
-  // user can't trigger.
+  /* Kung wala nito, yung mobile nav drawer ay walang keyboard-reachable
+  way para isara kung hindi mag-navigate - yung backdrop's onClick lang,
+  na hindi ma-trigger ng keyboard-only user. */
   useEffect(() => {
     if (!isMobileMenuOpen) return;
     const onKeyDown = (e) => { if (e.key === 'Escape') setIsMobileMenuOpen(false); };
@@ -143,17 +143,18 @@ const AdminPortal = ({ onBack, user }) => {
   }, []);
 
   const fetchAttendanceLogs = useCallback(async () => {
-      // getAllAttendance() alone caps at the server's default page size (10)
-      // — loadDashboardRecords pages through every record, same fix already
-      // applied to Secretary's own Dashboard/Reports screens. Without this,
-      // the dashboard's present/absent counts and charts silently undercount
-      // as soon as an event has more than 10 total scans system-wide.
+      /* Yung getAllAttendance() lang, naka-cap sa default page size ng
+      server (10) - si loadDashboardRecords ang nag-page through sa lahat
+      ng record, same fix na ginawa na sa Dashboard/Reports screens ng
+      Secretary. Kung wala nito, yung present/absent counts at charts ng
+      dashboard ay mali ang count pag lumagpas na ng 10 total scans ang
+      event system-wide. */
       const allAttendance = await loadDashboardRecords(attendanceAPI.getAllAttendance, 'attendance');
       return normalizeAttendanceRecords(allAttendance);
   }, []);
 
-  // Refresh events on demand (new Secretary submissions, PHT auto status
-  // changes, etc.) without reloading the whole portal.
+  /* Para ma-refresh yung events on demand (bagong Secretary submissions,
+  PHT auto status changes, etc.) kahit hindi i-reload yung whole portal. */
   const fetchEvents = useCallback(async () => {
     try {
       const allEvents = await loadDashboardRecords(eventAPI.getEvents, 'events');
@@ -166,8 +167,9 @@ const AdminPortal = ({ onBack, user }) => {
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch all data in parallel — attendance pages through every record
-      // (see fetchAttendanceLogs above for why getAllAttendance() alone isn't enough).
+      /* Kukunin lahat ng data in parallel - yung attendance ay nag-page
+      through sa lahat ng record (tignan sa fetchAttendanceLogs sa taas
+      kung bakit hindi sapat yung getAllAttendance() lang). */
       const [membersRes, allEvents, allAttendance] = await Promise.all([
         memberAPI.getAllMembers(),
         loadDashboardRecords(eventAPI.getEvents, 'events'),
@@ -232,8 +234,9 @@ const AdminPortal = ({ onBack, user }) => {
     };
   }, [activeSection, loading, hasLoaded, fetchAttendanceLogs]);
 
-  // Keep the sidebar's pending badge current from every section. Refresh
-  // immediately when opening approvals, then poll only while visible.
+  /* Para laging updated yung pending badge ng sidebar sa kahit anong
+  section. Mag-refresh agad pag binuksan yung approvals, then poll
+  lang habang visible. */
   useEffect(() => {
     if (activeSection === "events") fetchEvents();
     const refreshInterval = setInterval(() => {

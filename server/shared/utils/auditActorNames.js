@@ -1,7 +1,8 @@
 const hasRecordedName = log => log.userName && log.userName.trim().toLowerCase() !== 'unknown';
 
-// Resolve legacy Unknown entries by their saved account ID. Never replace a
-// recorded name or guess which account performed an action from its role.
+/* Nire-resolve nito yung legacy Unknown entries gamit ang saved account ID
+nila. Huwag palitan yung recorded name o manghula kung aling account ang
+gumawa ng action base lang sa role nito. */
 async function resolveAuditActorNames(logs, User) {
   const ids = [...new Set(logs.filter(log => !hasRecordedName(log) && log.userId).map(log => String(log.userId)))];
   const usersById = new Map();

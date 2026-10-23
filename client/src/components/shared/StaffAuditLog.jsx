@@ -8,13 +8,14 @@ import { formatDateTime } from '../../utils/date';
 import { readableLabel, outcomeLabel } from '../../utils/auditDetails';
 import AuditLogDetails from './AuditLogDetails';
 
-// Staff account actions (staffController.js's audit() helper) are logged
-// under module: 'admin' — only super_admin can query that module (see
-// auditLogRoutes.js), and this is the only screen that does. Without it the
-// data was real and retained (confirmed via GET /audit/trail/staff/:id) but
-// structurally unreachable — nothing in the app ever rendered it, despite
-// StaffAccounts.jsx's own delete-confirmation dialog promising "Historical
-// records and audit logs will be retained."
+/* Yung staff account actions (galing sa staffController.js's audit() helper)
+ay naka-log sa ilalim ng module: 'admin' - super_admin lang ang pwedeng
+mag-query ng module na 'to (tignan sa auditLogRoutes.js), at ito lang yung
+screen na gumagawa nito. Kung wala 'to, totoo at naka-retain naman yung data
+(na-confirm via GET /audit/trail/staff/:id) pero structurally unreachable -
+walang nagrender nito sa app kahit yung delete-confirmation dialog ng
+StaffAccounts.jsx mismo ay nangako ng "Historical records and audit logs
+will be retained." */
 const ACTION_LABELS = {
   staff_created: 'Account created',
   staff_updated: 'Account updated',
