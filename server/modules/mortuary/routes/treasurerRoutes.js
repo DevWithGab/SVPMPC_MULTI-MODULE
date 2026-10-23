@@ -98,20 +98,8 @@ router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLimiter, bulkUploadLedger);
 
-<<<<<<< Updated upstream
 // Claims processing routes — a claim sitting in "pending_deduction" is the
 // Treasurer's notification (live query, no separate notification model).
-=======
-// Read-only historical notification records; no send or retry endpoints.
-router.get('/notifications/history/:memberId', getMemberNotificationHistory);
-router.get('/notifications/all', getAllNotifications);
-router.get('/notifications/pending', getPending);
-router.get('/notifications/stats', getNotificationStats);
-
-/* Claims processing routes - yung claim na naka-"pending_deduction" status
-ang pumapalit na notification para sa Treasurer (live query lang, walang
-separate notification model). */
->>>>>>> Stashed changes
 router.get('/claims', listAllClaims);
 router.get('/claims/pending-deduction', listPendingDeduction);
 router.get('/claims/awaiting-release', listAwaitingRelease);

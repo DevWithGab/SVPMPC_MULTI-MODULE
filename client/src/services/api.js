@@ -780,12 +780,7 @@ export const treasurerAPI = {
     return response.data;
   },
 
-<<<<<<< Updated upstream
   // Balance reminders use printed/PDF notices; SMS APIs have been removed.
-=======
-  /* Notifications (Removed - Now Automated via Threshold System). Tinanggal
-  na yung manual notification methods. */
->>>>>>> Stashed changes
 
   /* Lahat ng claim kahit anong status - ginagamit ng Reports screen (Claims
   Report / Deductions & Payouts), na kailangan ng full list imbes isang

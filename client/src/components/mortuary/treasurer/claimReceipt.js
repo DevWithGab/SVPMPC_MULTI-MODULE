@@ -1,16 +1,8 @@
-<<<<<<< Updated upstream
 ﻿const escapeHtml = (value) => String(value ?? '—').replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[character]));
 
 // Shared by the release confirmation and disbursement report reprint action.
-=======
-/* Ginagamit ito ng ClaimsAwaitingRelease (print agad pagkatapos i-release) at
-ClaimDisbursementReport (reprint galing history) para isang lugar lang ang
-receipt layout. Nag-open ng plain print window - parehong window.open +
-document.write pattern na ginagamit sa ibang parte ng app para sa printable
-output (hal., QR card printing ng Attendance module). */
->>>>>>> Stashed changes
 export const printClaimReceipt = (claim) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;

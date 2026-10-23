@@ -194,7 +194,6 @@ const drawLastNotice = (doc, member, target, logo, settings) => {
   doc.setTextColor(0, 0, 0);
 };
 
-<<<<<<< Updated upstream
 const drawManager = (doc, text, settings, y) => {
   const name = getNoticeManagerName(settings);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
@@ -207,11 +206,6 @@ const drawManager = (doc, text, settings, y) => {
 
 // Reserve room for the signature and receipt. Long edited messages continue
 // on another page instead of overlapping those fields or being cut off.
-=======
-/* Nireserba yung space para sa signature at receipt. Yung mahahabang
-edited messages ay magpapatuloy sa ibang page imbes na magtabi sa mga
-field na iyon o maputol. */
->>>>>>> Stashed changes
 const drawMessage = (doc, value, startY, level) => {
   let y = startY;
   const pageHeight = doc.internal.pageSize.getHeight();

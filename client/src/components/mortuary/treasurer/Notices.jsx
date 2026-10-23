@@ -95,15 +95,9 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
     }
   };
 
-<<<<<<< Updated upstream
   // Starts the server-side background job for a batch too large to build
   // instantly in the browser. Polling (below) picks up the result.
   const handleBulkDownloadBackground = async (level) => {
-=======
-  /* Sisimulan yung background job sa server para sa batch na sobrang laki
-  para gawin agad sa browser. Yung polling sa baba ang kukuha ng resulta. */
-  const handleBulkDownloadBackground = async (level, count) => {
->>>>>>> Stashed changes
     setDownloadingLevel(level);
     try {
       const response = await treasurerAPI.startNoticeBatch(level, noticeBarangay === 'All' ? undefined : noticeBarangay);
