@@ -19,8 +19,7 @@
       .status svg { width: 16px; height: 16px; flex-shrink: 0; }
       h1 { margin: 16px 0 12px; color: #303866; font-size: clamp(26px, 5vw, 32px); line-height: 1.25; letter-spacing: -.025em; }
       p { margin: 0 0 16px; }
-      .guidance { margin: 24px 0; padding: 16px 18px; border-left: 3px solid #b8cdbf; background: #f5f8f6; color: #526158; font-size: 14px; }
-      .guidance strong { display: block; margin-bottom: 4px; color: #314c3c; }
+      #retry-button { margin-top: 8px; }
       button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 24px; border: 0; border-radius: 7px; background: #166534; color: white; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s; }
       button:hover { background: #14532d; }
       button svg { width: 17px; height: 17px; }
@@ -54,11 +53,7 @@
             <span id="connection-label">Connection interrupted</span>
           </span>
           <h1 id="notice-title">Unable to reach the system</h1>
-          <p id="connection-message">The SVPMPC Management System could not be reached. Please check your internet connection and try again.</p>
-        </div>
-        <div class="guidance">
-          <strong>A connection is required to continue</strong>
-          Attendance, member records, and financial transactions require a connection to the server. When your connection is available, select Try again to return to the page you were opening.
+          <p id="connection-message">Please check your connection and try again.</p>
         </div>
         <button type="button" id="retry-button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17"/></svg>
@@ -73,8 +68,8 @@
         document.getElementById('connection-label').textContent = offline ? 'No internet connection' : 'System connection unavailable';
         document.getElementById('notice-title').textContent = offline ? "You're offline" : 'Unable to reach the system';
         document.getElementById('connection-message').textContent = offline
-          ? 'Your device is not connected to the internet. Please reconnect to access the SVPMPC Management System.'
-          : 'Your device reports an internet connection, but the SVPMPC Management System could not be reached. Please try again in a moment.';
+          ? 'Check your internet connection, then try again.'
+          : 'The system could not be reached. Please try again in a moment.';
       }
       document.getElementById('retry-button').addEventListener('click', () => window.location.reload());
       window.addEventListener('online', updateConnectionNotice);
