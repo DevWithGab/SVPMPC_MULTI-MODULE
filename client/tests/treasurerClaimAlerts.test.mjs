@@ -74,6 +74,8 @@ test('claim deductions and releases show success and error alerts inside the cla
     const { default: Release } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/ClaimsAwaitingRelease.jsx');
     await act(async () => root.render(React.createElement(Release, { user: { name: 'Treasurer' } })));
     await click('Prepare release');
+    assert.equal(container.querySelector('#release-amount').readOnly, true, 'the calculated payout cannot be edited');
+    assert.match(container.querySelector('#release-amount').value, /500\.00/);
     await fill('#release-dv', 'DV-TEST');
     await submit('#release-details');
     await click('Confirm release');

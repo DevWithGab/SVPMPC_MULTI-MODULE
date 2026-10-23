@@ -14,21 +14,19 @@ const todayIso = () => {
 export default function ClaimsAwaitingRelease({ user, onReleased }) {
   const queue = useClaimQueue(treasurerAPI.getAwaitingReleaseClaims);
   const [target, setTarget] = useState(null);
-  const [form, setForm] = useState({ amount: '', dvNumber: '', releaseDate: todayIso(), remarks: '' });
+  const [form, setForm] = useState({ dvNumber: '', releaseDate: todayIso(), remarks: '' });
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [released, setReleased] = useState(null);
   const [error, setError] = useState('');
   const inFlight = useRef(false);
 
-  const maxPayout = Number(target?.payoutAmount ?? target?.deduction?.totalCollected ?? 0);
-  const amountValue = Number(form.amount);
-  const amountValid = form.amount !== '' && !isNaN(amountValue) && amountValue > 0 && amountValue <= maxPayout;
+  const amountValue = Number(target?.payoutAmount ?? target?.deduction?.totalCollected ?? 0);
+  const amountValid = Number.isFinite(amountValue) && amountValue > 0;
 
   const open = (claim) => {
     setTarget(claim); setReview(false); setReleased(null); setError('');
-    const ceiling = Number(claim?.payoutAmount ?? claim?.deduction?.totalCollected ?? 0);
-    setForm({ amount: ceiling ? String(ceiling) : '', dvNumber: '', releaseDate: todayIso(), remarks: '' });
+    setForm({ dvNumber: '', releaseDate: todayIso(), remarks: '' });
   };
   const close = () => { if (!inFlight.current) setTarget(null); };
   const release = async () => {
@@ -75,10 +73,10 @@ export default function ClaimsAwaitingRelease({ user, onReleased }) {
           <p className="border-t border-slate-200 pt-4 text-sm leading-6 text-slate-600">Confirm that the beneficiary, amount, and voucher details match the disbursement. Confirming marks this claim as released.</p>
         </> : <form id="release-details" onSubmit={(event) => { event.preventDefault(); if (amountValid && form.dvNumber.trim() && form.releaseDate) setReview(true); }} className="space-y-4">
           <div>
-            <label htmlFor="release-amount" className="mb-1.5 block text-sm font-medium">Amount to release (required)</label>
-            <input id="release-amount" type="number" required min="0.01" max={maxPayout} step="0.01" autoComplete="off" className={fieldClass} placeholder="Enter amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-            <p className="mt-1.5 text-xs text-slate-500">Up to {peso(maxPayout)} — the deduction collected, capped at the Admin-configured benefit cap.</p>
-            {form.amount !== '' && !amountValid && <p className="mt-1 text-xs text-red-600">Enter an amount between ₱0.01 and {peso(maxPayout)}.</p>}
+            <label htmlFor="release-amount" className="mb-1.5 block text-sm font-medium">Amount to release (fixed)</label>
+            <input id="release-amount" type="text" readOnly className={`${fieldClass} bg-slate-50 text-slate-600`} value={amountValid ? peso(amountValue) : 'Unavailable'} aria-describedby="release-amount-help" />
+            <p id="release-amount-help" className="mt-1.5 text-xs text-slate-500">This amount is fixed based on the deduction collected and the Admin-configured benefit cap.</p>
+            {!amountValid && <p className="mt-1 text-xs text-red-600">This claim has no valid payout amount. Refresh the claims list and try again.</p>}
           </div>
           <div className="grid gap-4 sm:grid-cols-2"><div><label htmlFor="release-dv" className="mb-1.5 block text-sm font-medium">DV number (required)</label><input id="release-dv" required autoComplete="off" className={fieldClass} placeholder="Enter voucher number" value={form.dvNumber} onChange={(e) => setForm({ ...form, dvNumber: e.target.value })} /></div><div><label htmlFor="release-date" className="mb-1.5 block text-sm font-medium">Release date (required)</label><input id="release-date" type="date" required className={fieldClass} value={form.releaseDate} onChange={(e) => setForm({ ...form, releaseDate: e.target.value })} /></div></div>
           <div><label htmlFor="release-remarks" className="mb-1.5 block text-sm font-medium">Remarks <span className="font-normal text-slate-500">(optional)</span></label><textarea id="release-remarks" rows={3} className={fieldClass} placeholder="Add a note for this disbursement" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></div>
