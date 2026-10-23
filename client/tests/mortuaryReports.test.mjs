@@ -2,10 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createMortuaryReportPdf, negativeBalanceMembers, reportAmount } from '../src/utils/mortuaryReportPdf.js';
+import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, reportAmount } from '../src/utils/mortuaryReportPdf.js';
 
-const logo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO(MAIN).png', import.meta.url)));
+const logo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO-PRINT.png', import.meta.url)));
 const options = { logo, generatedAt: new Date('2026-10-05T03:00:00Z') };
+test('report downloads cache the small opaque print logo and embed it without a transparency mask', async t => {
+  const fetchLogo = t.mock.method(globalThis, 'fetch', async path => {
+    assert.equal(path, '/SVPMPC-LOGO-PRINT.png');
+    return { ok: true, arrayBuffer: async () => logo.buffer.slice(logo.byteOffset, logo.byteOffset + logo.byteLength) };
+  });
+  const loaded = await loadReportLogo();
+  assert.equal(await loadReportLogo(), loaded);
+  assert.equal(fetchLogo.mock.callCount(), 1);
+  for (const template of ['ledger', 'standard']) {
+    const doc = createMortuaryReportPdf({ ...options, logo: loaded, template, title: 'Contributions',
+      sections: [{ head: ['Member', 'Amount (PHP)'], body: [['Sample member', '100.00']] }] });
+    const images = Object.values(doc.internal.collections.addImage_images);
+    assert.equal(images.length, 1);
+    assert.equal(images[0].width, 320);
+    assert.equal(images[0].height, 320);
+    assert.ok(!images[0].sMask, 'logo must have a baked-in white background');
+    assert.ok(doc.output('arraybuffer').byteLength < 150000);
+  }
+});
 function reviewFile(name, doc) {
   if (!process.env.REPORT_QA_DIR) return;
   mkdirSync(process.env.REPORT_QA_DIR, { recursive: true });

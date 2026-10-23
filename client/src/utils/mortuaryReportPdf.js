@@ -25,7 +25,9 @@ export function negativeBalanceMembers(members) {
 let logoPromise;
 export function loadReportLogo() {
   if (!logoPromise) {
-    logoPromise = fetch('/SVPMPC-LOGO(MAIN).png').then(async response => {
+    // The small, opaque print asset avoids costly full-size PNG decoding
+    // and transparency masks that render black in some PDF viewers.
+    logoPromise = fetch('/SVPMPC-LOGO-PRINT.png').then(async response => {
       if (!response.ok) throw new Error('Unable to load the cooperative logo. Please retry the export.');
       return new Uint8Array(await response.arrayBuffer());
     }).catch(error => { logoPromise = undefined; throw error; });
