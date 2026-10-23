@@ -1,5 +1,5 @@
 import './MemberLedger.css';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import BulkLedgerUpload from './BulkLedgerUpload';
@@ -116,8 +116,11 @@ const MemberLedger = ({
   const [sortOrder, setSortOrder] = useState('desc');
   const [downloadingNotice, setDownloadingNotice] = useState(false);
   const [preparingLedger, setPreparingLedger] = useState(null);
+  const ledgerExportInFlight = useRef(false);
 
   const handleLedgerPdf = async (member, entries, filtered, print = false) => {
+    if (ledgerExportInFlight.current) return;
+    ledgerExportInFlight.current = true;
     setPreparingLedger(print ? 'print' : 'download');
     try {
       await outputMemberLedgerPdf(member, entries, { filtered, print });
@@ -125,6 +128,7 @@ const MemberLedger = ({
       console.error('Error preparing ledger PDF:', error);
       showToast?.(error.message || 'Unable to prepare the ledger PDF. Please try again.', 'error');
     } finally {
+      ledgerExportInFlight.current = false;
       setPreparingLedger(null);
     }
   };

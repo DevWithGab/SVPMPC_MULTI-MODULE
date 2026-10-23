@@ -2,7 +2,8 @@
 export const drawCooperativeLetterhead = (doc, logo, left, right) => {
   const unit = doc.internal.scaleFactor;
   if (logo) {
-    try { doc.addImage(logo, 'PNG', left + 4 / unit, 34 / unit, 52 / unit, 62 / unit, 'cooperative-logo', 'FAST'); } catch { /* The document remains readable if the image cannot load. */ }
+    // The cooperative logo is square; keep its proportions in the letterhead.
+    try { doc.addImage(logo, 'PNG', left + 4 / unit, 39 / unit, 52 / unit, 52 / unit, 'cooperative-logo', 'FAST'); } catch { /* The document remains readable if the image cannot load. */ }
   }
   const center = left + 62 / unit + (right - left - 62 / unit) / 2;
   doc.setTextColor(0, 0, 0); doc.setFont('times', 'bold'); doc.setFontSize(20);

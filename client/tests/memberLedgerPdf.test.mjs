@@ -1,10 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { jsPDF } from 'jspdf';
 import { createMemberLedgerPdf, LEDGER_HEADERS, outputMemberLedgerPdf } from '../src/utils/memberLedgerPdf.js';
 
 const member = { name: 'Juan Dela Cruz', address: 'Dupax del Sur, Nueva Vizcaya', beneficiaries: 'Maria Dela Cruz' };
 const entry = { date: '2026-10-22', ref_no: 'OR-2026-000000123456789', received: 100, withdrawn: 0, balance: -250.5 };
+const printLogo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO-PRINT.png', import.meta.url)));
+
+test('ledger uses a small opaque logo without a dark transparency mask', () => {
+  const doc = createMemberLedgerPdf(member, [entry], { logoDataUrl: printLogo });
+  const image = Object.values(doc.internal.collections.addImage_images)[0];
+  assert.equal(image.width, 320);
+  assert.equal(image.height, 320);
+  assert.ok(!image.sMask, 'white background must be baked in instead of relying on PDF transparency');
+  assert.ok(doc.output('arraybuffer').byteLength < 150000);
+});
 
 test('ledger form fills member details and preserves full references and signed amounts', () => {
   const doc = createMemberLedgerPdf(member, [entry]);
@@ -46,7 +57,10 @@ test('download saves the ledger and print opens the same form with a print actio
   let saved;
   let printed;
   const popup = { location: { href: '' }, close() {} };
-  t.mock.method(globalThis, 'fetch', async () => { throw new Error('offline'); });
+  const fetchLogo = t.mock.method(globalThis, 'fetch', async path => {
+    assert.equal(path, '/SVPMPC-LOGO-PRINT.png');
+    return { ok: true, arrayBuffer: async () => printLogo.buffer };
+  });
   const originalSave = jsPDF.API.save;
   jsPDF.API.save = function (filename) { saved = { filename, content: this.output() }; };
   t.after(() => {
@@ -64,4 +78,5 @@ test('download saves the ledger and print opens the same form with a print actio
   const content = await printed.text();
   assert.ok(content.includes('MUTUAL ASSISTANCE FUND'));
   assert.ok(content.includes('/Print'));
+  assert.equal(fetchLogo.mock.callCount(), 1, 'print and download share the cached logo');
 });

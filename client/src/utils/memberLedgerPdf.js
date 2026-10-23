@@ -69,13 +69,15 @@ let logoPromise;
 const loadLogo = () => {
   if (!logoPromise) logoPromise = (async () => {
     try {
-      const response = await fetch('/SVPMPC-LOGO(MAIN).png');
-      if (!response.ok) return null;
-      const blob = await response.blob();
-      return await new Promise((resolve, reject) => {
-        const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob);
-      });
-    } catch { return null; }
+      // This small, opaque logo avoids decoding a 2048px PNG and embedding
+      // its transparency mask in every ledger PDF.
+      const response = await fetch('/SVPMPC-LOGO-PRINT.png');
+      if (!response.ok) throw new Error('Unable to load ledger logo');
+      return new Uint8Array(await response.arrayBuffer());
+    } catch {
+      logoPromise = undefined;
+      return null;
+    }
   })();
   return logoPromise;
 };
