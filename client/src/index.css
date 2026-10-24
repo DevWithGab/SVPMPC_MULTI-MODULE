@@ -49,10 +49,20 @@
 
   body {
     font-family: 'Inter', sans-serif;
-    background-color: #ffffff;
+    /* Matches the portals' own bg-slate-50 wrapper, not pure white, so any
+       residual browser overscroll shows this instead of a mismatched gap. */
+    background-color: #f8fafc;
     color: #1a1a1a;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Without this, trackpad/elastic rubber-band scrolling can bounce the
+     whole page past its content edges (vertically and horizontally),
+     briefly revealing blank space beyond the app's own background. */
+  html,
+  body {
+    overscroll-behavior: none;
   }
 
   code {

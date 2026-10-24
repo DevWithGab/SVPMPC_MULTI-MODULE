@@ -130,7 +130,10 @@ test('processClaimDeduction charges every active member the configured rate with
   assert.equal(byMember['001'].balance, 475, '500 - 25');
   assert.equal(byMember['002'].balance, 975, '1000 - 25');
   assert.equal(byMember['003'].balance, -225, '-200 - 25');
-  assert.ok(db.state.ledgers.every(row => row.referenceId === 'JV-001'));
+  // Ledger reference drops the redundant "JV" prefix; the claim's own
+  // deduction.jvNumber record keeps the full value as entered.
+  assert.ok(db.state.ledgers.every(row => row.referenceId === '001'));
+  assert.equal(res.data.data.deduction.jvNumber, 'JV-001');
   assert.ok(db.state.ledgers.every(row => row.description.includes('Deceased Member')));
 });
 

@@ -366,6 +366,13 @@ const processClaimDeduction = async (req, res) => {
       });
     }
 
+    /* Treasurers often still type a literal "JV#"/"JV-" prefix out of habit
+    from the paper JV slip, but the ledger's own Reference column already
+    makes it a deduction entry via its transaction type - repeating "JV#"
+    there is just noise. Strip it for the ledger's own reference only; the
+    claim record and audit trail below keep the number exactly as entered. */
+    const ledgerReference = jvNumber.replace(/^jv\s*[#:\-.]?\s*/i, '') || jvNumber;
+
     /* Atomically kinukuha dito ang exclusive right ng request na ito para iproseso ang
     deduction. Kung dumating sabay ang dalawang request para sa parehong claim
     (double-click, retried request, dalawang open tabs), yun lang talagang nakapagpalit
@@ -415,7 +422,7 @@ const processClaimDeduction = async (req, res) => {
             debit: deductionAmount,
             credit: 0,
             balance: newBalance,
-            referenceId: jvNumber,
+            referenceId: ledgerReference,
             transactionDate: new Date(),
             recordedBy: processedBy,
           });

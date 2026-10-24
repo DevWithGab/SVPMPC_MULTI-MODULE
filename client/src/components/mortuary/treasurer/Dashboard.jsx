@@ -20,6 +20,7 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
     { standing: "atRisk", members: stats?.memberStanding?.atRisk || 0, fill: "#f97316" },
     { standing: "negativeBalance", members: stats?.memberStanding?.negativeBalance || 0, fill: "#dc2626" },
   ].filter(item => item.members > 0);
+  const memberStandingTotal = memberStandingData.reduce((sum, item) => sum + item.members, 0);
 
   const statusCompositionData = [
     { status: "active", members: stats?.statusComposition?.active || stats?.activeMembers || 0, fill: "#2D7A3E" },
@@ -165,9 +166,6 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
                 <Pie
                   data={memberStandingData}
                   dataKey="members"
-                  label={({ standing, percent }) =>
-                    `${MEMBER_STANDING_LABELS[standing]}: ${(percent * 100).toFixed(0)}%`
-                  }
                   nameKey="standing"
                 />
               </PieChart>
@@ -181,7 +179,7 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
                   <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.fill }} />
                   <span className="text-slate-600">{MEMBER_STANDING_LABELS[item.standing]}</span>
                 </span>
-                <span className="font-bold text-slate-900">{item.members}</span>
+                <span className="font-bold text-slate-900">{item.members} <span className="font-normal text-slate-400">({memberStandingTotal ? Math.round((item.members / memberStandingTotal) * 100) : 0}%)</span></span>
               </div>
             ))}
           </div>

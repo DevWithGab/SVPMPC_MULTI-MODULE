@@ -6,3 +6,9 @@
 .attendance-metric > strong { display: block; margin-top: 8px; color: #17251d; font-size: 27px; font-weight: 600; line-height: 1.1; letter-spacing: -.4px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .attendance-metric > span { margin-top: 6px; color: #647069; font-size: 11px; line-height: 1.5; }
 @media(max-width: 480px) { .attendance-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .attendance-metric { min-height: 100px; padding: 12px; } .attendance-metric > strong { font-size: 24px; } .attendance-metric-icon { flex-basis: 25px; width: 25px; height: 25px; } }
+
+/* Tablet width: the 190px auto-fit minimum happens to fit exactly 3 columns
+   here, which strands a lone 4th card alone on its own row (the common case,
+   since most of this grid's 20 callers pass 4 items). A fixed 2-column grid
+   keeps pairs balanced instead. */
+@media(min-width: 481px) and (max-width: 1024px) { .attendance-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
