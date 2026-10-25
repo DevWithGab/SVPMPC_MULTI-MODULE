@@ -1,3 +1,5 @@
+import { Textarea } from '../../../ui/input';
+import { FormField, ModalActions } from '../../../ui/workspace';
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from '../../shared/Modal';
@@ -58,7 +60,7 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
           value may change through board approval.
         </p>
 
-        <div>
+        <FormField>
           <label htmlFor="benefit-cap-amount" className="text-sm font-semibold text-slate-700 mb-1.5 block">
             New Cap (₱) <span className="text-red-500">*</span>
           </label>
@@ -74,27 +76,27 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
             aria-describedby="benefit-cap-help benefit-cap-error"
           />
           <p id="benefit-cap-help" className="text-xs text-slate-500 mt-1">Enter a positive amount, e.g. 10,000 or 10,000.50. Maximum 2 decimal places.</p>
-        </div>
+        </FormField>
 
-        <div>
+        <FormField>
           <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Effective Date</label>
           <Input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} />
-        </div>
+        </FormField>
 
-        <div>
+        <FormField>
           <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Description (optional)</label>
-          <textarea
+          <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
             placeholder="e.g. Board resolution #12, series 2026"
           />
-        </div>
+        </FormField>
 
         {error && <p id="benefit-cap-error" role="alert" className="text-sm text-red-600">{error}</p>}
 
-        <div className="flex gap-3 pt-1">
+        <ModalActions className="flex gap-3 pt-1">
           <Button type="button" variant="secondary" onClick={handleClose} className="flex-1" disabled={submitting}>
             Cancel
           </Button>
@@ -102,7 +104,7 @@ export default function UpdateBenefitCapModal({ isOpen, onClose, currentAmount, 
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Save New Cap
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );

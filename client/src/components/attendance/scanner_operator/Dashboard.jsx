@@ -1,4 +1,7 @@
-﻿import { Activity, ArrowRight, CalendarDays, CheckCircle2, History, MapPin, QrCode, Zap } from "lucide-react";
+import { Button as ActionButton } from '../../ui/button';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
+import { Activity, ArrowRight, CalendarDays, CheckCircle2, History, MapPin, QrCode, Zap } from "lucide-react";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import useScannerDashboardEvents from '../../../hooks/useScannerDashboardEvents';
 import { formatDate, formatDateTime, formatLongDate, formatTimeRange, getManilaHour } from "../../../utils/date";
@@ -19,19 +22,19 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
 
   return (
     <div className="secretary-dashboard scanner-operator-dashboard">
-      <header className="sd-header">
+      <PageHeader className="sd-header">
         <div>
           <p className="sd-eyebrow">Attendance management / Scanner operator</p>
           <h1>Scanner dashboard</h1>
           <p className="sd-description">{greeting}, {user?.name || "Operator"}. Scan member QR codes and monitor event attendance.</p>
           <p className="sod-date">{formatLongDate()} &middot; Philippine time (PHT)</p>
         </div>
-        <button type="button" onClick={() => setActiveTab("scanner")} disabled={!hasActiveEvent} className="sd-button sd-primary">
+        <ActionButton variant="default" type="button" onClick={() => setActiveTab("scanner")} disabled={!hasActiveEvent} className="sd-button sd-primary">
           <QrCode size={16} aria-hidden="true" />
           {hasActiveEvent ? "Start scanning" : "No active event"}
           <ArrowRight size={15} aria-hidden="true" />
-        </button>
-      </header>
+        </ActionButton>
+      </PageHeader>
 
       <AttendanceMetricGrid label="Scanner overview" items={[
         ['Active events', activeEvents.length.toLocaleString(), hasActiveEvent ? 'Available for attendance scanning' : 'No events currently active', CalendarDays],
@@ -39,9 +42,9 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
         ['Scanning availability', hasActiveEvent ? 'Ready' : 'Standby', hasActiveEvent ? 'An active event is available' : 'Waiting for an active event', Zap],
       ]} />
 
-      <section className="sd-panel sod-events" aria-labelledby="sod-events-title">
+      <Panel as="section" className="sd-panel sod-events" aria-labelledby="sod-events-title">
         {refreshError && <p role="status" className="px-5 pt-4 text-sm text-amber-800">Unable to refresh event availability. Retrying automatically.</p>}
-        <div className="sd-panel-heading">
+        <PanelHeader as="div" className="sd-panel-heading">
           <div>
             <h2 id="sod-events-title">Active event sessions</h2>
             <p>{hasActiveEvent ? 'Choose an active event in the scanner to begin recording attendance.' : 'Scanning becomes available when an approved event is active.'}</p>
@@ -49,7 +52,7 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
           <span className={`sd-status ${hasActiveEvent ? 'sd-status-active' : 'sd-status-neutral'}`}>
             {hasActiveEvent ? `${activeEvents.length} active` : 'Standby'}
           </span>
-        </div>
+        </PanelHeader>
         {hasActiveEvent ? (
           <ul className="sod-event-list">
             {activeEvents.map((event, index) => (
@@ -73,18 +76,18 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
             <p>Check with the Secretary or Admin about the event schedule. You can still review attendance and your scan history.</p>
           </div>
         )}
-      </section>
+      </Panel>
 
-      <section className="sd-panel sod-recent" aria-labelledby="sod-recent-title">
-        <div className="sd-panel-heading">
+      <Panel as="section" className="sd-panel sod-recent" aria-labelledby="sod-recent-title">
+        <PanelHeader as="div" className="sd-panel-heading">
           <div><h2 id="sod-recent-title">Recent attendance</h2><p>Latest records from the shared attendance view.</p></div>
           <button type="button" className="sd-link" onClick={() => setActiveTab("live")}>
             View attendance <ArrowRight size={14} aria-hidden="true" />
           </button>
-        </div>
+        </PanelHeader>
         {recentRecords.length ? (
           <div className="sd-table-scroll">
-            <table className="sod-attendance-table" aria-label="Recent attendance records">
+            <DataTable className="sod-attendance-table" aria-label="Recent attendance records">
               <thead><tr><th scope="col">Member</th><th scope="col">Event</th><th scope="col">Recorded at (PHT)</th></tr></thead>
               <tbody>
                 {recentRecords.map((record, index) => {
@@ -101,7 +104,7 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
                   );
                 })}
               </tbody>
-            </table>
+            </DataTable>
           </div>
         ) : (
           <div className="sd-data-state">
@@ -111,7 +114,7 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
           </div>
         )}
         {recentRecords.length > 0 && <p className="sd-panel-footer">Showing {recentRecords.length} of {records.length.toLocaleString()} loaded records.</p>}
-      </section>
+      </Panel>
 
       <nav className="sod-workspace" aria-label="Scanner workspace">
         <h2>Workspace</h2>

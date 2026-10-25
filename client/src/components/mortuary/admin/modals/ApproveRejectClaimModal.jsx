@@ -1,3 +1,5 @@
+import { Textarea } from '../../../ui/input';
+import { FormField, ModalActions } from '../../../ui/workspace';
 import React, { useState } from 'react';
 import { Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import Modal from '../../shared/Modal';
@@ -68,11 +70,11 @@ export default function ApproveRejectClaimModal({ isOpen, onClose, mode, claim, 
                 reason.
               </p>
             </div>
-            <div>
+            <FormField>
               <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
                 Rejection reason <span className="text-red-500">*</span>
               </label>
-              <textarea
+              <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
@@ -80,13 +82,13 @@ export default function ApproveRejectClaimModal({ isOpen, onClose, mode, claim, 
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-rose-400"
                 placeholder="e.g. Missing/invalid documents"
               />
-            </div>
+            </FormField>
           </>
         )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="flex gap-3 pt-1">
+        <ModalActions className="flex gap-3 pt-1">
           <Button type="button" variant="secondary" onClick={handleClose} className="flex-1" disabled={submitting}>
             Cancel
           </Button>
@@ -107,7 +109,7 @@ export default function ApproveRejectClaimModal({ isOpen, onClose, mode, claim, 
               'Reject Claim'
             )}
           </Button>
-        </div>
+        </ModalActions>
       </div>
     </Modal>
   );

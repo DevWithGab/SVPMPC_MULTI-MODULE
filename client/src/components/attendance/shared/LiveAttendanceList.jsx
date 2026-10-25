@@ -1,3 +1,6 @@
+import { PageHeader } from '../../ui/workspace';
+import { Select } from '../../ui/input';
+import { Table as DataTable } from '../../ui/table';
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { RefreshCw, CalendarOff } from "lucide-react";
 import { attendanceAPI, eventAPI } from "../../../services/api";
@@ -339,7 +342,7 @@ export default function LiveAttendanceList({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <PageHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             LIVE ATTENDANCE
@@ -374,7 +377,7 @@ export default function LiveAttendanceList({
           />
           {loading ? "Refreshing..." : "Refresh"}
         </button>
-      </div>
+      </PageHeader>
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm font-medium text-red-600">
@@ -413,7 +416,7 @@ export default function LiveAttendanceList({
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <label className="space-y-1.5 text-sm font-semibold text-slate-700">
                 Filter by barangay
-                <select
+                <Select
                   value={selectedBarangay}
                   onChange={(e) => setSelectedBarangay(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-coop-green focus:outline-none focus:ring-2 focus:ring-coop-green/20"
@@ -423,7 +426,7 @@ export default function LiveAttendanceList({
                       {barangay === "all" ? "All barangays" : barangay}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
 
               <div className="space-y-1.5 text-sm font-semibold text-slate-700">
@@ -452,7 +455,7 @@ export default function LiveAttendanceList({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm text-slate-600">
+            <DataTable className="min-w-full text-left text-sm text-slate-600">
               <thead className="bg-white">
                 <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wide text-xs font-semibold">
                   <th className="px-4 py-3">Member</th>
@@ -505,7 +508,7 @@ export default function LiveAttendanceList({
                   </tr>
                 )}
               </tbody>
-            </table>
+            </DataTable>
           </div>
 
           {filteredAttendance.length > 0 && (

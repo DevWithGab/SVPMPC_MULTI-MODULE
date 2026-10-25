@@ -1,3 +1,8 @@
+import { PageHeader } from '../../ui/workspace';
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput, Textarea } from '../../ui/input';
+import { FormField } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback } from "react";
 import {
   ArrowLeft,
@@ -217,11 +222,11 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
 
   return (
     <div className="treasurer-dashboard admin-claim-details space-y-6">
-      <div className="td-header">
+      <PageHeader className="td-header">
         <div>
-          <button onClick={onBack} className="td-button mb-3">
+          <ActionButton variant="outline" onClick={onBack} className="td-button mb-3">
             <ArrowLeft className="w-4 h-4" /> Back to Claims
-          </button>
+          </ActionButton>
           <p className="td-eyebrow">Mortuary management / Claims / Details</p>
           <h1>{claim.memberName}</h1>
           <p className="td-description ac-claim-id">
@@ -234,7 +239,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
           <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
           {meta.label}
         </span>
-      </div>
+      </PageHeader>
 
       {canDecide && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ac-detail-panel p-4">
@@ -348,7 +353,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 </p>
                 {canDecide && (
                   <form onSubmit={addRequirement} className="flex gap-2 mt-3">
-                    <input
+                    <TextInput
                       value={newRequirement}
                       onChange={(e) => setNewRequirement(e.target.value)}
                       placeholder="e.g. Barangay Certificate"
@@ -412,7 +417,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <DataTable className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th
@@ -491,7 +496,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                     </tr>
                   )}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
           </div>
 
@@ -504,24 +509,24 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <FormField>
                 <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
                   Verified By
                 </label>
                 {/* Read-only: the server records the signed-in staff member's name. */}
-                <input
+                <TextInput
                   value={verificationForm.verifiedBy}
                   readOnly
                   aria-readonly="true"
                   title="Recorded automatically from the signed-in account"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 cursor-default focus:outline-none"
                 />
-              </div>
-              <div>
+              </FormField>
+              <FormField>
                 <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
                   Verification Date
                 </label>
-                <input
+                <TextInput
                   type="date"
                   value={verificationForm.verificationDate}
                   onChange={(e) =>
@@ -533,13 +538,13 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   disabled={!canDecide}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green disabled:bg-slate-50"
                 />
-              </div>
+              </FormField>
             </div>
-            <div className="mt-4">
+            <FormField className="mt-4">
               <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
                 Remarks
               </label>
-              <textarea
+              <Textarea
                 value={verificationForm.remarks}
                 onChange={(e) =>
                   setVerificationForm((f) => ({
@@ -551,7 +556,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 rows={2}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green disabled:bg-slate-50"
               />
-            </div>
+            </FormField>
             {canDecide && (
               <div className="mt-4">
                 <Button

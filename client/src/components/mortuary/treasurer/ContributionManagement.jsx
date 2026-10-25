@@ -1,3 +1,4 @@
+import { PageHeader } from '../../ui/workspace';
 import React, { useState } from 'react';
 import { DollarSign, Plus, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
@@ -9,7 +10,7 @@ export default function ContributionManagement({ user }) {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <PageHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-950 tracking-tight">Contribution Management</h1>
           <p className="text-slate-500 text-sm font-bold mt-1">Record and manage member contributions</p>
@@ -18,7 +19,7 @@ export default function ContributionManagement({ user }) {
           <Plus className="w-4 h-4 mr-2" />
           Record Contribution
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <Card className="border-slate-200/60 shadow-sm rounded-[2rem] overflow-hidden bg-white">

@@ -1,3 +1,7 @@
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput, Select } from '../../ui/input';
+import { PageHeader, Panel, PanelHeader, FormField } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
@@ -195,7 +199,7 @@ const AuditLogs = () => {
   return (
     <div className="secretary-dashboard attendance-audit-logs">
       {/* Header */}
-      <header className="sd-header">
+      <PageHeader className="sd-header">
         <div>
           <p className="sd-eyebrow">Attendance management / Activity history</p>
           <h1>Audit logs</h1>
@@ -205,13 +209,13 @@ const AuditLogs = () => {
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <div className="flex items-center gap-2" role="group" aria-label="Export audit logs">
-            <button onClick={handleExportCSV} disabled={loading || !logs.length} className="sd-button sd-primary">
+            <ActionButton variant="default" onClick={handleExportCSV} disabled={loading || !logs.length} className="sd-button sd-primary">
               <Download size={15} aria-hidden="true" /> CSV (current page)
-            </button>
-            <button onClick={handleExportPDF} disabled={loading || !logs.length || exportingPdf} className="sd-button">
+            </ActionButton>
+            <ActionButton variant="outline" onClick={handleExportPDF} disabled={loading || !logs.length || exportingPdf} className="sd-button">
               {exportingPdf ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
               {exportingPdf ? 'Preparing PDF…' : 'PDF (current page)'}
-            </button>
+            </ActionButton>
           </div>
           {lastUpdated && (
             <p className="text-xs text-slate-400">
@@ -219,7 +223,7 @@ const AuditLogs = () => {
             </p>
           )}
         </div>
-      </header>
+      </PageHeader>
 
       {/* Stats Cards */}
       {stats && filters.startDate && filters.endDate && (
@@ -232,49 +236,49 @@ const AuditLogs = () => {
       )}
 
       {/* Filters */}
-      <section className="sd-panel aal-filters" aria-labelledby="aal-filter-title">
-        <div className="sd-panel-heading">
+      <Panel as="section" className="sd-panel aal-filters" aria-labelledby="aal-filter-title">
+        <PanelHeader as="div" className="sd-panel-heading">
           <div><h2 id="aal-filter-title" className="flex items-center gap-2"><Filter size={16} aria-hidden="true" />Filter activity</h2>
           <p>Narrow the log by date, role, or action. Select both dates to view activity totals.</p></div>
           <button className="sd-link" onClick={() => setFilters((current) => ({ ...current, startDate: "", endDate: "", userRole: "", action: "", page: 1 }))}>
             <RotateCcw size={14} aria-hidden="true" /> Reset filters
           </button>
-        </div>
+        </PanelHeader>
 
         <div className="aal-filter-grid">
           {/* Date Range */}
-          <div className="space-y-2">
+          <FormField className="space-y-2">
             <label htmlFor="aal-start-date" className="block text-sm font-medium text-slate-700">
               Start Date
             </label>
-            <input
+            <TextInput
               id="aal-start-date"
               type="date"
               value={filters.startDate}
               onChange={(e) => handleFilterChange("startDate", e.target.value)}
               className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
+          <FormField className="space-y-2">
             <label htmlFor="aal-end-date" className="block text-sm font-medium text-slate-700">
               End Date
             </label>
-            <input
+            <TextInput
               id="aal-end-date"
               type="date"
               value={filters.endDate}
               onChange={(e) => handleFilterChange("endDate", e.target.value)}
               className="w-full h-10 px-4 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
             />
-          </div>
+          </FormField>
 
           {/* Role Filter */}
-          <div className="space-y-2">
+          <FormField className="space-y-2">
             <label htmlFor="aal-role" className="block text-sm font-medium text-slate-700">
               Role
             </label>
-            <select
+            <Select
               id="aal-role"
               value={filters.userRole}
               onChange={(e) => handleFilterChange("userRole", e.target.value)}
@@ -286,8 +290,8 @@ const AuditLogs = () => {
               <option value="scanner">Scanner</option>
               <option value="member">Member</option>
               <option value="super_admin">Super Admin</option>
-            </select>
-          </div>
+            </Select>
+          </FormField>
 
           {/* Action Filter */}
           <div className="space-y-2">
@@ -295,7 +299,7 @@ const AuditLogs = () => {
               Action
             </label>
             <div className="flex flex-col sm:flex-row gap-3">
-              <select
+              <Select
                 id="aal-action"
                 value={filters.action}
                 onChange={(e) => handleFilterChange("action", e.target.value)}
@@ -308,19 +312,19 @@ const AuditLogs = () => {
                 <option value="attendance_recorded">Attendance Recorded</option>
                 <option value="member_imported">Member Imported</option>
                 <option value="qr_code_generated">QR Generated</option>
-              </select>
+              </Select>
 
             </div>
           </div>
         </div>
-      </section>
+      </Panel>
 
       {/* Audit Logs Table */}
-      <section className="sd-panel aal-log-panel" aria-labelledby="aal-log-title" aria-busy={loading}>
-        <div className="sd-panel-heading">
+      <Panel as="section" className="sd-panel aal-log-panel" aria-labelledby="aal-log-title" aria-busy={loading}>
+        <PanelHeader as="div" className="sd-panel-heading">
           <div><h2 id="aal-log-title">Activity history</h2><p>Inspect a record to see its details and changes. CSV export includes the current page.</p></div>
           <span className="sd-status sd-status-neutral">{pagination.total || 0} records</span>
-        </div>
+        </PanelHeader>
         {loading ? (
           <div className="sd-data-state aal-data-state" role="status">
             <div className="animate-spin">
@@ -337,7 +341,7 @@ const AuditLogs = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="aal-table" aria-label="Attendance audit logs">
+              <DataTable className="aal-table" aria-label="Attendance audit logs">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -399,7 +403,7 @@ const AuditLogs = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <button
+                          <ActionButton variant="outline"
                             onClick={() => {
                               setSelectedLog(log);
                               setShowDetails(true);
@@ -408,13 +412,13 @@ const AuditLogs = () => {
                           >
                             <Eye className="w-4 h-4" />
                             View details
-                          </button>
+                          </ActionButton>
                         </td>
                       </Motion.tr>
                     ))}
                   </AnimatePresence>
                 </tbody>
-              </table>
+              </DataTable>
             </div>
 
             {/* Pagination */}
@@ -430,7 +434,7 @@ const AuditLogs = () => {
             </div>
           </>
         )}
-      </section>
+      </Panel>
 
       {showDetails && selectedLog && (
         <AuditLogDetails log={selectedLog} module="attendance" actionLabel={actionLabel} onClose={() => setShowDetails(false)} />

@@ -1,3 +1,8 @@
+import { SearchField } from '../../ui/workspace';
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput, Select } from '../../ui/input';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useEffect, useState } from 'react';
 import { Users, UserCheck, UserMinus, Heart, Search, FileText } from 'lucide-react';
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
@@ -44,13 +49,13 @@ const MemberManagement = ({
 
   return (
     <div className="member-balances admin-member-management">
-      <header className="mb-header">
+      <PageHeader className="mb-header">
         <div>
           <p className="mb-eyebrow">Mortuary management / Members</p>
           <h1>Member management</h1>
           <p className="mb-description">Review registered members, check balances, and access claims and beneficiaries.</p>
         </div>
-      </header>
+      </PageHeader>
 
       <AttendanceMetricGrid label="Membership overview" items={[
         ['Total members', members.length.toLocaleString(), 'Registered mortuary fund participants', Users],
@@ -67,36 +72,36 @@ const MemberManagement = ({
         <div className="mb-filter-grid admin-member-filters">
           <label>
             Search members
-            <span className="mb-search">
+            <SearchField as="span" className="mb-search">
               <Search size={16} aria-hidden="true" />
-              <input value={searchQuery} onChange={e => updateFilter(setSearchQuery, e.target.value)} placeholder="Name or Passbook No." />
-            </span>
+              <TextInput unstyled value={searchQuery} onChange={e => updateFilter(setSearchQuery, e.target.value)} placeholder="Name or Passbook No." />
+            </SearchField>
           </label>
           <label>
             Membership status
-            <select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}>
+            <Select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}>
               <option value="all">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="deceased">Deceased</option>
-            </select>
+            </Select>
           </label>
         </div>
       </section>
 
-      <section className="mb-panel" aria-labelledby="admin-member-register-title">
-        <div className="mb-register-heading">
+      <Panel as="section" className="mb-panel" aria-labelledby="admin-member-register-title">
+        <PanelHeader as="div" className="mb-register-heading">
           <div>
             <h2 id="admin-member-register-title">Member directory</h2>
             <p>Membership details and current balances for mortuary fund participants.</p>
           </div>
-        </div>
+        </PanelHeader>
         <div className="mb-scope">
           <span role="status">{totalMembers.toLocaleString()} of {members.length.toLocaleString()} members</span>
           <span>{statusFilter === 'all' ? 'All membership statuses' : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} members`}</span>
         </div>
         <div className="mb-table-scroll" role="region" aria-label="Member directory" tabIndex={0}>
-          <table>
+          <DataTable>
             <thead>
               <tr>
                 <th scope="col">Member / Passbook</th>
@@ -121,24 +126,24 @@ const MemberManagement = ({
                   <td className="admin-member-join-date">{member.join_date || '—'}</td>
                   <td>
                       <div className="admin-member-actions">
-                        <button className="mb-button mb-ledger-button" onClick={() => setBeneficiaryMember(member)} aria-label={`View beneficiaries for ${member.name}`}>
+                        <ActionButton variant="outline" className="mb-button mb-ledger-button" onClick={() => setBeneficiaryMember(member)} aria-label={`View beneficiaries for ${member.name}`}>
                           <Heart size={14} aria-hidden="true" /> Beneficiaries
-                        </button>
-                        {setActiveTab && <button className="mb-button mb-ledger-button" onClick={() => setActiveTab('claims')} aria-label="Open claims">
+                        </ActionButton>
+                        {setActiveTab && <ActionButton variant="outline" className="mb-button mb-ledger-button" onClick={() => setActiveTab('claims')} aria-label="Open claims">
                           <FileText size={14} aria-hidden="true" /> Claims
-                        </button>}
+                        </ActionButton>}
                       </div>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         </div>
         {totalMembers === 0 && (
           <div className="mb-empty" role="status">
             <strong>{hasActiveFilters ? 'No members match these filters' : 'No members found'}</strong>
             <p>{hasActiveFilters ? 'Try a different name, passbook number, or membership status.' : 'Registered mortuary fund participants will appear here when records are available.'}</p>
-            {hasActiveFilters && <button className="mb-button" onClick={clearFilters}>Reset filters</button>}
+            {hasActiveFilters && <ActionButton variant="outline" className="mb-button" onClick={clearFilters}>Reset filters</ActionButton>}
           </div>
         )}
         <footer className="mb-pagination">
@@ -147,7 +152,7 @@ const MemberManagement = ({
             <Pagination currentPage={visiblePage} totalPages={totalPages} onPageChange={setPage} hasNextPage={visiblePage < totalPages} hasPrevPage={visiblePage > 1} />
           )}
         </footer>
-      </section>
+      </Panel>
       <p className="mb-footnote">View a member's beneficiaries from their row. Register or update records in the Beneficiaries tab.</p>
     </div>
   );

@@ -1,54 +1,12 @@
-import { motion } from 'framer-motion';
+import React from 'react';
+import { Button as SharedButton } from '../../ui/button';
 
-export default function Button({
-  children,
-  variant = 'primary',
-  size = 'md',
-  disabled = false,
-  loading = false,
-  icon: IconComponent,
-  onClick,
-  type = 'button',
-  className = '',
-  ...props
-}) {
-  const baseClasses = 'font-semibold rounded-lg transition-all duration-200 inline-flex items-center justify-center gap-2 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-coop-green focus-visible:ring-offset-2';
-  
-  const variants = {
-    primary: 'bg-coop-green hover:bg-coop-darkGreen text-white shadow-md hover:shadow-lg',
-    secondary: 'bg-slate-200 hover:bg-slate-300 text-slate-900',
-    ghost: 'text-slate-600 hover:text-coop-green hover:bg-slate-100',
-    danger: 'bg-red-600 hover:bg-red-700 text-white'
-  };
+const variants = { primary: 'default', secondary: 'secondary', ghost: 'ghost', danger: 'destructive', outline: 'outline' };
+const sizes = { md: 'default', sm: 'sm', lg: 'lg' };
 
-  const sizes = {
-    sm: 'h-9 px-3 text-sm',
-    md: 'h-11 px-4',
-    lg: 'h-12 px-6 text-lg'
-  };
-
-  const disabledClasses = 'opacity-50 cursor-not-allowed';
-
-  const buttonClasses = `
-    ${baseClasses}
-    ${variants[variant]}
-    ${sizes[size]}
-    ${disabled ? disabledClasses : ''}
-    ${className}
-  `.trim();
-
-  return (
-    <motion.button
-      type={type}
-      onClick={onClick}
-      disabled={disabled || loading}
-      className={buttonClasses}
-      whileHover={!disabled && !loading ? { y: -1 } : {}}
-      whileTap={!disabled && !loading ? { scale: 0.98 } : {}}
-      {...props}
-    >
-      {IconComponent && <IconComponent className="w-4 h-4" />}
-      {loading ? 'Loading...' : children}
-    </motion.button>
-  );
+export default function Button({ children, variant = 'primary', size = 'md', disabled = false, loading = false, icon: Icon, type = 'button', ...props }) {
+  return <SharedButton type={type} variant={variants[variant] || variant} size={sizes[size] || size}
+    disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
+    {Icon && <Icon size={16} aria-hidden="true" />}{loading ? 'Loading...' : children}
+  </SharedButton>;
 }

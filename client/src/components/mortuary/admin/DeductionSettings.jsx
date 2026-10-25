@@ -1,3 +1,5 @@
+import { Button as ActionButton } from '../../ui/button';
+import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Banknote, Pencil, History, Loader2 } from 'lucide-react';
 import { deductionSettingAPI } from '../../../services/api';
@@ -67,12 +69,12 @@ export default function DeductionSettings({ user }) {
                   </p>
                 </div>
               </div>
-              <button
+              <ActionButton variant="default"
                 onClick={() => setShowUpdateModal(true)}
                 className="td-button td-primary"
               >
                 <Pencil className="w-4 h-4" /> Update Rate
-              </button>
+              </ActionButton>
             </div>
           </div>
 
@@ -83,7 +85,7 @@ export default function DeductionSettings({ user }) {
               <p className="text-sm font-bold text-slate-900">Rate History</p>
             </div>
             <div className="fs-table-scroll" role="region" aria-label="Settings history" tabIndex={0}>
-              <table className="w-full">
+              <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th scope="col" className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Amount</th>
@@ -123,7 +125,7 @@ export default function DeductionSettings({ user }) {
                     </tr>
                   )}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
             {historyTotal > 0 && (
               <div className="fs-pagination">

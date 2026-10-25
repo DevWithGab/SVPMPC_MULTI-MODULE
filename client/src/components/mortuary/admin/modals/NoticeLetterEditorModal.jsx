@@ -1,3 +1,6 @@
+import { Button as ActionButton } from '../../../ui/button';
+import { Select, Textarea } from '../../../ui/input';
+import { ModalActions } from '../../../ui/workspace';
 import React, { useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from '../../shared/Modal';
@@ -57,14 +60,14 @@ export default function NoticeLetterEditorModal({ onClose, level, current, onSav
     <Modal isOpen onClose={submitting ? () => {} : onClose} title={'Edit ' + title} maxWidth="max-w-3xl">
       <div className="space-y-4">
         <p className="text-sm text-slate-600">Edit the message and closing paragraphs below. The cooperative letterhead, member fields, date, and configured manager name are filled automatically. Change the manager name in Notice Content settings.</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="text-sm">Insert automatic field <select disabled={submitting || preview} value="" onChange={event => insertField(event.target.value)} className="border border-slate-300 rounded px-2 py-1 ml-2"><option value="">Choose a field</option>{fields.map(([token, label]) => <option key={token} value={token}>{label}</option>)}</select></label>
-          <button type="button" disabled={submitting} onClick={() => setPreview(!preview)} className="td-button">{preview ? 'Back to editing' : 'Preview notice'}</button>
+        <ModalActions className="flex flex-wrap items-center gap-3">
+          <label className="text-sm">Insert automatic field <Select disabled={submitting || preview} value="" onChange={event => insertField(event.target.value)} className="border border-slate-300 rounded px-2 py-1 ml-2"><option value="">Choose a field</option>{fields.map(([token, label]) => <option key={token} value={token}>{label}</option>)}</Select></label>
+          <ActionButton variant="outline" type="button" disabled={submitting} onClick={() => setPreview(!preview)} className="td-button">{preview ? 'Back to editing' : 'Preview notice'}</ActionButton>
           <button type="button" disabled={submitting} onClick={() => setContent(getNoticeMessageTemplate(null, level))} className="text-xs text-emerald-700 underline">Reset to cooperative wording</button>
-        </div>
-        {preview ? <iframe title="Notice preview with sample member details" sandbox="" srcDoc={previewDocument} className="w-full h-[460px] border border-slate-300 bg-white" /> : <label className="block text-sm font-medium">Notice message<textarea ref={input} value={content} onChange={event => setContent(event.target.value)} disabled={submitting} maxLength={10000} rows={12} className="mt-2 w-full border border-slate-300 rounded p-3 text-sm leading-7" /><span className="text-xs text-slate-500">Separate paragraphs with a blank line. Fields in braces are filled with the member's actual details. Placeholders can't be deleted — these must stay in the letter: {required.map(key => '{' + key + '}').join(', ')}.</span></label>}
+        </ModalActions>
+        {preview ? <iframe title="Notice preview with sample member details" sandbox="" srcDoc={previewDocument} className="w-full h-[460px] border border-slate-300 bg-white" /> : <label className="block text-sm font-medium">Notice message<Textarea ref={input} value={content} onChange={event => setContent(event.target.value)} disabled={submitting} maxLength={10000} rows={12} className="mt-2 w-full border border-slate-300 rounded p-3 text-sm leading-7" /><span className="text-xs text-slate-500">Separate paragraphs with a blank line. Fields in braces are filled with the member's actual details. Placeholders can't be deleted — these must stay in the letter: {required.map(key => '{' + key + '}').join(', ')}.</span></label>}
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <div className="flex gap-3"><Button type="button" variant="secondary" onClick={onClose} disabled={submitting} className="flex-1">Cancel</Button><Button type="button" onClick={save} disabled={submitting} className="flex-1">{submitting && <Loader2 className="w-4 h-4 animate-spin" />}Save Content</Button></div>
+        <ModalActions className="flex gap-3"><Button type="button" variant="secondary" onClick={onClose} disabled={submitting} className="flex-1">Cancel</Button><Button type="button" onClick={save} disabled={submitting} className="flex-1">{submitting && <Loader2 className="w-4 h-4 animate-spin" />}Save Content</Button></ModalActions>
       </div>
     </Modal>
   );

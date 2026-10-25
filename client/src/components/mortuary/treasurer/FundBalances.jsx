@@ -1,3 +1,4 @@
+import { PageHeader } from '../../ui/workspace';
 import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, Users, DollarSign, AlertTriangle, Minus, 
@@ -98,7 +99,7 @@ export default function FundBalances({ user }) {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <PageHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-950 tracking-tight">Fund Balances</h1>
           <p className="text-slate-500 text-sm font-bold mt-1">Monitor all member fund balances and process deductions</p>
@@ -131,7 +132,7 @@ export default function FundBalances({ user }) {
             Refresh
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

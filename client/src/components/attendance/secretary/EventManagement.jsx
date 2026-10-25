@@ -1,3 +1,6 @@
+import { SearchField } from '../../ui/workspace';
+import { Input as TextInput, Select, Textarea } from '../../ui/input';
+import { PageHeader, FormField, ModalActions } from '../../ui/workspace';
 import React, { useState, useEffect, useRef } from "react";
 import {
   Calendar,
@@ -459,7 +462,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
 
   return (
     <div className="event-management space-y-6 pb-12">
-      <header className="em-header">
+      <PageHeader className="em-header">
         <div>
           <p className="em-eyebrow">Attendance management / Events</p>
           <h1>Event management</h1>
@@ -488,7 +491,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
             <Plus size={16} /> Create event
           </button>
         </div>
-      </header>
+      </PageHeader>
       {loadError && (
         <div className="em-notice em-error" role="alert">
           <span>{loadError} The list may be out of date.</span>
@@ -555,9 +558,9 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         <div className="em-filter-grid">
           <label>
             Search events
-            <div className="em-search">
+            <SearchField as="div" className="em-search">
               <Search size={16} />
-              <input
+              <TextInput unstyled
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -565,11 +568,11 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 }}
                 placeholder="Event name or location"
               />
-            </div>
+            </SearchField>
           </label>
           <label>
             Status
-            <select
+            <Select
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
@@ -582,11 +585,11 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Sort by
-            <select
+            <Select
               value={sortOrder}
               onChange={(e) => {
                 setSortOrder(e.target.value);
@@ -596,7 +599,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               <option value="newest">Event date: newest first</option>
               <option value="oldest">Event date: oldest first</option>
               <option value="name">Event name: A–Z</option>
-            </select>
+            </Select>
           </label>
         </div>
       </section>
@@ -892,7 +895,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
           )}
           <fieldset disabled={loading} className="space-y-4">
             <legend className="sr-only">Event details</legend>
-            <div>
+            <FormField>
               <label
                 htmlFor="em-create-name"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -910,15 +913,15 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 required
                 className="border-slate-200 rounded-lg"
               />
-            </div>
-            <div>
+            </FormField>
+            <FormField>
               <label
                 htmlFor="em-create-description"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
               >
                 Description (optional)
               </label>
-              <textarea
+              <Textarea
                 id="em-create-description"
                 value={newEvent.description}
                 onChange={(e) =>
@@ -928,9 +931,9 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 rows={3}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               />
-            </div>
+            </FormField>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
+              <FormField>
                 <label
                   htmlFor="em-create-date"
                   className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -947,8 +950,8 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                   required
                   className="border-slate-200 rounded-lg"
                 />
-              </div>
-              <div>
+              </FormField>
+              <FormField>
                 <label
                   htmlFor="em-create-startTime"
                   className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -965,8 +968,8 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                   required
                   className="border-slate-200 rounded-lg"
                 />
-              </div>
-              <div>
+              </FormField>
+              <FormField>
                 <label
                   htmlFor="em-create-endTime"
                   className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -983,9 +986,9 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                   required
                   className="border-slate-200 rounded-lg"
                 />
-              </div>
+              </FormField>
             </div>
-            <div>
+            <FormField>
               <label
                 htmlFor="em-create-location"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -1003,13 +1006,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 required
                 className="border-slate-200 rounded-lg"
               />
-            </div>
+            </FormField>
           </fieldset>
           <p className="em-footnote">
             All fields except description are required. End time must follow
             start time on the same day.
           </p>
-          <div className="flex gap-3 pt-4">
+          <ModalActions className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -1034,7 +1037,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 </>
               )}
             </Button>
-          </div>
+          </ModalActions>
         </form>
       </Modal>
 
@@ -1057,7 +1060,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
           )}
           <fieldset disabled={loading} className="space-y-4">
             <legend className="sr-only">Event details</legend>
-            <div>
+            <FormField>
               <label
                 htmlFor="em-edit-name"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -1075,15 +1078,15 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 required
                 className="border-slate-200 rounded-lg"
               />
-            </div>
-            <div>
+            </FormField>
+            <FormField>
               <label
                 htmlFor="em-edit-description"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
               >
                 Description (optional)
               </label>
-              <textarea
+              <Textarea
                 id="em-edit-description"
                 value={newEvent.description}
                 onChange={(e) =>
@@ -1093,9 +1096,9 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 rows={3}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
               />
-            </div>
+            </FormField>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
+              <FormField>
                 <label
                   htmlFor="em-edit-date"
                   className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -1112,8 +1115,8 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                   required
                   className="border-slate-200 rounded-lg"
                 />
-              </div>
-              <div>
+              </FormField>
+              <FormField>
                 <label
                   htmlFor="em-edit-startTime"
                   className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -1130,8 +1133,8 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                   required
                   className="border-slate-200 rounded-lg"
                 />
-              </div>
-              <div>
+              </FormField>
+              <FormField>
                 <label
                   htmlFor="em-edit-endTime"
                   className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -1148,9 +1151,9 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                   required
                   className="border-slate-200 rounded-lg"
                 />
-              </div>
+              </FormField>
             </div>
-            <div>
+            <FormField>
               <label
                 htmlFor="em-edit-location"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
@@ -1168,13 +1171,13 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 required
                 className="border-slate-200 rounded-lg"
               />
-            </div>
+            </FormField>
           </fieldset>
           <p className="em-footnote">
             All fields except description are required. End time must follow
             start time on the same day.
           </p>
-          <div className="flex gap-3 pt-4">
+          <ModalActions className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -1199,7 +1202,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 </>
               )}
             </Button>
-          </div>
+          </ModalActions>
         </form>
       </Modal>
 
@@ -1312,7 +1315,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               . Only pending workflow events can be cancelled.
             </p>
           </div>
-          <div className="flex gap-3">
+          <ModalActions className="flex gap-3">
             <Button
               type="button"
               variant="outline"
@@ -1339,7 +1342,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
                 </>
               )}
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
 

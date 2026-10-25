@@ -1,3 +1,5 @@
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput } from '../../ui/input';
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileEdit, Loader2 } from 'lucide-react';
 import { noticeThresholdSettingAPI } from '../../../services/api';
@@ -42,12 +44,12 @@ export default function NoticeContentSettings() {
       <p className="fs-section-description">Edit the messages used in printed and downloaded notices. The official cooperative layout and automatic member details are preserved. First and second notices share the same message.</p>
       {!loading && !error && current && <form onSubmit={saveManager} className="fs-panel mb-5 space-y-3">
         <div><p className="text-sm font-bold text-slate-900">Notice manager</p><p className="text-xs text-slate-500 mt-1">Used in the manager block and the {'{managerName}'} field on all three notices. Update this when the manager changes.</p></div>
-        <div className="flex flex-wrap items-end gap-3"><label className="text-sm font-medium flex-1 min-w-48">Manager name<input value={managerName} onChange={event => { setManagerName(event.target.value); setManagerSaved(false); setManagerError(''); }} required maxLength={100} disabled={savingManager} className="block mt-2 w-full border border-slate-300 rounded px-3 py-2" /></label><button type="submit" disabled={savingManager || managerName.trim() === getNoticeManagerName(current)} className="td-button td-primary">{savingManager ? 'Saving...' : 'Save Manager Name'}</button></div>
+        <div className="flex flex-wrap items-end gap-3"><label className="text-sm font-medium flex-1 min-w-48">Manager name<TextInput value={managerName} onChange={event => { setManagerName(event.target.value); setManagerSaved(false); setManagerError(''); }} required maxLength={100} disabled={savingManager} className="block mt-2 w-full border border-slate-300 rounded px-3 py-2" /></label><ActionButton variant="default" type="submit" disabled={savingManager || managerName.trim() === getNoticeManagerName(current)} className="td-button td-primary">{savingManager ? 'Saving...' : 'Save Manager Name'}</ActionButton></div>
         {managerError && <p role="alert" className="text-sm text-red-600">{managerError}</p>}
         {managerSaved && <p role="status" className="text-sm text-emerald-700">Manager name saved for all notices.</p>}
       </form>}
-      {loading ? <div className="fs-loading" role="status" aria-label="Loading notice content"><Loader2 className="w-6 h-6 animate-spin" /></div> : error ? <div role="alert" className="text-sm text-red-600">{error}<button className="td-button ml-3" onClick={load}>Retry</button></div> : <div className="fs-notice-grid">
-        {[[1, 'First & Second Notice Content'], [3, 'Final Notice Content']].map(([level, title]) => <div key={level} className="fs-panel fs-notice-card"><div className="fs-notice-heading"><p className="text-sm font-bold text-slate-900">{title}</p><button className="td-button" onClick={() => setEditingLevel(level)}><FileEdit className="w-3.5 h-3.5" />Edit Content</button></div><p className="fs-notice-preview line-clamp-6 whitespace-pre-line">{getNoticeMessageTemplate(current, level)}</p></div>)}
+      {loading ? <div className="fs-loading" role="status" aria-label="Loading notice content"><Loader2 className="w-6 h-6 animate-spin" /></div> : error ? <div role="alert" className="text-sm text-red-600">{error}<ActionButton variant="outline" className="td-button ml-3" onClick={load}>Retry</ActionButton></div> : <div className="fs-notice-grid">
+        {[[1, 'First & Second Notice Content'], [3, 'Final Notice Content']].map(([level, title]) => <div key={level} className="fs-panel fs-notice-card"><div className="fs-notice-heading"><p className="text-sm font-bold text-slate-900">{title}</p><ActionButton variant="outline" className="td-button" onClick={() => setEditingLevel(level)}><FileEdit className="w-3.5 h-3.5" />Edit Content</ActionButton></div><p className="fs-notice-preview line-clamp-6 whitespace-pre-line">{getNoticeMessageTemplate(current, level)}</p></div>)}
       </div>}
       {editingLevel !== null && current && <NoticeLetterEditorModal key={editingLevel} level={editingLevel} current={current} onClose={() => setEditingLevel(null)} onSaved={load} />}
     </div>

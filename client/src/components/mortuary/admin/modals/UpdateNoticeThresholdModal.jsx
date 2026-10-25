@@ -1,3 +1,5 @@
+import { Textarea } from '../../../ui/input';
+import { FormField, ModalActions } from '../../../ui/workspace';
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from '../../shared/Modal';
@@ -106,60 +108,60 @@ export default function UpdateNoticeThresholdModal({ isOpen, onClose, current, u
           itself, use "Edit Document" instead.
         </p>
 
-        <div>
+        <FormField>
           <label className="text-sm font-semibold text-slate-700 mb-1.5 block">
             Target Balance (₱) <span className="text-red-500">*</span>
           </label>
           <Input type="text" inputMode="decimal" value={form.targetBalance} onChange={setField('targetBalance')} placeholder="1000" />
           <p className="text-xs text-slate-400 mt-1">The sustaining balance referenced in the printed letter (e.g. "deposit enough to reach ₱1,000").</p>
-        </div>
+        </FormField>
 
         <div className="grid grid-cols-2 gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
           <div className="col-span-2 text-xs font-bold text-amber-700 uppercase tracking-wide">Notice 1 range</div>
-          <div>
+          <FormField>
             <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Minimum (₱)</label>
             <Input type="text" inputMode="decimal" value={form.notice1Min} onChange={setField('notice1Min')} placeholder="700" />
-          </div>
-          <div>
+          </FormField>
+          <FormField>
             <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Maximum (₱)</label>
             <Input type="text" inputMode="decimal" value={form.notice1Max} onChange={setField('notice1Max')} placeholder="900" />
-          </div>
+          </FormField>
         </div>
 
         <div className="grid grid-cols-2 gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
           <div className="col-span-2 text-xs font-bold text-red-700 uppercase tracking-wide">Notice 2 range</div>
-          <div>
+          <FormField>
             <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Minimum (₱)</label>
             <Input type="text" inputMode="decimal" value={form.notice2Min} onChange={setField('notice2Min')} placeholder="300" />
-          </div>
-          <div>
+          </FormField>
+          <FormField>
             <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Maximum (₱)</label>
             <Input type="text" inputMode="decimal" value={form.notice2Max} onChange={setField('notice2Max')} placeholder="699" />
-          </div>
+          </FormField>
         </div>
         <p className="text-xs text-slate-400 -mt-2">
           Below the Notice 2 minimum is always the <span className="font-semibold">Final Notice</span> (negative balances included).
         </p>
 
-        <div>
+        <FormField>
           <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Effective Date</label>
           <Input type="date" value={form.effectiveDate} onChange={setField('effectiveDate')} />
-        </div>
+        </FormField>
 
-        <div>
+        <FormField>
           <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Description (optional)</label>
-          <textarea
+          <Textarea
             value={form.description}
             onChange={setField('description')}
             rows={2}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
             placeholder="e.g. Board resolution #14, series 2026"
           />
-        </div>
+        </FormField>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="flex gap-3 pt-1">
+        <ModalActions className="flex gap-3 pt-1">
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1" disabled={submitting}>
             Cancel
           </Button>
@@ -167,7 +169,7 @@ export default function UpdateNoticeThresholdModal({ isOpen, onClose, current, u
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Save New Thresholds
           </Button>
-        </div>
+        </ModalActions>
       </form>
     </Modal>
   );

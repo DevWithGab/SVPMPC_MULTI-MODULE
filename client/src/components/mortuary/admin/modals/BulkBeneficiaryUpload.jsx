@@ -1,3 +1,4 @@
+import { Table as DataTable } from '../../../ui/table';
 import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '../../../ui/button';
@@ -87,7 +88,7 @@ export default function BulkBeneficiaryUpload({ onClose, onImported }) {
           {!!summary.failed && <p className="mt-2 text-amber-800">Some rows could not finish. Preview and import the same file again to finish them safely.</p>}
         </div>}
         {!!result?.rows?.length && <div className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
+          <DataTable className="w-full text-left text-sm">
             <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>
               {['Row', 'Member', 'Beneficiary', 'Relationship', 'Contact', 'Result'].map(label => <th key={label} className="px-3 py-3">{label}</th>)}
             </tr></thead>
@@ -99,7 +100,7 @@ export default function BulkBeneficiaryUpload({ onClose, onImported }) {
               <td className="px-3 py-3 whitespace-nowrap">{row.entry.contactNumber}</td>
               <td className={`px-3 py-3 ${row.errors.length ? 'text-rose-700' : 'text-slate-700'}`}><p className="font-medium">{statusLabels[row.status]}</p>{row.errors.map(message => <p key={message} className="text-xs mt-1">{message}</p>)}</td>
             </tr>)}</tbody>
-          </table>
+          </DataTable>
         </div>}
     </BulkUploadDialog>
   );

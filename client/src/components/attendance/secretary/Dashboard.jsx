@@ -1,3 +1,6 @@
+import { Button as ActionButton } from '../../ui/button';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, RefreshCw, Loader2, Clock, Users, Activity, Calendar } from 'lucide-react';
 import { attendanceAPI, eventAPI } from '../../../services/api';
@@ -21,7 +24,7 @@ function DataState({ loading, error, emptyTitle, emptyDescription, onRetry }) {
     {loading && <Loader2 size={19} className="animate-spin" aria-hidden="true" />}
     <strong>{loading ? 'Loading records…' : error ? 'Unable to load this section' : emptyTitle}</strong>
     <p>{loading ? 'Preparing the latest overview.' : error ? 'Retry to see complete, up-to-date records.' : emptyDescription}</p>
-    {error && !loading && <button className="sd-button" onClick={onRetry}>Retry</button>}
+    {error && !loading && <ActionButton variant="outline" className="sd-button" onClick={onRetry}>Retry</ActionButton>}
   </div>;
 }
 
@@ -82,13 +85,13 @@ export default function SecretaryDashboard({ attendanceLogs, events: initialEven
   ];
 
   return <div className="secretary-dashboard">
-    <header className="sd-header">
+    <PageHeader className="sd-header">
       <div><p className="sd-eyebrow">Attendance management / Overview</p><h1>Attendance dashboard</h1><p className="sd-description">{formatLongDate(now)} <span>· Philippine time</span></p></div>
       <div className="sd-header-actions">
-        <button className="sd-button" onClick={retry} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</button>
-        <button className="sd-button sd-primary" onClick={() => setActiveTab('events')}>Manage events <ArrowRight size={15} aria-hidden="true" /></button>
+        <ActionButton variant="outline" className="sd-button" onClick={retry} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
+        <ActionButton variant="default" className="sd-button sd-primary" onClick={() => setActiveTab('events')}>Manage events <ArrowRight size={15} aria-hidden="true" /></ActionButton>
       </div>
-    </header>
+    </PageHeader>
 
     <AttendanceMetricGrid label="Attendance overview" busy={refreshing} items={[
         ["Today's attendance", metric(todayAttendance, 'attendance'), 'Records dated today in PHT', Clock],
@@ -100,41 +103,41 @@ export default function SecretaryDashboard({ attendanceLogs, events: initialEven
 
     <div className="sd-workspace">
       <div className="sd-main">
-        <section className="sd-panel" aria-labelledby="sd-schedule-title">
-          <div className="sd-panel-heading"><div><h2 id="sd-schedule-title">Event schedule</h2><p>Active events first, followed by the next scheduled assemblies.</p></div><button className="sd-link" onClick={() => setActiveTab('events')}>All events <ArrowRight size={14} aria-hidden="true" /></button></div>
+        <Panel as="section" className="sd-panel" aria-labelledby="sd-schedule-title">
+          <PanelHeader as="div" className="sd-panel-heading"><div><h2 id="sd-schedule-title">Event schedule</h2><p>Active events first, followed by the next scheduled assemblies.</p></div><button className="sd-link" onClick={() => setActiveTab('events')}>All events <ArrowRight size={14} aria-hidden="true" /></button></PanelHeader>
           {eventReady && agenda.length ? <>
-            <div className="sd-table-scroll" role="region" aria-label="Event schedule" tabIndex={0}><table className="sd-schedule-table"><thead><tr><th scope="col">Event</th><th scope="col">Schedule (PHT)</th><th scope="col">Status</th></tr></thead><tbody>
+            <div className="sd-table-scroll" role="region" aria-label="Event schedule" tabIndex={0}><DataTable className="sd-schedule-table"><thead><tr><th scope="col">Event</th><th scope="col">Schedule (PHT)</th><th scope="col">Status</th></tr></thead><tbody>
               {agenda.slice(0, 5).map((event, index) => <tr key={event.eventId || event.id || event._id || index}>
                 <td><strong>{eventName(event)}</strong><span className="sd-secondary">{event.location || 'Location not recorded'}</span></td>
                 <td>{displayDate(eventTime(event))}<span className="sd-secondary">{formatTimeRange(event.startTime || event.eventTime, event.endTime) || 'Time not recorded'}</span></td>
                 <td><Status status={event.status} /></td>
               </tr>)}
-            </tbody></table></div>
+            </tbody></DataTable></div>
             <div className="sd-panel-footer">Showing {Math.min(agenda.length, 5)} of {agenda.length} active and upcoming events.</div>
           </> : <DataState loading={loading.events} error={errors.events} onRetry={retry} emptyTitle="No active or upcoming events" emptyDescription="Open Event Management to review approvals or schedule an assembly." />}
-        </section>
+        </Panel>
 
-        <section className="sd-panel" aria-labelledby="sd-attendance-title">
-          <div className="sd-panel-heading"><div><h2 id="sd-attendance-title">Latest attendance</h2><p>The five most recent attendance entries across all events.</p></div><button className="sd-link" onClick={() => setActiveTab('live')}>Live attendance <ArrowRight size={14} aria-hidden="true" /></button></div>
-          {attendanceReady && latest.length ? <div className="sd-table-scroll" role="region" aria-label="Latest attendance" tabIndex={0}><table className="sd-attendance-table"><thead><tr><th scope="col">Member</th><th scope="col">Event</th><th scope="col">Recorded (PHT)</th></tr></thead><tbody>
+        <Panel as="section" className="sd-panel" aria-labelledby="sd-attendance-title">
+          <PanelHeader as="div" className="sd-panel-heading"><div><h2 id="sd-attendance-title">Latest attendance</h2><p>The five most recent attendance entries across all events.</p></div><button className="sd-link" onClick={() => setActiveTab('live')}>Live attendance <ArrowRight size={14} aria-hidden="true" /></button></PanelHeader>
+          {attendanceReady && latest.length ? <div className="sd-table-scroll" role="region" aria-label="Latest attendance" tabIndex={0}><DataTable className="sd-attendance-table"><thead><tr><th scope="col">Member</th><th scope="col">Event</th><th scope="col">Recorded (PHT)</th></tr></thead><tbody>
             {latest.slice(0, 5).map((record, index) => <tr key={record._id || record.id || index}>
               <td><strong>{record.memberName || record.member_name || record.name || 'Unknown member'}</strong><span className="sd-secondary">Passbook: {record.memberId || record.member_id || 'Not recorded'}</span></td>
               <td>{record.eventName || record.event_name || (typeof record.event === 'string' ? record.event : '') || 'Event not recorded'}</td>
               <td>{displayDate(recordTime(record))}<span className="sd-secondary">{validTimestamp(recordTime(record)) ? formatTime(recordTime(record)) : 'Time not recorded'}</span></td>
             </tr>)}
-          </tbody></table></div> : <DataState loading={loading.attendance} error={errors.attendance} onRetry={retry} emptyTitle="No attendance recorded" emptyDescription="New attendance entries will appear here after members check in." />}
-        </section>
+          </tbody></DataTable></div> : <DataState loading={loading.attendance} error={errors.attendance} onRetry={retry} emptyTitle="No attendance recorded" emptyDescription="New attendance entries will appear here after members check in." />}
+        </Panel>
       </div>
 
       <aside className="sd-sidebar">
-        <section className="sd-panel" aria-labelledby="sd-workflow-title">
-          <div className="sd-panel-heading"><div><h2 id="sd-workflow-title">Event workflow</h2><p>Review and approval across all events.</p></div></div>
+        <Panel as="section" className="sd-panel" aria-labelledby="sd-workflow-title">
+          <PanelHeader as="div" className="sd-panel-heading"><div><h2 id="sd-workflow-title">Event workflow</h2><p>Review and approval across all events.</p></div></PanelHeader>
           {eventReady ? <>
             <dl className="sd-workflow">{workflow.map(([status, label, description]) => <div key={status}><dt><span>{label}</span><small>{description}</small></dt><dd className={status === 'rejected' && counts[status] ? 'sd-revision-count' : ''}>{(counts[status] || 0).toLocaleString()}</dd></div>)}</dl>
             <div className="sd-workflow-footer"><button className="sd-link" onClick={() => setActiveTab('events')}>Open event register <ArrowRight size={14} aria-hidden="true" /></button></div>
             <details className="sd-status-details"><summary>All event statuses <span>{events.length.toLocaleString()} total</span></summary><dl>{Object.entries({ ...eventStatusLabels, unknown: 'Not recorded', ...Object.fromEntries(Object.keys(counts).filter(key => !eventStatusLabels[key] && key !== 'unknown').map(key => [key, key])) }).map(([status, label]) => <div key={status}><dt>{label}</dt><dd>{(counts[status] || 0).toLocaleString()}</dd></div>)}</dl></details>
           </> : <DataState loading={loading.events} error={errors.events} onRetry={retry} />}
-        </section>
+        </Panel>
 
         <nav className="sd-tools" aria-label="Attendance workspace">
           <h2>Workspace</h2>

@@ -1,3 +1,4 @@
+import { Input as TextInput } from '../../ui/input';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight } from 'lucide-react';
@@ -39,7 +40,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
       >
         <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
         {isOpen ? (
-          <input
+          <TextInput
             autoFocus
             aria-label={ariaLabel}
             type="text"

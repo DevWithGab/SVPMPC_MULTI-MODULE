@@ -1,3 +1,4 @@
+import { Input as TextInput } from '../../ui/input';
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, X, Users, CheckCircle2, XCircle } from "lucide-react";
 import { formatDate } from "../../../utils/date";
@@ -133,7 +134,7 @@ export default function EventAttendeesPanel({
       <div className="px-6 py-4 flex flex-col sm:flex-row gap-3 sm:items-center border-b border-slate-100">
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
+          <TextInput
             type="text"
             aria-label="Search members by name or passbook number"
             value={search}

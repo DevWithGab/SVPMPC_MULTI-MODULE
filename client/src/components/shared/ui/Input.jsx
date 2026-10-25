@@ -1,97 +1,23 @@
-import { motion } from "framer-motion";
-import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import React, { useId, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { Input as SharedInput } from '../../ui/input';
+import { FormField } from '../../ui/workspace';
 
-export default function Input({
-  label,
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  disabled = false,
-  required = false,
-  icon: IconComponent,
-  showPasswordToggle = false,
-  error,
-  className = "",
-  autoComplete,
-  ...props
-}) {
+export default function Input({ label, type = 'text', disabled = false, required = false, icon: Icon, showPasswordToggle = false, error, className = '', autoComplete, id, ...props }) {
   const [showPassword, setShowPassword] = useState(false);
-  const inputType = showPasswordToggle
-    ? showPassword
-      ? "text"
-      : "password"
-    : type;
-  const autocompleteValue =
-    autoComplete ?? (inputType === "password" ? "current-password" : undefined);
-
-  return (
-    <div className="space-y-2">
-      {label && (
-        <label className="block text-sm font-semibold text-slate-900">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-      )}
-
-      <motion.div
-        className="relative group"
-        whileHover={{ y: -1 }}
-        whileFocus={{ y: -1 }}
-      >
-        {IconComponent && (
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <IconComponent className="w-4 h-4 text-slate-400 group-hover:text-coop-green transition-colors" />
-          </div>
-        )}
-
-        <input
-          type={inputType}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          disabled={disabled}
-          required={required}
-          autoComplete={autocompleteValue}
-          className={`
-            w-full h-11 bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 
-            focus:outline-none focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green 
-            hover:border-slate-300 transition-all shadow-sm
-            ${IconComponent ? "pl-10" : "pl-4"}
-            ${showPasswordToggle ? "pr-10" : "pr-4"}
-            ${error ? "border-red-300 focus:border-red-500 focus:ring-red-200" : ""}
-            ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-            ${className}
-          `.trim()}
-          {...props}
-        />
-
-        {showPasswordToggle && (
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-coop-green transition-colors"
-            disabled={disabled}
-          >
-            {showPassword ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
-          </button>
-        )}
-      </motion.div>
-
-      {error && (
-        <motion.p
-          className="text-red-600 text-sm"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {error}
-        </motion.p>
-      )}
+  const generatedId = useId();
+  const inputId = id || `input-${generatedId}`;
+  const inputType = showPasswordToggle ? (showPassword ? 'text' : 'password') : type;
+  const describedBy = [props['aria-describedby'], error ? `${inputId}-error` : null].filter(Boolean).join(' ') || undefined;
+  return <FormField id={inputId} label={label} required={required} error={error}>
+    <div className="ui-input-group" data-icon={Boolean(Icon)} data-toggle={showPasswordToggle}>
+      {Icon && <span className="ui-input-icon"><Icon size={16} aria-hidden="true" /></span>}
+      <SharedInput {...props} id={inputId} type={inputType} disabled={disabled} required={required}
+        autoComplete={autoComplete ?? (inputType === 'password' ? 'current-password' : undefined)}
+        aria-invalid={error ? true : props['aria-invalid']} aria-describedby={describedBy} className={className} />
+      {showPasswordToggle && <button type="button" className="ui-input-toggle" onClick={() => setShowPassword(value => !value)} disabled={disabled} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+        {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+      </button>}
     </div>
-  );
+  </FormField>;
 }

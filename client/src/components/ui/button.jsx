@@ -1,8 +1,9 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
+import './design-system.css';
 
 const buttonVariants = {
-  default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+  default: 'bg-coop-green text-white hover:bg-coop-darkGreen',
   destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
   secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
@@ -26,8 +27,10 @@ const Button = React.forwardRef(({
   return (
     <button
       ref={ref}
+      data-ui-button
+      data-ui-size={size}
       className={cn(
-        'inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100',
+        'ui-button inline-flex items-center justify-center border border-transparent rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none disabled:opacity-50',
         buttonVariants[variant],
         buttonSizes[size],
         className,

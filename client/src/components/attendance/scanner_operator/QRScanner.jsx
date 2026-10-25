@@ -1,3 +1,6 @@
+import { Button as ActionButton } from '../../ui/button';
+import { Select, Textarea } from '../../ui/input';
+import { PageHeader, FormField, ModalActions } from '../../ui/workspace';
 import React, {
   useState,
   useRef,
@@ -784,14 +787,14 @@ export default function QRScanner({
 
   return (
     <div className="operator-qr-scanner">
-      <header className="oqs-header">
+      <PageHeader className="oqs-header">
         <h1>Scan attendance</h1>
         <p>Select the event, then scan each member's QR code.</p>
-      </header>
+      </PageHeader>
       <section className="oqs-event" aria-label="Scanning event">
-        <div className="oqs-event-field">
+        <FormField className="oqs-event-field">
           <label htmlFor="oqs-event">Event</label>
-          <select
+          <Select
             id="oqs-event"
             value={selectedEventId}
             disabled={isScanning || isStartingCamera || !hasActiveEvent}
@@ -807,14 +810,14 @@ export default function QRScanner({
             {activeEvents.map(event => (
               <option key={event.eventId} value={event.eventId}>{event.eventName}</option>
             ))}
-          </select>
+          </Select>
           {selectedEvent && (
             <p>{[
               selectedEvent.eventDate ? formatDate(selectedEvent.eventDate) : "",
               selectedEvent.location,
             ].filter(Boolean).join(" / ")}</p>
           )}
-        </div>
+        </FormField>
         <span className={`oqs-camera-status ${isScanning ? "is-live" : ""}`}>
           <span aria-hidden="true" />{isScanning ? "Camera on" : "Camera off"}
         </span>
@@ -870,9 +873,9 @@ export default function QRScanner({
                 {isStartingCamera ? "Cancel camera" : isScanning ? "Stop camera" : "Start camera"}
               </button>
               {isScanning && flashSupported && (
-                <button type="button" className="oqs-button oqs-button-secondary" onClick={toggleFlash} aria-pressed={flashOn}>
+                <ActionButton variant="outline" type="button" className="oqs-button oqs-button-secondary" onClick={toggleFlash} aria-pressed={flashOn}>
                   <Zap size={16} aria-hidden="true" />Flash {flashOn ? "on" : "off"}
-                </button>
+                </ActionButton>
               )}
             </div>
             <p className="oqs-scan-status" role="status" aria-live="polite">{statusMessage}</p>
@@ -1040,14 +1043,14 @@ export default function QRScanner({
         )}
 
         <div className="space-y-4">
-          <div>
+          <FormField>
             <label
               htmlFor="oqs-manual-reason"
               className="block text-sm font-semibold text-slate-700 mb-1.5"
             >
               Reason <span className="text-red-500">*</span>
             </label>
-            <textarea
+            <Textarea
               id="oqs-manual-reason"
               maxLength={1000}
               value={manualReason}
@@ -1061,9 +1064,9 @@ export default function QRScanner({
               This reason will be logged for audit purposes, along with your
               name and the time.
             </p>
-          </div>
+          </FormField>
 
-          <div className="flex gap-3 pt-1">
+          <ModalActions className="flex gap-3 pt-1">
             <Button
               type="button"
               variant="outline"
@@ -1088,7 +1091,7 @@ export default function QRScanner({
                 "Confirm Attendance"
               )}
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
 

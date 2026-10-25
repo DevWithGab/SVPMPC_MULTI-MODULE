@@ -1,5 +1,6 @@
+import { DialogHeader, ModalActions } from '../ui/workspace';
 import { useEffect, useRef } from 'react';
-import { X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { auditChanges, auditRows, readableLabel, outcomeLabel } from '../../utils/auditDetails';
 import { formatDateTime } from '../../utils/date';
 import './AuditLogDetails.css';
@@ -23,13 +24,10 @@ export default function AuditLogDetails({ log, module, actionLabel, onClose }) {
   const StatusIcon = log.status === 'success' ? CheckCircle : log.status === 'partial' ? Clock : AlertCircle;
   const statusClass = ['success', 'failed', 'partial'].includes(log.status) ? log.status : 'unknown';
   return (
-    <dialog ref={ref} className="audit-detail" aria-labelledby="audit-detail-heading" onCancel={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <dialog ref={ref} className="audit-detail ui-dialog" aria-labelledby="audit-detail-heading" onCancel={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="audit-detail-shell">
-        <header className="audit-detail-header">
-          <div><p>{readableLabel(module)} activity</p><h2 id="audit-detail-heading">{actionLabel(log.action)}</h2></div>
-          <button type="button" className="audit-detail-close" onClick={onClose} aria-label="Close activity details"><X size={20} /></button>
-        </header>
-        <div className="audit-detail-body">
+        <DialogHeader title={actionLabel(log.action)} titleId="audit-detail-heading" eyebrow={`${readableLabel(module)} activity`} onClose={onClose} closeLabel="Close activity details" />
+        <div className="ui-dialog-body audit-detail-body">
           <section className="audit-detail-summary" aria-label="Activity overview">
             <span className={`audit-outcome audit-outcome-${statusClass}`}><StatusIcon size={16} />{outcomeLabel(log.status)}</span>
             <p className="audit-detail-story">{log.description || 'No description was recorded for this activity.'}</p>
@@ -58,7 +56,7 @@ export default function AuditLogDetails({ log, module, actionLabel, onClose }) {
             <div><dt>IP address</dt><dd>{log.ipAddress || 'Not recorded'}</dd></div>
           </dl></details>
         </div>
-        <footer className="audit-detail-footer"><button type="button" className="audit-detail-close" onClick={onClose}>Close details</button></footer>
+        <ModalActions as="footer" className="audit-detail-footer"><button type="button" className="audit-detail-close" onClick={onClose}>Close details</button></ModalActions>
       </div>
     </dialog>
   );

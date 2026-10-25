@@ -1,3 +1,8 @@
+import { SearchField } from '../../ui/workspace';
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput, Select } from '../../ui/input';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import useUrlState from '../../../hooks/useUrlState';
 import { loadAllPages } from '../../../utils/loadAllPages';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -115,17 +120,17 @@ export default function Claims({ user }) {
 
   return (
     <div className="mortuary-claims admin-claims">
-      <header className="td-header">
+      <PageHeader className="td-header">
         <div>
           <p className="td-eyebrow">Mortuary management / Claims</p>
           <h1>Claims management</h1>
           <p className="td-description">Register, verify, and process death benefit claims.</p>
         </div>
         <div className="td-header-actions">
-          <button className="td-button" onClick={handleChanged} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}</button>
-          <button type="button" aria-haspopup="dialog" onClick={() => setShowRegisterModal(true)} className="td-button td-primary"><Plus size={15} aria-hidden="true" />Register new claim</button>
+          <ActionButton variant="outline" className="td-button" onClick={handleChanged} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}</ActionButton>
+          <ActionButton variant="default" type="button" aria-haspopup="dialog" onClick={() => setShowRegisterModal(true)} className="td-button td-primary"><Plus size={15} aria-hidden="true" />Register new claim</ActionButton>
         </div>
-      </header>
+      </PageHeader>
 
       <section className="attendance-metric-grid" aria-label="Claim status overview">
         {STAT_TILES.map(({ status, icon }) => {
@@ -143,16 +148,16 @@ export default function Claims({ user }) {
       <section className="mb-filters" aria-labelledby="ac-filter-title">
         <div className="mb-filter-heading"><h2 id="ac-filter-title">Find a claim</h2><button className="mb-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
         <div className="mb-filter-grid ac-filter-grid">
-          <label>Search claims<span className="mb-search"><Search size={16} aria-hidden="true" /><input value={search} onChange={e => updateFilter(setSearch, e.target.value)} placeholder="Claim ID, member, or beneficiary" /></span></label>
-          <label>Claim status<select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}><option value="all">All statuses</option>{CLAIM_STATUS_ORDER.map(status => <option key={status} value={status}>{getClaimStatusMeta(status).label}</option>)}</select></label>
+          <label>Search claims<SearchField as="span" className="mb-search"><Search size={16} aria-hidden="true" /><TextInput unstyled value={search} onChange={e => updateFilter(setSearch, e.target.value)} placeholder="Claim ID, member, or beneficiary" /></SearchField></label>
+          <label>Claim status<Select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}><option value="all">All statuses</option>{CLAIM_STATUS_ORDER.map(status => <option key={status} value={status}>{getClaimStatusMeta(status).label}</option>)}</Select></label>
         </div>
       </section>
 
-      <section className="mc-register" aria-labelledby="ac-register-title" aria-busy={loading}>
-        <div className="mb-register-heading"><div><h2 id="ac-register-title">Claim register</h2><p>Review requirements, track progress, and open a claim to take action.</p></div></div>
+      <Panel as="section" className="mc-register" aria-labelledby="ac-register-title" aria-busy={loading}>
+        <PanelHeader as="div" className="mb-register-heading"><div><h2 id="ac-register-title">Claim register</h2><p>Review requirements, track progress, and open a claim to take action.</p></div></PanelHeader>
         <div className="mb-scope"><span role="status">{loading ? 'Loading claims?' : error ? 'Claims unavailable' : `${pagination.total.toLocaleString()} matching claims`}</span><span>Highlighted rows need admin action</span></div>
         <div className="mc-table-scroll" role="region" aria-label="Claim register" tabIndex={0}>
-        <table className="w-full">
+        <DataTable className="w-full">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50">
               <th scope="col" className="text-left px-6 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Claim ID</th>
@@ -169,7 +174,7 @@ export default function Claims({ user }) {
                 <td colSpan={6} className="px-6 py-16 text-center text-sm text-slate-400">Loading claims...</td>
               </tr>
             ) : error ? (
-              <tr><td colSpan={6}><div className="mb-empty"><p role="alert">{error}</p><button className="td-button" onClick={loadClaims}>Try again</button></div></td></tr>
+              <tr><td colSpan={6}><div className="mb-empty"><p role="alert">{error}</p><ActionButton variant="outline" className="td-button" onClick={loadClaims}>Try again</ActionButton></div></td></tr>
             ) : claims.length > 0 ? (
               claims.map((claim) => {
                 const meta = getClaimStatusMeta(claim.status);
@@ -237,13 +242,13 @@ export default function Claims({ user }) {
                   <div className="flex flex-col items-center gap-2">
                     <FileText className="w-8 h-8 text-slate-300" />
                     <strong>{hasActiveFilters ? 'No claims match these filters' : 'No claims found'}</strong>
-                    {hasActiveFilters && <button className="td-button" onClick={clearFilters}>Reset filters</button>}
+                    {hasActiveFilters && <ActionButton variant="outline" className="td-button" onClick={clearFilters}>Reset filters</ActionButton>}
                   </div>
                 </td>
               </tr>
             )}
           </tbody>
-        </table>
+        </DataTable>
         </div>
         {!loading && !error && pagination.total > 0 && (
           <div className="mc-pagination">
@@ -257,7 +262,7 @@ export default function Claims({ user }) {
             />
           </div>
         )}
-      </section>
+      </Panel>
 
       <RegisterClaimModal
         isOpen={showRegisterModal}

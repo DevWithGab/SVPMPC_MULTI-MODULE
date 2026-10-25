@@ -1,4 +1,6 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import { Textarea } from '../../../ui/input';
+import { ModalActions, FormField as Field } from '../../../ui/workspace';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, AlertCircle, CheckCircle2, ArrowRight, FileText, UserRound } from 'lucide-react';
 import Modal from '../../shared/Modal';
 import SearchableMemberSelect from '../../shared/SearchableMemberSelect';
@@ -10,10 +12,6 @@ import { sanitizePhoneInput, validatePhPhone } from '../../../../utils/validatio
 const emptyBeneficiary = { beneficiaryName: '', relationship: '', contactNumber: '', address: '' };
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 const formatDate = value => new Date(`${value}T12:00:00`).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
-
-function Field({ id, label, required, children }) {
-  return <div className="space-y-1.5"><label htmlFor={id} className="block text-sm font-semibold text-slate-700">{label}{required && <span className="text-rose-600"> *</span>}</label>{children}</div>;
-}
 
 export default function RegisterClaimModal(props) {
   // Each opening starts a fresh draft; closing never leaves a stale lookup behind.
@@ -112,7 +110,7 @@ function ClaimRegistration({ onClose, members = [], membersLoading, membersError
       {discard ? <div className="space-y-5">
         <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold text-slate-900 outline-none">Leave this claim?</h2>
         <p className="text-sm text-slate-600">Your claim draft will be discarded.{beneficiary && step === 'review' ? ' Any beneficiary details already saved will remain on the member’s record.' : ''}</p>
-        <div className="flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={onClose}>Discard draft</Button><Button onClick={() => setDiscard(false)}>Keep editing</Button></div>
+        <ModalActions className="flex flex-wrap justify-end gap-3"><Button variant="secondary" onClick={onClose}>Discard draft</Button><Button onClick={() => setDiscard(false)}>Keep editing</Button></ModalActions>
       </div> : step === 'success' ? <div className="py-4 text-center space-y-4">
         <CheckCircle2 className="w-12 h-12 mx-auto text-coop-green" />
         <h2 ref={heading} tabIndex={-1} className="text-xl font-bold text-slate-900 outline-none">Claim registered</h2>
@@ -144,15 +142,15 @@ function ClaimRegistration({ onClose, members = [], membersLoading, membersError
           <section className="space-y-4 border-t border-slate-100 pt-5">
             <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900"><FileText className="h-4 w-4 text-coop-green" /> Claim information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><Field id="claim-death-date" label="Date of death" required><Input id="claim-death-date" type="date" required max={today()} value={dateOfDeath} onChange={e => setDateOfDeath(e.target.value)} /></Field><Field id="claim-cause" label="Cause of death (optional)"><Input id="claim-cause" value={causeOfDeath} onChange={e => setCauseOfDeath(e.target.value)} placeholder="Enter if known" /></Field></div>
-            <Field id="claim-remarks" label="Remarks (optional)"><textarea id="claim-remarks" value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30" placeholder="Add any information helpful for reviewing this claim" /></Field>
+            <Field id="claim-remarks" label="Remarks (optional)"><Textarea id="claim-remarks" value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30" placeholder="Add any information helpful for reviewing this claim" /></Field>
           </section>
-          <div className="sticky -bottom-5 border-t border-slate-200 bg-white py-4 flex flex-col-reverse sm:flex-row sm:justify-between gap-3"><Button variant="ghost" onClick={close}>Cancel</Button><Button type="submit" disabled={!memberId || lookup !== 'ready' || membersLoading || !!membersError}>Review claim <ArrowRight className="h-4 w-4" /></Button></div>
+          <ModalActions className="sticky -bottom-5 border-t border-slate-200 bg-white py-4 flex flex-col-reverse sm:flex-row sm:justify-between gap-3"><Button variant="ghost" onClick={close}>Cancel</Button><Button type="submit" disabled={!memberId || lookup !== 'ready' || membersLoading || !!membersError}>Review claim <ArrowRight className="h-4 w-4" /></Button></ModalActions>
         </form> : <div className="space-y-5">
           <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
             {[[ 'Member', selectedMember?.name ], ['Passbook No.', memberId], ['Beneficiary', recipient.beneficiaryName], ['Relationship', recipient.relationship], ['Mobile number', recipient.contactNumber], ['Beneficiary address', recipient.address || 'Not provided'], ['Date of death', formatDate(dateOfDeath)], ['Date filed', 'Recorded automatically on registration'], ['Cause of death', causeOfDeath.trim() || 'Not provided'], ['Remarks', remarks.trim() || 'None']].map(([label, value]) => <div key={label} className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-1 sm:gap-4 py-3 text-sm"><dt className="text-slate-500">{label}</dt><dd className="font-medium text-slate-900 whitespace-pre-wrap break-words min-w-0">{value}</dd></div>)}
           </dl>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900"><p className="font-semibold">What happens next</p><p className="mt-1">Registering marks the member as deceased and creates a claim awaiting requirements. Benefit approval and payment happen after review.</p></div>
-          <div className="sticky -bottom-5 border-t border-slate-200 bg-white py-4 flex flex-col-reverse sm:flex-row sm:justify-between gap-3"><Button variant="secondary" disabled={submitting} onClick={() => { setError(''); setStep('details'); }}>Back to details</Button><Button disabled={submitting} onClick={submit}>{submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Registering…</> : 'Register claim'}</Button></div>
+          <ModalActions className="sticky -bottom-5 border-t border-slate-200 bg-white py-4 flex flex-col-reverse sm:flex-row sm:justify-between gap-3"><Button variant="secondary" disabled={submitting} onClick={() => { setError(''); setStep('details'); }}>Back to details</Button><Button disabled={submitting} onClick={submit}>{submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Registering…</> : 'Register claim'}</Button></ModalActions>
         </div>}
       </>}
     </div>

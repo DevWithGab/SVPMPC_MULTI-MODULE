@@ -1,4 +1,8 @@
-﻿import { Activity, CalendarOff, Clock, MapPin, RefreshCw, Users } from 'lucide-react';
+import { Button as ActionButton } from '../../ui/button';
+import { Select } from '../../ui/input';
+import { PageHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
+import { Activity, CalendarOff, Clock, MapPin, RefreshCw, Users } from 'lucide-react';
 import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { formatDateTime, formatTime } from '../../../utils/date';
@@ -14,16 +18,16 @@ export default function LiveAttendanceView({
 }) {
   return (
     <div className="secretary-live-attendance">
-      <header className="sla-header">
+      <PageHeader className="sla-header">
         <div>
           <p className="sla-eyebrow">Attendance management / {operatorView ? 'Scanner operator' : 'Live attendance'}</p>
           <h1>Live attendance</h1>
           <p className="sla-description">Track member check-ins for the active event.</p>
         </div>
-        <button className="sla-button" onClick={onRefresh} disabled={loading}>
+        <ActionButton variant="outline" className="sla-button" onClick={onRefresh} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </header>
+        </ActionButton>
+      </PageHeader>
 
       {error && <div className="sla-error" role="alert">{error}</div>}
 
@@ -52,16 +56,16 @@ export default function LiveAttendanceView({
       ) : <>
         <section className="sla-filters" aria-labelledby="sla-filter-title">
           <div className="sla-filter-heading"><h2 id="sla-filter-title">Filter check-ins</h2><button className="sla-text-button" disabled={selectedBarangay === 'all'} onClick={() => onBarangayChange('all')}>Reset filter</button></div>
-          <label>Barangay<select value={selectedBarangay} onChange={e => onBarangayChange(e.target.value)}>
+          <label>Barangay<Select value={selectedBarangay} onChange={e => onBarangayChange(e.target.value)}>
             {availableBarangays.map(barangay => <option key={barangay} value={barangay}>{barangay === 'all' ? 'All barangays' : barangay}</option>)}
             {selectedBarangay !== 'all' && !availableBarangays.includes(selectedBarangay) && <option value={selectedBarangay}>{selectedBarangay}</option>}
-          </select></label>
+          </Select></label>
         </section>
         <section className="sla-panel" aria-labelledby="sla-register-title" aria-busy={loading}>
           <div className="sla-panel-heading"><h2 id="sla-register-title">Check-in register</h2><p>Member details and recorded check-in times.</p></div>
           <div className="sla-scope"><span>{filteredAttendance.length.toLocaleString()} of {liveRows.length.toLocaleString()} check-ins</span><span>{selectedBarangay === 'all' ? 'All barangays' : selectedBarangay}</span></div>
           <div className="sla-table-scroll" role="region" aria-label="Live check-in records" tabIndex={0}>
-            <table>
+            <DataTable>
               <thead><tr><th scope="col">Member / Passbook</th><th scope="col">Check-in time</th><th scope="col">Barangay</th><th scope="col">Scanned by</th></tr></thead>
               <tbody>{paginatedAttendance.map(row => (
                 <tr key={row.recordId || row.memberKey}>
@@ -71,12 +75,12 @@ export default function LiveAttendanceView({
                   <td>{attendanceScannedBy(row)}</td>
                 </tr>
               ))}</tbody>
-            </table>
+            </DataTable>
           </div>
           {paginatedAttendance.length === 0 && <div className="sla-empty" role="status">
             <strong>{loading ? 'Loading check-ins…' : error ? 'Check-ins could not be loaded' : selectedBarangay !== 'all' ? 'No check-ins for this barangay' : 'No check-ins yet for this event'}</strong>
             <p>{error ? 'The list will retry automatically.' : selectedBarangay !== 'all' ? 'Choose another barangay or reset the filter.' : 'Recorded check-ins will appear here as members arrive.'}</p>
-            {selectedBarangay !== 'all' && <button className="sla-button" onClick={() => onBarangayChange('all')}>Reset filter</button>}
+            {selectedBarangay !== 'all' && <ActionButton variant="outline" className="sla-button" onClick={() => onBarangayChange('all')}>Reset filter</ActionButton>}
           </div>}
           <footer className="sla-pagination">
             <PaginationInfo currentPage={currentPage} limit={pageSize} total={filteredAttendance.length} />

@@ -1,7 +1,8 @@
 import React from 'react';
+import './design-system.css';
 
 export const Table = ({ children, className = '', ...props }) => (
-  <table className={`w-full ${className}`} {...props}>
+  <table className={`ui-table w-full ${className}`} {...props}>
     {children}
   </table>
 );

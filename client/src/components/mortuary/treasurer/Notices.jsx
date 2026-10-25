@@ -1,3 +1,6 @@
+import { Button as ActionButton } from '../../ui/button';
+import { Select } from '../../ui/input';
+import { PageHeader, Panel, FormField } from '../../ui/workspace';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { Printer, Download, Loader2, FileText, RefreshCw } from 'lucide-react';
@@ -200,11 +203,11 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
 
   return (
     <div className="member-balances member-notices">
-      <header className="mb-header">
+      <PageHeader className="mb-header">
         <div><p className="mb-eyebrow">Mortuary management / Notices</p><h1>Notices</h1><p className="mb-description">Prepare and download member balance notices by level and barangay.</p></div>
-        <button className="mb-button" onClick={onRefresh} disabled={refreshing || noticeBusy}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing...' : 'Refresh'}</button>
-      </header>
-      <section aria-labelledby="notice-panel-title" className="mb-panel mb-notices">
+        <ActionButton variant="outline" className="mb-button" onClick={onRefresh} disabled={refreshing || noticeBusy}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing...' : 'Refresh'}</ActionButton>
+      </PageHeader>
+      <Panel as="section" aria-labelledby="notice-panel-title" className="mb-panel mb-notices">
         <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100">
           <div className="flex items-start gap-3">
             <div className="p-2.5 rounded-md bg-emerald-50 text-emerald-700"><FileText className="w-5 h-5" aria-hidden="true" /></div>
@@ -213,12 +216,12 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
               <p className="text-sm text-slate-500 mt-1">Download one PDF per notice level, or print a letter for each member.</p>
             </div>
           </div>
-          <div className="w-full lg:w-56 shrink-0">
+          <FormField className="w-full lg:w-56 shrink-0">
             <label htmlFor="notice-barangay" className="block text-xs font-semibold text-slate-600 mb-1.5">Barangay for notices</label>
-            <select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help" className="w-full h-11 px-3 text-sm rounded-md border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60">
+            <Select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help" className="w-full h-11 px-3 text-sm rounded-md border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60">
               {uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}
-            </select>
-          </div>
+            </Select>
+          </FormField>
         </div>
         <div className="p-5">
           <p id="notice-scope-help" className="text-xs text-slate-500 mb-4">Includes all eligible members in {noticeBarangay === 'All' ? 'all barangays' : noticeBarangay}.</p>
@@ -259,7 +262,7 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
             </div>
           )}
         </div>
-      </section>
+      </Panel>
     </div>
   );
 }

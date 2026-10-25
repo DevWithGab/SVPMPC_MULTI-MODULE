@@ -1,3 +1,6 @@
+import { Button as ActionButton } from '../../ui/button';
+import { Select } from '../../ui/input';
+import { PageHeader, Panel } from '../../ui/workspace';
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -216,7 +219,7 @@ const Dashboard = ({
 
   return (
     <div className="secretary-dashboard attendance-admin-dashboard">
-      <header className="sd-header">
+      <PageHeader className="sd-header">
         <div>
           <p className="sd-eyebrow">Attendance management / Overview</p>
           <h1>Attendance dashboard</h1>
@@ -228,15 +231,15 @@ const Dashboard = ({
             {refreshError ? 'Unable to refresh attendance totals. Retrying automatically.' : 'Attendance totals update every 10 seconds.'}
           </p>
         </div>
-        <button
+        <ActionButton variant="default"
           className="sd-button sd-primary"
           onClick={() => setActiveSection?.("live")}
         >
           Live attendance <ArrowRight size={15} aria-hidden="true" />
-        </button>
-      </header>
+        </ActionButton>
+      </PageHeader>
 
-      <section className="sd-panel aad-event" aria-labelledby="aad-event-title">
+      <Panel as="section" className="sd-panel aad-event" aria-labelledby="aad-event-title">
         <div>
           <h2 id="aad-event-title">Active event session</h2>
           <p>
@@ -247,7 +250,7 @@ const Dashboard = ({
         </div>
         <label>
           Choose an active event
-          <select
+          <Select
             value={String(getEventKey(currentEvent) || "")}
             disabled={!activeEvents.length}
             onChange={(e) =>
@@ -272,9 +275,9 @@ const Dashboard = ({
                 {getEventName(event)} ? {getEventDate(event)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
-      </section>
+      </Panel>
 
       <AttendanceMetricGrid
         label="Attendance overview"
@@ -316,7 +319,7 @@ const Dashboard = ({
 
       {/* Attendance Overview */}
       <div className="aad-charts">
-        <div className="sd-panel aad-chart-panel">
+        <Panel as="div" className="sd-panel aad-chart-panel">
           <div className="aad-chart-heading">
             <div>
               <h3 className="aad-chart-title">Attendance Overview</h3>
@@ -364,9 +367,9 @@ const Dashboard = ({
               </div>
             )}
           </div>
-        </div>
+        </Panel>
 
-        <div className="sd-panel aad-chart-panel">
+        <Panel as="div" className="sd-panel aad-chart-panel">
           <div className="aad-chart-heading">
             <div>
               <h3 className="aad-chart-title">Attendance Trend</h3>
@@ -425,7 +428,7 @@ const Dashboard = ({
               </div>
             )}
           </div>
-        </div>
+        </Panel>
       </div>
 
       <nav className="aad-workspace" aria-label="Attendance workspace">

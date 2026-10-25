@@ -1,3 +1,5 @@
+import { Button as ActionButton } from '../../ui/button';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import React, { useState, useEffect, useRef } from "react";
 import {
   Wallet,
@@ -82,7 +84,7 @@ const NotificationBell = ({ items, count, onViewAll }) => {
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <ActionButton variant="outline"
         onClick={() => setOpen((o) => !o)}
         aria-label="Notifications"
         aria-expanded={open}
@@ -94,7 +96,7 @@ const NotificationBell = ({ items, count, onViewAll }) => {
             {count > 9 ? "9+" : count}
           </span>
         )}
-      </button>
+      </ActionButton>
 
       {open && (
         <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
@@ -454,22 +456,22 @@ const Dashboard = ({
 
   return (
     <div className="treasurer-dashboard mortuary-admin-dashboard">
-      <header className="td-header">
+      <PageHeader className="td-header">
         <div>
           <p className="td-eyebrow">Mortuary management / Overview</p>
           <h1>Mortuary dashboard</h1>
           <p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p>
         </div>
         <div className="td-header-actions">
-          <button className="td-button" onClick={() => exportToCSV(members.map(member => ({ ...member, standing: getStandingLabel(member.currentBalance, minimumBalance) })), "mortuary_report")} disabled={!members.length}>
+          <ActionButton variant="outline" className="td-button" onClick={() => exportToCSV(members.map(member => ({ ...member, standing: getStandingLabel(member.currentBalance, minimumBalance) })), "mortuary_report")} disabled={!members.length}>
             <Download size={15} aria-hidden="true" /> Export report
-          </button>
-          <button className="td-button td-primary" onClick={() => setActiveTab("claims")}>
+          </ActionButton>
+          <ActionButton variant="default" className="td-button td-primary" onClick={() => setActiveTab("claims")}>
             Manage claims <ArrowRight size={15} aria-hidden="true" />
-          </button>
+          </ActionButton>
           <NotificationBell items={needsAttention} count={needsAttentionCount} onViewAll={() => setActiveTab("claims")} />
         </div>
-      </header>
+      </PageHeader>
 
       <AttendanceMetricGrid label="Mortuary fund overview" items={[
         ["Total fund balance", `₱${currentBalance.toLocaleString()}`, "Available balance", Wallet],
@@ -607,11 +609,11 @@ const Dashboard = ({
         </div>
 
         <aside className="td-sidebar" aria-label="Claims and administration">
-          <section className="td-panel" aria-labelledby="mad-claims-title">
-            <div className="td-panel-heading">
+          <Panel as="section" className="td-panel" aria-labelledby="mad-claims-title">
+            <PanelHeader as="div" className="td-panel-heading">
               <h2 id="mad-claims-title">Claims overview</h2>
               <p>Review pending requirements and track claim outcomes.</p>
-            </div>
+            </PanelHeader>
             <div className="mad-claim-list">
               {[
                 ["Pending requirements", claimCounts.pending_requirements, Clock, "amber"],
@@ -627,16 +629,16 @@ const Dashboard = ({
                 </button>
               ))}
             </div>
-          </section>
+          </Panel>
 
-          <section className="td-panel" aria-labelledby="mad-fund-title">
-            <div className="td-panel-heading"><h2 id="mad-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></div>
+          <Panel as="section" className="td-panel" aria-labelledby="mad-fund-title">
+            <PanelHeader as="div" className="td-panel-heading"><h2 id="mad-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></PanelHeader>
             <dl className="td-fund-totals">
               <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{totalDeductionsCollected.toLocaleString()}</dd><small>One time assessment collected</small></div>
               <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{totalClaimsReleased.toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
             </dl>
             <button className="mad-panel-link" onClick={() => setActiveTab("claims")}>View claims <ArrowRight size={15} aria-hidden="true" /></button>
-          </section>
+          </Panel>
 
           <nav className="td-tools" aria-label="Administration workspace">
             <h2>Workspace</h2>

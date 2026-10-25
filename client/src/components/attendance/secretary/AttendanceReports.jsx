@@ -1,3 +1,7 @@
+import { SearchField } from '../../ui/workspace';
+import { PageHeader } from '../../ui/workspace';
+import { Select, Input as TextInput } from '../../ui/input';
+import { FormField } from '../../ui/workspace';
 import React, { useState, useEffect, useRef } from "react";
 import {
   BarChart3,
@@ -441,11 +445,11 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         >
           <ArrowLeft className="w-4 h-4" /> Back to Reports
         </button>
-        <div>
+        <PageHeader>
           <p className="ar-eyebrow">Attendance reports / Event details</p>
           <h1 ref={attendeesHeadingRef} tabIndex={-1}>Event attendees</h1>
           <p className="text-sm text-slate-500 mt-1">Search members or filter by attendance status. Showing up to 75 members per page.</p>
-        </div>
+        </PageHeader>
         <p className="ar-scope">
           Full event attendance · All dates and barangays. Absence is based on
           active membership.
@@ -464,7 +468,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   return (
     <div className="attendance-reports space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <PageHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <p className="ar-eyebrow">Attendance management / Reports</p>
           <h1 ref={reportHeadingRef} tabIndex={-1} className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -493,7 +497,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
             {exporting ? "Preparing export…" : "Export PDF"}
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {reportError && (
         <div role="alert" className="ar-notice ar-error">
@@ -522,14 +526,14 @@ export default function AttendanceReports({ attendanceLogs, events }) {
             <span>Applies to totals and exports</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
+            <FormField>
               <label
                 htmlFor="ar-event"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
               >
                 Event
               </label>
-              <select
+              <Select
                 id="ar-event"
                 value={selectedEvent}
                 onChange={(e) => {
@@ -553,16 +557,16 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                     </option>
                   );
                 })}
-              </select>
-            </div>
-            <div>
+              </Select>
+            </FormField>
+            <FormField>
               <label
                 htmlFor="ar-period"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
               >
                 Date Range
               </label>
-              <select
+              <Select
                 id="ar-period"
                 value={dateRange}
                 onChange={(e) => {
@@ -577,16 +581,16 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                 <option value="week">Last 7 days</option>
                 <option value="month">This Month</option>
                 <option value="year">This Year</option>
-              </select>
-            </div>
-            <div>
+              </Select>
+            </FormField>
+            <FormField>
               <label
                 htmlFor="ar-barangay"
                 className="block text-sm font-semibold text-slate-700 mb-1.5"
               >
                 Barangay
               </label>
-              <select
+              <Select
                 id="ar-barangay"
                 value={selectedBarangay}
                 onChange={(e) => {
@@ -602,8 +606,8 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                     {barangay}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </FormField>
             <div className="flex items-end">
               <Button
                 onClick={() => {
@@ -691,10 +695,10 @@ export default function AttendanceReports({ attendanceLogs, events }) {
           <p className="text-slate-500 text-xs mt-1">
             Open an event to review its full member attendance.
           </p>
-          <label className="ar-search">
+          <SearchField as="label" className="ar-search">
             <Search size={16} />
             <span className="sr-only">Search events or locations</span>
-            <input
+            <TextInput unstyled
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -702,7 +706,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
               }}
               placeholder="Search events or locations"
             />
-          </label>
+          </SearchField>
         </CardHeader>
         <div className="ar-scope">
           <span>{scope}</span>

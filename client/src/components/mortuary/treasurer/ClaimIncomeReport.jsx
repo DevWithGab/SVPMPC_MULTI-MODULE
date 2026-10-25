@@ -1,3 +1,5 @@
+import { Panel } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, FileText, TrendingUp, TrendingDown, Download } from 'lucide-react';
@@ -140,9 +142,9 @@ export default function ClaimIncomeReport() {
         ['Total claims released', loading ? '—' : peso(totals?.totalReleased), maxBenefit ? 'Benefits paid out (max ' + peso(maxBenefit) + '/claim)' : 'Benefits paid out', TrendingDown],
       ]} />
 
-      <div className="mc-register">
+      <Panel as="div" className="mc-register">
         <div className="mc-table-scroll" role="region" aria-label="Claims report" tabIndex={0}>
-          <table className="w-full">
+          <DataTable className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Deceased Member</th>
@@ -200,7 +202,7 @@ export default function ClaimIncomeReport() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </DataTable>
         </div>
         {!loading && total > 0 && (
           <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -214,7 +216,7 @@ export default function ClaimIncomeReport() {
             />
           </div>
         )}
-      </div>
+      </Panel>
 
 
     </div>

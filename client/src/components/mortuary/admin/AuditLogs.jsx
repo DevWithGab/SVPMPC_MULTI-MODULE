@@ -1,3 +1,7 @@
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput, Select } from '../../ui/input';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
@@ -209,7 +213,7 @@ const AuditLogs = () => {
 
   return (
     <div className="treasurer-dashboard admin-audit-logs">
-      <header className="td-header">
+      <PageHeader className="td-header">
         <div>
           <p className="td-eyebrow">Mortuary management / Audit logs</p>
           <h1>Audit logs</h1>
@@ -218,7 +222,7 @@ const AuditLogs = () => {
           </p>
         </div>
         <div className="td-header-actions">
-          <button
+          <ActionButton variant="outline"
             className="td-button"
             onClick={() => {
               fetchAuditLogs();
@@ -232,25 +236,25 @@ const AuditLogs = () => {
               aria-hidden="true"
             />
             {loading ? "Refreshing…" : "Refresh"}
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton variant="default"
             className="td-button td-primary"
             onClick={handleExportCSV}
             disabled={loading || Boolean(error) || logs.length === 0}
           >
             <Download size={15} aria-hidden="true" />
             CSV (current page)
-          </button>
-          <button
+          </ActionButton>
+          <ActionButton variant="outline"
             className="td-button"
             onClick={handleExportPDF}
             disabled={loading || Boolean(error) || logs.length === 0 || exportingPdf}
           >
             {exportingPdf ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}
             {exportingPdf ? "Preparing PDF…" : "PDF (current page)"}
-          </button>
+          </ActionButton>
         </div>
-      </header>
+      </PageHeader>
 
       {stats && filters.startDate && filters.endDate && (
         <AttendanceMetricGrid
@@ -304,7 +308,7 @@ const AuditLogs = () => {
         <div className="mb-filter-grid audit-filter-grid">
           <label>
             Start date
-            <input
+            <TextInput
               type="date"
               value={filters.startDate}
               onChange={(e) => handleFilterChange("startDate", e.target.value)}
@@ -312,7 +316,7 @@ const AuditLogs = () => {
           </label>
           <label>
             End date
-            <input
+            <TextInput
               type="date"
               value={filters.endDate}
               onChange={(e) => handleFilterChange("endDate", e.target.value)}
@@ -320,7 +324,7 @@ const AuditLogs = () => {
           </label>
           <label>
             Role
-            <select
+            <Select
               value={filters.userRole}
               onChange={(e) => handleFilterChange("userRole", e.target.value)}
             >
@@ -328,11 +332,11 @@ const AuditLogs = () => {
               <option value="admin">Admin</option>
               <option value="treasurer">Treasurer</option>
               <option value="super_admin">Super Admin</option>
-            </select>
+            </Select>
           </label>
           <label>
             Action
-            <select
+            <Select
               value={filters.action}
               onChange={(e) => handleFilterChange("action", e.target.value)}
             >
@@ -342,19 +346,19 @@ const AuditLogs = () => {
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
       </section>
 
       {/* Table */}
-      <div className="mb-panel audit-register" aria-busy={loading}>
-        <div className="mb-register-heading">
+      <Panel as="div" className="mb-panel audit-register" aria-busy={loading}>
+        <PanelHeader as="div" className="mb-register-heading">
           <div>
             <h2>Activity register</h2>
             <p>Open an entry to review its details and recorded changes.</p>
           </div>
-        </div>
+        </PanelHeader>
         <div className="mb-scope">
           <span role="status">
             {loading
@@ -382,9 +386,9 @@ const AuditLogs = () => {
         ) : error ? (
           <div className="mb-empty">
             <p role="alert">{error}</p>
-            <button className="td-button" onClick={fetchAuditLogs}>
+            <ActionButton variant="outline" className="td-button" onClick={fetchAuditLogs}>
               Try again
-            </button>
+            </ActionButton>
           </div>
         ) : logs.length === 0 ? (
           <div className="mb-empty" role="status">
@@ -396,9 +400,9 @@ const AuditLogs = () => {
                 : "Recorded mortuary activity will appear here."}
             </p>
             {hasActiveFilters && (
-              <button className="td-button" onClick={resetFilters}>
+              <ActionButton variant="outline" className="td-button" onClick={resetFilters}>
                 Reset filters
-              </button>
+              </ActionButton>
             )}
           </div>
         ) : (
@@ -409,7 +413,7 @@ const AuditLogs = () => {
               aria-label="Audit log records"
               tabIndex={0}
             >
-              <table className="w-full">
+              <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th
@@ -490,7 +494,7 @@ const AuditLogs = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <button
+                          <ActionButton variant="outline"
                             onClick={() => {
                               setSelectedLog(log);
                               setShowDetails(true);
@@ -501,13 +505,13 @@ const AuditLogs = () => {
                           >
                             <Eye className="w-4 h-4" />
                             View details
-                          </button>
+                          </ActionButton>
                         </td>
                       </Motion.tr>
                     ))}
                   </AnimatePresence>
                 </tbody>
-              </table>
+              </DataTable>
             </div>
 
             <div className="mb-pagination">
@@ -526,7 +530,7 @@ const AuditLogs = () => {
             </div>
           </>
         )}
-      </div>
+      </Panel>
 
       {showDetails && selectedLog && (
         <AuditLogDetails

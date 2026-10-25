@@ -24,6 +24,7 @@ test('event filter hides the table and CSV event columns and restores them for a
     api.attendanceAPI.getAllAttendance = async () => ({ attendance: logs });
     api.memberAPI.getAllMembers = async () => ({ members: [] });
     let downloaded;
+    const csvHeaders = async () => (await downloaded.text()).split('\r\n').find(line => line.startsWith('"Passbook Number"'));
     URL.createObjectURL = blob => { downloaded = blob; return 'blob:report'; };
     URL.revokeObjectURL = () => {};
     window.HTMLAnchorElement.prototype.click = () => {};
@@ -38,22 +39,23 @@ test('event filter hides the table and CSV event columns and restores them for a
     await change('ar-period', 'all');
     const headers = () => [...container.querySelectorAll('thead th')].map(cell => cell.textContent.trim());
     assert.ok(headers().includes('Event Name'));
+    const allEventHeaders = headers();
     await change('ar-event', 'E-1');
-    assert.equal(headers().length, 4);
+    assert.deepEqual(headers(), allEventHeaders.filter(label => label !== 'Event Name'));
     assert.ok(!headers().includes('Event Name'));
-    assert.equal(container.querySelector('tbody tr').children.length, 4);
+    assert.equal(container.querySelector('tbody tr').children.length, headers().length);
     assert.ok(container.querySelector('[aria-label="View attendees for Assembly One"]'));
     const exportCsv = [...container.querySelectorAll('button')].find(button => button.textContent.trim() === 'Export CSV');
     await act(async () => exportCsv.click());
-    assert.doesNotMatch((await downloaded.text()).split('\r\n')[0], /"Event"/);
+    assert.doesNotMatch(await csvHeaders(), /"Event"/);
     await change('ar-event', 'all');
-    assert.equal(headers().length, 5);
+    assert.deepEqual(headers(), allEventHeaders);
     assert.ok(headers().includes('Event Name'));
     await act(async () => exportCsv.click());
-    assert.match((await downloaded.text()).split('\r\n')[0], /"Event"/);
+    assert.match(await csvHeaders(), /"Event"/);
     // Per-event exports also omit the event column when the report shows all events.
     await act(async () => container.querySelector('[aria-label="Export Assembly One attendees as CSV"]').click());
-    assert.doesNotMatch((await downloaded.text()).split('\r\n')[0], /"Event"/);
+    assert.doesNotMatch(await csvHeaders(), /"Event"/);
   } finally {
     await act(async () => root.unmount());
     if (originals) [api.eventAPI.getEvents, api.attendanceAPI.getAllAttendance, api.memberAPI.getAllMembers] = originals;

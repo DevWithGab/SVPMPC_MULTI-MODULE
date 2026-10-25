@@ -1,3 +1,4 @@
+import { Table as DataTable } from '../ui/table';
 import { useEffect, useRef, useState } from 'react';
 import { Eye } from 'lucide-react';
 import { auditAPI } from '../../services/api';
@@ -79,7 +80,7 @@ export default function StaffAuditLog() {
 
       {!loading && !listError && (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <DataTable className="w-full text-sm text-left">
             <thead>
               <tr>{['When', 'Performed by', 'Action', 'Staff account', 'Result', 'Details'].map((title) => (
                 <th className="p-3 border-b" key={title}>{title}</th>
@@ -101,7 +102,7 @@ export default function StaffAuditLog() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
           {!logs.length && <p className="py-4 text-slate-500">No staff account activity yet.</p>}
         </div>
       )}

@@ -1,3 +1,8 @@
+import { SearchField } from '../../ui/workspace';
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput, Textarea } from '../../ui/input';
+import { PageHeader, Panel, PanelHeader, ModalActions, FormField } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -321,18 +326,18 @@ const EventManagement = ({ events = [], setEvents }) => {
 
   return (
     <div className="secretary-dashboard attendance-admin-events">
-      <header className="sd-header">
+      <PageHeader className="sd-header">
         <div>
           <p className="sd-eyebrow">Attendance management / Events</p>
           <h1>Event approvals</h1>
           <p className="sd-description">Review submissions and manage attendance schedules.</p>
         </div>
         <span className="aae-timezone">Philippine Standard Time (PHT)</span>
-      </header>
+      </PageHeader>
 
       {notice && <Toast message={notice.message} type={notice.type} onClose={() => setNotice(null)} />}
 
-      <section className="sd-panel aae-filters" aria-labelledby="aae-filter-title">
+      <Panel as="section" className="sd-panel aae-filters" aria-labelledby="aae-filter-title">
         <div className="aae-filter-heading">
           <h2 id="aae-filter-title">Find an event</h2>
           <button type="button" className="sd-link" disabled={!search && eventGroup === 'pending'} onClick={() => { setSearch(''); setEventGroup('pending'); }}>Reset filters</button>
@@ -340,7 +345,7 @@ const EventManagement = ({ events = [], setEvents }) => {
         <div className="aae-filter-grid">
           <label className="aae-search-label">
             Search events
-            <span className="aae-search"><Search size={16} aria-hidden="true" /><input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Event name or location" /></span>
+            <SearchField as="span" className="aae-search"><Search size={16} aria-hidden="true" /><TextInput unstyled type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Event name or location" /></SearchField>
           </label>
           <div className="aae-group-filter">
             <span>Event status</span>
@@ -355,18 +360,18 @@ const EventManagement = ({ events = [], setEvents }) => {
             </nav>
           </div>
         </div>
-      </section>
+      </Panel>
 
-      <div className="sd-panel aae-register">
-        <div className="sd-panel-heading aae-toolbar">
+      <Panel as="div" className="sd-panel aae-register">
+        <PanelHeader as="div" className="sd-panel-heading aae-toolbar">
           <div><h2>{currentGroup.title}</h2><p>{currentGroup.description}</p></div>
           <span className="aae-result-count">{visibleCount.toLocaleString()} {visibleCount === 1 ? 'event' : 'events'}</span>
-        </div>
+        </PanelHeader>
         {groups.map(group => {
           const records = group.records.filter(matchesSearch);
           return <section key={group.key} id={`aae-${group.key}-panel`} hidden={eventGroup !== group.key} aria-label={group.title}>
             <div className="aae-table-scroll" role="region" aria-label={`${group.title} table`} tabIndex={0}>
-              <table className="aae-table" aria-label={group.ariaLabel}>
+              <DataTable className="aae-table" aria-label={group.ariaLabel}>
                 <thead><tr><th scope="col">Event</th><th scope="col">Schedule</th><th scope="col">Location</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
                 <tbody>
                   {records.map(event => <tr key={getEventKey(event)}>
@@ -375,15 +380,15 @@ const EventManagement = ({ events = [], setEvents }) => {
                     <td>{event.location || 'Not specified'}</td>
                     <td><span className={`aae-event-status aae-status-${event.status}`}>{getStatusLabel(event.status)}</span></td>
                     <td><div className="aae-row-actions">
-                      <button type="button" className="sd-button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</button>
+                      <ActionButton variant="outline" type="button" className="sd-button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</ActionButton>
                       {group.key === 'pending' ? <>
-                        <button type="button" className="sd-button aae-reject" onClick={() => setEventToReject(event)} aria-label={`Reject ${eventDisplayName(event)}`}>Reject</button>
-                        <button type="button" className="sd-button sd-primary aae-approve" onClick={() => approveEvent(event)} aria-label={`Approve ${eventDisplayName(event)}`}>Approve</button>
+                        <ActionButton variant="outline" type="button" className="sd-button aae-reject" onClick={() => setEventToReject(event)} aria-label={`Reject ${eventDisplayName(event)}`}>Reject</ActionButton>
+                        <ActionButton variant="default" type="button" className="sd-button sd-primary aae-approve" onClick={() => approveEvent(event)} aria-label={`Approve ${eventDisplayName(event)}`}>Approve</ActionButton>
                       </> : <>
-                        {group.key !== 'closed' && <button type="button" className="sd-button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit schedule</button>}
+                        {group.key !== 'closed' && <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit schedule</ActionButton>}
                         {group.key === 'closed' && <>
-                          <button type="button" className="sd-button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</button>
-                          <button type="button" className="sd-button aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</button>
+                          <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</ActionButton>
+                          <ActionButton variant="outline" type="button" className="sd-button aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</ActionButton>
                         </>}
                       </>}
                     </div></td>
@@ -394,12 +399,12 @@ const EventManagement = ({ events = [], setEvents }) => {
                     {query && <button type="button" onClick={() => setSearch('')}>Clear search</button>}
                   </div></td></tr>}
                 </tbody>
-              </table>
+              </DataTable>
             </div>
           </section>;
         })}
         <footer className="sd-panel-footer aae-register-footer"><span>{visibleCount.toLocaleString()} {visibleCount === 1 ? 'event' : 'events'}{query ? ' matching your search' : ` in ${currentGroup.label.toLowerCase()}`}</span><span>Event status follows the scheduled start and end times.</span></footer>
-      </div>
+      </Panel>
       {/* View Event Details Modal */}
       <Modal
         isOpen={Boolean(viewedEvent)}
@@ -421,7 +426,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               <div><dt>Description</dt><dd>{viewedEvent.description || 'No description provided.'}</dd></div>
             </dl>
             {viewedEvent.status === 'closed' && <p className="aae-view-note">This event is closed. Recorded details are read-only. Use <strong>Reopen event</strong> to set a new attendance schedule.</p>}
-            <div className="aae-modal-actions">
+            <ModalActions className="aae-modal-actions">
               <Button
                 type="button"
                 variant="outline"
@@ -436,7 +441,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               </>}
               {['upcoming', 'active'].includes(viewedEvent.status) && <Button type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Edit schedule</Button>}
               {viewedEvent.status === 'closed' && <Button type="button" onClick={() => { openReopenModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Reopen event</Button>}
-            </div>
+            </ModalActions>
           </div>
         )}
       </Modal>
@@ -452,7 +457,7 @@ const EventManagement = ({ events = [], setEvents }) => {
           <p className="text-sm text-slate-500">
             The Secretary will receive "Event Rejected - Revision required".
           </p>
-          <textarea
+          <Textarea
             value={rejectionReason}
             onChange={(event) => setRejectionReason(event.target.value)}
             rows={4}
@@ -460,7 +465,7 @@ const EventManagement = ({ events = [], setEvents }) => {
             placeholder="Reason for rejection"
             className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
           />
-          <div className="aae-modal-actions">
+          <ModalActions className="aae-modal-actions">
             <Button
               type="button"
               variant="outline"
@@ -477,7 +482,7 @@ const EventManagement = ({ events = [], setEvents }) => {
             >
               Reject Event
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
 
@@ -490,7 +495,7 @@ const EventManagement = ({ events = [], setEvents }) => {
       >
         {editingEvent && (
           <div className="space-y-4">
-            <div>
+            <FormField>
               <label htmlFor="admin-edit-event-name" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Event Name
               </label>
@@ -506,12 +511,12 @@ const EventManagement = ({ events = [], setEvents }) => {
                 required
                 className={`border-slate-200 rounded-lg${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
               />
-            </div>
-            <div>
+            </FormField>
+            <FormField>
               <label htmlFor="admin-edit-event-description" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Description
               </label>
-              <textarea
+              <Textarea
                 id="admin-edit-event-description"
                 value={editForm.description}
                 readOnly={approvedDetailsLocked}
@@ -522,7 +527,7 @@ const EventManagement = ({ events = [], setEvents }) => {
                 rows={3}
                 className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
               />
-            </div>
+            </FormField>
 
             {approvedDetailsLocked && <p id="approved-event-details-help" className="text-xs text-slate-500">The event name, description, and location are locked after approval.</p>}
 
@@ -534,7 +539,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
+                <FormField>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Date
                   </label>
@@ -547,8 +552,8 @@ const EventManagement = ({ events = [], setEvents }) => {
                     required
                     className="border-slate-200 rounded-lg"
                   />
-                </div>
-                <div>
+                </FormField>
+                <FormField>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Start Time
                   </label>
@@ -561,8 +566,8 @@ const EventManagement = ({ events = [], setEvents }) => {
                     required
                     className="border-slate-200 rounded-lg"
                   />
-                </div>
-                <div>
+                </FormField>
+                <FormField>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     End Time
                   </label>
@@ -575,11 +580,11 @@ const EventManagement = ({ events = [], setEvents }) => {
                     required
                     className="border-slate-200 rounded-lg"
                   />
-                </div>
+                </FormField>
               </div>
             )}
 
-            <div>
+            <FormField>
               <label htmlFor="admin-edit-event-location" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Location
               </label>
@@ -595,9 +600,9 @@ const EventManagement = ({ events = [], setEvents }) => {
                 required
                 className={`border-slate-200 rounded-lg${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
               />
-            </div>
+            </FormField>
 
-            <div className="aae-modal-actions">
+            <ModalActions className="aae-modal-actions">
               <Button
                 type="button"
                 variant="outline"
@@ -631,7 +636,7 @@ const EventManagement = ({ events = [], setEvents }) => {
                 )}
               </Button>
               )}
-            </div>
+            </ModalActions>
           </div>
         )}
       </Modal>
@@ -654,7 +659,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               and its record. This cannot be undone.
             </p>
           </div>
-          <div className="aae-modal-actions">
+          <ModalActions className="aae-modal-actions">
             <Button
               type="button"
               variant="outline"
@@ -682,7 +687,7 @@ const EventManagement = ({ events = [], setEvents }) => {
                 </>
               )}
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
 
@@ -702,7 +707,7 @@ const EventManagement = ({ events = [], setEvents }) => {
             it reactivates correctly, and note why it's being reopened.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
+            <FormField>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 New Date
               </label>
@@ -715,8 +720,8 @@ const EventManagement = ({ events = [], setEvents }) => {
                 required
                 className="border-slate-200 rounded-lg"
               />
-            </div>
-            <div>
+            </FormField>
+            <FormField>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Start Time
               </label>
@@ -729,8 +734,8 @@ const EventManagement = ({ events = [], setEvents }) => {
                 required
                 className="border-slate-200 rounded-lg"
               />
-            </div>
-            <div>
+            </FormField>
+            <FormField>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 End Time
               </label>
@@ -743,13 +748,13 @@ const EventManagement = ({ events = [], setEvents }) => {
                 required
                 className="border-slate-200 rounded-lg"
               />
-            </div>
+            </FormField>
           </div>
-          <div>
+          <FormField>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">
               Reason for Reopening
             </label>
-            <textarea
+            <Textarea
               value={reopenForm.reason}
               onChange={(e) =>
                 setReopenForm({ ...reopenForm, reason: e.target.value })
@@ -759,8 +764,8 @@ const EventManagement = ({ events = [], setEvents }) => {
               placeholder="e.g., Secretary requested a make-up session for absentees"
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400"
             />
-          </div>
-          <div className="aae-modal-actions">
+          </FormField>
+          <ModalActions className="aae-modal-actions">
             <Button
               type="button"
               variant="outline"
@@ -794,7 +799,7 @@ const EventManagement = ({ events = [], setEvents }) => {
                 </>
               )}
             </Button>
-          </div>
+          </ModalActions>
         </div>
       </Modal>
     </div>

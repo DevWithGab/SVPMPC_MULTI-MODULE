@@ -1,3 +1,5 @@
+import { Input as TextInput, Textarea } from '../../ui/input';
+import { FormField } from '../../ui/workspace';
 import { useRef, useState } from 'react';
 import { CheckCircle2, Loader2, Printer } from 'lucide-react';
 import { treasurerAPI } from '../../../services/api';
@@ -72,14 +74,14 @@ export default function ClaimsAwaitingRelease({ user, onReleased }) {
           <dl><Detail label="DV number">{form.dvNumber.trim()}</Detail><Detail label="Release date">{shortDate(`${form.releaseDate}T00:00:00`)}</Detail>{form.remarks.trim() && <Detail label="Remarks">{form.remarks.trim()}</Detail>}</dl>
           <p className="border-t border-slate-200 pt-4 text-sm leading-6 text-slate-600">Confirm that the beneficiary, amount, and voucher details match the disbursement. Confirming marks this claim as released.</p>
         </> : <form id="release-details" onSubmit={(event) => { event.preventDefault(); if (amountValid && form.dvNumber.trim() && form.releaseDate) setReview(true); }} className="space-y-4">
-          <div>
+          <FormField>
             <label htmlFor="release-amount" className="mb-1.5 block text-sm font-medium">Amount to release (fixed)</label>
-            <input id="release-amount" type="text" readOnly className={`${fieldClass} bg-slate-50 text-slate-600`} value={amountValid ? peso(amountValue) : 'Unavailable'} aria-describedby="release-amount-help" />
+            <TextInput id="release-amount" type="text" readOnly className={`${fieldClass} bg-slate-50 text-slate-600`} value={amountValid ? peso(amountValue) : 'Unavailable'} aria-describedby="release-amount-help" />
             <p id="release-amount-help" className="mt-1.5 text-xs text-slate-500">This amount is fixed based on the deduction collected and the Admin-configured benefit cap.</p>
             {!amountValid && <p className="mt-1 text-xs text-red-600">This claim has no valid payout amount. Refresh the claims list and try again.</p>}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2"><div><label htmlFor="release-dv" className="mb-1.5 block text-sm font-medium">DV number (required)</label><input id="release-dv" required autoComplete="off" className={fieldClass} placeholder="Enter voucher number" value={form.dvNumber} onChange={(e) => setForm({ ...form, dvNumber: e.target.value })} /></div><div><label htmlFor="release-date" className="mb-1.5 block text-sm font-medium">Release date (required)</label><input id="release-date" type="date" required className={fieldClass} value={form.releaseDate} onChange={(e) => setForm({ ...form, releaseDate: e.target.value })} /></div></div>
-          <div><label htmlFor="release-remarks" className="mb-1.5 block text-sm font-medium">Remarks <span className="font-normal text-slate-500">(optional)</span></label><textarea id="release-remarks" rows={3} className={fieldClass} placeholder="Add a note for this disbursement" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></div>
+          </FormField>
+          <div className="grid gap-4 sm:grid-cols-2"><FormField><label htmlFor="release-dv" className="mb-1.5 block text-sm font-medium">DV number (required)</label><TextInput id="release-dv" required autoComplete="off" className={fieldClass} placeholder="Enter voucher number" value={form.dvNumber} onChange={(e) => setForm({ ...form, dvNumber: e.target.value })} /></FormField><FormField><label htmlFor="release-date" className="mb-1.5 block text-sm font-medium">Release date (required)</label><TextInput id="release-date" type="date" required className={fieldClass} value={form.releaseDate} onChange={(e) => setForm({ ...form, releaseDate: e.target.value })} /></FormField></div>
+          <FormField><label htmlFor="release-remarks" className="mb-1.5 block text-sm font-medium">Remarks <span className="font-normal text-slate-500">(optional)</span></label><Textarea id="release-remarks" rows={3} className={fieldClass} placeholder="Add a note for this disbursement" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></FormField>
         </form>}
       </>}
       {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}

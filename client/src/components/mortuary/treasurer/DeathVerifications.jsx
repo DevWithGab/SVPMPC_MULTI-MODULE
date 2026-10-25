@@ -1,3 +1,4 @@
+import { FormField } from '../../ui/workspace';
 import React from 'react';
 import { Heart, FileText, User, Plus } from 'lucide-react';
 import { Card } from '../../ui/card';
@@ -63,7 +64,7 @@ const DeathVerifications = ({ claims, updateClaimStatus }) => {
                 <TableCell className="px-10 text-right">
                   {c.status === 'Pending' && (
                     <div className="flex items-center justify-end gap-4">
-                      <div className="w-32">
+                      <FormField className="w-32">
                         <label className="text-[9px] font-black uppercase text-slate-400 block mb-1 text-left px-1">Deduction (₱)</label>
                         <Input 
                           type="number" 
@@ -71,7 +72,7 @@ const DeathVerifications = ({ claims, updateClaimStatus }) => {
                           className="h-12 text-sm font-black rounded-xl border-slate-200 focus:ring-coop-green/20 bg-slate-50/50" 
                           id={`deduct-amt-${c.id}`}
                         />
-                      </div>
+                      </FormField>
                       <Button 
                         className="bg-slate-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest px-8 h-12 rounded-xl mt-5 shadow-xl transition-all transform hover:-translate-y-1"
                         onClick={() => {

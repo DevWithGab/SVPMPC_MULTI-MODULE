@@ -1,3 +1,6 @@
+import { Select } from '../../ui/input';
+import { PageHeader, Panel } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt, Loader2 } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
@@ -410,11 +413,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   }[reportType];
   return (
     <div className="financial-reports pb-12">
-      <header className="reports-page-heading">
+      <PageHeader className="reports-page-heading">
         <div><p className="reports-eyebrow">Mortuary management / Reports</p><h1>Reports</h1>
           <p className="reports-description">Review fund activity, member balances and benefit releases.</p></div>
         <p className="text-xs text-slate-500">Reporting currency <strong className="ml-1 text-slate-700">PHP</strong></p>
-      </header>
+      </PageHeader>
       <div className="reports-workspace">
         <nav className="reports-navigation" aria-label="Financial report selection">
           {[
@@ -432,7 +435,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           </div>)}
           <p className="reports-nav-note">Exports include the complete selected report, across all pages.</p>
         </nav>
-        <section className="reports-document" aria-labelledby="report-title" aria-busy={reportLoading}>
+        <Panel as="section" className="reports-document" aria-labelledby="report-title" aria-busy={reportLoading}>
           <div className="reports-document-heading">
             <div><h2 id="report-title">{REPORT_TYPES.find(type => type.id === reportType).label}</h2>
               <p className="mt-1 text-sm text-slate-600">{scope}</p></div>
@@ -448,7 +451,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           </div>
           {reportType !== 'summary' && <section className="reports-filters" aria-labelledby="reports-filter-title">
             <div className="reports-filter-heading"><h3 id="reports-filter-title">Filter report</h3><button type="button" className="reports-text-button" disabled={barangayFilter === 'all'} onClick={() => { setBarangayFilter('all'); setPage(1); }}>Reset filter</button></div>
-            <label>Barangay<select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setPage(1); }}><option value="all">All barangays</option>{barangayOptions.map(b => <option key={b} value={b}>{b}</option>)}</select></label>
+            <label>Barangay<Select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setPage(1); }}><option value="all">All barangays</option>{barangayOptions.map(b => <option key={b} value={b}>{b}</option>)}</Select></label>
             <p>Applies to the displayed records and both exports.</p>
           </section>}
           {(reportError || exportError) && <p role="alert" className="m-5 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{reportError || exportError}</p>}
@@ -483,7 +486,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                 </div>
 
                 <div className="border border-slate-200 rounded overflow-x-auto">
-                  <table className="w-full">
+                  <DataTable className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50">
                         <th scope="col" className="text-left px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">
@@ -511,13 +514,13 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                         </tr>
                       )}
                     </tbody>
-                  </table>
+                  </DataTable>
                 </div>
               </div>
             )}
 
             {reportType === 'contributions' && (
-              <table className="w-full">
+              <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Date</th>
@@ -538,11 +541,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             )}
 
             {reportType === 'claims' && (
-              <table className="w-full">
+              <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
@@ -570,11 +573,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                     );
                   })}
                 </tbody>
-              </table>
+              </DataTable>
             )}
 
             {reportType === 'deceasedMembers' && (
-              <table className="w-full">
+              <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
@@ -593,7 +596,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             )}
 
             {reportType === 'negativeBalances' && !reportLoading && !reportError && (
@@ -606,7 +609,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                   </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <DataTable className="w-full text-sm">
                     <thead className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
                       <tr>{['Passbook No.', 'Name', 'Barangay', 'Status', 'Balance (PHP)'].map((label, index) => <th scope="col" key={label} className={index === 4 ? 'px-4 py-3 text-right font-medium' : 'px-4 py-3 text-left font-medium'}>{label}</th>)}</tr>
                     </thead>
@@ -619,13 +622,13 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                         <td className="px-4 py-3 text-right font-semibold tabular-nums text-rose-700">{reportAmount(member.balance)}</td>
                       </tr>)}
                     </tbody>
-                  </table>
+                  </DataTable>
                 </div>
               </div>
             )}
 
             {reportType === 'memberStanding' && (
-              <table className="w-full">
+              <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Passbook No.</th>
@@ -650,11 +653,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTable>
             )}
 
             {reportType === 'deductions' && (
-              <table className="w-full">
+              <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
@@ -682,7 +685,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                     );
                   })}
                 </tbody>
-              </table>
+              </DataTable>
             )}
 
             {paginatedData.total === 0 && reportType !== 'summary' && !reportLoading && !reportError && (
@@ -702,7 +705,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               />
             </div>
           )}
-        </section>
+        </Panel>
       </div>
     </div>
   );

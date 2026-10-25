@@ -1,3 +1,8 @@
+import { SearchField } from '../../ui/workspace';
+import { Button as ActionButton } from '../../ui/button';
+import { Input as TextInput, Select } from '../../ui/input';
+import { PageHeader, PanelHeader, Panel } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
@@ -463,7 +468,7 @@ const MemberManagement = () => {
 
   return (
     <div className="secretary-dashboard admin-member-qr">
-      <header className="sd-header">
+      <PageHeader className="sd-header">
         <div>
           <p className="sd-eyebrow">
             Attendance management / Member QR management
@@ -474,7 +479,7 @@ const MemberManagement = () => {
           </p>
         </div>
         <div className="amq-header-actions">
-          <button
+          <ActionButton variant="default"
             className="sd-button sd-primary"
             onClick={handleGenerateAllMissing}
             disabled={generatingAll}
@@ -485,13 +490,13 @@ const MemberManagement = () => {
               <QrCode size={15} aria-hidden="true" />
             )}
             {generatingAll ? "Generating…" : "Generate missing QR"}
-          </button>
-          <button className="sd-button" onClick={exportToCSV}>
+          </ActionButton>
+          <ActionButton variant="outline" className="sd-button" onClick={exportToCSV}>
             <Download size={15} aria-hidden="true" />
             Export CSV
-          </button>
+          </ActionButton>
         </div>
-      </header>
+      </PageHeader>
 
       <AttendanceMetricGrid
         label="Loaded member QR overview"
@@ -550,18 +555,18 @@ const MemberManagement = () => {
         <div className="amq-filter-grid">
           <label>
             Search members
-            <span className="amq-search">
+            <SearchField as="span" className="amq-search">
               <Search size={16} aria-hidden="true" />
-              <input
+              <TextInput unstyled
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Name, Passbook No., or email"
               />
-            </span>
+            </SearchField>
           </label>
           <label>
             Barangay
-            <select
+            <Select
               value={selectedBarangay}
               onChange={(e) => setSelectedBarangay(e.target.value)}
             >
@@ -570,12 +575,12 @@ const MemberManagement = () => {
                   {barangay === "All" ? "All barangays" : barangay}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
       </section>
 
-      <div className="amq-register-heading">
+      <PanelHeader as="div" className="amq-register-heading">
         <div>
           <h2>Member register</h2>
           <p>
@@ -603,7 +608,7 @@ const MemberManagement = () => {
             Grid
           </button>
         </div>
-      </div>
+      </PanelHeader>
       {!loading && totalFilteredMembers === 0 && (
         <div className="amq-empty" role="status">
           <strong>
@@ -617,9 +622,9 @@ const MemberManagement = () => {
               : "Member records will appear here when available."}
           </p>
           {hasActiveFilters && (
-            <button className="sd-button" onClick={resetFilters}>
+            <ActionButton variant="outline" className="sd-button" onClick={resetFilters}>
               Reset filters
-            </button>
+            </ActionButton>
           )}
         </div>
       )}
@@ -630,14 +635,14 @@ const MemberManagement = () => {
           <div className="w-8 h-8 border-4 border-slate-200 border-t-green-500 rounded-full animate-spin"></div>
         </div>
       ) : viewMode === "table" ? (
-        <div className="sd-panel amq-register">
+        <Panel as="div" className="sd-panel amq-register">
           <div
             className="amq-table-scroll"
             role="region"
             aria-label="Member QR records"
             tabIndex={0}
           >
-            <table className="w-full">
+            <DataTable className="w-full">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
                   <th
@@ -713,7 +718,7 @@ const MemberManagement = () => {
                             Deceased — QR disabled
                           </span>
                         ) : (
-                          <button
+                          <ActionButton variant="outline"
                             onClick={() => setManagingMember(member)}
                             className="sd-button"
                             aria-haspopup="dialog"
@@ -723,16 +728,16 @@ const MemberManagement = () => {
                             {qrState(member) === "none"
                               ? "Generate QR"
                               : "Manage QR"}
-                          </button>
+                          </ActionButton>
                         )}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
+            </DataTable>
           </div>
-        </div>
+        </Panel>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {paginatedMembers.map((member) => {
@@ -774,7 +779,7 @@ const MemberManagement = () => {
                     Deceased — QR disabled
                   </div>
                 ) : (
-                  <button
+                  <ActionButton variant="default"
                     onClick={() => setManagingMember(member)}
                     className="sd-button sd-primary w-full"
                     aria-haspopup="dialog"
@@ -783,7 +788,7 @@ const MemberManagement = () => {
                   >
                     <QrCode className="w-4 h-4" />
                     {qrState(member) === "none" ? "Generate QR" : "Manage QR"}
-                  </button>
+                  </ActionButton>
                 )}
               </Motion.div>
             );

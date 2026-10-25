@@ -1,3 +1,5 @@
+import { Button as ActionButton } from '../../ui/button';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import { contributionTrend, memberBalanceCoverage, contributionGrowth } from '../../../utils/dashboardMetrics';
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown, ArrowRight, RefreshCw } from 'lucide-react';
@@ -83,13 +85,13 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
 
   return (
     <div className="treasurer-dashboard">
-      <header className="td-header">
+      <PageHeader className="td-header">
         <div><p className="td-eyebrow">Mortuary management / Overview</p><h1>Mortuary dashboard</h1><p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p></div>
         <div className="td-header-actions">
-          <button className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</button>
-          <button className="td-button td-primary" onClick={() => setActiveTab('contributions')}>Manage contributions <ArrowRight size={15} aria-hidden="true" /></button>
+          <ActionButton variant="outline" className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
+          <ActionButton variant="default" className="td-button td-primary" onClick={() => setActiveTab('contributions')}>Manage contributions <ArrowRight size={15} aria-hidden="true" /></ActionButton>
         </div>
-      </header>
+      </PageHeader>
       <AttendanceMetricGrid label="Mortuary fund overview" busy={refreshing} items={[
         ['Active member balances', '₱' + (stats?.fundBalance?.toLocaleString() || '0'), 'Sum of active member ledger balances', Wallet],
         ['Active members', stats?.activeMembers?.toLocaleString() || '0', 'Currently contributing', Users],
@@ -99,7 +101,7 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
       <p className="td-overview">Welcome back, {firstName}. Review the fund's financial overview and member insights.</p>
       <div className="td-workspace"><div className="td-main">
         {/* Fund Growth Line Chart */}
-        <div className="td-panel td-chart-panel">
+        <Panel as="div" className="td-panel td-chart-panel">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -145,12 +147,12 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
               <p className="text-sm font-bold text-slate-900">{chartData.reduce((s, d) => s + (d.count || 0), 0).toLocaleString()}</p>
             </div>
           </div>
-        </div>
+        </Panel>
 
       {/* Pie Charts Section */}
       <div className="td-pies">
         {/* Member Standing */}
-        <div className="td-panel td-chart-panel">
+        <Panel as="div" className="td-panel td-chart-panel">
           <p className="text-sm font-semibold text-slate-900 mb-1">Member Standing</p>
           <p className="text-xs text-slate-400 mb-4">Balance-based categories</p>
 
@@ -183,10 +185,10 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
 
         {/* Status Composition */}
-        <div className="td-panel td-chart-panel">
+        <Panel as="div" className="td-panel td-chart-panel">
           <p className="text-sm font-semibold text-slate-900 mb-1">Status Composition</p>
           <p className="text-xs text-slate-400 mb-4">Member status breakdown</p>
 
@@ -218,10 +220,10 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
               </div>
             </div>
           </div>
-        </div>
+        </Panel>
       </div>
 </div><aside className="td-sidebar" aria-label="Claims and fund activity">        {/* Claims awaiting treasurer action */}
-        <div className="td-panel td-chart-panel">
+        <Panel as="div" className="td-panel td-chart-panel">
           <div className="mb-4">
             <p className="text-sm font-semibold text-slate-900">Claims Awaiting Action</p>
             <p className="text-xs text-slate-400 mt-0.5">Current claims pending deduction or benefit release</p>
@@ -269,15 +271,15 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
               ))}
             </div>
           )}
-        </div>
+        </Panel>
 
-          <section className="td-panel" aria-labelledby="td-fund-title">
-            <div className="td-panel-heading"><h2 id="td-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></div>
+          <Panel as="section" className="td-panel" aria-labelledby="td-fund-title">
+            <PanelHeader as="div" className="td-panel-heading"><h2 id="td-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></PanelHeader>
             <dl className="td-fund-totals">
               <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{(stats?.totalDeductionsCollected || 0).toLocaleString()}</dd><small>One time assessment collected</small></div>
               <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{(stats?.totalReleased || 0).toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
             </dl>
-          </section>
+          </Panel>
           <nav className="td-tools" aria-label="Mortuary workspace">
             <h2>Workspace</h2>
             {[

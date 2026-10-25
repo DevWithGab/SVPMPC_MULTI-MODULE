@@ -1,5 +1,6 @@
+import { DialogHeader, ModalActions } from '../../ui/workspace';
 import { useEffect, useId, useRef } from 'react';
-import { CheckCircle2, Download, FileSpreadsheet, Loader2, Upload, X } from 'lucide-react';
+import { CheckCircle2, Download, FileSpreadsheet, Loader2, Upload } from 'lucide-react';
 import { Button } from '../../ui/button';
 
 export function BulkUploadDialog({ title, description, busy, onClose, footer, children }) {
@@ -15,20 +16,13 @@ export function BulkUploadDialog({ title, description, busy, onClose, footer, ch
   return (
     <dialog ref={dialog} aria-labelledby={titleId} aria-describedby={descriptionId}
       onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
-      className="m-auto w-[calc(100%_-_2rem)] max-w-3xl max-h-[90dvh] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm">
+      className="ui-dialog m-auto w-[calc(100%_-_2rem)] max-w-3xl max-h-[90dvh] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-sm">
       <div className="flex max-h-[90dvh] flex-col">
-        <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-5 sm:px-6 shrink-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 text-coop-green"><Upload className="h-5 w-5" aria-hidden="true" /></div>
-          <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-lg font-bold tracking-tight text-slate-900">{title}</h2>
-            <p id={descriptionId} className="mt-1 text-sm text-slate-500">{description}</p>
-          </div>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} disabled={busy} aria-label="Close upload dialog" className="h-8 w-8 shrink-0 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-4 w-4" /></Button>
-        </div>
-        <div className="min-h-0 space-y-5 overflow-y-auto bg-slate-50/50 px-5 py-5 sm:px-6">{children}</div>
-        <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 sm:px-6">
+        <DialogHeader title={title} titleId={titleId} description={description} descriptionId={descriptionId} busy={busy} onClose={onClose} closeLabel="Close upload dialog" />
+        <div className="ui-dialog-body space-y-5">{children}</div>
+        <div className="ui-dialog-footer shrink-0 border-t border-slate-200 bg-white">
           {busy && <p role="status" className="mb-3 flex items-center gap-2 text-xs text-slate-500"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Processing your file. Please keep this window open.</p>}
-          <div className="flex flex-wrap justify-end gap-2 [&>button]:grow sm:[&>button]:grow-0">{footer}</div>
+          <ModalActions>{footer}</ModalActions>
         </div>
       </div>
     </dialog>

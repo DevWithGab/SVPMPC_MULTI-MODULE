@@ -1,3 +1,5 @@
+import { Button as ActionButton } from '../../ui/button';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Loader2, History } from 'lucide-react';
 import { beneficiaryAPI } from '../../../services/api';
@@ -28,21 +30,21 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack, backL
 
   return (
     <div className="member-balances admin-beneficiaries">
-      <header className="mb-header">
+      <PageHeader className="mb-header">
         <div>
           <p className="mb-eyebrow">Mortuary management / {parentSection} / Beneficiary history</p>
           <h1>Beneficiary history</h1>
           <p className="mb-description">Review current and previous beneficiary records for {memberName}. Passbook No. {memberId}.</p>
         </div>
-        <button onClick={onBack} className="mb-button"><ArrowLeft size={15} aria-hidden="true" />{backLabel}</button>
-      </header>
-      <section className="mb-panel" aria-labelledby="beneficiary-history-title" aria-busy={loading}>
-        <div className="mb-register-heading"><div><h2 id="beneficiary-history-title">Record history</h2><p>{memberName}</p></div></div>
+        <ActionButton variant="outline" onClick={onBack} className="mb-button"><ArrowLeft size={15} aria-hidden="true" />{backLabel}</ActionButton>
+      </PageHeader>
+      <Panel as="section" className="mb-panel" aria-labelledby="beneficiary-history-title" aria-busy={loading}>
+        <PanelHeader as="div" className="mb-register-heading"><div><h2 id="beneficiary-history-title">Record history</h2><p>{memberName}</p></div></PanelHeader>
         <div className="mb-scope"><span>{loading ? 'Loading records?' : error ? 'History unavailable' : `${history.length} beneficiary records`}</span><span>Current and previous designations</span></div>
         {loading ? (
           <div className="mb-empty" role="status"><Loader2 size={22} className="animate-spin" aria-hidden="true" /><p>Loading beneficiary history?</p></div>
         ) : error ? (
-          <div className="mb-empty"><p role="alert">{error}</p><button className="mb-button" onClick={load}>Try again</button></div>
+          <div className="mb-empty"><p role="alert">{error}</p><ActionButton variant="outline" className="mb-button" onClick={load}>Try again</ActionButton></div>
         ) : history.length > 0 ? (
           <ol className="beneficiary-history-list">
             {history.map(record => (
@@ -67,7 +69,7 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack, backL
         ) : (
           <div className="mb-empty" role="status"><History size={28} aria-hidden="true" /><strong>No beneficiary records for this member</strong><p>Registered beneficiary records and subsequent changes will appear here.</p></div>
         )}
-      </section>
+      </Panel>
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import { Button as ActionButton } from '../../ui/button';
+import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import { useEffect, useState } from "react";
 import { QrCode, RefreshCw, UserRound } from "lucide-react";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
@@ -61,7 +64,7 @@ export default function MyScans({ user }) {
 
   return (
     <div className="secretary-dashboard operator-my-scans">
-      <header className="sd-header">
+      <PageHeader className="sd-header">
         <div>
           <p className="sd-eyebrow">Attendance management / Scanner operator</p>
           <h1>My scans</h1>
@@ -69,7 +72,7 @@ export default function MyScans({ user }) {
             Review attendance records you personally scanned across all events.
           </p>
         </div>
-        <button
+        <ActionButton variant="outline"
           type="button"
           className="sd-button"
           disabled={loading || !scannedBy}
@@ -81,10 +84,10 @@ export default function MyScans({ user }) {
             aria-hidden="true"
           />
           {loading ? "Refreshing…" : "Refresh"}
-        </button>
-      </header>
+        </ActionButton>
+      </PageHeader>
 
-      <section
+      <Panel as="section"
         className="sd-panel oms-operator"
         aria-label="Scan history scope"
       >
@@ -98,14 +101,14 @@ export default function MyScans({ user }) {
             Your recorded check-ins across events, including previous sessions.
           </p>
         </div>
-      </section>
+      </Panel>
 
-      <section
+      <Panel as="section"
         className="sd-panel"
         aria-labelledby="oms-history-title"
         aria-busy={loading}
       >
-        <div className="sd-panel-heading">
+        <PanelHeader as="div" className="sd-panel-heading">
           <div>
             <h2 id="oms-history-title">Scan history</h2>
             <p>Member details, event names, and recorded check-in times.</p>
@@ -117,7 +120,7 @@ export default function MyScans({ user }) {
                 ? "Refresh failed"
                 : `${total.toLocaleString()} record${total === 1 ? "" : "s"}`}
           </span>
-        </div>
+        </PanelHeader>
         {error && (
           <div className="oms-error" role="alert">
             {error} Use Refresh to try again.
@@ -130,7 +133,7 @@ export default function MyScans({ user }) {
           aria-label="Personal scan history"
           tabIndex={0}
         >
-          <table className="oms-table">
+          <DataTable className="oms-table">
             <thead>
               <tr>
                 <th scope="col">Member / Passbook</th>
@@ -205,7 +208,7 @@ export default function MyScans({ user }) {
                 </tr>
               )}
             </tbody>
-          </table>
+          </DataTable>
         </div>
 
         {!loading && !error && total > 0 && (
@@ -220,7 +223,7 @@ export default function MyScans({ user }) {
             />
           </footer>
         )}
-      </section>
+      </Panel>
     </div>
   );
 }

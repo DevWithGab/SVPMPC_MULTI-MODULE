@@ -1,3 +1,5 @@
+import { Select } from '../ui/input';
+import { Table as DataTable } from '../ui/table';
 import { useEffect, useRef, useState } from 'react';
 import { staffAPI } from '../../services/api';
 import { Button } from '../ui/button';
@@ -73,16 +75,16 @@ export default function StaffAccounts() {
         <label className="text-sm">Name<Input required minLength={2} value={form.fullName || ''} onChange={e => setForm({ ...form, fullName: e.target.value })} /></label>
         <label className="text-sm">Login username<Input required minLength={3} maxLength={32} pattern="[a-z0-9][a-z0-9._\-]{2,31}" autoComplete="off" value={form.username || ''} onChange={e => setForm({ ...form, username: e.target.value.toLowerCase() })} /><span className="text-xs text-slate-500">3–32 characters, e.g. maria.santos. Staff use this username to sign in.</span></label>
       </div>
-      <label className="block text-sm">Role<select className="block border rounded p-2 mt-1" value={form.role} onChange={e => setForm({ ...form, role: e.target.value, modules: [...roleModules[e.target.value]] })}>{Object.keys(roleModules).map(role => <option key={role} value={role}>{label(role)}</option>)}</select></label>
+      <label className="block text-sm">Role<Select className="block border rounded p-2 mt-1" value={form.role} onChange={e => setForm({ ...form, role: e.target.value, modules: [...roleModules[e.target.value]] })}>{Object.keys(roleModules).map(role => <option key={role} value={role}>{label(role)}</option>)}</Select></label>
       <fieldset><legend className="text-sm mb-2">Module access</legend><div className="flex gap-5">{roleModules[form.role].map(module => <label key={module} className="capitalize"><input type="checkbox" checked={form.modules.includes(module)} onChange={e => setForm({ ...form, modules: e.target.checked ? [...form.modules, module] : form.modules.filter(m => m !== module) })} /> {module}</label>)}</div></fieldset>
-      {form.userId && <label className="block text-sm">Status<select className="block border rounded p-2 mt-1" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{['active', 'inactive', 'suspended'].map(status => <option key={status}>{status}</option>)}</select></label>}
+      {form.userId && <label className="block text-sm">Status<Select className="block border rounded p-2 mt-1" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{['active', 'inactive', 'suspended'].map(status => <option key={status}>{status}</option>)}</Select></label>}
       {form.userId && <p className="text-sm text-slate-500">Saving access changes signs this staff member out of existing sessions.</p>}
       <div className="flex gap-3"><Button type="submit" disabled={busy || !form.modules.length}>{busy ? 'Saving…' : form.userId ? 'Save changes' : 'Generate account'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setForm(null)}>Cancel</Button></div>
     </form>}
     <Input aria-label="Search staff" placeholder="Search staff by name or username" value={search} onChange={e => setSearch(e.target.value)} />
     {loadingList && <p role="status" className="py-3">Loading staff accounts...</p>}
     {listError && <p role="alert" className="py-3 text-red-700">{listError}</p>}
-    <div className="overflow-x-auto mt-4"><table className="w-full text-sm text-left"><thead><tr>{['Staff', 'Role', 'Modules', 'Status', 'Actions'].map(title => <th className="p-3 border-b" key={title}>{title}</th>)}</tr></thead>
+    <div className="overflow-x-auto mt-4"><DataTable className="w-full text-sm text-left"><thead><tr>{['Staff', 'Role', 'Modules', 'Status', 'Actions'].map(title => <th className="p-3 border-b" key={title}>{title}</th>)}</tr></thead>
       <tbody>{paginatedUsers.map(user => <tr key={user.userId}>
         <td className="p-3 border-b"><p className="font-semibold">{user.fullName || user.username}</p><p>{user.email}</p><p className="text-xs text-slate-500">{user.username}</p></td>
         <td className="p-3 border-b capitalize">{label(user.role)}</td><td className="p-3 border-b capitalize">{user.modules.join(', ')}</td><td className="p-3 border-b">{user.status}{user.isTemporaryPassword && <p className="text-xs text-amber-700">Password change required</p>}</td>
@@ -95,7 +97,7 @@ export default function StaffAccounts() {
             if (form?.userId === user.userId) setForm(null);
           });
         }}>Delete</Button></div></td>
-      </tr>)}</tbody></table>{!loadingList && !listError && !users.length && <p className="py-4 text-slate-500">No staff accounts yet.</p>}{users.length > 0 && !filteredUsers.length && <p className="py-4 text-slate-500">No staff match this search. Clear the search to see all accounts.</p>}</div>
+      </tr>)}</tbody></DataTable>{!loadingList && !listError && !users.length && <p className="py-4 text-slate-500">No staff accounts yet.</p>}{users.length > 0 && !filteredUsers.length && <p className="py-4 text-slate-500">No staff match this search. Clear the search to see all accounts.</p>}</div>
     {filteredUsers.length > 0 && <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-100">
       <PaginationInfo currentPage={page} limit={limit} total={filteredUsers.length} />
       <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} hasNextPage={page < totalPages} hasPrevPage={page > 1} />

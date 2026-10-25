@@ -1,3 +1,8 @@
+import { SearchField } from '../../ui/workspace';
+import { Button as ActionButton } from '../../ui/button';
+import { Select, Input as TextInput } from '../../ui/input';
+import { PageHeader } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import './MemberLedger.css';
 import React, { useRef, useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
@@ -215,7 +220,7 @@ const MemberLedger = ({
     return (
       <div className="member-ledger space-y-5 print:space-y-0">
         {/* Header */}
-        <header className="ml-header ml-screen"><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></header>
+        <PageHeader className="ml-header ml-screen"><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></PageHeader>
 
         {/* Controls */}
         <div className="ml-controls ml-screen">
@@ -230,12 +235,12 @@ const MemberLedger = ({
           >
             <ArrowLeft className="w-4 h-4" /> Back to list
           </button>
-          <button
+          <ActionButton variant="default"
             onClick={() => onAddDeposit(currentMember)}
             className="ml-button ml-primary"
           >
             Add Deposit
-          </button>
+          </ActionButton>
         </div>
         <div className="ml-document-actions ml-screen">
           <section className="ml-action-group" aria-labelledby="ml-ledger-actions-title">
@@ -305,9 +310,9 @@ const MemberLedger = ({
         <section className="ml-filters ml-screen" aria-labelledby="ml-entry-filter-title">
           <div className="ml-filter-heading"><h2 id="ml-entry-filter-title">Find a transaction</h2><button className="ml-text-button" disabled={!hasActiveLedgerFilters && sortOrder === 'desc'} onClick={() => { setTransactionFilter('all'); setDatePreset('all'); setSortOrder('desc'); }}>Reset filters</button></div>
           <div className="ml-filter-grid ml-entry-filters">
-            <label>Transaction type<select value={transactionFilter} onChange={e => setTransactionFilter(e.target.value)}><option value="all">All entries</option><option value="deposits">Received</option><option value="withdrawals">Withdrawn</option></select></label>
-            <label>Date range<select value={datePreset} onChange={e => setDatePreset(e.target.value)}><option value="all">All time</option><option value="thisMonth">This month</option><option value="lastMonth">Last month</option><option value="thisYear">This year</option></select></label>
-            <label>Sort by date<select value={sortOrder} onChange={e => setSortOrder(e.target.value)}><option value="desc">Newest first</option><option value="asc">Oldest first</option></select></label>
+            <label>Transaction type<Select value={transactionFilter} onChange={e => setTransactionFilter(e.target.value)}><option value="all">All entries</option><option value="deposits">Received</option><option value="withdrawals">Withdrawn</option></Select></label>
+            <label>Date range<Select value={datePreset} onChange={e => setDatePreset(e.target.value)}><option value="all">All time</option><option value="thisMonth">This month</option><option value="lastMonth">Last month</option><option value="thisYear">This year</option></Select></label>
+            <label>Sort by date<Select value={sortOrder} onChange={e => setSortOrder(e.target.value)}><option value="desc">Newest first</option><option value="asc">Oldest first</option></Select></label>
           </div>
         </section>
 
@@ -396,7 +401,7 @@ const MemberLedger = ({
               dividers sa pagitan ng columns, dagdag pa sa row separators)
               kasi naka-print ito as official statement. */}
           <div className="ml-table-scroll overflow-x-auto" role="region" aria-label="Member transaction history" tabIndex={0}>
-            <table className="w-full border border-slate-200 border-collapse">
+            <DataTable className="w-full border border-slate-200 border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 divide-x divide-slate-200">
                   <th scope="col" className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th>
@@ -453,7 +458,7 @@ const MemberLedger = ({
                   </tr>
                 </tbody>
               )}
-            </table>
+            </DataTable>
           </div>
 
           {/* Footer */}
@@ -480,12 +485,12 @@ const MemberLedger = ({
 
   return (
     <div className="member-ledger">
-      <header className="ml-header ml-list-header"><div><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Find a member to review their contributions, deductions, and running balance.</p></div><button type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</button></header>
+      <PageHeader className="ml-header ml-list-header"><div><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Find a member to review their contributions, deductions, and running balance.</p></div><ActionButton variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</ActionButton></PageHeader>
       <section className="ml-filters" aria-labelledby="ml-member-filter-title">
         <div className="ml-filter-heading"><h2 id="ml-member-filter-title">Find a member</h2><button className="ml-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
         <div className="ml-filter-grid">
-          <label>Search members<span className="ml-search"><Search size={16} aria-hidden="true" /><input placeholder="Search member…" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} /></span></label>
-          <label>Barangay<select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setCurrentPage(1); }}>{uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}</select></label>
+          <label>Search members<SearchField as="span" className="ml-search"><Search size={16} aria-hidden="true" /><TextInput unstyled placeholder="Search member…" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} /></SearchField></label>
+          <label>Barangay<Select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setCurrentPage(1); }}>{uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}</Select></label>
         </div>
       </section>
 
@@ -493,7 +498,7 @@ const MemberLedger = ({
       <section className="ml-register" aria-labelledby="ml-register-title">
         <div className="ml-register-heading"><h2 id="ml-register-title">Member register</h2><p>Select a member to open their complete ledger.</p></div>
         <div className="ml-scope"><span>{totalMembers.toLocaleString()} {hasActiveFilters ? 'matching ' : ''}member{totalMembers === 1 ? '' : 's'}</span><span>{barangayFilter === 'All' ? 'All barangays' : barangayFilter}</span></div>
-        <div className="ml-table-scroll" role="region" aria-label="Member ledger register" tabIndex={0}><table className="w-full">
+        <div className="ml-table-scroll" role="region" aria-label="Member ledger register" tabIndex={0}><DataTable className="w-full">
           <thead>
             <tr className="border-b border-slate-100">
               <th scope="col" className="text-left px-5 py-3.5 text-xs font-medium text-slate-400 uppercase tracking-wider">Member</th>
@@ -524,13 +529,13 @@ const MemberLedger = ({
                   </span>
                 </td>
                 <td className="px-5 py-4 text-right">
-                  <button
+                  <ActionButton variant="outline"
                     onClick={(e) => { e.stopPropagation(); setSelectedLedgerMember(member); }}
                     className="ml-button"
                     aria-label={'Open ledger for ' + member.name}
                   >
                     Open Ledger
-                  </button>
+                  </ActionButton>
                 </td>
               </tr>
             ))}
@@ -549,7 +554,7 @@ const MemberLedger = ({
               </tr>
             )}
           </tbody>
-        </table></div>
+        </DataTable></div>
         {totalMembers > 0 && (
           <div className="ml-pagination">
             <PaginationInfo currentPage={currentPage} limit={itemsPerPage} total={totalMembers} />

@@ -1,3 +1,5 @@
+import { Panel, ModalActions } from '../../ui/workspace';
+import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, FileText, Eye, Printer } from 'lucide-react';
 import Modal from '../shared/Modal';
@@ -67,9 +69,9 @@ export default function ClaimDisbursementReport() {
         </div>
       </div>
 
-      <div className="mc-register">
+      <Panel as="div" className="mc-register">
         <div className="mc-table-scroll" role="region" aria-label="Claims report" tabIndex={0}>
-          <table className="w-full">
+          <DataTable className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
                 <th className="text-left px-6 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Deceased Member</th>
@@ -115,7 +117,7 @@ export default function ClaimDisbursementReport() {
                 </tr>
               )}
             </tbody>
-          </table>
+          </DataTable>
         </div>
         {!loading && total > 0 && (
           <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -129,7 +131,7 @@ export default function ClaimDisbursementReport() {
             />
           </div>
         )}
-      </div>
+      </Panel>
 
       <Modal isOpen={Boolean(viewing)} onClose={() => setViewing(null)} title="Disbursement Details">
         {viewing && (
@@ -175,14 +177,14 @@ export default function ClaimDisbursementReport() {
               )}
             </dl>
 
-            <div className="flex gap-3 pt-2 border-t border-slate-100">
+            <ModalActions className="flex gap-3 pt-2 border-t border-slate-100">
               <Button type="button" variant="ghost" onClick={() => setViewing(null)} className="flex-1 h-11 border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">
                 Close
               </Button>
               <Button type="button" onClick={() => printClaimReceipt(viewing)} className="flex-1 h-11 bg-coop-green hover:bg-coop-darkGreen text-white font-semibold text-sm">
                 <Printer className="w-4 h-4" /> Print Receipt
               </Button>
-            </div>
+            </ModalActions>
           </div>
         )}
       </Modal>

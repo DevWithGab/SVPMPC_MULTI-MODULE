@@ -45,3 +45,5 @@
   .audit-detail-pair > div + div { border-left: 0; border-top: 1px solid #e2e7e3; }
   .audit-detail-list > div { gap: 5px; }
 }
+
+.audit-detail-shell { display: flex; flex-direction: column; max-height: 90dvh; min-height: 0; }
