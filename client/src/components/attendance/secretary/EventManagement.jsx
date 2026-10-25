@@ -1,3 +1,4 @@
+import EventDetails from '../shared/EventDetails';
 import { SearchField } from '../../ui/workspace';
 import { Input as TextInput, Select, Textarea } from '../../ui/input';
 import { PageHeader, FormField, ModalActions } from '../../ui/workspace';
@@ -1210,93 +1211,16 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
       <Modal
         isOpen={Boolean(viewedEvent)}
         onClose={() => setViewedEvent(null)}
-        title="Event Details"
-        className="max-w-lg"
+        title={viewedEvent?.status === 'closed' ? 'Closed event details' : 'Event details'}
+        maxWidth="max-w-lg"
       >
-        {viewedEvent && (
-          <div className="space-y-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {eventDisplayName(viewedEvent)}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  {viewedEvent.type || "General Assembly"}
-                </p>
-              </div>
-              <div
-                className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${getStatusColor(viewedEvent.status)}`}
-              >
-                {getStatusIcon(viewedEvent.status)}
-                <span>{getStatusLabel(viewedEvent.status)}</span>
-              </div>
-            </div>
-
-            {viewedEvent.status === "rejected" && (
-              <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-700">
-                <p className="font-bold">Event Rejected - Revision required</p>
-                {viewedEvent.rejectionReason && (
-                  <p className="mt-1">Reason: {viewedEvent.rejectionReason}</p>
-                )}
-              </div>
-            )}
-
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Date
-                </dt>
-                <dd className="mt-1 flex items-center gap-2 text-slate-700">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  {displayDate(viewedEvent)}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Time (PHT)
-                </dt>
-                <dd className="mt-1 flex items-center gap-2 text-slate-700">
-                  <Clock className="w-4 h-4 text-slate-400" />
-                  {formatTimeRange(
-                    viewedEvent.startTime || viewedEvent.eventTime,
-                    viewedEvent.endTime,
-                  )}{" "}
-                  PHT
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Location
-                </dt>
-                <dd className="mt-1 flex items-center gap-2 text-slate-700">
-                  <MapPin className="w-4 h-4 text-slate-400" />
-                  {viewedEvent.location}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Description
-                </dt>
-                <dd className="mt-1 text-slate-700">
-                  {viewedEvent.description || "No description provided."}
-                </dd>
-              </div>
-            </dl>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setViewedEvent(null)}
-                className="border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
+        {viewedEvent && <>
+          <EventDetails event={viewedEvent} name={eventDisplayName(viewedEvent)} formattedDate={displayDate(viewedEvent)} statusLabel={getStatusLabel(viewedEvent.status)} category={viewedEvent.type || 'General Assembly'} />
+          <ModalActions>
+            <Button type="button" variant="outline" onClick={() => setViewedEvent(null)}>Close</Button>
+          </ModalActions>
+        </>}
       </Modal>
-
       {/* Cancel Confirmation Modal */}
       <Modal
         isOpen={Boolean(eventPendingDelete)}

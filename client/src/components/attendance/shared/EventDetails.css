@@ -1,0 +1,18 @@
+.event-details-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
+.event-details-summary > div { min-width: 0; }
+.event-details-summary p { color: var(--ui-muted); font-size: 11px; margin-bottom: 5px; }
+.event-details-summary h3 { color: var(--ui-heading); font-size: 18px; font-weight: 600; line-height: 1.5; letter-spacing: -.2px; overflow-wrap: anywhere; }
+.event-details-status { display: inline-flex; margin-top: 3px; padding: 3px 8px; border: 1px solid var(--ui-border); border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; color: var(--ui-muted); background: #f5f6f5; }
+.event-details-status-active { color: var(--ui-primary); background: #edf5ee; border-color: #cbdccd; }
+.event-details-status-upcoming { color: #795d21; background: #faf6eb; border-color: #e7dcc0; }
+.event-details-status-pending_approval, .event-details-status-draft { color: #41617a; background: #f0f4f8; border-color: #d5e0e8; }
+.event-details-status-rejected { color: var(--ui-danger); background: #fff5f3; border-color: #ebc9c1; }
+.event-details-fields > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 18px; padding: 13px 0; border-top: 1px solid var(--ui-divider); font-size: 13px; line-height: 1.7; }
+.event-details-fields dt { color: var(--ui-muted); font-size: 12px; font-weight: 500; }
+.event-details-fields dd { color: var(--ui-ink); overflow-wrap: anywhere; white-space: pre-wrap; }
+.event-details-note { margin-top: 18px; padding: 12px 14px; border: 1px solid var(--ui-border); border-radius: var(--ui-control-radius); background: var(--ui-subtle); color: var(--ui-muted); font-size: 12px; line-height: 1.8; }
+.event-details-note strong { font-weight: 600; color: #34453a; }
+.event-details-rejection { margin-bottom: 18px; padding: 12px 14px; border: 1px solid #ebc9c1; border-radius: var(--ui-control-radius); background: #fff5f3; color: var(--ui-danger); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.event-details-rejection strong { font-weight: 600; }
+.event-details-rejection p { margin-top: 4px; white-space: pre-wrap; }
+@media (max-width: 480px) { .event-details-summary { gap: 12px; } .event-details-fields > div { grid-template-columns: minmax(0, 1fr); gap: 3px; } }

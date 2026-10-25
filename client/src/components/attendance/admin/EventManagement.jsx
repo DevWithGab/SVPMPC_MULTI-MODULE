@@ -1,3 +1,4 @@
+import EventDetails from '../shared/EventDetails';
 import { SearchField } from '../../ui/workspace';
 import { Button as ActionButton } from '../../ui/button';
 import { Input as TextInput, Textarea } from '../../ui/input';
@@ -413,19 +414,8 @@ const EventManagement = ({ events = [], setEvents }) => {
         className="aae-event-modal aae-view-modal max-w-lg"
       >
         {viewedEvent && (
-          <div className="aae-view-details">
-            <div className="aae-view-summary">
-              <div><p>Attendance event</p><h3>{getEventName(viewedEvent)}</h3></div>
-              <span className={`aae-event-status aae-status-${viewedEvent.status}`}>{getStatusLabel(viewedEvent.status)}</span>
-            </div>
-            <dl className="aae-view-fields">
-              <div><dt>Event reference</dt><dd>{getEventKey(viewedEvent)}</dd></div>
-              <div><dt>Scheduled date</dt><dd>{eventDate(viewedEvent)}</dd></div>
-              <div><dt>Time (PHT)</dt><dd>{formatTimeRange(viewedEvent.startTime, viewedEvent.endTime)}</dd></div>
-              <div><dt>Location</dt><dd>{viewedEvent.location || 'Not specified'}</dd></div>
-              <div><dt>Description</dt><dd>{viewedEvent.description || 'No description provided.'}</dd></div>
-            </dl>
-            {viewedEvent.status === 'closed' && <p className="aae-view-note">This event is closed. Recorded details are read-only. Use <strong>Reopen event</strong> to set a new attendance schedule.</p>}
+          <div>
+            <EventDetails event={viewedEvent} name={getEventName(viewedEvent)} formattedDate={eventDate(viewedEvent)} statusLabel={getStatusLabel(viewedEvent.status)} closedNote={<>This event is closed. Recorded details are read-only. Use <strong>Reopen event</strong> to set a new attendance schedule.</>} />
             <ModalActions className="aae-modal-actions">
               <Button
                 type="button"

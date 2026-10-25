@@ -64,9 +64,9 @@ test('event modals enforce locked details and show actions appropriate to each e
       assert.deepEqual(actions, status === 'closed' ? ['Close', 'Reopen event'] : ['Close', 'Reject event', 'Approve event']);
       if (status === 'closed') {
         assert.match(dialog.querySelector('h2').textContent, /Closed event details/);
-        assert.match(dialog.querySelector('.aae-view-fields').textContent, /Main Hall/);
-        assert.match(dialog.querySelector('.aae-view-fields').textContent, /Recorded details/);
-        assert.match(dialog.querySelector('.aae-view-note').textContent, /Recorded details are read-only/);
+        assert.match(dialog.querySelector('.event-details-fields').textContent, /Main Hall/);
+        assert.match(dialog.querySelector('.event-details-fields').textContent, /Recorded details/);
+        assert.match(dialog.querySelector('.event-details-note').textContent, /Recorded details are read-only/);
         await act(async () => [...dialog.querySelectorAll('button')].find(button => button.textContent === 'Reopen event').click());
         assert.match(container.textContent, /Reason for Reopening/);
       }
