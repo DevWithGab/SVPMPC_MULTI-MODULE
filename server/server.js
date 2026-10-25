@@ -51,7 +51,11 @@ app.use(helmet({
 (CSV, bulk import) sa multer's own disk storage, hindi sa JSON/urlencoded
 bodies. Yung isang JSON endpoint na may malaking payload (pasted CSV text
 para sa treasurer's bulk payment upload) may sariling 1MB cap sa paymentCsv.js. */
-app.use(express.json({ limit: '2mb' }));
+/* A complete module backup (every record plus audit history) is far larger
+than any normal request, so only the restore endpoints accept up to 25MB. */
+const jsonDefault = express.json({ limit: '2mb' });
+const jsonBackupRestore = express.json({ limit: '25mb' });
+app.use((req, res, next) => (/\/backup\/restore$/.test(req.path) ? jsonBackupRestore : jsonDefault)(req, res, next));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Serve static files for uploads

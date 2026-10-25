@@ -41,6 +41,7 @@ const ACTION_LABELS = {
   qr_code_deactivated: "QR Code Deactivated",
   qr_code_reactivated: "QR Code Reactivated",
   data_restored: "Backup Restored",
+  data_exported: "Backup Downloaded",
 };
 const actionLabel = (action) =>
   ACTION_LABELS[action] ||

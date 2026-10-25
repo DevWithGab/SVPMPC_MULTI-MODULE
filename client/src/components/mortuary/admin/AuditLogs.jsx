@@ -32,6 +32,8 @@ const ACTION_LABELS = {
   claim_rejected: "Claim Rejected",
   claim_deduction_processed: "Deduction Processed",
   claim_released: "Benefit Released",
+  data_restored: "Backup Restored",
+  data_exported: "Backup Downloaded",
 };
 const actionLabel = (action) =>
   ACTION_LABELS[action] ||

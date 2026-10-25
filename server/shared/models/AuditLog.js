@@ -40,6 +40,7 @@ const auditLogSchema = new mongoose.Schema(
         'qr_code_deactivated',
         'qr_code_reactivated',
         'data_restored',
+        'data_exported',
         'claim_created',
         'claim_approved',
         'claim_rejected',

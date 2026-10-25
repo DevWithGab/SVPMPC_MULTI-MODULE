@@ -1,166 +1,80 @@
 const { Member } = require('../../../shared/models');
 const Event = require('../models/Event');
 const Attendance = require('../models/Attendance');
+const AttendanceReport = require('../models/AttendanceReport');
+const AuditLog = require('../../../shared/models/AuditLog');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { actorName } = require('../../../shared/utils/actorName');
+const { exportModule, restoreModule, summaryTotals } = require('../../../shared/utils/moduleBackup');
 
+/* Everything the Attendance module owns. Members are always included (shared
+with Mortuary); on restore an existing member only receives its QR fields,
+never the shared profile, mortuary status or beneficiaries. */
 const QR_FIELDS = ['qrCode', 'qrCodeUrl', 'qrCodeGenerated', 'qrCodeActive'];
-const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', 'status', ...QR_FIELDS];
-const pickFields = (record, allowed) => Object.fromEntries(
-  allowed.filter(field => Object.hasOwn(record, field)).map(field => [field, record[field]])
-);
-const validRecordId = value => typeof value === 'string' && value.trim().length > 0;
+// Shared profile used to recreate a member missing from the database.
+const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', 'status'];
+const COLLECTIONS = [
+  { name: 'events', Model: Event, key: 'eventId' },
+  { name: 'attendanceLogs', Model: Attendance, key: 'attendanceId', summaryKey: 'attendance' },
+  { name: 'attendanceReports', Model: AttendanceReport, key: 'reportId' },
+  { name: 'auditLogs', Model: AuditLog, key: 'logId', insertOnly: true, filter: { module: 'attendance' } },
+];
 
-/* Puwedeng i-recover ng Attendance yung QR data, pero hindi puwedeng
-i-rewrite yung shared profile, mortuary eligibility/status, beneficiaries,
-o module assignments. */
-const restoreMembers = async (records) => {
-  const result = { created: 0, updated: 0, errors: [] };
-  for (const record of records) {
-    const memberId = record?.memberId;
-    if (!validRecordId(memberId)) {
-      result.errors.push({ error: 'Record requires a string memberId' });
-      continue;
-    }
+const audit = (req, fields) => createAuditLog({
+  userId: req.user?.userId,
+  userName: actorName(req.user, 'Unknown'),
+  userRole: req.user?.role || 'admin',
+  module: 'attendance',
+  entityType: 'backup',
+  ipAddress: req.ip,
+  userAgent: req.get('user-agent'),
+  ...fields,
+});
 
-    try {
-      // Members are shared; backup labels never redefine their enrollment.
-      const existing = await Member.findOne({ memberId });
-      if (existing) {
-        const fields = pickFields(record, QR_FIELDS);
-        if (Object.keys(fields).length) {
-          // Do not recreate a member removed after the lookup.
-          const update = await Member.updateOne(
-            { memberId },
-            { $set: fields },
-            { runValidators: true },
-          );
-          if (!update.matchedCount) {
-            result.errors.push({ memberId, error: 'Member is no longer available' });
-            continue;
-          }
-        }
-        result.updated += 1;
-      } else {
-        // Ignore module labels from old backups: new members are shared.
-        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['attendance', 'mortuary'] });
-        result.created += 1;
-      }
-    } catch (error) {
-      result.errors.push({ memberId, error: safeErrorMessage(error) });
-    }
+// Complete Attendance backup: every member, event, attendance record, report and audit log.
+const getFullBackup = async (req, res) => {
+  try {
+    const backup = await exportModule(Member, 'attendance', COLLECTIONS, actorName(req.user, 'Unknown'));
+    await audit(req, {
+      action: 'data_exported',
+      description: `Downloaded a complete attendance backup (${Object.entries(backup.counts).map(([name, count]) => `${count} ${name}`).join(', ')})`,
+      status: 'success',
+      metadata: { counts: backup.counts },
+    });
+    res.status(200).json(backup);
+  } catch (error) {
+    console.error('Error exporting attendance backup:', error);
+    res.status(500).json({ message: 'Error preparing the backup', error: safeErrorMessage(error) });
   }
-  return result;
 };
 
-/*Safe ang restore dahil hindi nito basta binubura ang existing data
- na hindi kasama sa backup, kahit partial o luma na ang backup file. */
-const upsertMany = async (Model, key, records) => {
-  const result = { created: 0, updated: 0, errors: [] };
-  if (!Array.isArray(records)) return result;
-
-  for (const record of records) {
-    const keyValue = record?.[key];
-    if (!validRecordId(keyValue)) {
-      result.errors.push({ error: `Record requires a string ${key}` });
-      continue;
-    }
-
-    try {
-      /* I-strip yung Mongo-internal fields - hindi dapat kopyahin ito mula
-      sa backup file, pag-aari ito ng kung anong document ang magsto-store
-      nito. */
-      const { _id, __v, createdAt, updatedAt, ...fields } = record;
-      const existing = await Model.findOne({ [key]: keyValue });
-
-      if (existing) {
-        await Model.updateOne({ [key]: keyValue }, { $set: fields }, { runValidators: true });
-        result.updated += 1;
-      } else {
-        await Model.create(fields);
-        result.created += 1;
-      }
-    } catch (error) {
-      result.errors.push({ [key]: keyValue, error: safeErrorMessage(error) });
-    }
-  }
-
-  return result;
-};
-
-/* Restores from the same JSON shape the "Complete System Backup" button
-downloads: { members, events, attendanceLogs }. Any subset of those three
-arrays is accepted, so a members-only or events-only export also works.*/
+/* Restores a complete backup, or any subset of its arrays. Older backups that
+used "attendance" instead of "attendanceLogs" are still accepted. */
 const restoreBackup = async (req, res) => {
   try {
-    const { members, events, attendanceLogs, attendance } = req.body || {};
-    const attendanceRecords = Array.isArray(attendanceLogs) ? attendanceLogs : attendance;
-
-    const hasMembers = Array.isArray(members);
-    const hasEvents = Array.isArray(events);
-    const hasAttendance = Array.isArray(attendanceRecords);
-
-    if (!hasMembers && !hasEvents && !hasAttendance) {
+    const payload = req.body || {};
+    const known = ['members', 'attendance', ...COLLECTIONS.map(c => c.name)];
+    if (!known.some(name => Array.isArray(payload[name]))) {
       return res.status(400).json({
-        message:
-          'Invalid backup file — expected a "members", "events", and/or "attendanceLogs" array.',
+        message: 'Invalid backup file — expected an Attendance backup with members, events, attendanceLogs, attendanceReports and/or auditLogs.',
       });
     }
 
-    const summary = {};
-    if (hasMembers) summary.members = await restoreMembers(members);
-    if (hasEvents) summary.events = await upsertMany(Event, 'eventId', events);
-    if (hasAttendance) {
-      summary.attendance = await upsertMany(Attendance, 'attendanceId', attendanceRecords);
-    }
-
-    const totalCreated = Object.values(summary).reduce((sum, s) => sum + s.created, 0);
-    const totalUpdated = Object.values(summary).reduce((sum, s) => sum + s.updated, 0);
-    const totalErrors = Object.values(summary).reduce((sum, s) => sum + s.errors.length, 0);
-
-    await createAuditLog({
-      userId: req.user?.userId,
-      userName: actorName(req.user, 'Unknown'),
-      userRole: req.user?.role || 'admin',
+    const summary = await restoreModule(Member, payload, { collections: COLLECTIONS, ownedFields: QR_FIELDS, newMemberFields: NEW_MEMBER_FIELDS, aliases: { attendance: 'attendanceLogs' } });
+    const totals = summaryTotals(summary);
+    await audit(req, {
       action: 'data_restored',
-      module: 'attendance',
-      entityType: 'backup',
-      description: `Restored backup: ${totalCreated} created, ${totalUpdated} updated${totalErrors ? `, ${totalErrors} failed` : ''}`,
-      status: totalErrors > 0 ? 'partial' : 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      metadata: {
-        members: summary.members
-          ? { created: summary.members.created, updated: summary.members.updated, errors: summary.members.errors.length }
-          : undefined,
-        events: summary.events
-          ? { created: summary.events.created, updated: summary.events.updated, errors: summary.events.errors.length }
-          : undefined,
-        attendance: summary.attendance
-          ? { created: summary.attendance.created, updated: summary.attendance.updated, errors: summary.attendance.errors.length }
-          : undefined,
-      },
+      description: `Restored backup: ${totals.created} created, ${totals.updated} updated${totals.skipped ? `, ${totals.skipped} already present` : ''}${totals.errors ? `, ${totals.errors} failed` : ''}`,
+      status: totals.errors > 0 ? 'partial' : 'success',
+      metadata: Object.fromEntries(Object.entries(summary).map(([name, s]) => [name, { created: s.created, updated: s.updated, skipped: s.skipped, errors: s.errors.length }])),
     });
 
     res.status(200).json({ message: 'Backup restored successfully', summary });
   } catch (error) {
-    await createAuditLog({
-      userId: req.user?.userId,
-      userName: actorName(req.user, 'Unknown'),
-      userRole: req.user?.role || 'admin',
-      action: 'data_restored',
-      module: 'attendance',
-      entityType: 'backup',
-      description: 'Failed to restore backup',
-      status: 'failed',
-      errorMessage: error.message,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-    });
-
+    await audit(req, { action: 'data_restored', description: 'Failed to restore backup', status: 'failed', errorMessage: error.message });
     res.status(500).json({ message: 'Error restoring backup', error: safeErrorMessage(error) });
   }
 };
 
-module.exports = { restoreBackup };
+module.exports = { getFullBackup, restoreBackup };

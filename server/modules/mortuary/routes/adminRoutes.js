@@ -82,6 +82,7 @@ router.post('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSet
 /* Database backup/restore - yung restore ay bulk write sa live data, kaya
 same explicit auth din ang ginagamit nito kagaya ng ibang consequential
 routes sa taas. */
+router.get('/backup/export', authenticateToken, authorizeAdminOnly, backupController.getFullBackup);
 router.get('/backup/ledger', authenticateToken, authorizeAdminOnly, backupController.getLedgerExport);
 router.post('/backup/restore', authenticateToken, authorizeAdminOnly, backupController.restoreBackup);
 

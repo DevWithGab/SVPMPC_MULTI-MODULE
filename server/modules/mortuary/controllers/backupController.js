@@ -1,60 +1,69 @@
 const { Member } = require('../../../shared/models');
 const Contribution = require('../models/Contribution');
 const Ledger = require('../models/Ledger');
+const Beneficiary = require('../models/Beneficiary');
+const Claim = require('../models/Claim');
+const BenefitCapSetting = require('../models/BenefitCapSetting');
+const DeductionSetting = require('../models/DeductionSetting');
+const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
+const NoticeBatchJob = require('../models/NoticeBatchJob');
+const PaymentImport = require('../models/PaymentImport');
+const AuditLog = require('../../../shared/models/AuditLog');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { actorName } = require('../../../shared/utils/actorName');
+const { exportModule, restoreModule, summaryTotals } = require('../../../shared/utils/moduleBackup');
 
+/* Everything the Mortuary module owns. Members are always included (shared
+with Attendance); on restore an existing member only receives its mortuary
+fields, never the shared profile or QR data. Ledgers carry every balance
+(Member has no balance field), and keep their original posting order. */
 const MORTUARY_MEMBER_FIELDS = ['beneficiaries', 'beneficiaryRelationship'];
-const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay',
-  'address', 'dateOfBirth', 'gender', 'joinDate', 'status', ...MORTUARY_MEMBER_FIELDS];
-const validId = value => typeof value === 'string' && value.trim().length > 0;
-const pickFields = (record, allowed) => Object.fromEntries(
-  allowed.filter(field => Object.hasOwn(record, field)).map(field => [field, record[field]])
-);
+// Shared profile used to recreate a member missing from the database.
+const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', 'dateOfBirth', 'gender', 'joinDate', 'status'];
+const COLLECTIONS = [
+  { name: 'beneficiaries', Model: Beneficiary, key: 'beneficiaryId', memberScoped: true },
+  { name: 'claims', Model: Claim, key: 'claimId', memberScoped: true },
+  { name: 'contributions', Model: Contribution, key: 'contributionId', memberScoped: true },
+  { name: 'ledgers', Model: Ledger, key: 'ledgerId', memberScoped: true },
+  { name: 'paymentImports', Model: PaymentImport, key: '_id', memberScoped: true },
+  { name: 'benefitCapSettings', Model: BenefitCapSetting, key: 'settingId', singleActive: true },
+  { name: 'deductionSettings', Model: DeductionSetting, key: 'settingId', singleActive: true },
+  { name: 'noticeThresholdSettings', Model: NoticeThresholdSetting, key: 'settingId', singleActive: true },
+  { name: 'noticeBatchJobs', Model: NoticeBatchJob, key: 'jobId' },
+  { name: 'auditLogs', Model: AuditLog, key: 'logId', insertOnly: true, filter: { module: 'mortuary' } },
+];
 
-const restoreMembers = async (records) => {
-  const result = { created: 0, updated: 0, errors: [] };
-  for (const record of records) {
-    const memberId = record?.memberId;
-    if (!validId(memberId)) {
-      result.errors.push({ error: 'Record requires a string memberId' });
-      continue;
-    }
-    try {
-      const existing = await Member.findOne({ memberId });
-      if (existing) {
-        // Members are shared, but restores still protect shared/QR fields.
-        const fields = pickFields(record, MORTUARY_MEMBER_FIELDS);
-        if (Object.keys(fields).length) {
-          const update = await Member.updateOne({ memberId },
-            { $set: fields }, { runValidators: true });
-          if (!update.matchedCount) {
-            result.errors.push({ memberId, error: 'Member is no longer available' });
-            continue;
-          }
-        }
-        result.updated += 1;
-      } else {
-        // Ignore module labels from old backups: new members are shared.
-        await Member.create({ ...pickFields(record, NEW_MEMBER_FIELDS), modules: ['attendance', 'mortuary'] });
-        result.created += 1;
-      }
-    } catch (error) {
-      result.errors.push({ memberId, error: safeErrorMessage(error) });
-    }
+const audit = (req, fields) => createAuditLog({
+  userId: req.user?.userId,
+  userName: actorName(req.user, 'Unknown'),
+  userRole: req.user?.role || 'admin',
+  module: 'mortuary',
+  entityType: 'backup',
+  ipAddress: req.ip,
+  userAgent: req.get('user-agent'),
+  ...fields,
+});
+
+// Complete Mortuary backup: members and every mortuary collection.
+const getFullBackup = async (req, res) => {
+  try {
+    const backup = await exportModule(Member, 'mortuary', COLLECTIONS, actorName(req.user, 'Unknown'));
+    await audit(req, {
+      action: 'data_exported',
+      description: `Downloaded a complete mortuary backup (${Object.entries(backup.counts).map(([name, count]) => `${count} ${name}`).join(', ')})`,
+      status: 'success',
+      metadata: { counts: backup.counts },
+    });
+    res.status(200).json({ success: true, data: backup });
+  } catch (error) {
+    console.error('Error exporting mortuary backup:', error);
+    res.status(500).json({ success: false, message: 'Error preparing the backup', error: safeErrorMessage(error) });
   }
-  return result;
 };
 
-/* Hindi talaga field sa Member document yung balance ng isang member - derived
-ito galing sa latest Ledger entry nila (tingnan yung shared/utils understanding
-sa buong module na ito). Yung backup na nag-capture lang ng Members +
-Contributions ay hindi talaga makaka-restore ng balance ng kahit sino: yung
-running history ng deductions, claim payouts, at adjustments na nagproduce
-nito ay separate collection na sino-supply ng endpoint na ito raw
-(unpaginated, unreshaped) para round-trip siya nang faithful sa restoreBackup
-sa baba. */
+/* Raw, unpaginated ledger export, kept for the ledger CSV download (and older
+clients). The complete backup above already includes ledgers. */
 const getLedgerExport = async (req, res) => {
   try {
     const ledgers = await Ledger.find({}).sort({ createdAt: 1 }).lean();
@@ -65,134 +74,32 @@ const getLedgerExport = async (req, res) => {
   }
 };
 
-/* Pag nagrestore galing sa backup, nag-upsert ito base sa natural key ng bawat
-collection - yung existing record na may same id ay nao-overwrite yung fields,
-yung bago ay nagagawa. Hindi ito nagde-delete ng kahit ano na wala sa backup,
-kaya hindi mawiwipe ng partial o lumang backup yung newer data na wala sa
-file. (Parehong pattern ng Attendance module's backup/restore.) */
-const upsertMany = async (Model, key, records) => {
-  const result = { created: 0, updated: 0, errors: [] };
-  if (!Array.isArray(records)) return result;
-
-  for (const record of records) {
-    const keyValue = record?.[key];
-    if (!validId(keyValue)) {
-      result.errors.push({ error: `Record requires a string ${key}` });
-      continue;
-    }
-
-    try {
-      /* Tinatanggal yung Mongo-internal fields - hindi dapat kopyahin ito
-      galing sa backup file, dapat sa kung anong document man ang
-      mag-store nito. */
-      const { _id, __v, createdAt, updatedAt, ...fields } = record;
-      const existing = await Model.findOne({ [key]: keyValue });
-      const memberId = fields.memberId ?? existing?.memberId;
-      if (!validId(memberId) || (existing && existing.memberId !== memberId)) {
-        result.errors.push({ [key]: keyValue, error: 'A valid memberId is required; existing records cannot be reassigned' });
-        continue;
-      }
-      if (!await Member.findOne({ memberId })) {
-        result.errors.push({ [key]: keyValue, error: 'Member not found' });
-        continue;
-      }
-      fields.memberId = memberId;
-
-      if (existing) {
-        const update = await Model.updateOne({ [key]: keyValue, memberId }, { $set: fields }, { runValidators: true });
-        if (!update.matchedCount) {
-          result.errors.push({ [key]: keyValue, error: 'Record changed during restore; try again' });
-          continue;
-        }
-        result.updated += 1;
-      } else {
-        await Model.create(fields);
-        result.created += 1;
-      }
-    } catch (error) {
-      result.errors.push({ [key]: keyValue, error: safeErrorMessage(error) });
-    }
-  }
-
-  return result;
-};
-
-/* Nagre-restore galing sa same JSON shape ng "Complete System Backup" button
-downloads: { members, contributions, ledgers }. Tatanggapin ang kahit anong
-subset ng tatlong arrays na ito, kaya gumagana rin yung members-only o
-contributions-only export. Yung ledgers ang talagang nagre-reconstruct ng
-balance ng bawat member - walang balance field talaga yung Member mismo,
-kaya kung walang ledgers yung backup, nare-restore lang yung profiles at
-payment records pero naiiwan sa zero yung bawat balance. */
+/* Restores a complete backup, or any subset of its arrays, including older
+backups that only had members, contributions and ledgers. */
 const restoreBackup = async (req, res) => {
   try {
-    const { members, contributions, ledgers } = req.body || {};
-
-    const hasMembers = Array.isArray(members);
-    const hasContributions = Array.isArray(contributions);
-    const hasLedgers = Array.isArray(ledgers);
-
-    if (!hasMembers && !hasContributions && !hasLedgers) {
+    const payload = req.body || {};
+    if (!['members', ...COLLECTIONS.map(c => c.name)].some(name => Array.isArray(payload[name]))) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid backup file — expected a "members", "contributions", and/or "ledgers" array.',
+        message: 'Invalid backup file — expected a Mortuary backup (members, beneficiaries, claims, contributions, ledgers, settings and/or audit logs).',
       });
     }
 
-    const summary = {};
-    if (hasMembers) summary.members = await restoreMembers(members);
-    if (hasContributions) summary.contributions = await upsertMany(Contribution, 'contributionId', contributions);
-    if (hasLedgers) summary.ledgers = await upsertMany(Ledger, 'ledgerId', ledgers);
-
-    const totalCreated = Object.values(summary).reduce((sum, s) => sum + s.created, 0);
-    const totalUpdated = Object.values(summary).reduce((sum, s) => sum + s.updated, 0);
-    const totalErrors = Object.values(summary).reduce((sum, s) => sum + s.errors.length, 0);
-
-    await createAuditLog({
-      userId: req.user?.userId,
-      userName: actorName(req.user, 'Unknown'),
-      userRole: req.user?.role || 'admin',
+    const summary = await restoreModule(Member, payload, { collections: COLLECTIONS, ownedFields: MORTUARY_MEMBER_FIELDS, newMemberFields: NEW_MEMBER_FIELDS });
+    const totals = summaryTotals(summary);
+    await audit(req, {
       action: 'data_restored',
-      module: 'mortuary',
-      entityType: 'backup',
-      description: `Restored backup: ${totalCreated} created, ${totalUpdated} updated${totalErrors ? `, ${totalErrors} failed` : ''}`,
-      status: totalErrors > 0 ? 'partial' : 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      metadata: {
-        members: summary.members
-          ? { created: summary.members.created, updated: summary.members.updated, errors: summary.members.errors.length }
-          : undefined,
-        contributions: summary.contributions
-          ? { created: summary.contributions.created, updated: summary.contributions.updated, errors: summary.contributions.errors.length }
-          : undefined,
-        ledgers: summary.ledgers
-          ? { created: summary.ledgers.created, updated: summary.ledgers.updated, errors: summary.ledgers.errors.length }
-          : undefined,
-      },
+      description: `Restored backup: ${totals.created} created, ${totals.updated} updated${totals.skipped ? `, ${totals.skipped} already present` : ''}${totals.errors ? `, ${totals.errors} failed` : ''}`,
+      status: totals.errors > 0 ? 'partial' : 'success',
+      metadata: Object.fromEntries(Object.entries(summary).map(([name, s]) => [name, { created: s.created, updated: s.updated, skipped: s.skipped, errors: s.errors.length }])),
     });
 
     res.status(200).json({ success: true, message: 'Backup restored successfully', summary });
   } catch (error) {
-    await createAuditLog({
-      userId: req.user?.userId,
-      userName: actorName(req.user, 'Unknown'),
-      userRole: req.user?.role || 'admin',
-      action: 'data_restored',
-      module: 'mortuary',
-      entityType: 'backup',
-      description: 'Failed to restore backup',
-      status: 'failed',
-      errorMessage: error.message,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-    });
-
+    await audit(req, { action: 'data_restored', description: 'Failed to restore backup', status: 'failed', errorMessage: error.message });
     res.status(500).json({ success: false, message: 'Error restoring backup', error: safeErrorMessage(error) });
   }
 };
 
-module.exports = {
-  getLedgerExport,
-  restoreBackup,
-};
+module.exports = { getFullBackup, getLedgerExport, restoreBackup };

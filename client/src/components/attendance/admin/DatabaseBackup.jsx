@@ -15,6 +15,7 @@ import { backupAPI } from "../../../services/api";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "../secretary/Dashboard.css";
 import "./DatabaseBackup.css";
+import { BACKUP_COLLECTIONS, downloadJson, isModuleBackup, restoreSummaryLines } from "../../../utils/moduleBackup";
 
 const normalizeAttendanceRecord = (record) => ({
   ...record,
@@ -64,6 +65,9 @@ export default function DatabaseBackup({
   const [restoring, setRestoring] = useState(false);
   const [restoreResult, setRestoreResult] = useState(null); // { summary } | { error }
   const [parseError, setParseError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const [lastExport, setLastExport] = useState(null);
 
   const downloadMembersCSV = () => {
     const csv = toCSV([
@@ -132,26 +136,22 @@ export default function DatabaseBackup({
     );
   };
 
-  const downloadFullBackup = () => {
-    const data = {
-      exportDate: new Date().toISOString(),
-      exportVersion: "1.0",
-      system: "Attendance Management System",
-      members,
-      events,
-      attendanceLogs,
-      metadata: {
-        totalMembers: members.length,
-        totalEvents: events.length,
-        totalAttendance: attendanceLogs.length,
-        exportedBy: "Admin",
-      },
-    };
-    downloadBlob(
-      JSON.stringify(data, null, 2),
-      "application/json",
-      `attendance_full_backup_${todayStamp()}.json`,
-    );
+  /* The complete backup is built by the server from every Attendance
+  collection (members, events, attendance, reports, audit logs), so it never
+  depends on what this screen has loaded. */
+  const downloadFullBackup = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExportError("");
+    try {
+      const backup = await backupAPI.exportAttendance();
+      downloadJson(backup, `attendance_full_backup_${todayStamp()}.json`);
+      setLastExport(backup.counts || null);
+    } catch (error) {
+      setExportError(error.response?.data?.message || "Unable to prepare the backup. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleFileSelect = async (e) => {
@@ -168,14 +168,9 @@ export default function DatabaseBackup({
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      const hasAny =
-        Array.isArray(parsed?.members) ||
-        Array.isArray(parsed?.events) ||
-        Array.isArray(parsed?.attendanceLogs) ||
-        Array.isArray(parsed?.attendance);
-      if (!hasAny) {
+      if (!isModuleBackup(parsed, "attendance")) {
         setParseError(
-          'This file has no "members", "events", or "attendanceLogs" array — it doesn\'t look like an Attendance system backup.',
+          "This file doesn't contain any Attendance backup data (members, events, attendance records, reports or audit logs).",
         );
         return;
       }
@@ -212,11 +207,6 @@ export default function DatabaseBackup({
     setParseError("");
   };
 
-  const summaryCounts = (key) => {
-    const s = restoreResult?.summary?.[key];
-    if (!s) return null;
-    return `${s.created} created, ${s.updated} updated${s.errors.length ? `, ${s.errors.length} failed` : ""}`;
-  };
 
   return (
     <div className="secretary-dashboard attendance-admin-backup">
@@ -260,19 +250,16 @@ export default function DatabaseBackup({
           <div className="aab-card">
             <div className="aab-card-heading">
               <div className="aab-icon"><Database size={18} aria-hidden="true" /></div>
-              <div className="flex-1 min-w-0"><h3 className="aab-card-title">Complete Backup</h3><p className="text-sm text-slate-500 mt-1">Full export in JSON — restorable from below</p></div>
+              <div className="flex-1 min-w-0"><h3 className="aab-card-title">Complete Backup</h3><p className="text-sm text-slate-500 mt-1">All attendance data in one JSON file — restorable from below</p></div>
             </div>
             <div className="space-y-2.5 mb-6 text-sm">
-              {[
-                ['Members', members.length],
-                ['Events', events.length],
-                ['Attendance records', attendanceLogs.length],
-              ].map(([label, count]) => (
-                <div className="flex items-center justify-between" key={label}><span className="text-slate-500">{label}</span><span className="font-semibold text-slate-900">{count.toLocaleString()}</span></div>
+              {BACKUP_COLLECTIONS.attendance.map(([key, label]) => (
+                <div className="flex items-center justify-between" key={key}><span className="text-slate-500">{label}</span><span className="font-semibold text-slate-900">{lastExport?.[key] !== undefined ? lastExport[key].toLocaleString() : "Included"}</span></div>
               ))}
             </div>
+            {exportError && <p className="text-xs text-red-600 mb-2" role="alert">{exportError}</p>}
             <p className="text-xs text-slate-400 text-center mt-auto mb-2">Save this file somewhere safe and upload it below when you need to restore.</p>
-            <button type="button" onClick={downloadFullBackup} className="sd-button sd-primary aab-download"><FileText size={16} aria-hidden="true" />Download JSON Backup</button>
+            <button type="button" onClick={downloadFullBackup} disabled={exporting} className="sd-button sd-primary aab-download"><FileText size={16} aria-hidden="true" />{exporting ? "Preparing backup…" : "Download JSON Backup"}</button>
           </div>
         </div>
       </section>
@@ -391,15 +378,9 @@ export default function DatabaseBackup({
               <CheckCircle2 className="w-4 h-4 text-coop-green shrink-0 mt-0.5" />
               <div className="text-xs text-green-800 space-y-1" role="status">
                 <p className="font-bold">Restore complete.</p>
-                {summaryCounts("members") && (
-                  <p>Members: {summaryCounts("members")}</p>
-                )}
-                {summaryCounts("events") && (
-                  <p>Events: {summaryCounts("events")}</p>
-                )}
-                {summaryCounts("attendance") && (
-                  <p>Attendance: {summaryCounts("attendance")}</p>
-                )}
+                {restoreSummaryLines(restoreResult.summary, "attendance").map(([label, text]) => (
+                  <p key={label}>{label}: {text}</p>
+                ))}
               </div>
             </div>
           )}

@@ -11,30 +11,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { backupAPI } from "../../../services/api";
+import { BACKUP_COLLECTIONS, downloadJson, isModuleBackup, restoreSummaryLines } from "../../../utils/moduleBackup";
 import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
 import "../treasurer/Dashboard.css";
 import "./DatabaseBackup.css";
-
-/* Yung `members` prop galing sa Mortuary admin member listing, na-reshape
-na para sa display ng screen na yun (id/name/contact imbes na yung totoong
-Member schema fields) - pag dumped as-is sa backup, hindi magagawang
-i-recreate ng restore ang mga missing members, dahil walang "name" o
-"contact" path sa schema. Existing shared profiles ay preserved sa restore. */
-const normalizeMemberForBackup = (m) => ({
-  memberId: m.memberId || m.id,
-  memberName: m.memberName || m.name,
-  email: m.email || "",
-  phoneNumber: m.phoneNumber || m.contact || "",
-  barangay: m.barangay || "",
-  address: m.address || "",
-  beneficiaries: m.beneficiaries || "",
-  beneficiaryRelationship: m.beneficiaryRelationship || "",
-  modules: m.modules,
-  status: m.status || "active",
-  dateOfBirth: m.dateOfBirth || undefined,
-  gender: m.gender || undefined,
-  joinDate: m.joinDate || m.join_date || undefined,
-});
 
 const downloadBlob = (content, type, filename) => {
   const blob = new Blob([content], { type });
@@ -58,7 +38,6 @@ const todayStamp = () => new Date().toISOString().split("T")[0];
 export default function DatabaseBackup({
   members = [],
   contributions = [],
-  user,
   onRestored,
 }) {
   const [restoreFile, setRestoreFile] = useState(null);
@@ -66,6 +45,9 @@ export default function DatabaseBackup({
   const [restoring, setRestoring] = useState(false);
   const [restoreResult, setRestoreResult] = useState(null); // { summary } | { error }
   const [parseError, setParseError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const [lastExport, setLastExport] = useState(null);
 
   /* Hindi field sa Member yung balance ng member - derived ito sa latest
   entry ng Ledger history nila. Fetched separately (at lazily, habang bukas
@@ -182,27 +164,23 @@ export default function DatabaseBackup({
     );
   };
 
-  const downloadFullBackup = () => {
-    const data = {
-      exportDate: new Date().toISOString(),
-      exportVersion: "2.0",
-      system: "Mortuary Fund Management",
-      members: members.map(normalizeMemberForBackup),
-      contributions,
-      ledgers,
-      metadata: {
-        totalMembers: members.length,
-        activeMembers: members.filter((m) => m.status === "active").length,
-        totalContributions: contributions.length,
-        totalLedgerEntries: ledgers.length,
-        exportedBy: user?.name || "Admin",
-      },
-    };
-    downloadBlob(
-      JSON.stringify(data, null, 2),
-      "application/json",
-      `mortuary_full_backup_${todayStamp()}.json`,
-    );
+  /* The complete backup is built by the server from every Mortuary
+  collection (members, beneficiaries, claims, contributions, ledgers,
+  settings, notice batches, payment imports, audit logs), so it never
+  depends on what this screen has loaded. */
+  const downloadFullBackup = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExportError("");
+    try {
+      const backup = await backupAPI.exportMortuary();
+      downloadJson(backup, `mortuary_full_backup_${todayStamp()}.json`);
+      setLastExport(backup?.counts || null);
+    } catch (error) {
+      setExportError(error.response?.data?.message || "Unable to prepare the backup. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleFileSelect = async (e) => {
@@ -219,13 +197,9 @@ export default function DatabaseBackup({
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      const hasAny =
-        Array.isArray(parsed?.members) ||
-        Array.isArray(parsed?.contributions) ||
-        Array.isArray(parsed?.ledgers);
-      if (!hasAny) {
+      if (!isModuleBackup(parsed, "mortuary")) {
         setParseError(
-          'This file has no "members", "contributions", or "ledgers" array — it doesn\'t look like a Mortuary system backup.',
+          "This file doesn't contain any Mortuary backup data (members, beneficiaries, claims, contributions, ledgers, settings or audit logs).",
         );
         return;
       }
@@ -262,11 +236,6 @@ export default function DatabaseBackup({
     setParseError("");
   };
 
-  const summaryCounts = (key) => {
-    const s = restoreResult?.summary?.[key];
-    if (!s) return null;
-    return `${s.created} created, ${s.updated} updated${s.errors.length ? `, ${s.errors.length} failed` : ""}`;
-  };
 
   return (
     <div className="treasurer-dashboard admin-backup">
@@ -421,36 +390,27 @@ export default function DatabaseBackup({
               </div>
             </div>
             <div className="space-y-2.5 mb-6 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Members</span>
-                <span className="font-semibold text-slate-900">
-                  {members.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Contributions</span>
-                <span className="font-semibold text-slate-900">
-                  {contributions.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Ledger Entries (Balances)</span>
-                <span className="font-semibold text-slate-900">
-                  {loadingLedgers ? "…" : ledgers.length}
-                </span>
-              </div>
+              {BACKUP_COLLECTIONS.mortuary.map(([key, label]) => (
+                <div className="flex items-center justify-between" key={key}>
+                  <span className="text-slate-500">{label}</span>
+                  <span className="font-semibold text-slate-900">
+                    {lastExport?.[key] !== undefined ? lastExport[key].toLocaleString() : "Included"}
+                  </span>
+                </div>
+              ))}
             </div>
+            {exportError && <p className="text-xs text-red-600 mb-2" role="alert">{exportError}</p>}
             <p className="text-xs text-slate-400 text-center mt-auto mb-2">
               Don't open or edit this file — just save it somewhere safe and
               upload it below if you ever need to restore.
             </p>
             <button
               onClick={downloadFullBackup}
-              disabled={loadingLedgers}
+              disabled={exporting}
               className="td-button td-primary backup-download"
             >
               <FileText className="w-4 h-4" />
-              Download JSON Backup
+              {exporting ? "Preparing backup…" : "Download JSON Backup"}
             </button>
           </div>
         </div>
@@ -570,15 +530,9 @@ export default function DatabaseBackup({
               <CheckCircle2 className="w-4 h-4 text-coop-green shrink-0 mt-0.5" />
               <div className="text-xs text-green-800 space-y-1" role="status">
                 <p className="font-bold">Restore complete.</p>
-                {summaryCounts("members") && (
-                  <p>Members: {summaryCounts("members")}</p>
-                )}
-                {summaryCounts("contributions") && (
-                  <p>Contributions: {summaryCounts("contributions")}</p>
-                )}
-                {summaryCounts("ledgers") && (
-                  <p>Ledger entries (balances): {summaryCounts("ledgers")}</p>
-                )}
+                {restoreSummaryLines(restoreResult.summary, "mortuary").map(([label, text]) => (
+                  <p key={label}>{label}: {text}</p>
+                ))}
               </div>
             </div>
           )}

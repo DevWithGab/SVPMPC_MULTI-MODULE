@@ -914,6 +914,16 @@ export const backupAPI = {
     return response.data;
   },
 
+  // Complete backups, built by the server: every collection the module owns.
+  exportAttendance: async () => {
+    const response = await api.get('/attendance/admin/backup/export');
+    return response.data;
+  },
+  exportMortuary: async () => {
+    const response = await api.get('/mortuary/admin/backup/export');
+    return response.data?.data;
+  },
+
   /* Raw, unpaginated Ledger export para sa "Complete System Backup" button -
   ito talaga yung may dala ng balance history ng bawat member, dahil walang
   balance field ang Member mismo. */

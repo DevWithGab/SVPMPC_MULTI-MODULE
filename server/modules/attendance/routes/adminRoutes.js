@@ -49,6 +49,7 @@ router.post('/attendance', attendanceController.recordAttendance);
 /* Database backup/restore - bulk write over live data yung restore, kaya
 parehong strict admin-only gate ang binigay dito gaya ng QR lifecycle
 actions sa itaas. */
+router.get('/backup/export', authorizeAttendanceAdminOnly, backupController.getFullBackup);
 router.post('/backup/restore', authorizeAttendanceAdminOnly, backupController.restoreBackup);
 
 module.exports = router;
