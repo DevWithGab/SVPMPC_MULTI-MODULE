@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { BACKUP_COLLECTIONS, restoreSummaryLines } from "../../utils/moduleBackup";
+import "../attendance/secretary/Dashboard.css";
 import "./BackupWorkspace.css";
 
 export default function BackupWorkspace({
@@ -20,22 +21,25 @@ export default function BackupWorkspace({
   };
 
   return (
-    <div className="backup-workspace">
-      <header className="bw-header">
-        <h1>Database backup</h1>
-        <p>{name} / Backup and restore</p>
+    <div className="secretary-dashboard backup-workspace">
+      <header className="sd-header">
+        <div>
+          <p className="sd-eyebrow">{name} management / Data recovery</p>
+          <h1>Backup &amp; restore</h1>
+          <p className="sd-description">Download complete or individual JSON backups and restore saved records.</p>
+        </div>
       </header>
 
       <div className="bw-settings">
-        <section className="bw-setting" aria-labelledby={`${module}-backup-title`}>
-          <div className="bw-setting-label">
+        <section className="sd-panel bw-setting" aria-labelledby={`${module}-backup-title`}>
+          <div className="sd-panel-heading bw-setting-label">
             <h2 id={`${module}-backup-title`}>Full backup</h2>
             <p>Save a restorable copy of this module's data.</p>
           </div>
           <div className="bw-setting-content">
             <div className="bw-download-row">
               <div><h3>{name} database</h3><p>All records, reports and settings in one JSON file.</p></div>
-              <button type="button" className="bw-button bw-primary" onClick={downloadFullBackup} disabled={exporting}>
+              <button type="button" className="sd-button sd-primary bw-button bw-primary" onClick={downloadFullBackup} disabled={exporting}>
                 {exporting && <Loader2 className="bw-spin" size={14} aria-hidden="true" />}
                 {exporting ? "Preparing..." : "Download backup"}
               </button>
@@ -51,8 +55,8 @@ export default function BackupWorkspace({
           </div>
         </section>
 
-        <section className="bw-setting" aria-labelledby={`${module}-exports-title`}>
-          <div className="bw-setting-label">
+        <section className="sd-panel bw-setting bw-datasets" aria-labelledby={`${module}-exports-title`}>
+          <div className="sd-panel-heading bw-setting-label">
             <h2 id={`${module}-exports-title`}>Individual backups</h2>
             <p>Save a JSON backup of a specific dataset.</p>
           </div>
@@ -65,7 +69,7 @@ export default function BackupWorkspace({
                   <tr key={label}>
                     <th scope="row">{label}</th>
                     <td>{typeof count === "number" ? count.toLocaleString() : count}</td>
-                    <td><button type="button" className="bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} JSON`} aria-busy={loading || undefined}>{loading ? "Preparing..." : "Download JSON"}</button></td>
+                    <td><button type="button" className="sd-button bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} JSON`} aria-busy={loading || undefined}>{loading ? "Preparing..." : "Download JSON"}</button></td>
                   </tr>
                 ))}</tbody>
               </table>
@@ -74,8 +78,8 @@ export default function BackupWorkspace({
           </div>
         </section>
 
-        <section className="bw-setting" aria-labelledby={`${module}-restore-title`} aria-busy={restoring}>
-          <div className="bw-setting-label">
+        <section className="sd-panel bw-setting" aria-labelledby={`${module}-restore-title`} aria-busy={restoring}>
+          <div className="sd-panel-heading bw-setting-label">
             <h2 id={`${module}-restore-title`}>Restore data</h2>
             <p>Import records from a previously saved backup.</p>
           </div>
@@ -97,7 +101,7 @@ export default function BackupWorkspace({
             <details className="bw-member-rules"><summary>Member restore rules</summary><p>For existing members, only {module === "attendance" ? "QR details" : "beneficiary fields"} are restored. Shared profiles, status, {module === "attendance" ? "beneficiaries" : "QR details"}, and module assignments are preserved. Missing members are enrolled in both Attendance and Mortuary.</p></details>
 
             <div className="bw-restore-actions">
-              <button type="button" className="bw-button" onClick={confirmRestore} disabled={!pendingRestore || restoring}>
+              <button type="button" className="sd-button bw-button" onClick={confirmRestore} disabled={!pendingRestore || restoring}>
                 {restoring && <Loader2 size={14} className="bw-spin" aria-hidden="true" />}
                 {restoring ? "Restoring..." : "Restore backup"}
               </button>

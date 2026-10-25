@@ -364,36 +364,47 @@ const EventManagement = ({ events = [], setEvents }) => {
 
   return (
     <div className="secretary-dashboard attendance-admin-events">
-      <header className="aae-header">
+      <header className="sd-header">
         <div>
+          <p className="sd-eyebrow">Attendance management / Events</p>
           <h1>Event approvals</h1>
-          <p>Review submissions and manage attendance schedules.</p>
+          <p className="sd-description">Review submissions and manage attendance schedules.</p>
         </div>
         <span className="aae-timezone">Philippine Standard Time (PHT)</span>
       </header>
 
       {notice && <Toast message={notice.message} type={notice.type} onClose={() => setNotice(null)} />}
 
-      <div className="aae-register">
-        <nav className="aae-groups" aria-label="Event groups">
-          {groups.map(group => <button
-            type="button"
-            key={group.key}
-            aria-pressed={eventGroup === group.key}
-            aria-controls={`aae-${group.key}-panel`}
-            onClick={() => setEventGroup(group.key)}
-          >{group.label}<span>{group.records.length.toLocaleString()}</span></button>)}
-        </nav>
-
-        <div className="aae-toolbar">
-          <div><h2>{currentGroup.title}</h2><p>{currentGroup.description}</p></div>
-          <label className="aae-search">
-            <Search size={15} aria-hidden="true" />
-            <span className="sr-only">Search events</span>
-            <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search event or location" />
-          </label>
+      <section className="sd-panel aae-filters" aria-labelledby="aae-filter-title">
+        <div className="aae-filter-heading">
+          <h2 id="aae-filter-title">Find an event</h2>
+          <button type="button" className="sd-link" disabled={!search && eventGroup === 'pending'} onClick={() => { setSearch(''); setEventGroup('pending'); }}>Reset filters</button>
         </div>
+        <div className="aae-filter-grid">
+          <label className="aae-search-label">
+            Search events
+            <span className="aae-search"><Search size={16} aria-hidden="true" /><input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Event name or location" /></span>
+          </label>
+          <div className="aae-group-filter">
+            <span>Event status</span>
+            <nav className="aae-groups" aria-label="Event groups">
+              {groups.map(group => <button
+                type="button"
+                key={group.key}
+                aria-pressed={eventGroup === group.key}
+                aria-controls={`aae-${group.key}-panel`}
+                onClick={() => setEventGroup(group.key)}
+              >{group.label}<span>{group.records.length.toLocaleString()}</span></button>)}
+            </nav>
+          </div>
+        </div>
+      </section>
 
+      <div className="sd-panel aae-register">
+        <div className="sd-panel-heading aae-toolbar">
+          <div><h2>{currentGroup.title}</h2><p>{currentGroup.description}</p></div>
+          <span className="aae-result-count">{visibleCount.toLocaleString()} {visibleCount === 1 ? 'event' : 'events'}</span>
+        </div>
         {groups.map(group => {
           const records = group.records.filter(matchesSearch);
           return <section key={group.key} id={`aae-${group.key}-panel`} hidden={eventGroup !== group.key} aria-label={group.title}>
@@ -407,15 +418,15 @@ const EventManagement = ({ events = [], setEvents }) => {
                     <td>{event.location || 'Not specified'}</td>
                     <td><span className={`aae-event-status aae-status-${event.status}`}>{getStatusLabel(event.status)}</span></td>
                     <td><div className="aae-row-actions">
-                      <button type="button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</button>
+                      <button type="button" className="sd-button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</button>
                       {group.key === 'pending' ? <>
-                        <button type="button" className="aae-reject" onClick={() => setEventToReject(event)} aria-label={`Reject ${eventDisplayName(event)}`}>Reject</button>
-                        <button type="button" className="aae-approve" onClick={() => approveEvent(event)} aria-label={`Approve ${eventDisplayName(event)}`}>Approve</button>
+                        <button type="button" className="sd-button aae-reject" onClick={() => setEventToReject(event)} aria-label={`Reject ${eventDisplayName(event)}`}>Reject</button>
+                        <button type="button" className="sd-button sd-primary aae-approve" onClick={() => approveEvent(event)} aria-label={`Approve ${eventDisplayName(event)}`}>Approve</button>
                       </> : <>
-                        {group.key !== 'closed' && <button type="button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit schedule</button>}
+                        {group.key !== 'closed' && <button type="button" className="sd-button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit schedule</button>}
                         {group.key === 'closed' && <>
-                          <button type="button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</button>
-                          <button type="button" className="aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</button>
+                          <button type="button" className="sd-button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</button>
+                          <button type="button" className="sd-button aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</button>
                         </>}
                       </>}
                     </div></td>
@@ -430,7 +441,7 @@ const EventManagement = ({ events = [], setEvents }) => {
             </div>
           </section>;
         })}
-        <footer className="aae-register-footer"><span>{visibleCount.toLocaleString()} {visibleCount === 1 ? 'event' : 'events'}{query ? ' matching your search' : ` in ${currentGroup.label.toLowerCase()}`}</span><span>Event status follows the scheduled start and end times.</span></footer>
+        <footer className="sd-panel-footer aae-register-footer"><span>{visibleCount.toLocaleString()} {visibleCount === 1 ? 'event' : 'events'}{query ? ' matching your search' : ` in ${currentGroup.label.toLowerCase()}`}</span><span>Event status follows the scheduled start and end times.</span></footer>
       </div>
       {/* View Event Details Modal */}
       <Modal
