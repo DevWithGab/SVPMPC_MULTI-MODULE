@@ -4,7 +4,7 @@ import { beneficiaryAPI } from '../../../services/api';
 import '../treasurer/MemberBalances.css';
 import './Beneficiaries.css';
 
-export default function BeneficiaryHistory({ memberId, memberName, onBack }) {
+export default function BeneficiaryHistory({ memberId, memberName, onBack, backLabel = 'Back to beneficiaries', parentSection = 'Beneficiaries', registrationBeneficiary }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,11 +30,11 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack }) {
     <div className="member-balances admin-beneficiaries">
       <header className="mb-header">
         <div>
-          <p className="mb-eyebrow">Mortuary management / Beneficiaries / History</p>
+          <p className="mb-eyebrow">Mortuary management / {parentSection} / Beneficiary history</p>
           <h1>Beneficiary history</h1>
-          <p className="mb-description">Review current and previous beneficiary records for {memberName}.</p>
+          <p className="mb-description">Review current and previous beneficiary records for {memberName}. Passbook No. {memberId}.</p>
         </div>
-        <button onClick={onBack} className="mb-button"><ArrowLeft size={15} aria-hidden="true" />Back to beneficiaries</button>
+        <button onClick={onBack} className="mb-button"><ArrowLeft size={15} aria-hidden="true" />{backLabel}</button>
       </header>
       <section className="mb-panel" aria-labelledby="beneficiary-history-title" aria-busy={loading}>
         <div className="mb-register-heading"><div><h2 id="beneficiary-history-title">Record history</h2><p>{memberName}</p></div></div>
@@ -58,6 +58,12 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack }) {
               </li>
             ))}
           </ol>
+        ) : registrationBeneficiary?.name ? (
+          <div className="mb-empty" role="status">
+            <strong>{registrationBeneficiary.name}</strong>
+            <p>{registrationBeneficiary.relationship || 'Relationship not recorded'}</p>
+            <p>Recorded at member registration. No formal beneficiary history is available yet.</p>
+          </div>
         ) : (
           <div className="mb-empty" role="status"><History size={28} aria-hidden="true" /><strong>No beneficiary records for this member</strong><p>Registered beneficiary records and subsequent changes will appear here.</p></div>
         )}

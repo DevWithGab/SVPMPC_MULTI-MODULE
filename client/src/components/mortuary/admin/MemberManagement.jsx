@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Users, UserCheck, UserMinus, Heart, Search, FileText } from 'lucide-react';
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
@@ -6,11 +6,13 @@ import { usePagination } from '../../../hooks/usePagination';
 import '../treasurer/MemberBalances.css';
 import './MemberManagement.css';
 import { getStandingLabel, getMemberStanding } from '../../../utils/memberStanding';
+import BeneficiaryHistory from './BeneficiaryHistory';
 
 const MemberManagement = ({
   filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab, minimumBalance = 1000
 }) => {
   const { page, limit, setPage } = usePagination(1, 100);
+  const [beneficiaryMember, setBeneficiaryMember] = useState(null);
 
   useEffect(() => {
     setPage(1);
@@ -28,6 +30,17 @@ const MemberManagement = ({
     setStatusFilter('all');
     setPage(1);
   };
+
+  if (beneficiaryMember) {
+    return <BeneficiaryHistory
+      memberId={beneficiaryMember.memberId || beneficiaryMember.id}
+      memberName={beneficiaryMember.name || beneficiaryMember.memberName}
+      onBack={() => setBeneficiaryMember(null)}
+      backLabel="Back to members"
+      parentSection="Members"
+      registrationBeneficiary={{ name: beneficiaryMember.beneficiaries, relationship: beneficiaryMember.beneficiaryRelationship }}
+    />;
+  }
 
   return (
     <div className="member-balances admin-member-management">
@@ -107,16 +120,14 @@ const MemberManagement = ({
                   </td>
                   <td className="admin-member-join-date">{member.join_date || '—'}</td>
                   <td>
-                    {setActiveTab && (
                       <div className="admin-member-actions">
-                        <button className="mb-button mb-ledger-button" onClick={() => setActiveTab('beneficiaries')} aria-label="Open beneficiaries">
+                        <button className="mb-button mb-ledger-button" onClick={() => setBeneficiaryMember(member)} aria-label={`View beneficiaries for ${member.name}`}>
                           <Heart size={14} aria-hidden="true" /> Beneficiaries
                         </button>
-                        <button className="mb-button mb-ledger-button" onClick={() => setActiveTab('claims')} aria-label="Open claims">
+                        {setActiveTab && <button className="mb-button mb-ledger-button" onClick={() => setActiveTab('claims')} aria-label="Open claims">
                           <FileText size={14} aria-hidden="true" /> Claims
-                        </button>
+                        </button>}
                       </div>
-                    )}
                   </td>
                 </tr>
               ))}
@@ -137,7 +148,7 @@ const MemberManagement = ({
           )}
         </footer>
       </section>
-      <p className="mb-footnote">Manage claim requests and beneficiary records through their respective tabs.</p>
+      <p className="mb-footnote">View a member's beneficiaries from their row. Register or update records in the Beneficiaries tab.</p>
     </div>
   );
 };
