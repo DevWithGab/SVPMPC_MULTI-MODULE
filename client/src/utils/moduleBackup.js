@@ -37,8 +37,7 @@ export const backupCounts = (data, module) => BACKUP_COLLECTIONS[module]
   .filter(([key]) => Array.isArray(data?.[key]))
   .map(([key, label]) => [label, data[key].length]);
 
-// Preserve every field, including fields only present in later records.
-// Nested settings, report data and histories remain JSON inside a CSV cell.
+// Retained for spreadsheet exports; database backup downloads use JSON.
 export const collectionCsv = (records) => {
   const fields = [...new Set(records.flatMap(record => Object.keys(record)))];
   if (!fields.length) fields.push('_id');
@@ -51,15 +50,22 @@ export const collectionCsv = (records) => {
     .map(row => row.map(quote).join(',')).join('\r\n') + '\r\n';
 };
 
-export const downloadCollectionCsv = (records, filename) => {
-  const url = URL.createObjectURL(new Blob([collectionCsv(records)], { type: 'text/csv;charset=utf-8;' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+// A partial backup uses the same envelope as the full backup so restore
+// receives exactly the selected collection, with every original field intact.
+export const collectionBackup = (backup, module, key) => {
+  if (!BACKUP_COLLECTIONS[module]?.some(([name]) => name === key) ||
+      !Array.isArray(backup?.[key]) || (backup.module && backup.module !== module)) {
+    throw new Error('The export response is missing this dataset or belongs to another module. Please try again.');
+  }
+  return {
+    format: backup.format,
+    version: backup.version,
+    module,
+    exportedAt: backup.exportedAt,
+    exportedBy: backup.exportedBy,
+    counts: { [key]: backup[key].length },
+    [key]: backup[key],
+  };
 };
 
 export const restoreSummaryLines = (summary, module) => {

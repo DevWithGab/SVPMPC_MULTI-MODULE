@@ -2,42 +2,7 @@ import React, { useState } from "react";
 import BackupWorkspace from "../../shared/BackupWorkspace";
 import { backupAPI } from "../../../services/api";
 import { downloadJson, isModuleBackup } from "../../../utils/moduleBackup";
-import useAdditionalBackupExports from "../../../hooks/useAdditionalBackupExports";
-
-const normalizeAttendanceRecord = (record) => ({
-  ...record,
-  memberId: record.memberId || record.member_id,
-  eventId: record.eventId || record.event_id,
-  memberName:
-    record.memberName ||
-    record.member_name ||
-    record.member?.memberName ||
-    record.member?.member_name,
-  eventName:
-    record.eventName ||
-    record.event ||
-    record.event?.eventName ||
-    record.event?.name,
-  scanTime:
-    record.scanTime || record.timestamp || record.createdAt || record.date,
-});
-
-const downloadBlob = (content, type, filename) => {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-const toCSV = (rows) =>
-  rows
-    .map((row) =>
-      row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","),
-    )
-    .join("\n");
+import useBackupDatasetExports from "../../../hooks/useBackupDatasetExports";
 
 const todayStamp = () => new Date().toISOString().split("T")[0];
 
@@ -55,74 +20,7 @@ export default function DatabaseBackup({
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [lastExport, setLastExport] = useState(null);
-  const { additionalExports, individualExportError } = useAdditionalBackupExports("attendance", ["members", "events", "attendanceLogs"]);
-
-  const downloadMembersCSV = () => {
-    const csv = toCSV([
-      ["Passbook No.", "Name", "Email", "Phone", "Status", "Join Date"],
-      ...members.map((m) => [
-        m.memberId || m.id,
-        m.memberName || m.name,
-        m.email || "",
-        m.phoneNumber || m.contact || "",
-        m.status || "active",
-        m.joinDate || m.createdAt || "",
-      ]),
-    ]);
-    downloadBlob(
-      "﻿" + csv,
-      "text/csv;charset=utf-8;",
-      `attendance_members_backup_${todayStamp()}.csv`,
-    );
-  };
-
-  const downloadEventsCSV = () => {
-    const csv = toCSV([
-      ["ID", "Name", "Date", "Location", "Status", "Created At"],
-      ...events.map((e) => [
-        e.eventId || e.id,
-        e.eventName || e.name,
-        e.eventDate || e.date,
-        e.location || "",
-        e.status || "active",
-        e.createdAt || "",
-      ]),
-    ]);
-    downloadBlob(
-      "﻿" + csv,
-      "text/csv;charset=utf-8;",
-      `attendance_events_backup_${todayStamp()}.csv`,
-    );
-  };
-
-  const downloadAttendanceCSV = () => {
-    const csv = toCSV([
-      [
-        "Passbook Number",
-        "Member Name",
-        "Event ID",
-        "Event Name",
-        "Scan Time",
-        "Status",
-      ],
-      ...attendanceLogs.map((log) => {
-        const n = normalizeAttendanceRecord(log);
-        return [
-          n.memberId || "",
-          n.memberName || "",
-          n.eventId || "",
-          n.eventName || "",
-          n.scanTime || "",
-          n.status || "present",
-        ];
-      }),
-    ]);
-    downloadBlob(
-      "﻿" + csv,
-      "text/csv;charset=utf-8;",
-      `attendance_logs_backup_${todayStamp()}.csv`,
-    );
-  };
+  const { datasetExports, individualExportError } = useBackupDatasetExports("attendance", { members: members.length, events: events.length, attendanceLogs: attendanceLogs.length });
 
   /* The complete backup is built by the server from every Attendance
   collection (members, events, attendance, reports, audit logs), so it never
@@ -199,12 +97,7 @@ export default function DatabaseBackup({
   return (
     <BackupWorkspace
       module="attendance"
-      exports={[
-        { label: "Members", description: "Member profiles and contact details", count: members.length, download: downloadMembersCSV },
-        { label: "Events", description: "Event dates, locations and status", count: events.length, download: downloadEventsCSV },
-        { label: "Attendance logs", description: "Member attendance and scan times", count: attendanceLogs.length, download: downloadAttendanceCSV },
-        ...additionalExports,
-      ]}
+      exports={datasetExports}
       {...{ downloadFullBackup, exporting, exportError, lastExport,
         restoreFile, pendingRestore, restoring, restoreResult, parseError,
         handleFileSelect, cancelRestore, confirmRestore, individualExportError }}

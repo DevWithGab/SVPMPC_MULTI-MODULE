@@ -6,7 +6,7 @@ import "./BackupWorkspace.css";
 export default function BackupWorkspace({
   module, exports, downloadFullBackup, exporting, exportError, lastExport,
   restoreFile, pendingRestore, restoring, restoreResult, parseError,
-  handleFileSelect, cancelRestore, confirmRestore, ledgerLoadError, individualExportError,
+  handleFileSelect, cancelRestore, confirmRestore, individualExportError,
 }) {
   const inputRef = useRef(null);
   const name = module === "attendance" ? "Attendance" : "Mortuary";
@@ -53,11 +53,10 @@ export default function BackupWorkspace({
 
         <section className="bw-setting" aria-labelledby={`${module}-exports-title`}>
           <div className="bw-setting-label">
-            <h2 id={`${module}-exports-title`}>Export records</h2>
-            <p>Download individual datasets for spreadsheet use.</p>
+            <h2 id={`${module}-exports-title`}>Individual backups</h2>
+            <p>Save a JSON backup of a specific dataset.</p>
           </div>
           <div className="bw-setting-content">
-            {ledgerLoadError && <p className="bw-error" role="alert">{ledgerLoadError} Refresh the page to retry.</p>}
             {individualExportError && <p className="bw-error" role="alert">{individualExportError}</p>}
             <div className="bw-table-scroll">
               <table className="bw-export-table">
@@ -66,12 +65,12 @@ export default function BackupWorkspace({
                   <tr key={label}>
                     <th scope="row">{label}</th>
                     <td>{typeof count === "number" ? count.toLocaleString() : count}</td>
-                    <td><button type="button" className="bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} CSV`} aria-busy={loading || undefined}>{loading ? "Preparing..." : "Download CSV"}</button></td>
+                    <td><button type="button" className="bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} JSON`} aria-busy={loading || undefined}>{loading ? "Preparing..." : "Download JSON"}</button></td>
                   </tr>
                 ))}</tbody>
               </table>
             </div>
-            <p className="bw-help">Additional datasets are counted when exported. Existing counts reflect loaded records. CSV exports cannot be used to restore the database.</p>
+            <p className="bw-help">Downloads include all server records in the selected dataset. Counts reflect loaded records until export. Restore an individual file below; related member and event records must already exist.</p>
           </div>
         </section>
 
