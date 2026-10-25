@@ -112,6 +112,7 @@ const EventManagement = ({ events = [], setEvents }) => {
     location: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  const approvedDetailsLocked = ["upcoming", "active"].includes(editingEvent?.status);
 
   /* Ang server lang ang nagpapalit ng stored status ng approved event mula
   upcoming/active papunta sa closed, at ginagawa niya ito sa background sweep
@@ -301,10 +302,12 @@ const EventManagement = ({ events = [], setEvents }) => {
     try {
       const isClosed = editingEvent.status === "closed";
       const payload = {
-        eventName: editForm.name.trim(),
-        description: editForm.description,
         location: editForm.location.trim(),
       };
+      if (!approvedDetailsLocked) {
+        payload.eventName = editForm.name.trim();
+        payload.description = editForm.description;
+      }
 
       if (!isClosed) {
         const startTime = normalizeTimeValue(editForm.startTime);
@@ -899,32 +902,40 @@ const EventManagement = ({ events = [], setEvents }) => {
         {editingEvent && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="admin-edit-event-name" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Event Name
               </label>
               <Input
+                id="admin-edit-event-name"
                 type="text"
                 value={editForm.name}
+                readOnly={approvedDetailsLocked}
+                aria-describedby={approvedDetailsLocked ? "approved-event-details-help" : undefined}
                 onChange={(e) =>
                   setEditForm({ ...editForm, name: e.target.value })
                 }
                 required
-                className="border-slate-200 rounded-lg"
+                className={`border-slate-200 rounded-lg${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="admin-edit-event-description" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Description
               </label>
               <textarea
+                id="admin-edit-event-description"
                 value={editForm.description}
+                readOnly={approvedDetailsLocked}
+                aria-describedby={approvedDetailsLocked ? "approved-event-details-help" : undefined}
                 onChange={(e) =>
                   setEditForm({ ...editForm, description: e.target.value })
                 }
                 rows={3}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
+                className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
               />
             </div>
+
+            {approvedDetailsLocked && <p id="approved-event-details-help" className="text-xs text-slate-500">The event name and description are locked after approval. You can update the schedule and location.</p>}
 
             {editingEvent.status === "closed" ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">

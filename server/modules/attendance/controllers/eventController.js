@@ -226,6 +226,16 @@ const updateEvent = async (req, res) => {
       return res.status(400).json({ message: 'Only draft, pending, or rejected events can be edited' });
     }
 
+    if (['upcoming', 'active'].includes(originalEvent.status)) {
+      const changedLockedField = ['eventName', 'description'].some(field =>
+        updates[field] !== undefined && updates[field] !== (originalEvent[field] ?? ''));
+      if (changedLockedField) {
+        return res.status(400).json({ message: 'The event name and description cannot be changed after approval' });
+      }
+      delete updates.eventName;
+      delete updates.description;
+    }
+
     updates.status = originalEvent.status === 'rejected' ? 'rejected' : originalEvent.status;
     const event = await Event.findOneAndUpdate(filter, updates, { new: true, runValidators: true });
 
