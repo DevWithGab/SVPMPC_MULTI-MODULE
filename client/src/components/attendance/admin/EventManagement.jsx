@@ -5,29 +5,19 @@ import {
   CheckCircle2,
   Clock,
   Edit3,
-  Eye,
   Loader2,
   MapPin,
+  Search,
   RotateCcw,
   Trash2,
   XCircle,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Modal } from "../../ui/modal";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../../ui/table";
 import { Toast } from "../../ui/toast";
 import { eventAPI } from "../../../services/api";
 import { formatDate, formatTimeRange } from "../../../utils/date";
-import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import useScheduledSecretaryEvents from "../../../hooks/useScheduledSecretaryEvents";
 import "../secretary/Dashboard.css";
 import "./EventManagement.css";
@@ -89,6 +79,8 @@ const getStatusLabel = (status) => statusLabels[status] || status;
 
 const EventManagement = ({ events = [], setEvents }) => {
   const [viewedEvent, setViewedEvent] = useState(null);
+  const [eventGroup, setEventGroup] = useState('pending');
+  const [search, setSearch] = useState('');
   const [eventToReject, setEventToReject] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [eventToDelete, setEventToDelete] = useState(null);
@@ -360,421 +352,87 @@ const EventManagement = ({ events = [], setEvents }) => {
     }
   };
 
+  const groups = [
+    { key: 'pending', label: 'Pending', title: 'Pending approvals', ariaLabel: 'Pending event approvals', records: pendingEvents, description: 'Review each submission before approving its attendance schedule.' },
+    { key: 'approved', label: 'Approved', title: 'Approved events', ariaLabel: 'Approved events', records: approvedEvents, description: 'Manage schedules and locations for upcoming and active events.' },
+    { key: 'closed', label: 'Closed', title: 'Closed events', ariaLabel: 'Closed events', records: closedEvents, description: 'Review past events or reopen a session with a new schedule.' },
+  ];
+  const query = search.trim().toLowerCase();
+  const matchesSearch = event => !query || [getEventName(event), event.location, getEventKey(event)]
+    .some(value => String(value || '').toLowerCase().includes(query));
+  const currentGroup = groups.find(group => group.key === eventGroup);
+  const visibleCount = currentGroup.records.filter(matchesSearch).length;
+
   return (
     <div className="secretary-dashboard attendance-admin-events">
-      <header className="sd-header">
+      <header className="aae-header">
         <div>
-          <p className="sd-eyebrow">Attendance management / Events</p>
           <h1>Event approvals</h1>
-          <p className="sd-description">
-            Review Secretary submissions and manage approved attendance events.
-          </p>
+          <p>Review submissions and manage attendance schedules.</p>
         </div>
-        <span className="aae-schedule-note">
-          <Clock size={15} aria-hidden="true" /> All schedules in Philippine
-          time (PHT)
-        </span>
+        <span className="aae-timezone">Philippine Standard Time (PHT)</span>
       </header>
 
-      <AttendanceMetricGrid
-        label="Event approval overview"
-        items={[
-          [
-            "Pending approval",
-            pendingEvents.length.toLocaleString(),
-            "Awaiting administrative review",
-            Clock,
-          ],
-          [
-            "Approved events",
-            approvedEvents.length.toLocaleString(),
-            "Upcoming and active sessions",
-            CheckCircle2,
-          ],
-          [
-            "Active now",
-            correctedEvents
-              .filter((event) => event.status === "active")
-              .length.toLocaleString(),
-            "Currently accepting attendance",
-            Calendar,
-          ],
-          [
-            "Closed events",
-            closedEvents.length.toLocaleString(),
-            "Completed event schedules",
-            RotateCcw,
-          ],
-        ]}
-      />
+      {notice && <Toast message={notice.message} type={notice.type} onClose={() => setNotice(null)} />}
 
-      {notice && (
-        <Toast
-          message={notice.message}
-          type={notice.type}
-          onClose={() => setNotice(null)}
-        />
-      )}
+      <div className="aae-register">
+        <nav className="aae-groups" aria-label="Event groups">
+          {groups.map(group => <button
+            type="button"
+            key={group.key}
+            aria-pressed={eventGroup === group.key}
+            aria-controls={`aae-${group.key}-panel`}
+            onClick={() => setEventGroup(group.key)}
+          >{group.label}<span>{group.records.length.toLocaleString()}</span></button>)}
+        </nav>
 
-      {/* Pending Approvals */}
-      <Card className="sd-panel aae-panel">
-        <CardHeader className="aae-panel-heading">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-coop-green" />
-                Pending approvals{" "}
-                <span className="aae-count">{pendingEvents.length}</span>
-              </CardTitle>
-              <p className="text-xs text-slate-400 mt-1">
-                Events submitted by the Secretary for Admin review.
-              </p>
+        <div className="aae-toolbar">
+          <div><h2>{currentGroup.title}</h2><p>{currentGroup.description}</p></div>
+          <label className="aae-search">
+            <Search size={15} aria-hidden="true" />
+            <span className="sr-only">Search events</span>
+            <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search event or location" />
+          </label>
+        </div>
+
+        {groups.map(group => {
+          const records = group.records.filter(matchesSearch);
+          return <section key={group.key} id={`aae-${group.key}-panel`} hidden={eventGroup !== group.key} aria-label={group.title}>
+            <div className="aae-table-scroll" role="region" aria-label={`${group.title} table`} tabIndex={0}>
+              <table className="aae-table" aria-label={group.ariaLabel}>
+                <thead><tr><th scope="col">Event</th><th scope="col">Schedule</th><th scope="col">Location</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+                <tbody>
+                  {records.map(event => <tr key={getEventKey(event)}>
+                    <td><strong>{getEventName(event)}</strong><span className="aae-secondary">{group.key === 'pending' ? 'Submitted by Secretary' : getEventKey(event)}</span></td>
+                    <td><span>{eventDate(event)}</span><span className="aae-secondary">{formatTimeRange(event.startTime, event.endTime)}</span></td>
+                    <td>{event.location || 'Not specified'}</td>
+                    <td><span className={`aae-event-status aae-status-${event.status}`}>{getStatusLabel(event.status)}</span></td>
+                    <td><div className="aae-row-actions">
+                      <button type="button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</button>
+                      {group.key === 'pending' ? <>
+                        <button type="button" className="aae-reject" onClick={() => setEventToReject(event)} aria-label={`Reject ${eventDisplayName(event)}`}>Reject</button>
+                        <button type="button" className="aae-approve" onClick={() => approveEvent(event)} aria-label={`Approve ${eventDisplayName(event)}`}>Approve</button>
+                      </> : <>
+                        <button type="button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit</button>
+                        {group.key === 'closed' && <>
+                          <button type="button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</button>
+                          <button type="button" className="aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</button>
+                        </>}
+                      </>}
+                    </div></td>
+                  </tr>)}
+                  {records.length === 0 && <tr><td colSpan={5}><div className="aae-empty">
+                    <strong>{query ? 'No matching events' : group.key === 'pending' ? 'No events awaiting approval' : group.key === 'approved' ? 'No approved events' : 'No closed events'}</strong>
+                    <p>{query ? 'Try another event name or location.' : group.key === 'pending' ? 'New submissions from the Secretary will appear here.' : group.description}</p>
+                    {query && <button type="button" onClick={() => setSearch('')}>Clear search</button>}
+                  </div></td></tr>}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table aria-label="Pending event approvals">
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Event
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Date &amp; Time
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Location
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Created By
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendingEvents.map((event) => (
-                  <TableRow
-                    key={getEventKey(event)}
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <TableCell className="py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {getEventName(event)}
-                        </p>
-                        <div
-                          className={`mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getStatusColor(event.status)}`}
-                        >
-                          {getStatusIcon(event.status)}
-                          <span>{getStatusLabel(event.status)}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">
-                          {eventDate(event)}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {formatTimeRange(event.startTime, event.endTime)} PHT
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-700">
-                          {event.location}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3 text-sm text-slate-600">
-                      Secretary
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setViewedEvent(event)}
-                          title="View event details"
-                          aria-label={`View details for ${eventDisplayName(event)}`}
-                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEventToReject(event)}
-                          title="Reject event"
-                          aria-label={`Reject ${eventDisplayName(event)}`}
-                          className="border-red-200 text-red-700 hover:bg-red-50 rounded-lg"
-                        >
-                          <XCircle className="w-4 h-4 mr-1.5" />
-                          Reject
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => approveEvent(event)}
-                          className="bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg"
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                          Approve
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {pendingEvents.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center py-12 text-slate-400"
-                    >
-                      <div className="sd-data-state">
-                        <CheckCircle2 size={24} aria-hidden="true" />
-                        <strong>You're all caught up</strong>
-                        <p>
-                          Events submitted by the Secretary will appear here for
-                          review.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Approved Events */}
-      <Card className="sd-panel aae-panel">
-        <CardHeader className="aae-panel-heading">
-          <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-coop-green" />
-            Approved events{" "}
-            <span className="aae-count">{approvedEvents.length}</span>
-          </CardTitle>
-          <p className="text-xs text-slate-400 mt-1">
-            Approved by the Admin — status updates to Active/Close automatically
-            at their PHT schedule.
-          </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table aria-label="Approved events">
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Event
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Date &amp; Time
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Location
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Status
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {approvedEvents.map((event) => (
-                  <TableRow
-                    key={getEventKey(event)}
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <TableCell className="py-3 text-sm font-semibold text-slate-900">
-                      {getEventName(event)}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">
-                          {eventDate(event)}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {formatTimeRange(event.startTime, event.endTime)} PHT
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-700">
-                          {event.location}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getStatusColor(event.status)}`}
-                      >
-                        {getStatusIcon(event.status)}
-                        <span>{getStatusLabel(event.status)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setViewedEvent(event)}
-                          title="View event details"
-                          aria-label={`View details for ${eventDisplayName(event)}`}
-                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditModal(event)}
-                          title="Edit event"
-                          aria-label={`Edit ${eventDisplayName(event)}`}
-                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {approvedEvents.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-center py-12 text-slate-400"
-                    >
-                      <div className="sd-data-state">
-                        <Calendar size={24} aria-hidden="true" />
-                        <strong>No approved events yet</strong>
-                        <p>
-                          Approved submissions will appear here with their
-                          current status and schedule.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Closed Events */}
-      <Card className="sd-panel aae-panel">
-        <CardHeader className="aae-panel-heading">
-          <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-coop-green" />
-            Closed events{" "}
-            <span className="aae-count">{closedEvents.length}</span>
-          </CardTitle>
-          <p>Review past events or reopen a session with a new schedule.</p>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table aria-label="Closed events">
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Event
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Date &amp; Time
-                  </TableHead>
-                  <TableHead className="font-semibold uppercase text-[10px] tracking-wide text-slate-500">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {closedEvents.map((event) => (
-                  <TableRow
-                    key={getEventKey(event)}
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <TableCell className="py-3 text-sm font-semibold text-slate-900">
-                      {getEventName(event)}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">
-                          {eventDate(event)}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {formatTimeRange(event.startTime, event.endTime)} PHT
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditModal(event)}
-                          title="Edit event details"
-                          aria-label={`Edit ${eventDisplayName(event)}`}
-                          className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openReopenModal(event)}
-                          title="Reopen event"
-                          className="border-amber-200 text-amber-700 hover:bg-amber-50 rounded-lg"
-                        >
-                          <RotateCcw className="w-4 h-4 mr-1.5" />
-                          Reopen
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEventToDelete(event)}
-                          aria-label={`Delete ${eventDisplayName(event)}`}
-                          title="Delete event"
-                          className="border-red-200 text-red-700 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {closedEvents.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={3}
-                      className="text-center py-12 text-slate-400"
-                    >
-                      <div className="sd-data-state">
-                        <Clock size={24} aria-hidden="true" />
-                        <strong>No closed events</strong>
-                        <p>
-                          Events will move here once their scheduled sessions
-                          end.
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
+          </section>;
+        })}
+        <footer className="aae-register-footer"><span>{visibleCount.toLocaleString()} {visibleCount === 1 ? 'event' : 'events'}{query ? ' matching your search' : ` in ${currentGroup.label.toLowerCase()}`}</span><span>Event status follows the scheduled start and end times.</span></footer>
+      </div>
       {/* View Event Details Modal */}
       <Modal
         isOpen={Boolean(viewedEvent)}
