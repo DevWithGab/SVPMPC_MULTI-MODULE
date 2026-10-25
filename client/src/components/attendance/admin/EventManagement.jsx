@@ -104,7 +104,7 @@ const EventManagement = ({ events = [], setEvents }) => {
     location: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
-  const approvedDetailsLocked = ["upcoming", "active"].includes(editingEvent?.status);
+  const approvedDetailsLocked = ["upcoming", "active", "closed"].includes(editingEvent?.status);
 
   /* Ang server lang ang nagpapalit ng stored status ng approved event mula
   upcoming/active papunta sa closed, at ginagawa niya ito sa background sweep
@@ -287,18 +287,17 @@ const EventManagement = ({ events = [], setEvents }) => {
   };
 
   const submitEditEvent = async () => {
-    if (!editingEvent || savingEdit) return;
+    if (!editingEvent || savingEdit || editingEvent.status === "closed") return;
     if (!editForm.name.trim() || !editForm.location.trim()) return;
 
     setSavingEdit(true);
     try {
       const isClosed = editingEvent.status === "closed";
-      const payload = {
-        location: editForm.location.trim(),
-      };
+      const payload = {};
       if (!approvedDetailsLocked) {
         payload.eventName = editForm.name.trim();
         payload.description = editForm.description;
+        payload.location = editForm.location.trim();
       }
 
       if (!isClosed) {
@@ -354,7 +353,7 @@ const EventManagement = ({ events = [], setEvents }) => {
 
   const groups = [
     { key: 'pending', label: 'Pending', title: 'Pending approvals', ariaLabel: 'Pending event approvals', records: pendingEvents, description: 'Review each submission before approving its attendance schedule.' },
-    { key: 'approved', label: 'Approved', title: 'Approved events', ariaLabel: 'Approved events', records: approvedEvents, description: 'Manage schedules and locations for upcoming and active events.' },
+    { key: 'approved', label: 'Approved', title: 'Approved events', ariaLabel: 'Approved events', records: approvedEvents, description: 'Manage schedules for upcoming and active events.' },
     { key: 'closed', label: 'Closed', title: 'Closed events', ariaLabel: 'Closed events', records: closedEvents, description: 'Review past events or reopen a session with a new schedule.' },
   ];
   const query = search.trim().toLowerCase();
@@ -413,7 +412,7 @@ const EventManagement = ({ events = [], setEvents }) => {
                         <button type="button" className="aae-reject" onClick={() => setEventToReject(event)} aria-label={`Reject ${eventDisplayName(event)}`}>Reject</button>
                         <button type="button" className="aae-approve" onClick={() => approveEvent(event)} aria-label={`Approve ${eventDisplayName(event)}`}>Approve</button>
                       </> : <>
-                        <button type="button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit</button>
+                        {group.key !== 'closed' && <button type="button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit schedule</button>}
                         {group.key === 'closed' && <>
                           <button type="button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</button>
                           <button type="button" className="aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</button>
@@ -438,7 +437,7 @@ const EventManagement = ({ events = [], setEvents }) => {
         isOpen={Boolean(viewedEvent)}
         onClose={() => setViewedEvent(null)}
         title="Event Details"
-        className="max-w-lg"
+        className="aae-event-modal max-w-lg"
       >
         {viewedEvent && (
           <div className="space-y-5">
@@ -496,7 +495,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               </div>
             </dl>
 
-            <div className="flex justify-end pt-2 border-t border-slate-100">
+            <div className="aae-modal-actions">
               <Button
                 type="button"
                 variant="outline"
@@ -505,6 +504,12 @@ const EventManagement = ({ events = [], setEvents }) => {
               >
                 Close
               </Button>
+              {['draft', 'pending_approval'].includes(viewedEvent.status) && <>
+                <Button type="button" variant="outline" onClick={() => { setEventToReject(viewedEvent); setViewedEvent(null); }} className="border-red-200 text-red-700">Reject event</Button>
+                <Button type="button" onClick={() => { approveEvent(viewedEvent); setViewedEvent(null); }} className="bg-coop-green text-white">Approve event</Button>
+              </>}
+              {['upcoming', 'active'].includes(viewedEvent.status) && <Button type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="bg-coop-green text-white">Edit schedule</Button>}
+              {viewedEvent.status === 'closed' && <Button type="button" onClick={() => { openReopenModal(viewedEvent); setViewedEvent(null); }} className="bg-coop-green text-white">Reopen event</Button>}
             </div>
           </div>
         )}
@@ -515,7 +520,7 @@ const EventManagement = ({ events = [], setEvents }) => {
         isOpen={Boolean(eventToReject)}
         onClose={() => setEventToReject(null)}
         title="Reject Event"
-        className="max-w-lg"
+        className="aae-event-modal max-w-lg"
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
@@ -529,7 +534,7 @@ const EventManagement = ({ events = [], setEvents }) => {
             placeholder="Reason for rejection"
             className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
           />
-          <div className="flex gap-3">
+          <div className="aae-modal-actions">
             <Button
               type="button"
               variant="outline"
@@ -554,8 +559,8 @@ const EventManagement = ({ events = [], setEvents }) => {
       <Modal
         isOpen={Boolean(editingEvent)}
         onClose={() => !savingEdit && setEditingEvent(null)}
-        title="Edit Event"
-        className="max-w-lg"
+        title={editingEvent?.status === "closed" ? "Event Details" : "Edit schedule"}
+        className="aae-event-modal max-w-lg"
       >
         {editingEvent && (
           <div className="space-y-4">
@@ -593,7 +598,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               />
             </div>
 
-            {approvedDetailsLocked && <p id="approved-event-details-help" className="text-xs text-slate-500">The event name and description are locked after approval. You can update the schedule and location.</p>}
+            {approvedDetailsLocked && <p id="approved-event-details-help" className="text-xs text-slate-500">The event name, description, and location are locked after approval.</p>}
 
             {editingEvent.status === "closed" ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
@@ -649,21 +654,24 @@ const EventManagement = ({ events = [], setEvents }) => {
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label htmlFor="admin-edit-event-location" className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Location
               </label>
               <Input
                 type="text"
+                id="admin-edit-event-location"
+                readOnly={approvedDetailsLocked}
+                aria-describedby={approvedDetailsLocked ? "approved-event-details-help" : undefined}
                 value={editForm.location}
                 onChange={(e) =>
                   setEditForm({ ...editForm, location: e.target.value })
                 }
                 required
-                className="border-slate-200 rounded-lg"
+                className={`border-slate-200 rounded-lg${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="aae-modal-actions">
               <Button
                 type="button"
                 variant="outline"
@@ -671,8 +679,9 @@ const EventManagement = ({ events = [], setEvents }) => {
                 onClick={() => setEditingEvent(null)}
                 className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
               >
-                Cancel
+                {editingEvent.status === "closed" ? "Close" : "Cancel"}
               </Button>
+              {editingEvent.status !== "closed" && (
               <Button
                 type="button"
                 onClick={submitEditEvent}
@@ -691,10 +700,11 @@ const EventManagement = ({ events = [], setEvents }) => {
                 ) : (
                   <>
                     <Edit3 className="w-4 h-4 mr-2 inline" />
-                    Save Changes
+                    Save schedule
                   </>
                 )}
               </Button>
+              )}
             </div>
           </div>
         )}
@@ -705,7 +715,7 @@ const EventManagement = ({ events = [], setEvents }) => {
         isOpen={Boolean(eventToDelete)}
         onClose={() => !deleting && setEventToDelete(null)}
         title="Delete Event"
-        className="max-w-md"
+        className="aae-event-modal max-w-md"
       >
         <div className="space-y-5">
           <div className="flex items-start gap-3 p-4 border border-red-200 bg-red-50 rounded-lg">
@@ -718,7 +728,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               and its record. This cannot be undone.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="aae-modal-actions">
             <Button
               type="button"
               variant="outline"
@@ -755,7 +765,7 @@ const EventManagement = ({ events = [], setEvents }) => {
         isOpen={Boolean(eventToReopen)}
         onClose={() => !reopening && setEventToReopen(null)}
         title="Reopen Event"
-        className="max-w-lg"
+        className="aae-event-modal max-w-lg"
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
@@ -824,7 +834,7 @@ const EventManagement = ({ events = [], setEvents }) => {
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400"
             />
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="aae-modal-actions">
             <Button
               type="button"
               variant="outline"

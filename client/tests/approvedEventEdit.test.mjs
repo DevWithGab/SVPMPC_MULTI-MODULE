@@ -4,7 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createServer } from 'vite';
 
-test('approved event edits show read-only name and description and submit only schedule and location', async () => {
+test('event modals enforce locked details and show actions appropriate to each event status', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   const container = document.createElement('div');
   document.body.append(container);
@@ -27,24 +27,45 @@ test('approved event edits show read-only name and description and submit only s
       let saved;
       api.updateEventAsAdmin = async (id, payload) => { saved = { id, payload }; return { event: { ...event, ...payload } }; };
       await act(async () => root.render(React.createElement(EventManagement, { key: status, events: [event], setEvents: () => {} })));
-      await act(async () => container.querySelector('[aria-label="Edit Approved assembly"]').click());
-      const dialog = container.querySelector('[role="dialog"]');
+      await act(async () => [...container.querySelectorAll('.aae-groups button')].find(button => button.textContent.startsWith('Approved')).click());
+      await act(async () => container.querySelector('[aria-label="View details for Approved assembly"]').click());
+      assert.match(container.querySelector('[role="dialog"]').textContent, /Edit schedule/);
+      await act(async () => [...container.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === 'Edit schedule').click());
+      const dialog = container.querySelector('#admin-edit-event-name')?.closest('[role="dialog"]');
       assert.ok(dialog);
       assert.equal(dialog.querySelector('#admin-edit-event-name').readOnly, true);
       assert.equal(dialog.querySelector('#admin-edit-event-name').value, 'Approved assembly');
       assert.equal(dialog.querySelector('#admin-edit-event-description').readOnly, true);
       assert.equal(dialog.querySelector('#admin-edit-event-description').value, 'Original description');
+      assert.equal(dialog.querySelector('#admin-edit-event-location').readOnly, true);
+      assert.equal(dialog.querySelector('#admin-edit-event-location').value, 'Main Hall');
       assert.equal(dialog.querySelector('input[type="date"]').readOnly, false);
       assert.match(dialog.textContent, /locked after approval/);
-      const save = [...dialog.querySelectorAll('button')].find(button => button.textContent.includes('Save Changes'));
+      const save = [...dialog.querySelectorAll('button')].find(button => button.textContent.includes('Save schedule'));
       await act(async () => save.click());
       assert.equal(saved.id, event.eventId);
       assert.equal(Object.hasOwn(saved.payload, 'eventName'), false);
       assert.equal(Object.hasOwn(saved.payload, 'description'), false);
-      assert.equal(saved.payload.location, 'Main Hall');
+      assert.equal(Object.hasOwn(saved.payload, 'location'), false);
       assert.equal(saved.payload.eventDate, event.eventDate);
       assert.equal(saved.payload.startTime, '09:00');
       assert.equal(saved.payload.endTime, '17:00');
+    }
+    for (const status of ['closed', 'pending_approval']) {
+      const event = { eventId: status, eventName: 'Review event', description: 'Recorded details', location: 'Main Hall', status, eventDate: '2026-10-24', startTime: '09:00', endTime: '17:00' };
+      await act(async () => root.render(React.createElement(EventManagement, { key: status, events: [event], setEvents: () => {} })));
+      const group = status === 'closed' ? 'Closed' : 'Pending';
+      await act(async () => [...container.querySelectorAll('.aae-groups button')].find(button => button.textContent.startsWith(group)).click());
+      assert.equal(container.querySelector('[aria-label="Edit Review event"]'), null);
+      await act(async () => container.querySelector('[aria-label="View details for Review event"]').click());
+      const dialog = container.querySelector('[role="dialog"]');
+      assert.equal(dialog.querySelector('input, textarea'), null);
+      const actions = [...dialog.querySelectorAll('.aae-modal-actions button')].map(button => button.textContent.trim());
+      assert.deepEqual(actions, status === 'closed' ? ['Close', 'Reopen event'] : ['Close', 'Reject event', 'Approve event']);
+      if (status === 'closed') {
+        await act(async () => [...dialog.querySelectorAll('button')].find(button => button.textContent === 'Reopen event').click());
+        assert.match(container.textContent, /Reason for Reopening/);
+      }
     }
   } finally {
     await act(async () => root.unmount());

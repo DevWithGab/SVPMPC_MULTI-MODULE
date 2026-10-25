@@ -226,14 +226,15 @@ const updateEvent = async (req, res) => {
       return res.status(400).json({ message: 'Only draft, pending, or rejected events can be edited' });
     }
 
-    if (['upcoming', 'active'].includes(originalEvent.status)) {
-      const changedLockedField = ['eventName', 'description'].some(field =>
+    if (['upcoming', 'active', 'closed'].includes(originalEvent.status)) {
+      const changedLockedField = ['eventName', 'description', 'location'].some(field =>
         updates[field] !== undefined && updates[field] !== (originalEvent[field] ?? ''));
       if (changedLockedField) {
-        return res.status(400).json({ message: 'The event name and description cannot be changed after approval' });
+        return res.status(400).json({ message: 'The event name, description, and location cannot be changed after approval' });
       }
       delete updates.eventName;
       delete updates.description;
+      delete updates.location;
     }
 
     updates.status = originalEvent.status === 'rejected' ? 'rejected' : originalEvent.status;

@@ -276,7 +276,7 @@ test('reopenEvent sets status to upcoming for a fully-future schedule, and to ac
 
 // --- updateEvent's edit-lock -------------------------------------------------
 
-test('updateEvent blocks a secretary after approval but lets an admin update the location', async () => {
+test('updateEvent blocks a secretary after approval but lets an admin update an approved schedule', async () => {
   for (const status of ['upcoming', 'active', 'closed']) {
     const db = database([event({ status })]);
     const secretaryRes = response();
@@ -284,9 +284,9 @@ test('updateEvent blocks a secretary after approval but lets an admin update the
     assert.equal(secretaryRes.code, 400, `secretary editing a(n) ${status} event`);
 
     const adminRes = response();
-    await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { location: 'New Hall' }, user: { role: 'admin' }, ip: '', get: () => '' }, adminRes);
+    await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { startTime: '10:00' }, user: { role: 'admin' }, ip: '', get: () => '' }, adminRes);
     assert.equal(adminRes.code, 200, `admin editing a(n) ${status} event`);
-    assert.equal(db.state.events[0].location, 'New Hall');
+    assert.equal(db.state.events[0].startTime, '10:00');
   }
 
   for (const status of ['draft', 'pending_approval', 'rejected']) {
@@ -297,27 +297,28 @@ test('updateEvent blocks a secretary after approval but lets an admin update the
   }
 });
 
-test('approved event name and description cannot be changed by either admin role', async () => {
-  for (const status of ['upcoming', 'active']) {
+test('approved and closed event name, description and location cannot be changed by either admin role', async () => {
+  for (const status of ['upcoming', 'active', 'closed']) {
     for (const role of ['admin', 'super_admin']) {
-      for (const field of ['eventName', 'description']) {
+      for (const field of ['eventName', 'description', 'location']) {
         const db = database([event({ status, eventName: 'Approved name', description: 'Approved description' })]);
+        const originalValue = db.state.events[0][field];
         const res = response();
         await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { [field]: 'Changed', location: 'New Hall' }, user: { role }, ip: '', get: () => '' }, res);
         assert.equal(res.code, 400);
-        assert.equal(db.state.events[0][field], field === 'eventName' ? 'Approved name' : 'Approved description');
+        assert.equal(db.state.events[0][field], originalValue);
         assert.notEqual(db.state.events[0].location, 'New Hall');
       }
     }
   }
 });
 
-test('unchanged approved details may accompany a schedule or location update', async () => {
+test('unchanged approved details may accompany a schedule update', async () => {
   const db = database([event({ status: 'upcoming', eventName: 'Approved name', description: 'Approved description' })]);
   const res = response();
-  await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { eventName: 'Approved name', description: 'Approved description', location: 'New Hall', startTime: '10:00' }, user: { role: 'admin' }, ip: '', get: () => '' }, res);
+  await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { eventName: 'Approved name', description: 'Approved description', location: 'Hall', startTime: '10:00' }, user: { role: 'admin' }, ip: '', get: () => '' }, res);
   assert.equal(res.code, 200);
-  assert.equal(db.state.events[0].location, 'New Hall');
+  assert.equal(db.state.events[0].location, 'Hall');
   assert.equal(db.state.events[0].startTime, '10:00');
 });
 
