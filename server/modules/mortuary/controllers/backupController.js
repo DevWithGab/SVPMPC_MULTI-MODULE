@@ -3,6 +3,7 @@ const Contribution = require('../models/Contribution');
 const Ledger = require('../models/Ledger');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 const MORTUARY_MEMBER_FIELDS = ['beneficiaries', 'beneficiaryRelationship'];
 const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay',
@@ -149,7 +150,7 @@ const restoreBackup = async (req, res) => {
 
     await createAuditLog({
       userId: req.user?.userId,
-      userName: req.user?.username || 'Unknown',
+      userName: actorName(req.user, 'Unknown'),
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'mortuary',
@@ -175,7 +176,7 @@ const restoreBackup = async (req, res) => {
   } catch (error) {
     await createAuditLog({
       userId: req.user?.userId,
-      userName: req.user?.username || 'Unknown',
+      userName: actorName(req.user, 'Unknown'),
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'mortuary',

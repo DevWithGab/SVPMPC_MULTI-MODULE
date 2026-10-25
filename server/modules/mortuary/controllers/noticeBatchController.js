@@ -6,6 +6,7 @@ const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const { getMemberBalanceSnapshots } = require('./deductionController');
 const { generateNoticeBatchPdf, NOTICE_LEVEL_LABELS, DEFAULT_NOTICE_THRESHOLDS } = require('../services/noticeLetterPdfService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 /* May member names at financial standing itong mga PDFs, at (di-tulad ng CSV imports)
 permanenteng nananatili pagkatapos magenerate - kailangang hindi sila dumapo sa uploads/,
@@ -74,11 +75,11 @@ const startNoticeBatch = async (req, res) => {
       level,
       barangay,
       status: 'processing',
-      createdBy: req.user?.username || req.user?.name || 'treasurer',
+      createdBy: actorName(req.user, 'treasurer'),
     });
 
     // Not awaited on purpose — see runNoticeBatchJob's comment.
-    runNoticeBatchJob(jobId, level, req.user?.name || req.user?.username, barangay);
+    runNoticeBatchJob(jobId, level, actorName(req.user, ''), barangay);
 
     res.status(202).json({
       success: true,

@@ -4,6 +4,7 @@ const { getPaginationParams, buildPaginatedResponse } = require('../../../shared
 const { DEFAULT_MAX_BENEFIT_AMOUNT } = require('../config/claimBenefit');
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 /* Kinukuha yung currently active benefit cap. Auto-seeds ng default row
 (tumutugma sa value na ginamit ng hardcoded constant bago pa magkaroon ng
@@ -62,7 +63,7 @@ pattern ng DeductionSetting). */
 const updateCap = async (req, res) => {
   try {
     const { amount, effectiveDate, description } = req.body;
-    const updatedBy = req.user?.username || 'admin';
+    const updatedBy = actorName(req.user, 'admin');
 
     const value = typeof amount === 'string' || typeof amount === 'number' ? String(amount).trim() : '';
     const validFormat = /^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(value);

@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getQrUnavailableReason, normalizeDirectoryMembers, filterDirectoryMembers, directoryCsv, directoryPrintHtml } from '../src/utils/memberDirectory.js';
+import { getQrUnavailableReason, normalizeDirectoryMembers, filterDirectoryMembers, directoryCsv, directoryPrintHtml, directoryBulkPrintHtml } from '../src/utils/memberDirectory.js';
 
 test('QR controls only expose issued, active image assets for living members', () => {
   const available = { status: 'active', qrCodeGenerated: true, qrCodeActive: true, qrCodeUrl: '/qr/member.png' };
   assert.equal(getQrUnavailableReason(available), null);
   assert.equal(getQrUnavailableReason({ ...available, status: 'deceased' }), 'Unavailable for deceased member');
+  assert.equal(getQrUnavailableReason({ ...available, status: 'inactive' }), 'Unavailable for inactive member');
   assert.equal(getQrUnavailableReason({ ...available, qrCodeActive: false }), 'Deactivated');
   assert.equal(getQrUnavailableReason({ ...available, qrCodeGenerated: false }), 'Not issued');
   assert.equal(getQrUnavailableReason({ ...available, qrCodeUrl: null }), 'Image unavailable');
@@ -40,4 +41,17 @@ test('print card escapes member fields and image attributes', () => {
   assert.ok(html.includes('San &amp; Vicente'));
   assert.ok(html.includes('/qr.png?value=&quot;'));
   assert.ok(!html.includes('<script>'));
+});
+
+test('bulk QR print renders one escaped card per member under the barangay scope', () => {
+  const entries = ['Ana <Reyes>', 'Ben Cruz'].map((name, index) => ({
+    member: { name, memberId: `00200${index + 1}`, status: 'active', barangay: 'Poblacion' },
+    qrUrl: `http://localhost:5001/uploads/qrcodes/00200${index + 1}_x.png`,
+  }));
+  const html = directoryBulkPrintHtml(entries, '/logo.png', 'Barangay Poblacion');
+  assert.equal((html.match(/<article class="card">/g) || []).length, 2);
+  assert.match(html, /Barangay Poblacion · 2 cards/);
+  assert.match(html, /Ana &lt;Reyes&gt;/);
+  assert.match(html, /id="print-status"/);
+  assert.match(html, /002002_x\.png/);
 });

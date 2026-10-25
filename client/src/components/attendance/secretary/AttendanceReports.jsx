@@ -29,6 +29,7 @@ import {
   attendancePeriods,
 } from "../../../utils/attendanceReport";
 import { loadReportLogo } from "../../../utils/mortuaryReportPdf";
+import { reportCsvHeader } from "../../../utils/reportCsvHeader";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "./AttendanceReports.css";
 import { attendanceAPI, eventAPI, memberAPI } from "../../../services/api";
@@ -326,7 +327,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
   const scope = [attendancePeriods[dateRange], eventLabel, barangayLabel].join(
     " · ",
   );
-  const totalPages = Math.max(1, Math.ceil(eventSummary.length / 10));
+  const totalPages = Math.max(1, Math.ceil(eventSummary.length / 100));
   const currentPage = Math.min(page, totalPages);
 
   const exportRecords = async (type, event) => {
@@ -341,13 +342,21 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         : null,
     );
     setFeedback(null);
-    const reportScope = event
-      ? [
-          attendancePeriods[dateRange],
-          event.eventName || event.name,
-          barangayLabel,
-        ].join(" · ")
-      : scope;
+    /* PDF: an event or barangay the report is filtered to moves out of the
+    table and into the header, emphasised. */
+    const pdfEventName = event
+      ? event.eventName || event.name
+      : selectedEvent !== "all" ? eventLabel : null;
+    const pdfBarangayName = selectedBarangay !== "all" ? barangayLabel : null;
+    const pdfScope = [
+      attendancePeriods[dateRange],
+      !pdfEventName && eventLabel,
+      !pdfBarangayName && barangayLabel,
+    ].filter(Boolean).join(" · ");
+    const reportHighlights = [
+      pdfEventName && { label: "Event", value: pdfEventName },
+      pdfBarangayName && { label: "Barangay", value: pdfBarangayName },
+    ].filter(Boolean);
     const filename =
       "attendance-" +
       (event
@@ -362,15 +371,27 @@ export default function AttendanceReports({ attendanceLogs, events }) {
         const logo = await loadReportLogo();
         createAttendanceReportPdf({
           logs: records,
-          scope: reportScope,
+          scope: pdfScope,
           logo,
-          includeEvent,
+          includeEvent: includeEvent && !pdfEventName,
+          includeBarangay: !pdfBarangayName,
+          highlights: reportHighlights,
         }).save(filename + ".pdf");
       } else {
         const url = URL.createObjectURL(
           new Blob(
             [
-              createAttendanceReportCsv({ logs: records, includeEvent }),
+              createAttendanceReportCsv({
+                logs: records,
+                includeEvent,
+                header: reportCsvHeader({
+                  title: "Attendance Report",
+                  program: "Attendance Management",
+                  scope: pdfScope,
+                  highlights: reportHighlights,
+                  metadata: ["Report records", `${records.length} attendance records`],
+                }),
+              }),
             ],
             { type: "text/csv;charset=utf-8;" },
           ),
@@ -714,7 +735,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                 {!reportLoading &&
                   !reportError &&
                   eventSummary
-                    .slice((currentPage - 1) * 10, currentPage * 10)
+                    .slice((currentPage - 1) * 100, currentPage * 100)
                     .map((event) => {
                       const eventKey =
                         event.eventId ||

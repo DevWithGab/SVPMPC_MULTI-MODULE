@@ -27,6 +27,17 @@ test('single-event PDF omits the event column and keeps the remaining data', () 
   assert.deepEqual(doc.lastAutoTable.body[0].cells[4].text, ['scanner.two']);
 });
 
+test('barangay-filtered PDF drops the barangay from the table and emphasises it in the header', () => {
+  const logo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO(MAIN).png', import.meta.url)));
+  const doc = createAttendanceReportPdf({ logo, scope: 'All time', includeEvent: false, includeBarangay: false,
+    highlights: [{ label: 'Event', value: 'Assembly' }, { label: 'Barangay', value: 'San Vicente' }],
+    logs: [{ memberId: '000123', memberName: 'Maria Santos', barangay: 'San Vicente', eventName: 'Assembly', status: 'present', scannedBy: 'scanner.one' }] });
+  assert.deepEqual(Object.values(doc.lastAutoTable.head[0].cells).map(cell => cell.text.join(' ')), ['Passbook no.', 'Member', 'Date / Time (PHT)', 'Status', 'Scanned by']);
+  assert.deepEqual(doc.lastAutoTable.body[0].cells[1].text, ['Maria Santos']);
+  const page = doc.internal.pages[1].join('\n');
+  for (const text of ['EVENT', 'Assembly', 'BARANGAY', 'San Vicente']) assert.ok(page.includes(`(${text})`), `header shows ${text}`);
+});
+
 test('older records without a scanner name are explicitly marked as not recorded', () => {
   const logs = [{ memberId: '000123', memberName: 'Legacy Member', status: 'present' }];
   assert.match(createAttendanceReportCsv({ logs }), /"present","Not recorded"$/);

@@ -18,7 +18,7 @@ export default function ClaimDisbursementReport() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState(null);
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   const load = useCallback(async (searchTerm, pageNum) => {
     setLoading(true);

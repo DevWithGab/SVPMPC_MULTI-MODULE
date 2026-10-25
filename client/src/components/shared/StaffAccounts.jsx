@@ -39,7 +39,7 @@ export default function StaffAccounts() {
     catch (e) { setError(e.response?.data?.message || 'Unable to complete this action.'); }
     finally { setBusy(false); }
   };
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
   useEffect(() => { setPage(1); }, [search, setPage]);
   const filteredUsers = users.filter(user => `${user.fullName || ''} ${user.username}`.toLowerCase().includes(search.toLowerCase()));
   const totalPages = Math.ceil(filteredUsers.length / limit) || 1;

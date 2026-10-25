@@ -13,7 +13,7 @@ export default function BenefitCapSettings({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   const load = useCallback(async (pageNum) => {
     setLoading(true);

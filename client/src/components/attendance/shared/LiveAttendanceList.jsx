@@ -9,7 +9,7 @@ import { ATTENDANCE_UPDATED_EVENT, ATTENDANCE_UPDATED_KEY } from "../../../utils
 import { canScanEvent } from "../../../utils/scannerSchedule";
 import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 100;
 const AUTO_REFRESH_MS = 3000;
 const EVENT_REFRESH_MS = 10000;
 const EMPTY_RECORDS = [];

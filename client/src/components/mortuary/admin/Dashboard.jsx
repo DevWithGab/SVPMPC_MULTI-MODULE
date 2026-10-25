@@ -28,6 +28,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { reportCsvHeader } from "../../../utils/reportCsvHeader";
 import { mortuaryDashboardAPI } from "../../../services/api";
 import { getClaimStatusMeta } from "../shared/claimMeta";
 import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
@@ -394,10 +395,18 @@ const Dashboard = ({
           .join(","),
       )
       .join("\n");
-    const csvContent = `data:text/csv;charset=utf-8,${headers}\n${rows}`;
-    const encodedUri = encodeURI(csvContent);
+    const header = reportCsvHeader({
+      title: "Mortuary Member Report",
+      program: "Mortuary Aid Fund Program",
+      scope: "All members with their current balance and standing.",
+      metadata: ["Records", `${data.length} members`],
+    });
+    // A Blob with a BOM (instead of a data: URI) keeps ₱ and "#" intact in Excel.
+    const url = URL.createObjectURL(
+      new Blob([`${String.fromCharCode(0xfeff)}${header}${headers}\r\n${rows}`], { type: "text/csv;charset=utf-8;" }),
+    );
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute(
       "download",
       `${filename}_${new Date().toISOString().split("T")[0]}.csv`,
@@ -405,6 +414,7 @@ const Dashboard = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const quickActions = [

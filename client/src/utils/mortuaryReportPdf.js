@@ -38,9 +38,9 @@ export function loadReportLogo() {
 /* Nananatiling selectable at crisp yung text at vector tables kapag
 na-print. Ginagamit yung PHP explicitly kasi walang peso glyph yung
 built-in PDF fonts. */
-export function createMortuaryReportPdf({ title, scope, sections, logo, generatedAt = new Date(), program = 'Mortuary Aid Fund Program', metadataLabel = 'CURRENCY', metadataValue = 'Philippine pesos (PHP)', template = 'ledger' }) {
+export function createMortuaryReportPdf({ title, scope, sections, logo, generatedAt = new Date(), program = 'Mortuary Aid Fund Program', metadataLabel = 'CURRENCY', metadataValue = 'Philippine pesos (PHP)', template = 'ledger', highlights = [] }) {
   if (!logo) throw new Error('The cooperative logo is required for this report.');
-  if (template === 'ledger') return createCooperativeReportPdf({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue });
+  if (template === 'ledger') return createCooperativeReportPdf({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue, highlights });
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   doc.setProperties({ title, author: 'St. Vincent Parish Multi-Purpose Cooperative', subject: program });
   const width = doc.internal.pageSize.getWidth();
@@ -56,9 +56,15 @@ export function createMortuaryReportPdf({ title, scope, sections, logo, generate
   doc.setFont('times', 'bold'); doc.setFontSize(23);
   const titleLines = doc.splitTextToSize(title, right - margin);
   const titleBottom = 49 + (titleLines.length - 1) * 9;
+  /* Optional emphasised filters (e.g. the barangay or event a report is limited
+  to), shown as a label over a large bold name right under the title. */
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+  const highlightRows = highlights.filter(item => item?.value).map(item => ({ label: String(item.label).toUpperCase(), lines: doc.splitTextToSize(String(item.value), right - margin) }));
+  let highlightY = titleBottom + 10;
+  const highlightLayout = highlightRows.map(row => { const at = highlightY; highlightY += 4.5 + row.lines.length * 6.5 + 2; return { ...row, at }; });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
   const scopeLines = doc.splitTextToSize(scope || 'All recorded transactions.', right - margin);
-  const scopeY = titleBottom + 9;
+  const scopeY = highlightLayout.length ? highlightY + 3 : titleBottom + 9;
   const metaY = scopeY + scopeLines.length * 4.5 + 7;
   let y = metaY + 17;
 
@@ -107,6 +113,12 @@ export function createMortuaryReportPdf({ title, scope, sections, logo, generate
     if (first) {
       doc.setTextColor(...ink); doc.setFont('times', 'bold'); doc.setFontSize(23);
       doc.text(titleLines, margin, 49, { lineHeightFactor: 1.11 });
+      for (const row of highlightLayout) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...muted);
+        doc.text(row.label, margin, row.at);
+        doc.setFontSize(15); doc.setTextColor(...ink);
+        doc.text(row.lines, margin, row.at + 6.5, { lineHeightFactor: 1.15 });
+      }
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...muted);
       doc.text(scopeLines, margin, scopeY, { lineHeightFactor: 1.4 });
       doc.setFontSize(7); doc.setFont('helvetica', 'bold');
@@ -116,7 +128,8 @@ export function createMortuaryReportPdf({ title, scope, sections, logo, generate
       doc.text(`${date} PHT`, margin, metaY + 5);
       doc.text(metadataValue, right, metaY + 5, { align: 'right' });
     } else {
-      doc.setFontSize(8); doc.text(doc.splitTextToSize(`${title} / continued`, right - margin)[0], margin, 28);
+      const continued = [title, ...highlightRows.map(row => row.lines.join(' '))].join(' — ');
+      doc.setFontSize(8); doc.text(doc.splitTextToSize(`${continued} / continued`, right - margin)[0], margin, 28);
     }
     doc.setDrawColor(...line); doc.setLineWidth(0.2);
     doc.line(margin, height - 18, right, height - 18);

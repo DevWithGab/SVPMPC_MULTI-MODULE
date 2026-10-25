@@ -23,7 +23,9 @@ export const printClaimReceipt = (claim) => {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Disbursement Receipt - ${escapeHtml(claim.claimId)}</title>
         <style>
-          @page { size: A4 portrait; margin: 16mm; }
+          /* Zero page margin leaves the browser no room for its own printed
+             header/footer (date, URL, page number); spacing lives in .receipt. */
+          @page { size: A4 portrait; margin: 0; }
           * { box-sizing: border-box; }
           body { margin: 0; background: white; color: #111; font: 14px/1.6 Arial, Helvetica, sans-serif; }
           .receipt { width: 100%; max-width: 720px; margin: 32px auto; padding: 28px; }
@@ -47,10 +49,9 @@ export const printClaimReceipt = (claim) => {
           .signature { text-align: center; }
           .signature .name { padding: 0 4px 6px; border-bottom: 1px solid #333; font-weight: bold; overflow-wrap: anywhere; }
           .signature p { margin: 6px 0 0; font-size: 12px; }
-          .footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 40px; padding-top: 12px; border-top: 1px solid #aaa; font-size: 10px; overflow-wrap: anywhere; }
           @media print {
             body { background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            .receipt { max-width: none; margin: 0; padding: 24px 28px; }
+            .receipt { max-width: none; margin: 0; padding: 22mm 24mm; }
           }
           @media screen and (max-width: 600px) {
             .receipt { margin: 0; padding: 24px; }
@@ -86,7 +87,6 @@ export const printClaimReceipt = (claim) => {
             <div class="signature"><div class="name">${escapeHtml(claim.beneficiaryName || '________________________')}</div><p>Beneficiary signature over printed name</p><p>Received by</p></div>
             <div class="signature"><div class="name">${escapeHtml(payout.releasedBy || '________________________')}</div><p>Authorized releasing officer</p><p>Released by</p></div>
           </div>
-          <footer class="footer"><span>SVPMPC · Mortuary Aid Fund</span><span>Claim reference: ${escapeHtml(claim.claimId)}</span></footer>
         </main>
         <script>window.addEventListener('load', () => { document.fonts.ready.then(() => { setTimeout(() => window.print(), 250); }); }, { once: true });</script>
       </body>

@@ -37,6 +37,10 @@ export default function AuditLogDetails({ log, module, actionLabel, onClose }) {
               <div><dt>Performed by</dt><dd>{log.userName || readableLabel(log.userRole) || 'Not recorded'}{log.userName && <small>{readableLabel(log.userRole)}</small>}</dd></div>
               <div><dt>Date and time</dt><dd>{log.timestamp ? formatDateTime(log.timestamp) : 'Not recorded'}<small>Philippine time</small></dd></div>
               {log.entityName && <div><dt>Related record</dt><dd>{log.entityName}</dd></div>}
+              {log.metadata?.entrySource === 'manual' && <>
+                <div><dt>Entry method</dt><dd>Manual entry<small>Recorded by staff instead of a QR scan</small></dd></div>
+                <div><dt>Reason</dt><dd>{log.metadata.justification || 'Not recorded'}</dd></div>
+              </>}
             </dl>
           </section>
           {log.errorMessage && <section className="audit-detail-error"><h3>What went wrong</h3><p>{log.errorMessage}</p></section>}

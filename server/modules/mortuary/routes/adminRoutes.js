@@ -52,6 +52,7 @@ router.get('/claims', authenticateToken, authorizeAdminOnly, claimController.get
 router.get('/claims/:claimId', authenticateToken, authorizeAdminOnly, claimController.getClaimById);
 router.post('/claims/:claimId/requirements', authenticateToken, authorizeAdminOnly, claimController.addRequirement);
 router.put('/claims/:claimId/requirements', authenticateToken, authorizeAdminOnly, claimController.updateRequirements);
+router.delete('/claims/:claimId/requirements/:requirementKey', authenticateToken, authorizeAdminOnly, claimController.removeRequirement);
 router.put('/claims/:claimId/verification', authenticateToken, authorizeAdminOnly, claimController.updateVerification);
 router.put('/claims/:claimId/approve', authenticateToken, authorizeAdminOnly, claimController.approveClaim);
 router.put('/claims/:claimId/reject', authenticateToken, authorizeAdminOnly, claimController.rejectClaim);

@@ -1,4 +1,5 @@
 const { createAuditLog } = require('../services/auditLoggingService');
+const { actorName } = require('../shared/utils/actorName');
 
 /**
  * Middleware to extract user info from request
@@ -7,7 +8,7 @@ const { createAuditLog } = require('../services/auditLoggingService');
  */
 const extractUserInfo = (req) => {
   const userId = req.user?.id || req.user?.userId || null;
-  const userName = req.user?.name || req.user?.username || 'Unknown';
+  const userName = actorName(req.user, 'Unknown');
   const userRole = req.user?.role || 'system';
   const ipAddress = req.ip || req.connection.remoteAddress;
   const userAgent = req.get('user-agent');

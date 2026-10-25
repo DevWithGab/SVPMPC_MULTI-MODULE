@@ -1,4 +1,5 @@
 import { MODULE_ROLES } from './constants.js';
+import { withDisplayName } from './authSession.js';
 
 export function portalPath(module, role) {
   return MODULE_ROLES[module]?.includes(role) ? `/${module}/${role}` : '/';
@@ -12,7 +13,7 @@ export function readSession(storage = window.sessionStorage) {
     if (!token || !user || !selection || portalPath(selection.module, selection.role) === '/') return null;
     if (user.role !== selection.role && user.role !== 'super_admin') return null;
     if (user.role !== 'super_admin' && !user.modules?.includes(selection.module)) return null;
-    return { ...selection, user, token };
+    return { ...selection, user: withDisplayName(user), token };
   } catch {
     return null;
   }

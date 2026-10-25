@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, QrCode, Download, Printer, RefreshCw, Loader2, List, Grid2X2, Users, UserCheck } from 'lucide-react';
+import { Search, QrCode, Download, FileDown, Printer, RefreshCw, Loader2, List, Grid2X2, Users, UserCheck } from 'lucide-react';
 import { Modal } from '../../ui/modal';
 import { memberAPI, attendanceAPI, resolveQrAssetUrl } from '../../../services/api';
 import { loadDashboardRecords } from '../../../utils/attendanceDashboard';
-import { directoryDate, getQrUnavailableReason, normalizeDirectoryMembers, filterDirectoryMembers, directoryCsv, directoryPrintHtml } from '../../../utils/memberDirectory';
+import { directoryDate, getQrUnavailableReason, normalizeDirectoryMembers, filterDirectoryMembers, directoryCsv, directoryPrintHtml, directoryBulkPrintHtml } from '../../../utils/memberDirectory';
+import { buildQrCardsPdf } from '../../../utils/qrCardsPdf';
 import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import './MemberDirectory.css';
 
@@ -24,6 +25,7 @@ export default function MemberDirectory() {
   const [qrState, setQrState] = useState('loading');
   const [qrAttempt, setQrAttempt] = useState(0);
   const [printing, setPrinting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
@@ -49,6 +51,9 @@ export default function MemberDirectory() {
   const currentPage = Math.min(page, pages);
   const visible = filtered.slice((currentPage - 1) * limit, currentPage * limit);
   const selectedMember = normalized.find(member => member.id === selectedId);
+  // Bulk print covers every matching member with a usable QR, not just the visible page.
+  const printable = useMemo(() => filtered.filter(member => !getQrUnavailableReason(member)), [filtered]);
+  const printScope = [barangay !== 'all' ? `Barangay ${barangay}` : 'All barangays', status !== 'all' && status, search && `matching "${search}"`].filter(Boolean).join(' · ');
   const ready = !loading && !error;
   const hasFilters = search || status !== 'all' || barangay !== 'all' || sort !== 'name';
   const update = (setter, value) => { setter(value); setPage(1); setFeedback(null); };
@@ -70,13 +75,38 @@ export default function MemberDirectory() {
     } catch { setFeedback({ error: true, message: 'Unable to prepare the CSV. Please try again.' }); }
   };
 
-  const printQr = async member => {
-    if (!ready || printing || getQrUnavailableReason(member)) return;
+  const printQr = member => {
+    if (getQrUnavailableReason(member)) return;
+    printCards(directoryPrintHtml(member, resolveQrAssetUrl(member.qrCodeUrl), `${window.location.origin}/SVPMPC-LOGO(MAIN).png`), 'QR card');
+  };
+
+  const printAllQr = () => {
+    if (!printable.length) return;
+    const entries = printable.map(member => ({ member, qrUrl: resolveQrAssetUrl(member.qrCodeUrl) }));
+    printCards(directoryBulkPrintHtml(entries, `${window.location.origin}/SVPMPC-LOGO(MAIN).png`, printScope), `${printable.length.toLocaleString()} QR cards`);
+  };
+
+  const downloadQrPdf = async () => {
+    if (!ready || downloadingPdf || !printable.length) return;
+    setDownloadingPdf(true); setFeedback(null);
+    try {
+      const entries = printable.map(member => ({ member, qrUrl: resolveQrAssetUrl(member.qrCodeUrl) }));
+      const doc = await buildQrCardsPdf(entries, { logoUrl: `${window.location.origin}/SVPMPC-LOGO(MAIN).png` });
+      const slug = barangay !== 'all' ? barangay.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'all-barangays';
+      doc.save(`member-qr-cards-${slug}-${new Date().toISOString().slice(0, 10)}.pdf`);
+      setFeedback({ message: `PDF prepared with ${printable.length.toLocaleString()} QR card${printable.length === 1 ? '' : 's'} (${printScope}).` });
+    } catch {
+      setFeedback({ error: true, message: 'Some QR images could not load, so the PDF was not created. Please try again.' });
+    } finally { setDownloadingPdf(false); }
+  };
+
+  const printCards = async (html, label) => {
+    if (!ready || printing) return;
     const preview = window.open('', '_blank');
     if (!preview) { setFeedback({ error: true, message: 'The print window was blocked. Allow pop-ups for this site and try again.' }); return; }
     setPrinting(true); setFeedback(null);
     try {
-      preview.document.write(directoryPrintHtml(member, resolveQrAssetUrl(member.qrCodeUrl), `${window.location.origin}/SVPMPC-LOGO(MAIN).png`));
+      preview.document.write(html);
       preview.document.close();
       await Promise.all(Array.from(preview.document.images, img => new Promise((resolve, reject) => {
         if (img.complete) { img.naturalWidth ? resolve() : reject(new Error('Image unavailable')); return; }
@@ -86,11 +116,11 @@ export default function MemberDirectory() {
         img.onerror = () => { cleanup(); reject(new Error('Image unavailable')); };
       })));
       if (preview.closed) return;
-      preview.document.getElementById('print-status').textContent = 'QR card ready. Use your browser’s Print command to print again.';
+      preview.document.getElementById('print-status').textContent = `${label} ready. Use your browser’s Print command to print again.`;
       preview.focus(); preview.print();
     } catch {
-      if (!preview.closed) preview.document.getElementById('print-status').textContent = 'The QR card could not load. Close this window and retry from the directory.';
-      setFeedback({ error: true, message: 'The QR card could not load completely. Please retry printing.' });
+      if (!preview.closed) preview.document.getElementById('print-status').textContent = `Some QR images could not load. Close this window and retry from the directory.`;
+      setFeedback({ error: true, message: `The ${label} could not load completely. Please retry printing.` });
     } finally { setPrinting(false); }
   };
 
@@ -113,7 +143,7 @@ export default function MemberDirectory() {
       ['Active members', ready ? normalized.filter(member => member.status === 'active').length.toLocaleString() : '—', null, UserCheck],
       ['QR codes available', ready ? normalized.filter(member => !getQrUnavailableReason(member)).length.toLocaleString() : '—', null, QrCode],
     ]} />
-    <section className="md-filters" aria-label="Member filters"><div className="md-filter-heading"><h2>Find a member</h2><button className="md-text-button" onClick={reset} disabled={!hasFilters}>Reset filters</button></div>
+    <section className="md-filters" aria-label="Member filters"><div className="md-filter-heading"><h2>Find a member</h2><div className="md-filter-actions"><button className="md-text-button" onClick={reset} disabled={!hasFilters}>Reset filters</button><button className="md-button" onClick={printAllQr} disabled={!ready || printing || downloadingPdf || !printable.length} title={ready ? `Print QR cards for ${printScope}` : undefined}>{printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />} Print QR cards{ready ? ` (${printable.length.toLocaleString()})` : ''}</button><button className="md-button" onClick={downloadQrPdf} disabled={!ready || printing || downloadingPdf || !printable.length} title={ready ? `Download QR cards for ${printScope} as PDF` : undefined}>{downloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} {downloadingPdf ? 'Preparing PDF…' : 'Download PDF'}</button></div></div>
       <div className="md-filter-grid">
         <label>Search members<div className="md-search"><Search size={16} /><input value={search} onChange={e => update(setSearch, e.target.value)} placeholder="Name, passbook, email, or phone" /></div></label>
         <label>Membership status<select value={status} onChange={e => update(setStatus, e.target.value)}><option value="all">All statuses</option>{statuses.map(value => <option key={value} value={value}>{value.charAt(0).toUpperCase() + value.slice(1)}</option>)}</select></label>
@@ -123,7 +153,7 @@ export default function MemberDirectory() {
     </section>
     <section className="md-register" aria-labelledby="md-register-title" aria-busy={loading}>
       <div className="md-register-heading"><div><h2 id="md-register-title">Member register</h2><p>Membership and contact details, with the latest recorded attendance.</p></div><div className="md-view-switch" role="group" aria-label="Directory view"><button aria-pressed={view === 'table'} onClick={() => setView('table')}><List size={15} /> Table</button><button aria-pressed={view === 'grid'} onClick={() => setView('grid')}><Grid2X2 size={15} /> Cards</button></div></div>
-      <div className="md-scope"><span>{ready ? `${filtered.length.toLocaleString()} of ${normalized.length.toLocaleString()} members` : 'Member directory'}{status !== 'all' && ` · ${status}`}{barangay !== 'all' && ` · ${barangay}`}</span><span>CSV includes all matching members · Dates in PHT</span></div>
+      <div className="md-scope"><span>{ready ? `${filtered.length.toLocaleString()} of ${normalized.length.toLocaleString()} members` : 'Member directory'}{status !== 'all' && ` · ${status}`}{barangay !== 'all' && ` · ${barangay}`}</span><span>CSV, QR print, and QR PDF include all matching members · Dates in PHT</span></div>
       {loading || error ? <div className="md-empty" role={error ? 'alert' : 'status'}>{loading && <Loader2 size={22} className="animate-spin" />}<strong>{loading ? 'Loading the member directory' : 'Directory unavailable'}</strong><p>{loading ? 'Gathering member records and attendance history.' : error}</p>{error && <button className="md-button" onClick={() => setReload(value => value + 1)}>Retry</button>}</div>
         : !filtered.length ? <div className="md-empty"><strong>{normalized.length ? 'No members match these filters' : 'No members recorded'}</strong><p>{normalized.length ? 'Try a different name, passbook number, status, or barangay.' : 'Members will appear here once they are added by an administrator.'}</p>{hasFilters && <button className="md-button" onClick={reset}>Reset filters</button>}</div>
           : view === 'table' ? <div className="md-table-scroll" role="region" aria-label="Member register" tabIndex={0}><table><thead><tr><th scope="col">Member / Passbook</th><th scope="col">Contact</th><th scope="col">Barangay</th><th scope="col">Status</th><th scope="col">Last attendance (PHT)</th><th scope="col">QR code</th></tr></thead><tbody>
@@ -131,7 +161,7 @@ export default function MemberDirectory() {
           </tbody></table></div> : <div className="md-card-grid">{visible.map(member => <article key={member.id} className="md-member-card"><div className="md-card-heading"><div><h3>{member.name}</h3><p className="md-passbook">Passbook: {member.memberId}</p></div>{badge(member)}</div><dl><div><dt>Email</dt><dd>{member.email || 'Not recorded'}</dd></div><div><dt>Phone</dt><dd>{member.phone || 'Not recorded'}</dd></div><div><dt>Barangay</dt><dd>{member.barangay || 'Not recorded'}</dd></div><div><dt>Last attendance</dt><dd>{directoryDate(member.lastAttendance, true)}</dd></div></dl><footer>{qrActions(member)}</footer></article>)}</div>}
       <footer className="md-pagination"><span>{ready && filtered.length ? `${(currentPage - 1) * limit + 1}–${Math.min(currentPage * limit, filtered.length)} of ${filtered.length} members` : ready ? '0 members' : 'Records unavailable while loading'}</span><div><label>Rows<select value={limit} onChange={e => update(setLimit, Number(e.target.value))}>{[10, 25, 50, 75, 100].map(value => <option key={value}>{value}</option>)}</select></label><nav aria-label="Member pages"><button className="md-button" disabled={!ready || currentPage === 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span aria-live="polite">{currentPage} / {pages}</span><button className="md-button" disabled={!ready || currentPage === pages} onClick={() => setPage(currentPage + 1)}>Next</button></nav></div></footer>
     </section>
-    <p className="md-footnote">QR codes are issued and managed by the attendance administrator. Deactivated codes and codes belonging to deceased members are unavailable here.</p>
+    <p className="md-footnote">QR codes are issued and managed by the attendance administrator. Deactivated codes and codes belonging to inactive or deceased members are unavailable here. Filter by barangay before using Print QR cards or Download PDF to get one barangay at a time.</p>
 
     <Modal isOpen={Boolean(selectedMember)} onClose={() => !printing && setSelectedId(null)} title="Member QR code" className="max-w-md">
       {selectedMember && <div className="md-qr-dialog"><div className="md-qr-letterhead"><img src="/SVPMPC-LOGO(MAIN).png" alt="Cooperative logo" /><div><strong>St. Vincent Parish<br />Multi-Purpose Cooperative</strong><span>Member identification</span></div></div><h3>{selectedMember.name}</h3><p className="md-qr-id">Passbook number: {selectedMember.memberId}</p>

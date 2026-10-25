@@ -6,6 +6,7 @@ import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { loadAllPages } from '../../../utils/loadAllPages';
 import { treasurerAPI } from '../../../services/api';
+import { reportCsvHeader } from '../../../utils/reportCsvHeader';
 
 /* Per-claim collections, benefits, at retained income. Kung unreleased pa yung
 claim, ipinapakita yung projected released amounts at income; mabibilang lang
@@ -29,7 +30,7 @@ export default function ClaimIncomeReport() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   const load = useCallback(async (searchTerm, pageNum) => {
     setLoading(true);
@@ -82,7 +83,13 @@ export default function ClaimIncomeReport() {
       const csv = [header, ...body]
         .map((line) => line.map((cell) => (typeof cell === 'string' ? `"${cell.replace(/"/g, '""')}"` : cell)).join(','))
         .join('\n');
-      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      const reportHeader = reportCsvHeader({
+        title: 'Claims Summary',
+        program: 'Mortuary Aid Fund Program',
+        scope: search ? `Claims matching "${search}".` : 'All claims.',
+        metadata: ['Records', `${allRows.length} claims`],
+      });
+      const url = URL.createObjectURL(new Blob(['﻿' + reportHeader + csv], { type: 'text/csv;charset=utf-8;' }));
       const link = document.createElement('a');
       link.href = url;
       link.download = `claims-income-report-${new Date().toISOString().split('T')[0]}.csv`;

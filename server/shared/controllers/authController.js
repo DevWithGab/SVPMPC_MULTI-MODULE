@@ -107,6 +107,9 @@ const login = async (req, res) => {
         memberId: user.memberId,
         staffId: user.staffId,
         username: user.username,
+        fullName: user.fullName,
+        // Display name for the UI: full name, or the username if none is set.
+        name: user.fullName?.trim() || user.username,
         email: user.email,
         isTemporaryPassword: user.isTemporaryPassword,
         modules: user.modules,

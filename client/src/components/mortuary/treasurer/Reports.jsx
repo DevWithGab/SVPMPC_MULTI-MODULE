@@ -5,6 +5,7 @@ import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
 import { getClaimStatusMeta } from '../shared/claimMeta';
 import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, reportAmount } from '../../../utils/mortuaryReportPdf';
+import { reportCsvHeader } from '../../../utils/reportCsvHeader';
 import { loadAllPages } from '../../../utils/loadAllPages';
 import { getStandingLabel } from '../../../utils/memberStanding';
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
@@ -52,7 +53,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   const [reportType, setReportType] = useState('summary');
   const [summaryPeriod, setSummaryPeriod] = useState('monthly'); // 'monthly' | 'annually'
   const [barangayFilter, setBarangayFilter] = useState('all');
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
   const [claims, setClaims] = useState([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [claimsError, setClaimsError] = useState('');
@@ -241,6 +242,26 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     };
   }, [reportType, filteredContributions, filteredClaims, filteredDeceasedMembers, filteredMemberStandingList, filteredNegativeMembers, filteredDeductionsData, page, limit]);
 
+  /* Title, scope and emphasised filter shared by the PDF and CSV exports, so
+  both open with the same report header. A barangay the report is filtered to
+  is emphasised instead of repeated in the scope (summary is fund-wide). */
+  const REPORT_SCOPES = {
+    deceasedMembers: 'Current member roster. Deceased members only.',
+    memberStanding: 'Current posted balances. Active members only; lowest balance first.',
+    negativeBalances: 'Current posted balances below zero, excluding deceased members. Largest shortfall first.',
+  };
+  const reportHeader = () => {
+    const byBarangay = reportType !== 'summary' && barangayFilter !== 'all';
+    let scope = REPORT_SCOPES[reportType] || 'All recorded transactions.';
+    if (reportType !== 'summary' && !byBarangay) scope += ' Barangay: All barangays.';
+    return {
+      byBarangay,
+      scope,
+      title: REPORT_TYPES.find(type => type.id === reportType)?.label || 'Mortuary Fund Report',
+      highlights: byBarangay ? [{ label: 'Barangay', value: barangayFilter }] : [],
+    };
+  };
+
   const generatePDF = async () => {
     if (exportDisabled) return;
     setExporting(true);
@@ -248,8 +269,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     try {
       const date = value => value && !Number.isNaN(new Date(value).getTime())
         ? new Date(value).toLocaleDateString('en-GB', { timeZone: 'Asia/Manila', day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+      /* A barangay the report is filtered to leaves the tables and is shown,
+      emphasised, in the PDF header instead (same rule as attendance reports). */
+      const { byBarangay, scope, title, highlights } = reportHeader();
+      const brgyCol = (values) => (byBarangay ? [] : values);
       let sections = [];
-      let scope = 'All recorded transactions.';
       if (reportType === 'summary') {
         sections = [
           { title: 'Financial position', head: ['Particulars', 'Amount (PHP)'], widths: [125, 51], numberColumns: [1],
@@ -271,34 +295,29 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           widths: [31, 42, 42, 28, 33],
           body: filteredClaims.map(c => [c.claimId, c.memberName, c.beneficiaryName, date(c.dateFiled), getClaimStatusMeta(c.status).label]) }];
       } else if (reportType === 'deceasedMembers') {
-        scope = 'Current member roster. Deceased members only.';
-        sections = [{ head: ['Passbook No.', 'Member name', 'Barangay', 'Join date'], widths: [31, 66, 49, 30],
-          body: filteredDeceasedMembers.map(m => [m.id || m.memberId, m.name || m.memberName, m.barangay || '-', date(m.join_date || m.joinDate)]) }];
+        sections = [{ head: ['Passbook No.', 'Member name', ...brgyCol(['Barangay']), 'Join date'], widths: byBarangay ? [40, 100, 36] : [31, 66, 49, 30],
+          body: filteredDeceasedMembers.map(m => [m.id || m.memberId, m.name || m.memberName, ...brgyCol([m.barangay || '-']), date(m.join_date || m.joinDate)]) }];
       } else if (reportType === 'memberStanding') {
-        scope = 'Current posted balances. Active members only; lowest balance first.';
-        sections = [{ head: ['Passbook No.', 'Member name', 'Barangay', 'Balance (PHP)', 'Standing'],
-          widths: [28, 53, 37, 33, 25], numberColumns: [3],
-          body: filteredMemberStandingList.map(m => [m.id, m.name, m.barangay, reportAmount(m.balance), m.standing]) }];
+        sections = [{ head: ['Passbook No.', 'Member name', ...brgyCol(['Barangay']), 'Balance (PHP)', 'Standing'],
+          widths: byBarangay ? [34, 75, 37, 30] : [28, 53, 37, 33, 25], numberColumns: [byBarangay ? 2 : 3],
+          body: filteredMemberStandingList.map(m => [m.id, m.name, ...brgyCol([m.barangay]), reportAmount(m.balance), m.standing]) }];
       } else if (reportType === 'negativeBalances') {
-        scope = 'Current posted balances below zero, excluding deceased members. Largest shortfall first.';
         sections = [
           { title: 'Balance overview', head: ['Particulars', 'Value'], widths: [125, 51], numberColumns: [1],
             body: [['Members with negative balances', String(filteredNegativeMembers.length)], ['Total shortfall to zero (PHP)', reportAmount(filteredTotalShortfall)]] },
-          { title: 'Members with negative balances', head: ['Passbook No.', 'Member name', 'Barangay', 'Status', 'Balance (PHP)'],
-            widths: [28, 55, 37, 23, 33], numberColumns: [4],
-            body: filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, reportAmount(m.balance)]),
+          { title: 'Members with negative balances', head: ['Passbook No.', 'Member name', ...brgyCol(['Barangay']), 'Status', 'Balance (PHP)'],
+            widths: byBarangay ? [34, 80, 27, 35] : [28, 55, 37, 23, 33], numberColumns: [byBarangay ? 3 : 4],
+            body: filteredNegativeMembers.map(m => [m.id, m.name, ...brgyCol([m.barangay]), m.status, reportAmount(m.balance)]),
             emptyMessage: 'No members have a negative balance.',
-            total: ['Total balance', '', '', '', reportAmount(-filteredTotalShortfall)] },
+            total: ['Total balance', '', ...brgyCol(['']), '', reportAmount(-filteredTotalShortfall)] },
         ];
       } else if (reportType === 'deductions') {
         sections = [{ head: ['Claim ID', 'Member name', 'Status', 'Deducted (PHP)', 'Released (PHP)'],
           widths: [31, 48, 31, 33, 33], numberColumns: [3, 4],
           body: filteredDeductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected), reportAmount(c.payoutAmount)]) }];
       }
-      if (reportType !== 'summary') scope += ` Barangay: ${barangayFilter === 'all' ? 'All barangays' : barangayFilter}.`;
       const logo = await loadReportLogo();
-      const title = REPORT_TYPES.find(type => type.id === reportType)?.label || 'Mortuary Fund Report';
-      const doc = createMortuaryReportPdf({ title, scope, sections, logo });
+      const doc = createMortuaryReportPdf({ title, scope, sections, logo, highlights });
       doc.save('mortuary-' + reportType + '-report-' + new Date().toISOString().slice(0, 10) + '.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -366,7 +385,9 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     codepage imbes na basahin as UTF-8 - yung multi-byte ₱ (U+20B1) mamali-
     mali mabasa bilang unrelated CJK characters. Parehong fix na ginamit na
     sa backup CSV exports. */
-    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const { scope, title, highlights } = reportHeader();
+    const header = reportCsvHeader({ title, scope, highlights, program: 'Mortuary Aid Fund Program', metadata: ['Currency', 'Philippine pesos (PHP)'] });
+    const blob = new Blob(['﻿' + header + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);

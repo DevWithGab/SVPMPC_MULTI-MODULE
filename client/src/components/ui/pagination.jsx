@@ -141,7 +141,7 @@ export const Pagination = ({
  */
 export const PaginationInfo = ({ 
   currentPage = 1, 
-  limit = 10, 
+  limit = 100, 
   total = 0,
   className = ''
 }) => {

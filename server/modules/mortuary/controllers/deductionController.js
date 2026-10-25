@@ -6,6 +6,7 @@ const { createHash } = require('node:crypto');
 const { getPaginationParams, buildPaginationMeta } = require('../../../shared/utils/pagination');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 /* Parehong deterministic-id dedup pattern gaya ng contributionController's
 manualPaymentId: hindi dapat magpost ng second debit sa every active member
@@ -261,7 +262,7 @@ const processAutomaticDeduction = async (req, res) => {
     }
 
     const deductionAmount = await resolveDeductionRate();
-    const actor = req.user?.username || 'treasurer';
+    const actor = actorName(req.user, 'treasurer');
 
     const { members } = await getMemberBalanceSnapshots();
     

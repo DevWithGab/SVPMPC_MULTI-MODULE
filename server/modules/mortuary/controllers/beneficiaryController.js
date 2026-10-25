@@ -5,6 +5,7 @@ const { getPaginationParams, buildPaginatedResponse } = require('../../../shared
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { parseBeneficiaryCsv } = require('../utils/beneficiaryCsv');
 const { createBeneficiaryImportService } = require('../services/beneficiaryImportService');
+const { actorName } = require('../../../shared/utils/actorName');
 
 const beneficiaryImportService = createBeneficiaryImportService({ Member, Beneficiary });
 
@@ -133,7 +134,7 @@ const updateBeneficiary = async (req, res) => {
   try {
     const { memberId } = req.params;
     const { beneficiaryName, relationship, contactNumber, address, notes } = req.body;
-    const updatedBy = req.user?.username || 'admin';
+    const updatedBy = actorName(req.user, 'admin');
 
     if (!beneficiaryName || !relationship || !contactNumber) {
       return res.status(400).json({
@@ -203,7 +204,7 @@ const bulkUploadBeneficiaries = async (req, res) => {
     return res.status(400).json({ success: false, message: error.message });
   }
   try {
-    const updatedBy = req.user?.username || 'admin';
+    const updatedBy = actorName(req.user, 'admin');
     if (req.body.action === 'preview') {
       const checked = await beneficiaryImportService.preview(rows);
       return res.json({ success: true, rows: checked, summary: summarizeBeneficiaryImport(checked) });

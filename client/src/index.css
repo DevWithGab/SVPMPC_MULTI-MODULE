@@ -327,3 +327,10 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
+
+/* Edge/IE draw their own password-reveal and clear buttons, which doubled up
+   with the eye toggle in shared/ui/Input.jsx. */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}

@@ -161,6 +161,10 @@ const generateQRCodes = async (req, res) => {
         errors.push({ memberId: member.memberId, error: 'Member is recorded as deceased' });
         continue;
       }
+      if (member.status === 'inactive') {
+        errors.push({ memberId: member.memberId, error: 'Member is inactive' });
+        continue;
+      }
       try {
         const qrResult = await generateQRCode(member);
 
@@ -241,7 +245,7 @@ const generateAllQRCodes = async (req, res) => {
   try {
     /* Shared sa Mortuary module ang Member.status - hindi dapat bigyan ng
     fresh QR para sa attendance ang member na naging 'deceased' doon. */
-    const members = await Member.find({ qrCodeGenerated: false, status: { $ne: 'deceased' } });
+    const members = await Member.find({ qrCodeGenerated: false, status: { $nin: ['deceased', 'inactive'] } });
 
     if (members.length === 0) {
       return res.status(200).json({ message: 'All members already have QR codes' });
@@ -359,6 +363,9 @@ const regenerateQRCode = async (req, res) => {
     if (member.status === 'deceased') {
       return res.status(400).json({ message: 'This member is recorded as deceased — QR management is disabled' });
     }
+    if (member.status === 'inactive') {
+      return res.status(400).json({ message: 'This member is inactive — activate the member before turning their QR code on' });
+    }
 
     const qrResult = await generateQRCode(member);
     if (!qrResult.success) {
@@ -441,6 +448,9 @@ const reactivateQRCode = async (req, res) => {
     }
     if (member.status === 'deceased') {
       return res.status(400).json({ message: 'This member is recorded as deceased — QR management is disabled' });
+    }
+    if (member.status === 'inactive') {
+      return res.status(400).json({ message: 'This member is inactive — activate the member before turning their QR code on' });
     }
     if (!member.qrCodeGenerated) {
       return res.status(400).json({ message: 'This member has no QR code to reactivate' });

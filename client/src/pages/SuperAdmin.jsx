@@ -1,10 +1,10 @@
 import { importHeaderLabel, isPassbookHeader } from '../utils/importHeaders';
 import useUrlState from '../hooks/useUrlState';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
   Mail, Phone, MapPin, Calendar, Key, ArrowLeft, X, Plus,
-  CheckCircle, AlertCircle, Loader, Power
+  CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
@@ -98,7 +98,7 @@ const FormField = React.forwardRef(
 );
 FormField.displayName = 'FormField';
 
-const SuperAdmin = ({ onAuthenticated, onLogout }) => {
+const SuperAdmin = ({ onAuthenticated }) => {
   const [section, setSection] = useUrlState('tab', 'members', ['members', 'staff', 'auditlogs']);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
@@ -107,9 +107,13 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
   
   // Member management state
   const [members, setMembers] = useState([]);
+  const [membersTotal, setMembersTotal] = useState(0);
+  const [memberCounts, setMemberCounts] = useState({ total: 0, active: 0, inactive: 0, deceased: 0 });
+  const [barangayList, setBarangayList] = useState([]);
+  const membersRequestRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const { page: membersPage, limit: membersLimit, setPage: setMembersPage } = usePagination(1, 10);
+  const { page: membersPage, limit: membersLimit, setPage: setMembersPage } = usePagination(1, 100);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [toast, setToast] = useState(null);
@@ -155,10 +159,61 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
     modules: ['attendance', 'mortuary']
   };
 
-  const barangayOptions = useMemo(
-    () => Array.from(new Set(members.map((m) => m.barangay).filter(Boolean))).sort(),
-    [members]
-  );
+  // Edit Member form. Passbook No. stays read-only: ledger, contributions and
+  // beneficiaries all reference the member by it.
+  const EDIT_VALIDATION_FIELDS = ['memberName', 'email', 'phoneNumber', 'barangay', 'address'];
+  const [editMember, setEditMember] = useState(null);
+  const [editErrors, setEditErrors] = useState({});
+
+  const openEditMember = (member) => {
+    setEditMember({
+      memberId: member.memberId,
+      memberName: member.memberName || '',
+      email: member.email || '',
+      phoneNumber: member.phoneNumber || '',
+      barangay: member.barangay || '',
+      address: member.address || '',
+      beneficiaries: member.beneficiaries || '',
+      beneficiaryRelationship: member.beneficiaryRelationship || '',
+      dateOfBirth: member.dateOfBirth ? String(member.dateOfBirth).slice(0, 10) : '',
+      gender: member.gender || 'male',
+    });
+    setEditErrors({});
+  };
+
+  const handleEditFieldChange = (name, rawValue) => {
+    const value = name === 'phoneNumber' ? sanitizePhoneInput(rawValue) : rawValue;
+    setEditMember((prev) => ({ ...prev, [name]: value }));
+    if (editErrors[name]) setEditErrors((prev) => ({ ...prev, [name]: validateMemberField(name, value) }));
+  };
+
+  const handleUpdateMember = async (e) => {
+    e.preventDefault();
+    const nextErrors = {};
+    EDIT_VALIDATION_FIELDS.forEach((field) => {
+      nextErrors[field] = validateMemberField(field, editMember[field]);
+    });
+    setEditErrors(nextErrors);
+    if (EDIT_VALIDATION_FIELDS.some((field) => nextErrors[field])) return;
+
+    const { memberId, ...updateData } = editMember;
+    setLoading(true);
+    try {
+      await adminAPI.updateMember(memberId, updateData);
+      showToast(`${editMember.memberName} was updated.`, 'success');
+      setEditMember(null);
+      fetchMembers();
+    } catch (error) {
+      const message = error.response?.data?.message || 'Error updating member';
+      if (/email/i.test(message)) setEditErrors((prev) => ({ ...prev, email: message }));
+      else if (/phone/i.test(message)) setEditErrors((prev) => ({ ...prev, phoneNumber: message }));
+      else showToast(message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const barangayOptions = barangayList;
 
   const isCreateFormDirty = () =>
     MEMBER_VALIDATION_FIELDS.concat('beneficiaries', 'beneficiaryRelationship').some(
@@ -255,18 +310,25 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
   };
 
   const fetchMembers = async () => {
+    // Filter changes reset the page and refetch, so only the latest response may land.
+    const requestId = ++membersRequestRef.current;
     setLoading(true);
     try {
       const response = await adminAPI.getAllMembers({
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: searchQuery,
-        limit: 100
+        page: membersPage,
+        limit: membersLimit
       });
+      if (requestId !== membersRequestRef.current) return;
       setMembers(response.members || []);
+      setMembersTotal(response.pagination?.total ?? 0);
+      if (response.counts) setMemberCounts(response.counts);
+      if (response.barangays) setBarangayList(response.barangays);
     } catch {
-      showToast('Error fetching members', 'error');
+      if (requestId === membersRequestRef.current) showToast('Error fetching members', 'error');
     } finally {
-      setLoading(false);
+      if (requestId === membersRequestRef.current) setLoading(false);
     }
   };
 
@@ -274,14 +336,14 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
     if (isAuthenticated) {
       fetchMembers();
     }
-  }, [statusFilter, searchQuery]);
+  }, [statusFilter, searchQuery, membersPage]);
 
   useEffect(() => {
     setMembersPage(1);
   }, [statusFilter, searchQuery, setMembersPage]);
 
-  const membersTotalPages = Math.ceil(members.length / membersLimit) || 1;
-  const paginatedMembers = members.slice((membersPage - 1) * membersLimit, membersPage * membersLimit);
+  const membersTotalPages = Math.ceil(membersTotal / membersLimit) || 1;
+  const paginatedMembers = members;
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -581,18 +643,6 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                 <p className="text-sm text-slate-500">Member Management System</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsAuthenticated(false);
-                setAuthPassword('');
-                onLogout();
-              }}
-              className="rounded-xl"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
           </div>
         </div>
       </div>
@@ -604,13 +654,13 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
         {section === 'auditlogs' && <StaffAuditLog />}
         <div hidden={section !== 'members'}>
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="border-slate-200 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-slate-500 uppercase">Total Members</p>
-                  <p className="text-3xl font-black text-slate-900 mt-2">{members.length}</p>
+                  <p className="text-3xl font-black text-slate-900 mt-2">{memberCounts.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
                   <Users className="w-6 h-6 text-emerald-600" />
@@ -624,7 +674,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                 <div>
                   <p className="text-sm font-bold text-slate-500 uppercase">Active</p>
                   <p className="text-3xl font-black text-emerald-600 mt-2">
-                    {members.filter(m => m.status === 'active').length}
+                    {memberCounts.active}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
@@ -639,11 +689,26 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                 <div>
                   <p className="text-sm font-bold text-slate-500 uppercase">Inactive</p>
                   <p className="text-3xl font-black text-slate-400 mt-2">
-                    {members.filter(m => m.status === 'inactive').length}
+                    {memberCounts.inactive}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center">
                   <AlertCircle className="w-6 h-6 text-slate-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-slate-500 uppercase">Deceased</p>
+                  <p className="text-3xl font-black text-rose-600 mt-2">
+                    {memberCounts.deceased}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center">
+                  <HeartCrack className="w-6 h-6 text-rose-600" />
                 </div>
               </div>
             </CardContent>
@@ -761,7 +826,16 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditMember(member)}
+                          className="text-slate-600 hover:text-slate-900"
+                        >
+                          <Pencil className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
                         {['active', 'inactive'].includes(member.status) ? (
                           <Button
                             variant="ghost"
@@ -785,9 +859,9 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
                 </tbody>
               </table>
             </div>
-            {members.length > 0 && (
+            {membersTotal > 0 && (
               <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <PaginationInfo currentPage={membersPage} limit={membersLimit} total={members.length} />
+                <PaginationInfo currentPage={membersPage} limit={membersLimit} total={membersTotal} />
                 <Pagination
                   currentPage={membersPage}
                   totalPages={membersTotalPages}
@@ -972,6 +1046,125 @@ const SuperAdmin = ({ onAuthenticated, onLogout }) => {
               >
                 {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
                 Create Member
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Edit Member Modal */}
+      <Modal
+        isOpen={Boolean(editMember)}
+        onClose={() => setEditMember(null)}
+        title="Edit Member"
+        className="max-w-2xl"
+      >
+        {editMember && (
+          <form onSubmit={handleUpdateMember} noValidate className="space-y-4">
+            <p className="text-xs text-slate-500 -mt-1">
+              Passbook No.: <span className="font-bold text-slate-700">{editMember.memberId}</span> (cannot be changed).
+              Fields marked <span className="text-red-500 font-bold">*</span> are required.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                label="Full Name"
+                name="edit-memberName"
+                required
+                value={editMember.memberName}
+                onChange={(value) => handleEditFieldChange('memberName', value)}
+                error={editErrors.memberName}
+                maxLength={100}
+              />
+              <FormField
+                label="Email (optional)"
+                name="edit-email"
+                type="email"
+                value={editMember.email}
+                onChange={(value) => handleEditFieldChange('email', value)}
+                error={editErrors.email}
+                placeholder="name@example.com"
+              />
+              <FormField
+                label="Phone Number (optional)"
+                name="edit-phoneNumber"
+                type="tel"
+                inputMode="numeric"
+                value={editMember.phoneNumber}
+                onChange={(value) => handleEditFieldChange('phoneNumber', value)}
+                error={editErrors.phoneNumber}
+                placeholder="09171234567"
+                maxLength={11}
+              />
+              <FormField
+                label="Barangay"
+                name="edit-barangay"
+                required
+                value={editMember.barangay}
+                onChange={(value) => handleEditFieldChange('barangay', value)}
+                error={editErrors.barangay}
+                listId="barangay-options"
+              />
+            </div>
+
+            <FormField
+              label="Address"
+              name="edit-address"
+              required
+              value={editMember.address}
+              onChange={(value) => handleEditFieldChange('address', value)}
+              error={editErrors.address}
+              maxLength={200}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                label="Beneficiaries"
+                name="edit-beneficiaries"
+                value={editMember.beneficiaries}
+                onChange={(value) => handleEditFieldChange('beneficiaries', value)}
+                maxLength={200}
+              />
+              <FormField
+                label="Relationship"
+                name="edit-beneficiaryRelationship"
+                value={editMember.beneficiaryRelationship}
+                onChange={(value) => handleEditFieldChange('beneficiaryRelationship', value)}
+                maxLength={50}
+              />
+              <FormField
+                label="Date of Birth"
+                name="edit-dateOfBirth"
+                type="date"
+                value={editMember.dateOfBirth}
+                onChange={(value) => handleEditFieldChange('dateOfBirth', value)}
+              />
+              <div>
+                <label htmlFor="edit-gender" className="block text-sm font-bold text-slate-700 mb-2">Gender</label>
+                <select
+                  id="edit-gender"
+                  value={editMember.gender}
+                  onChange={(e) => handleEditFieldChange('gender', e.target.value)}
+                  className="w-full h-9 px-3 border border-slate-200 rounded-md text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <Button type="button" variant="outline" onClick={() => setEditMember(null)} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                Save Changes
               </Button>
             </div>
           </form>

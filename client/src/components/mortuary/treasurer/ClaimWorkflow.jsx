@@ -32,12 +32,12 @@ export function ClaimQueue({ queue, release = false, onSelect }) {
             </tr>)}</tbody>
           </table></div>}
     <div className="mc-pagination">
-      <span aria-live="polite">{loading ? 'Loading…' : error ? 'Claims unavailable' : total ? `${(page - 1) * 10 + 1}–${Math.min(page * 10, total)} of ${total} ${search ? 'matching ' : ''}claims` : '0 claims'}</span>
+      <span aria-live="polite">{loading ? 'Loading…' : error ? 'Claims unavailable' : total ? `${(page - 1) * 100 + 1}–${Math.min(page * 100, total)} of ${total} ${search ? 'matching ' : ''}claims` : '0 claims'}</span>
       <Pagination
         currentPage={page}
-        totalPages={Math.max(1, Math.ceil(total / 10))}
+        totalPages={Math.max(1, Math.ceil(total / 100))}
         onPageChange={setPage}
-        hasNextPage={!loading && !error && page * 10 < total}
+        hasNextPage={!loading && !error && page * 100 < total}
         hasPrevPage={!loading && !error && page > 1}
       />
     </div>

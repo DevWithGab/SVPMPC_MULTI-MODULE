@@ -55,6 +55,19 @@ const createAuditLog = async (auditData) => {
   }
 };
 
+/* Manual attendance marks (staff override when a QR can't be scanned) must be
+recognisable in the audit log with the reason given. Older entries only kept
+the reason in metadata, so the description is completed when logs are read. */
+const manualAttendanceDescription = (memberName, eventName, reason) =>
+  `Attendance manually marked for member "${memberName}" at event "${eventName}". Reason: ${reason || 'not recorded'}`;
+const withManualAttendanceReason = (log) => {
+  const plain = log?.toObject ? log.toObject() : log;
+  if (plain?.action !== 'attendance_recorded' || plain.metadata?.entrySource !== 'manual') return log;
+  if (/Reason:/.test(plain.description || '')) return log;
+  const match = /member "(.*)" at event "(.*)"/.exec(plain.description || '');
+  return { ...plain, description: manualAttendanceDescription(match?.[1] || plain.entityName, match?.[2] || 'event', plain.metadata.justification) };
+};
+
 const buildDerivedLog = (entry) => ({
   _id: entry.logId,
   logId: entry.logId,
@@ -163,13 +176,17 @@ const getDerivedActivityFeed = async (options = {}) => {
           entityType: 'attendance',
           entityId: record.attendanceId,
           entityName: record.memberName,
-          description: `Attendance recorded for member "${record.memberName}" at event "${record.eventName}"`,
+          description: record.entrySource === 'manual'
+            ? manualAttendanceDescription(record.memberName, record.eventName, record.justification)
+            : `Attendance recorded for member "${record.memberName}" at event "${record.eventName}"`,
           timestamp: record.scanTime || record.createdAt,
           metadata: {
             memberId: record.memberId,
             eventId: record.eventId,
             barangay: record.barangay,
             status: record.status,
+            entrySource: record.entrySource || 'qr',
+            ...(record.justification ? { justification: record.justification } : {}),
           },
         }),
       );
@@ -244,7 +261,7 @@ const getDerivedActivityFeed = async (options = {}) => {
     const paginated = filtered.slice(skip, skip + parseInt(limit));
 
     return {
-      logs: paginated,
+      logs: await resolveAuditActorNames(paginated, User),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -321,7 +338,7 @@ const getAuditLogs = async (options = {}) => {
     ]);
 
     return {
-      logs: await resolveAuditActorNames(logs, User),
+      logs: (await resolveAuditActorNames(logs, User)).map(withManualAttendanceReason),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -352,7 +369,7 @@ const getEntityAuditTrail = async (entityType, entityId, limit = 20, module) => 
       .sort({ timestamp: -1 })
       .limit(parseInt(limit));
 
-    return resolveAuditActorNames(logs, User);
+    return (await resolveAuditActorNames(logs, User)).map(withManualAttendanceReason);
   } catch (error) {
     console.error('Error fetching entity audit trail:', error);
     throw error;
@@ -427,6 +444,8 @@ const getAuditLogsSummary = async (startDate, endDate, module) => {
 };
 
 module.exports = {
+  manualAttendanceDescription,
+  withManualAttendanceReason,
   createAuditLog,
   getAuditLogs,
   getEntityAuditTrail,

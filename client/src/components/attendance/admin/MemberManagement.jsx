@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   UserPlus,
-  Printer,
   Search,
   Grid,
   List,
@@ -31,6 +30,8 @@ const qrState = (member) => {
   /* Hindi dapat basahin bilang "active" ang QR ng deceased member dito, kahit
   hindi pa na-flip off ang qrCodeActive flag mismo. */
   if (member.status === "deceased") return "inactive";
+  // Deactivating a member in Super Admin also switches their QR off.
+  if (member.status === "inactive") return "inactive";
   return member.qrCodeActive === false ? "inactive" : "active";
 };
 
@@ -79,77 +80,8 @@ const QRStatusBadge = ({ member }) => {
   );
 };
 
-const printQRCodes = (members) => {
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) return;
-
-  const qrCards = members
-    .map((member) => {
-      const src = resolveQrAssetUrl(member.qrCodeUrl);
-      return `
-      <div class="qr-card">
-        <div class="qr-header">
-          <h3>${member.memberName}</h3>
-          <p>Passbook No.: ${member.memberId}</p>
-        </div>
-        <div class="qr-code">
-          ${
-            src
-              ? `<img src="${src}" alt="QR Code" />`
-              : '<div class="no-qr">QR Code Not Generated</div>'
-          }
-        </div>
-        <div class="qr-footer">
-          <p>${member.barangay || ""}</p>
-        </div>
-      </div>
-    `;
-    })
-    .join("");
-
-  printWindow.document.write(`
-      <html>
-        <head>
-          <title>Member QR Codes</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; }
-            .qr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-            .qr-card { border: 2px solid #2D7A3E; border-radius: 12px; padding: 20px; text-align: center; page-break-inside: avoid; }
-            .qr-header h3 { margin: 0; color: #2D7A3E; font-size: 18px; }
-            .qr-header p { margin: 5px 0; color: #64748b; font-size: 14px; }
-            .qr-code { margin: 20px 0; }
-            .qr-code img { width: 200px; height: 200px; }
-            .no-qr { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #94a3b8; margin: 0 auto; }
-            .qr-footer p { margin: 0; color: #64748b; font-size: 12px; }
-            @media print { .qr-card { page-break-inside: avoid; } }
-          </style>
-        </head>
-        <body>
-          <h1 style="text-align: center; color: #2D7A3E; margin-bottom: 30px;">Member QR Codes</h1>
-          <div class="qr-grid">${qrCards}</div>
-          <script>setTimeout(() => window.print(), 500);</script>
-        </body>
-      </html>
-    `);
-};
-
-const downloadQRCode = async (member) => {
-  const src = resolveQrAssetUrl(member.qrCodeUrl);
-  if (!src) return;
-  const response = await fetch(src);
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${member.memberId}-qr.png`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
 /* Ito ang QR management console para sa isang member - lahat ng admin action
-mula sa spec (generate, view, download, print, regenerate, deactivate,
+mula sa spec (generate, view, regenerate, deactivate,
 reactivate, check status) ay nandito, kaya isang entry point lang kailangan
 ng table/grid row imbes na puno ng icon buttons. */
 const QRManagerModal = ({ member, onClose, onUpdated }) => {
@@ -212,6 +144,8 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
   if (!member) return null;
   const state = qrState(current);
   const src = resolveQrAssetUrl(current.qrCodeUrl);
+  // The server refuses to turn a QR on for inactive or deceased members.
+  const locked = current.status === "inactive" || current.status === "deceased";
 
   return (
     <div
@@ -285,6 +219,14 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
             </p>
           )}
 
+          {locked && (
+            <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              {current.status === "deceased"
+                ? "This member is recorded as deceased, so their QR code stays inactive."
+                : "This member is inactive, so their QR code stays inactive. Activate the member in Super Admin first."}
+            </p>
+          )}
+
           {state === "none" ? (
             <button
               onClick={() =>
@@ -294,7 +236,7 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
                   "QR code generated.",
                 )
               }
-              disabled={busy !== null}
+              disabled={busy !== null || locked}
               className="w-full h-11 rounded-xl text-white font-bold text-sm shadow disabled:opacity-60 flex items-center justify-center gap-2"
               style={{ backgroundColor: "#2D7A3E" }}
             >
@@ -307,22 +249,6 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
             </button>
           ) : (
             <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => downloadQRCode(current)}
-                  className="h-11 rounded-xl border border-slate-200 font-bold text-xs hover:bg-slate-50 flex items-center justify-center gap-1.5"
-                >
-                  <Download className="w-4 h-4" />
-                  Download
-                </button>
-                <button
-                  onClick={() => printQRCodes([current])}
-                  className="h-11 rounded-xl border border-slate-200 font-bold text-xs hover:bg-slate-50 flex items-center justify-center gap-1.5"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print
-                </button>
-              </div>
               <button
                 onClick={() =>
                   run(
@@ -331,7 +257,7 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
                     "QR code regenerated — the old code no longer scans.",
                   )
                 }
-                disabled={busy !== null}
+                disabled={busy !== null || locked}
                 className="w-full h-11 rounded-xl border border-blue-200 text-blue-700 font-bold text-xs hover:bg-blue-50 disabled:opacity-60 flex items-center justify-center gap-1.5"
               >
                 {busy === "regenerate" ? (
@@ -369,7 +295,7 @@ const QRManagerModal = ({ member, onClose, onUpdated }) => {
                       "QR code reactivated.",
                     )
                   }
-                  disabled={busy !== null}
+                  disabled={busy !== null || locked}
                   className="w-full h-11 rounded-xl text-white font-bold text-xs shadow disabled:opacity-60 flex items-center justify-center gap-1.5"
                   style={{ backgroundColor: "#2D7A3E" }}
                 >
@@ -558,7 +484,7 @@ const MemberManagement = () => {
             ) : (
               <QrCode size={15} aria-hidden="true" />
             )}
-            {generatingAll ? "Generating?" : "Generate missing QR"}
+            {generatingAll ? "Generating…" : "Generate missing QR"}
           </button>
           <button className="sd-button" onClick={exportToCSV}>
             <Download size={15} aria-hidden="true" />

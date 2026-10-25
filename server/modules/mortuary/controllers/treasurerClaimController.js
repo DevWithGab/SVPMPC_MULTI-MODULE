@@ -26,6 +26,7 @@ const { getClaimFinancialTotals } = require('./dashboardController');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { getLatestBalance } = require('../utils/ledgerBalance');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 const {
   DEFAULT_MAX_BENEFIT_AMOUNT,
   benefitPayoutFor,
@@ -186,7 +187,7 @@ const listReleasedClaims = async (req, res) => {
     }
 
     const total = await Claim.countDocuments(query);
-    const claims = await Claim.find(query).sort({ 'payout.releasedAt': -1 }).skip(skip).limit(limit);
+    const claims = await Claim.find(query).sort({ 'payout.releasedAt': -1 }).skip(skip).limit(limit).lean();
 
     res.status(200).json(buildPaginatedResponse(claims, total, page, limit));
   } catch (error) {
@@ -356,7 +357,7 @@ parehong mekanismo ng blanket automatic-deduction, tinag sa claim na ito. */
 const processClaimDeduction = async (req, res) => {
   try {
     const { claimId } = req.params;
-    const processedBy = req.user?.username || 'treasurer';
+    const processedBy = actorName(req.user, 'treasurer');
     const jvNumber = String(req.body.jvNumber || '').trim();
 
     if (!jvNumber) {
@@ -506,7 +507,7 @@ const releaseClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
     const { paymentMethod, dvNumber, releaseDate, remarks } = req.body;
-    const releasedBy = req.user?.username || 'treasurer';
+    const releasedBy = actorName(req.user, 'treasurer');
 
     if (!dvNumber?.trim()) {
       return res.status(400).json({ success: false, message: 'A DV (Disbursement Voucher) number is required' });

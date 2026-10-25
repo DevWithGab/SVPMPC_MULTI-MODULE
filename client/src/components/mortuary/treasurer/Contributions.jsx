@@ -28,7 +28,7 @@ const Contributions = ({
     c.member_id?.toString().includes(paymentSearchQuery)
   );
 
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   useEffect(() => {
     setPage(1);

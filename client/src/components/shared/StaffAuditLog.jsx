@@ -32,7 +32,7 @@ export default function StaffAuditLog() {
   const [action, setAction] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
   const requestVersion = useRef(0);
-  const { page, limit, setPage } = usePagination(1, 10);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   const refresh = async () => {
     const version = ++requestVersion.current;

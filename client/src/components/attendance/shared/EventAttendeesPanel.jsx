@@ -22,7 +22,7 @@ export default function EventAttendeesPanel({
 }) {
   const [filter, setFilter] = useState("all"); // 'all' | 'present' | 'absent'
   const [search, setSearch] = useState("");
-  const { page, limit, setPage } = usePagination(1, 75);
+  const { page, limit, setPage } = usePagination(1, 100);
 
   const { presentList, absentList } = useMemo(() => {
     const presentByMemberId = new Map();

@@ -6,7 +6,7 @@ import { useState, useCallback } from 'react';
  * @param {number} initialLimit - Initial items per page (default: 10)
  * @returns {Object} Pagination state and handlers
  */
-export const usePagination = (initialPage = 1, initialLimit = 10) => {
+export const usePagination = (initialPage = 1, initialLimit = 100) => {
   const [page, setPage] = useState(initialPage);
   const [limit, setLimit] = useState(initialLimit);
 

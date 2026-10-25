@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, createContext, useContext } from 'react';
-import { clearAuthSession, readAuthSession } from '../utils/authSession';
+import { clearAuthSession, readAuthSession, withDisplayName } from '../utils/authSession';
 
 // Create Auth Context
 const AuthContext = createContext();
@@ -12,7 +12,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(initialAuth?.token ?? null);
 
   // Update auth state when new data is provided
-  const updateAuth = useCallback((newUser, newToken) => {
+  const updateAuth = useCallback((incomingUser, newToken) => {
+    const newUser = withDisplayName(incomingUser);
     setUser((prevUser) =>
       prevUser === newUser ? prevUser : newUser,
     );

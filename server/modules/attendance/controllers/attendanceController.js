@@ -5,6 +5,7 @@ const AttendanceReport = require('../models/AttendanceReport');
 const { v4: uuidv4 } = require('uuid');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 // Use an allowlist so new model fields cannot silently become scanner data.
 const SCANNER_ATTENDANCE_FIELDS = ['attendanceId', 'memberId', 'memberName', 'eventId',
@@ -22,7 +23,7 @@ const restrictScannerResponse = (req, record, fields = SCANNER_ATTENDANCE_FIELDS
 
 // Record attendance via QR scan
 const recordAttendance = async (req, res) => {
-  const actor = { userId: req.user?.userId, userName: req.user?.username, userRole: req.user?.role };
+  const actor = { userId: req.user?.userId, userName: actorName(req.user, ''), userRole: req.user?.role };
   if (!actor.userId || !actor.userName || !actor.userRole) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -64,6 +65,9 @@ const recordAttendance = async (req, res) => {
     entries (staff recording attendance by hand) are a deliberate
     override and bypass this — matches how the justification field
     already handles irregular entries.*/
+    if (entrySource !== 'manual' && member.status === 'inactive') {
+      return res.status(400).json({ message: `${member.memberName} is inactive, so their QR code cannot be scanned.` });
+    }
     if (entrySource !== 'manual' && (!member.qrCodeGenerated || member.qrCodeActive === false)) {
       return res.status(400).json({ message: 'This member\'s QR code is not active. Generate or reactivate it before scanning.' });
     }
@@ -149,7 +153,9 @@ const recordAttendance = async (req, res) => {
       entityType: 'attendance',
       entityId: saved.attendanceId,
       entityName: member.memberName,
-      description: `Attendance recorded for member "${member.memberName}" at event "${event.eventName}"`,
+      description: saved.entrySource === 'manual'
+        ? `Attendance manually marked for member "${member.memberName}" at event "${event.eventName}". Reason: ${saved.justification}`
+        : `Attendance recorded for member "${member.memberName}" at event "${event.eventName}"`,
       changes: {
         before: null,
         after: saved.toObject(),

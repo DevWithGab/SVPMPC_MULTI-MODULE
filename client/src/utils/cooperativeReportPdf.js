@@ -5,7 +5,7 @@ import { drawCooperativeLetterhead } from './cooperativePdfLetterhead.js';
 /* Sinusunod ng Mortuary reports yung ledger form ng cooperative: parehong
 letterhead, centered report title, black ruled tables, at numbered
 continuation pages. */
-export const createCooperativeReportPdf = ({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue }) => {
+export const createCooperativeReportPdf = ({ title, scope, sections, logo, generatedAt, metadataLabel, metadataValue, highlights = [] }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   doc.setProperties({ title, author: 'St. Vincent Parish Multi-Purpose Cooperative', subject: 'Mutual Assistance Fund' });
   const left = 17;
@@ -19,7 +19,17 @@ export const createCooperativeReportPdf = ({ title, scope, sections, logo, gener
   doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
   const titleLines = doc.splitTextToSize(title, width);
   const titleY = 42;
-  const scopeY = titleY + (titleLines.length - 1) * 6 + 9;
+  /* Optional emphasised filters (e.g. the one barangay a report covers),
+  centered under the title as a small label over a large bold name. */
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+  let highlightY = titleY + (titleLines.length - 1) * 6 + 8;
+  const highlightRows = highlights.filter(item => item?.value).map(item => {
+    const lines = doc.splitTextToSize(String(item.value), width);
+    const row = { label: String(item.label).toUpperCase(), lines, at: highlightY };
+    highlightY += 4 + lines.length * 5.5 + 1.5;
+    return row;
+  });
+  const scopeY = highlightRows.length ? highlightY + 3 : titleY + (titleLines.length - 1) * 6 + 9;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
   const scopeLines = doc.splitTextToSize(scope || 'All recorded transactions.', width);
   const dateY = scopeY + scopeLines.length * 4.5 + 3;
@@ -62,6 +72,12 @@ export const createCooperativeReportPdf = ({ title, scope, sections, logo, gener
     drawCooperativeLetterhead(doc, logo, left, right);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
     doc.text(titleLines, doc.internal.pageSize.getWidth() / 2, titleY, { align: 'center', lineHeightFactor: 1.21 });
+    for (const row of highlightRows) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(90, 90, 90);
+      doc.text(row.label, doc.internal.pageSize.getWidth() / 2, row.at, { align: 'center' });
+      doc.setFontSize(13); doc.setTextColor(0, 0, 0);
+      doc.text(row.lines, doc.internal.pageSize.getWidth() / 2, row.at + 5.5, { align: 'center', lineHeightFactor: 1.15 });
+    }
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     doc.text(scopeLines, left, scopeY, { lineHeightFactor: 1.42 });
     doc.text(`Generated: ${date} PHT`, left, dateY);

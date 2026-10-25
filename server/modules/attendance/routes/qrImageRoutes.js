@@ -4,6 +4,23 @@ const { renderQRCodePng } = require('../services/qrCodeService');
 
 const router = express.Router();
 
+/* Rendering a QR PNG costs ~20 ms of CPU, which adds up when the secretary
+downloads every card at once. Cache the bytes by everything the image encodes;
+the member lookup below still runs on every request, so replaced or revoked
+codes stop resolving immediately. */
+const PNG_CACHE_LIMIT = 2000;
+const pngCache = new Map();
+const renderCached = async (member) => {
+  const key = JSON.stringify([member.memberId, member.memberName, member.barangay, member.qrCode]);
+  let png = pngCache.get(key);
+  if (!png) {
+    png = await renderQRCodePng(member);
+    if (pngCache.size >= PNG_CACHE_LIMIT) pngCache.delete(pngCache.keys().next().value);
+    pngCache.set(key, png);
+  }
+  return png;
+};
+
 /* Pinapanatili yung existing public image URLs na ginagamit ng previews, printing,
 at downloads, pero yung bytes nila ay nire-rebuild galing MongoDB sa halip na
 local files. Yung member's current issued UUID lang ang makaka-resolve - hindi
@@ -21,7 +38,7 @@ router.get('/:filename', async (req, res, next) => {
     if (!member || filename !== `${member.memberId}_${member.qrCode}.png`) {
       return res.status(404).json({ message: 'QR image not found' });
     }
-    const png = await renderQRCodePng(member);
+    const png = await renderCached(member);
     return res.type('png').send(png);
   } catch (error) {
     return next(error);

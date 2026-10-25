@@ -159,7 +159,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
         (new Date(b.eventDate || b.date).getTime() || 0);
       return sortOrder === "oldest" ? difference : -difference;
     });
-  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / 10));
+  const totalPages = Math.max(1, Math.ceil(filteredEvents.length / 100));
   const currentPage = Math.min(page, totalPages);
   const busy = loading || deleting || actionPending;
   const resetFilters = () => {
@@ -659,7 +659,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               <TableBody className="stagger-in">
                 {!loadingEvents &&
                   filteredEvents
-                    .slice((currentPage - 1) * 10, currentPage * 10)
+                    .slice((currentPage - 1) * 100, currentPage * 100)
                     .map((event) => (
                       <TableRow
                         key={event.eventId || event._id || event.id}
@@ -837,10 +837,10 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
               {loadingEvents
                 ? "Loading…"
                 : filteredEvents.length
-                  ? (currentPage - 1) * 10 +
+                  ? (currentPage - 1) * 100 +
                     1 +
                     "–" +
-                    Math.min(currentPage * 10, filteredEvents.length) +
+                    Math.min(currentPage * 100, filteredEvents.length) +
                     " of " +
                     filteredEvents.length +
                     " events"

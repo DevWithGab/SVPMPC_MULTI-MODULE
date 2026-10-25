@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   History,
   Plus,
+  Undo2,
 } from "lucide-react";
 import "../treasurer/Dashboard.css";
 import "./Claims.css";
@@ -57,6 +58,9 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
   const [approveRejectMode, setApproveRejectMode] = useState(null); // 'approve' | 'reject' | null
   const [newRequirement, setNewRequirement] = useState("");
   const [addingRequirement, setAddingRequirement] = useState(false);
+  // The requirement just added, so an accidental add can be undone in one click.
+  const [lastAdded, setLastAdded] = useState(null);
+  const [removingRequirement, setRemovingRequirement] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +72,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
       setVerificationForm({
         verifiedBy:
           payload.claim?.verification?.verifiedBy ||
+          user?.fullName ||
           user?.name ||
           user?.username ||
           "",
@@ -115,15 +120,41 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
     setAddingRequirement(true);
     setError("");
     try {
+      const before = new Set(Object.keys(claim.requirements || {}));
       const res = await claimAPI.addRequirement(claim.claimId, label);
       setData((prev) => ({ ...prev, claim: res?.data || prev.claim }));
       setNewRequirement("");
+      const addedKey = Object.keys(res?.data?.requirements || {}).find((key) => !before.has(key));
+      setLastAdded(addedKey ? { key: addedKey, label } : null);
     } catch (err) {
       setError(
         err.response?.data?.message || "Unable to add this requirement.",
       );
     } finally {
       setAddingRequirement(false);
+    }
+  };
+
+  const removeRequirement = async (reqKey) => {
+    if (!claim) return;
+    const item = claim.requirements?.[reqKey];
+    const label = item?.label || fallbackLabel(reqKey);
+    /* Undoing the add that was just made needs no confirmation; removing an
+    older item, or one already marked submitted, does. */
+    const isUndo = lastAdded?.key === reqKey && !item?.submitted;
+    if (!isUndo && !window.confirm(`Remove "${label}" from this claim's checklist?`)) return;
+    setRemovingRequirement(reqKey);
+    setError("");
+    try {
+      const res = await claimAPI.removeRequirement(claim.claimId, reqKey);
+      setData((prev) => ({ ...prev, claim: res?.data || prev.claim }));
+      if (lastAdded?.key === reqKey) setLastAdded(null);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Unable to remove this requirement.",
+      );
+    } finally {
+      setRemovingRequirement("");
     }
   };
 
@@ -145,6 +176,9 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
         verificationForm,
       );
       setData((prev) => ({ ...prev, claim: res?.data || prev.claim }));
+      // Show the name the server actually recorded.
+      const recordedBy = res?.data?.verification?.verifiedBy;
+      if (recordedBy) setVerificationForm((f) => ({ ...f, verifiedBy: recordedBy }));
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -352,6 +386,29 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                     ))}
                   </div>
                 )}
+                {canDecide && lastAdded && claim.requirements?.[lastAdded.key] && (
+                  <div
+                    role="status"
+                    className="flex items-center justify-between gap-3 mt-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-xs text-emerald-800"
+                  >
+                    <span>
+                      Added <strong>{lastAdded.label}</strong> to this claim.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeRequirement(lastAdded.key)}
+                      disabled={removingRequirement === lastAdded.key}
+                      className="inline-flex items-center gap-1 font-semibold text-emerald-900 hover:underline disabled:opacity-50"
+                    >
+                      {removingRequirement === lastAdded.key ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Undo2 className="w-3.5 h-3.5" />
+                      )}
+                      Undo
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -370,6 +427,11 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                     >
                       {COMBINED_COLUMN.label}
                     </th>
+                    {canDecide && (
+                      <th scope="col" className="px-3 py-2.5">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -395,13 +457,32 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                             className="w-4 h-4 accent-coop-green disabled:opacity-50"
                           />
                         </td>
+                        {canDecide && (
+                          <td className="px-3 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => removeRequirement(reqKey)}
+                              disabled={isSaving || removingRequirement === reqKey}
+                              title="Remove this requirement (undo an accidental add)"
+                              aria-label={`Remove ${claim.requirements?.[reqKey]?.label || fallbackLabel(reqKey)}`}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-rose-600 disabled:opacity-50"
+                            >
+                              {removingRequirement === reqKey ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Undo2 className="w-3.5 h-3.5" />
+                              )}
+                              Remove
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
                   {Object.keys(claim.requirements || {}).length === 0 && (
                     <tr>
                       <td
-                        colSpan={2}
+                        colSpan={canDecide ? 3 : 2}
                         className="px-5 py-5 text-sm text-slate-400 text-center"
                       >
                         No requirements added yet. Add at least one requirement
@@ -427,16 +508,13 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
                   Verified By
                 </label>
+                {/* Read-only: the server records the signed-in staff member's name. */}
                 <input
                   value={verificationForm.verifiedBy}
-                  onChange={(e) =>
-                    setVerificationForm((f) => ({
-                      ...f,
-                      verifiedBy: e.target.value,
-                    }))
-                  }
-                  disabled={!canDecide}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green disabled:bg-slate-50"
+                  readOnly
+                  aria-readonly="true"
+                  title="Recorded automatically from the signed-in account"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-700 cursor-default focus:outline-none"
                 />
               </div>
               <div>

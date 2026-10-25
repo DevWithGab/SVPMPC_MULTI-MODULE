@@ -16,6 +16,16 @@ const title = level => level === 1 ? 'FIRST NOTICE' : 'SECOND NOTICE';
 
 export const DEFAULT_NOTICE_MESSAGE = 'This is to inform you that your deposit under the Mortuary Aid Fund Program has only a balance of {balance}. Please make an additional deposit of {amountNeeded} immediately to make your current balance of {targetBalance} from receipt of this notice to enjoy the benefit of this program.\n\nThank you and God Bless!';
 export const DEFAULT_FINAL_NOTICE_MESSAGE = 'This is to inform you that you have {balance} deposits in the Mortuary Aid Fund Program. Kindly replenish or deposit {amountNeeded} in your mortuary fund within (30) days to maintain your membership in the said program. Failure to do so will automatically drop you from the program.\n\nPlease be guided and updated accordingly.';
+/* No placeholder may be deleted from a notice message (mirrors the server check
+in noticeThresholdSettingController.js): neither those in the default wording
+nor any already in the saved letter, e.g. a {name} added later. */
+export const REQUIRED_NOTICE_PLACEHOLDERS = { notice: ['balance', 'amountNeeded', 'targetBalance'], final: ['balance', 'amountNeeded'] };
+const NOTICE_PLACEHOLDERS = ['balance', 'amountNeeded', 'targetBalance', 'name', 'address', 'passbook', 'date', 'managerName', 'noticeLabel'];
+export const requiredNoticePlaceholders = (level, savedTemplate = '') => [...new Set([
+  ...(level === 3 ? REQUIRED_NOTICE_PLACEHOLDERS.final : REQUIRED_NOTICE_PLACEHOLDERS.notice),
+  ...NOTICE_PLACEHOLDERS.filter(key => String(savedTemplate).includes(`{${key}}`)),
+])];
+export const missingNoticePlaceholders = (template, level, savedTemplate) => requiredNoticePlaceholders(level, savedTemplate).filter(key => !String(template).includes(`{${key}}`));
 export const getNoticeMessageTemplate = (settings, level) => level === 3
   ? settings?.finalNoticeMessageTemplate || DEFAULT_FINAL_NOTICE_MESSAGE
   : settings?.noticeMessageTemplate || DEFAULT_NOTICE_MESSAGE;

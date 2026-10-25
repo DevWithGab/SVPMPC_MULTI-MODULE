@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 /* Default rate na ginagamit para auto-seed yung first DeductionSetting row,
 tumutugma sa value na ginamit ng hardcoded DEDUCTION_AMOUNT constant sa
@@ -66,7 +67,7 @@ versioning). */
 const updateRate = async (req, res) => {
   try {
     const { amount, effectiveDate, description } = req.body;
-    const updatedBy = req.user?.username || 'admin';
+    const updatedBy = actorName(req.user, 'admin');
 
     const value = typeof amount === 'string' || typeof amount === 'number' ? String(amount).trim() : '';
     const validFormat = /^(?:\d+|[1-9]\d{0,2}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(value);

@@ -6,6 +6,7 @@ const { getPaginationParams, buildPaginatedResponse } = require('../../../shared
 const { getLatestBalance } = require('../utils/ledgerBalance');
 const { withMemberPaymentLock } = require('../utils/paymentLock');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 /* Parehong dedup-key/upsert pattern gaya ng paymentImportService.js's CSV
 import path (tingnan yung paymentId/samePayment dun). Yung deterministic id
@@ -35,7 +36,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
     const finalPaymentMethod = paymentMethod || payment_method || 'cash';
     const trimmedReference = referenceNumber?.trim();
 
-    const recordedBy = req.user?.username || 'admin';
+    const recordedBy = actorName(req.user, 'admin');
 
     console.log('📝 Recording contribution:', { memberId, amount, finalPaymentDate, finalDueDate, finalPaymentMethod });
 

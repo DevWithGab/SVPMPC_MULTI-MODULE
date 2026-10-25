@@ -44,7 +44,7 @@ export default function Claims({ user }) {
     try {
       const res = await claimAPI.getAllClaims({
         page,
-        limit: 10,
+        limit: 100,
         status: statusFilter === 'all' ? undefined : statusFilter,
         search: search.trim() || undefined,
       });
@@ -122,7 +122,7 @@ export default function Claims({ user }) {
           <p className="td-description">Register, verify, and process death benefit claims.</p>
         </div>
         <div className="td-header-actions">
-          <button className="td-button" onClick={handleChanged} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing?' : 'Refresh'}</button>
+          <button className="td-button" onClick={handleChanged} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}</button>
           <button type="button" aria-haspopup="dialog" onClick={() => setShowRegisterModal(true)} className="td-button td-primary"><Plus size={15} aria-hidden="true" />Register new claim</button>
         </div>
       </header>
@@ -247,7 +247,7 @@ export default function Claims({ user }) {
         </div>
         {!loading && !error && pagination.total > 0 && (
           <div className="mc-pagination">
-            <PaginationInfo currentPage={page} limit={10} total={pagination.total} />
+            <PaginationInfo currentPage={page} limit={100} total={pagination.total} />
             <Pagination
               currentPage={page}
               totalPages={pagination.totalPages}

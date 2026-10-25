@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -12,7 +13,7 @@ const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const createClaim = async (req, res) => {
   try {
     const { memberId, beneficiaryId, dateOfDeath, causeOfDeath, remarks } = req.body;
-    const createdBy = req.user?.username || 'admin';
+    const createdBy = actorName(req.user, 'admin');
 
     /* Isinasara ng typeof check yung NoSQL operator-injection hole: kung
     crafted body gaya ng {"memberId":{"$ne":null},"beneficiaryId":{"$ne":null},...}
@@ -287,6 +288,42 @@ const addRequirement = async (req, res) => {
   }
 };
 
+/* Undo a requirement added to this claim by mistake. Only while the claim is
+still pending requirements, i.e. before approval or rejection relied on it. */
+const removeRequirement = async (req, res) => {
+  try {
+    const { claimId, requirementKey } = req.params;
+
+    const claim = await Claim.findOne({ claimId });
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found' });
+    }
+    if (claim.status !== 'pending_requirements') {
+      return res.status(400).json({ success: false, message: 'Requirements can only be removed while the claim is pending requirements' });
+    }
+    if (!claim.requirements.has(requirementKey)) {
+      return res.status(404).json({ success: false, message: 'Requirement not found on this claim' });
+    }
+
+    claim.requirements.delete(requirementKey);
+    claim.markModified('requirements');
+    await claim.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Requirement removed from this claim',
+      data: claim,
+    });
+  } catch (error) {
+    console.error('Error removing claim requirement:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error removing claim requirement',
+      error: safeErrorMessage(error),
+    });
+  }
+};
+
 // Verification Information
 const updateVerification = async (req, res) => {
   try {
@@ -298,8 +335,9 @@ const updateVerification = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Claim not found' });
     }
 
+    // Record the signed-in staff member's name; username only if no name is set.
     claim.verification = {
-      verifiedBy: req.user?.username || 'admin',
+      verifiedBy: actorName(req.user, 'admin'),
       verificationDate: verificationDate ? new Date(verificationDate) : new Date(),
       remarks,
     };
@@ -328,7 +366,7 @@ pending_deduction claims) ito. */
 const approveClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
-    const approvedBy = req.user?.username || 'admin';
+    const approvedBy = actorName(req.user, 'admin');
 
     const claim = await Claim.findOne({ claimId });
     if (!claim) {
@@ -402,7 +440,7 @@ const rejectClaim = async (req, res) => {
   try {
     const { claimId } = req.params;
     const { reason } = req.body;
-    const rejectedBy = req.user?.username || 'admin';
+    const rejectedBy = actorName(req.user, 'admin');
 
     if (!reason || !reason.trim()) {
       return res.status(400).json({ success: false, message: 'A rejection reason is required' });
@@ -465,6 +503,7 @@ module.exports = {
   getClaimById,
   updateRequirements,
   addRequirement,
+  removeRequirement,
   updateVerification,
   approveClaim,
   rejectClaim,

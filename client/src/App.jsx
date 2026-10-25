@@ -1,5 +1,6 @@
 import { createElement, useState } from "react";
 import { AuthProvider, useAuth } from "./hooks/useAuth.jsx";
+import { withDisplayName } from "./utils/authSession";
 import SystemSelector from "./pages/SystemSelector";
 import SuperAdmin from "./pages/SuperAdmin";
 import RequiredPasswordChange from './components/shared/RequiredPasswordChange';
@@ -54,7 +55,7 @@ function AppRoutes() {
     setLoginNotice('');
     window.sessionStorage.setItem('selectedModule', JSON.stringify({ module, role }));
     updateAuth(user, token);
-    setSession({ module, role, user, token });
+    setSession({ module, role, user: withDisplayName(user), token });
     const requested = location.state?.from;
     navigate(user.role === 'super_admin' ? '/super-admin' : requested?.pathname === path ? requested : path, { replace: true });
   };
@@ -75,7 +76,7 @@ function AppRoutes() {
   const routesElement = (
     <Routes>
       <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector key={location.search} onModuleSelect={handleLogin} notice={loginNotice} />} />
-      <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'admin', user, token)} onLogout={handleLogout} />} />
+      <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'admin', user, token)} />} />
       {Object.entries(portals).map(([path, Portal]) => (
         <Route key={path} path={path} element={
           isSuperAdmin && path.endsWith('/admin') ? createElement(Portal, { user: authUser, token: authToken, onBack: handleLogout })

@@ -12,6 +12,7 @@ const harness = () => {
     '../../../shared/utils/pagination': {},
     '../../../shared/utils/versionedSetting': { supersedeAndInsert: async (Model, build, config) => { options = config; return build(); } },
     '../../../middleware/errorHandler': { safeErrorMessage: error => error.message },
+    '../../../shared/utils/actorName': require('../shared/utils/actorName'),
   };
   const context = { module: { exports: {} }, console, require: name => dependencies[name] };
   vm.runInNewContext(fs.readFileSync(require.resolve('../modules/mortuary/controllers/noticeThresholdSettingController'), 'utf8'), context);

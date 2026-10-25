@@ -7,7 +7,7 @@ import { formatDateTime } from "../../../utils/date";
 import "../secretary/Dashboard.css";
 import "./MyScans.css";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 100;
 
 /* Lahat ng attendance record na personal na na-scan ng operator na ito, sa
 lahat ng event - hindi lang yung last few mula sa browser session na ito.

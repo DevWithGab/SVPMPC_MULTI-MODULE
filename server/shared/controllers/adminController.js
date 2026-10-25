@@ -299,8 +299,23 @@ const getAllMembers = async (req, res) => {
 
     const total = await Member.countDocuments(query);
 
+    // Dashboard stats cover every member, regardless of the page, search or status filter.
+    const [statusCounts, barangays] = await Promise.all([
+      Member.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Member.distinct('barangay'),
+    ]);
+    const byStatus = Object.fromEntries(statusCounts.map(({ _id, count }) => [_id, count]));
+    const counts = {
+      total: statusCounts.reduce((sum, { count }) => sum + count, 0),
+      active: byStatus.active || 0,
+      inactive: byStatus.inactive || 0,
+      deceased: byStatus.deceased || 0,
+    };
+
     res.status(200).json({
       members,
+      counts,
+      barangays: barangays.filter(Boolean).sort(),
       pagination: {
         total,
         page: parseInt(page),
@@ -351,6 +366,8 @@ const updateMember = async (req, res) => {
     const invalidContact = contactError(updateData.email, updateData.phoneNumber);
     if (invalidContact) return res.status(400).json({ message: invalidContact });
 
+    if (['inactive', 'deceased'].includes(updateData.status)) updateData.qrCodeActive = false;
+
     const member = await Member.findOneAndUpdate(
       { memberId },
       updateData,
@@ -366,6 +383,10 @@ const updateMember = async (req, res) => {
       member,
     });
   } catch (error) {
+    // Member.email's partial unique index is the real guard against reusing another member's email.
+    if (error.code === 11000 && (error.keyPattern?.email || error.keyValue?.email)) {
+      return res.status(409).json({ message: 'Email already exists' });
+    }
     console.error('Error updating member:', error);
     res.status(500).json({ message: 'Error updating member', error: safeErrorMessage(error) });
   }
@@ -378,7 +399,7 @@ const deleteMember = async (req, res) => {
 
     const member = await Member.findOneAndUpdate(
       { memberId },
-      { status: 'inactive' },
+      { status: 'inactive', qrCodeActive: false },
       { new: true }
     );
 
@@ -414,6 +435,9 @@ const toggleMemberStatus = async (req, res) => {
 
     const nextStatus = member.status === 'active' ? 'inactive' : 'active';
     member.status = nextStatus;
+    // An inactive member's QR stops scanning. It stays off after reactivation
+    // until attendance staff deliberately reactivate or regenerate it.
+    if (nextStatus === 'inactive' && member.qrCodeGenerated) member.qrCodeActive = false;
     await member.save();
 
 

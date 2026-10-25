@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { supersedeAndInsert } = require('../../../shared/utils/versionedSetting');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 /* Ang noticeBodyTemplate/finalNoticeBodyTemplate ay may HTML na direkta galing sa
 in-app document editor ng admin - dumadaan na ito sa DOMPurify (totoong HTML parser,
@@ -24,6 +25,23 @@ const sanitizeNoticeHtml = (html) =>
     .replace(/[\s/]+on\w+\s*=\s*'[^']*'/gi, '')
     .replace(/[\s/]+on\w+\s*=\s*[^\s"'`>/]+/gi, '')
     .replace(/(href|src|data|action)\s*=\s*(["'])\s*(javascript|data):[^"']*\2/gi, '$1=$2#$2');
+
+/* An admin may reword a notice message freely, but no placeholder may be
+deleted: neither those in the cooperative's default wording (listed here) nor
+any already in the saved letter, e.g. a {name} or {date} added later. Dropping
+one would silently leave that detail out of every printed notice. */
+const REQUIRED_NOTICE_PLACEHOLDERS = {
+  notice: ['balance', 'amountNeeded', 'targetBalance'],
+  final: ['balance', 'amountNeeded'],
+};
+const NOTICE_PLACEHOLDERS = ['balance', 'amountNeeded', 'targetBalance', 'name', 'address', 'passbook', 'date', 'managerName', 'noticeLabel'];
+const placeholdersIn = template => NOTICE_PLACEHOLDERS.filter(key => String(template || '').includes(`{${key}}`));
+const missingPlaceholders = (template, required) => required.filter(key => !String(template).includes(`{${key}}`));
+const placeholderMessage = (missing, name) => {
+  const tokens = missing.map(key => `{${key}}`);
+  const list = tokens.length > 1 ? `${tokens.slice(0, -1).join(', ')} and ${tokens.at(-1)}` : tokens[0];
+  return `The ${list} placeholder${tokens.length > 1 ? 's' : ''} must remain in the ${name} letter. Add ${tokens.length > 1 ? 'them' : 'it'} back before saving.`;
+};
 
 /* Defaults na tumutugma sa hardcoded values na ginamit ng balance-notice letter bago
 pa magexist ang settings collection na ito (client/src/utils/balanceNotice.js). Ang
@@ -108,13 +126,26 @@ const updateThresholds = async (req, res) => {
       noticeManagerName,
       effectiveDate, description,
     } = req.body;
-    const updatedBy = req.user?.username || 'admin';
+    const updatedBy = actorName(req.user, 'admin');
     if (noticeManagerName !== undefined && (typeof noticeManagerName !== 'string' || !noticeManagerName.trim() || noticeManagerName.trim().length > 100 || /[\r\n]/.test(noticeManagerName))) {
       return res.status(400).json({ success: false, message: 'Enter a manager name of up to 100 characters on one line.' });
     }
     for (const value of [noticeMessageTemplate, finalNoticeMessageTemplate]) {
       if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > 10000)) {
         return res.status(400).json({ success: false, message: 'Notice messages must contain text and be no longer than 10,000 characters.' });
+      }
+    }
+    const active = noticeMessageTemplate !== undefined || finalNoticeMessageTemplate !== undefined
+      ? await NoticeThresholdSetting.findOne({ status: 'active' }).lean()
+      : null;
+    for (const [value, defaults, saved, name] of [
+      [noticeMessageTemplate, REQUIRED_NOTICE_PLACEHOLDERS.notice, active?.noticeMessageTemplate, 'First & Second Notice'],
+      [finalNoticeMessageTemplate, REQUIRED_NOTICE_PLACEHOLDERS.final, active?.finalNoticeMessageTemplate, 'Final Notice'],
+    ]) {
+      const required = [...new Set([...defaults, ...placeholdersIn(saved)])];
+      const missing = value === undefined ? [] : missingPlaceholders(value, required);
+      if (missing.length) {
+        return res.status(400).json({ success: false, message: placeholderMessage(missing, name), missingPlaceholders: missing });
       }
     }
 

@@ -17,10 +17,10 @@ export function useClaimQueue(fetchClaims) {
   const key = `${page}:${query}:${version}`;
   useEffect(() => {
     let active = true;
-    fetchClaims({ page, limit: 10, search: query }).then((res) => {
+    fetchClaims({ page, limit: 100, search: query }).then((res) => {
       if (!active) return;
       const total = res.pagination?.total ?? res.data?.length ?? 0;
-      if (page > Math.max(1, Math.ceil(total / 10))) { setPage(Math.max(1, Math.ceil(total / 10))); return; }
+      if (page > Math.max(1, Math.ceil(total / 100))) { setPage(Math.max(1, Math.ceil(total / 100))); return; }
       setState({ claims: res.data || [], total, key, error: '' });
     }).catch(() => {
       if (active) setState((old) => ({ ...old, key, error: 'Unable to load claims. Please try again.' }));

@@ -36,6 +36,25 @@ test('legacy unknown actors resolve by business and Mongo IDs without replacing 
   assert.equal(logs[0].userName, 'Unknown', 'reading legacy logs does not rewrite history');
 });
 
+test('recorded usernames show the account full name; recorded names and nameless accounts are kept', async () => {
+  const users = [
+    { _id: '2123456789abcdef01234567', userId: 'TREAS-1', fullName: 'Maria Clara Santos', username: 'mortuary.treasurer' },
+    { _id: '3123456789abcdef01234567', userId: 'SEC-1', username: 'attendance.secretary' },
+  ];
+  let query;
+  const User = { find(q) { query = q; return { select: () => ({ lean: async () => users }) }; } };
+  const logs = [
+    { userId: 'TREAS-1', userName: 'mortuary.treasurer', userRole: 'treasurer' },
+    { userName: 'mortuary.treasurer', userRole: 'treasurer' },
+    { userId: 'TREAS-1', userName: 'Treasurer On Duty', userRole: 'treasurer' },
+    { userId: 'SEC-1', userName: 'attendance.secretary', userRole: 'secretary' },
+  ];
+  const result = await resolveAuditActorNames(logs, User);
+  assert.deepEqual(result.map(row => row.userName), ['Maria Clara Santos', 'Maria Clara Santos', 'Treasurer On Duty', 'attendance.secretary']);
+  assert.ok(query.$or.some(clause => clause.username), 'looks up accounts by recorded username');
+  assert.equal(logs[0].userName, 'mortuary.treasurer', 'stored logs are not rewritten');
+});
+
 test('missing actor ID does not guess an account from the role or query users', async () => {
   const result = await resolveAuditActorNames([{ userName: 'Unknown', userRole: 'admin' }], {
     find() { throw new Error('No saved actor ID to resolve'); },

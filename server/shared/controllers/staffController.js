@@ -1,6 +1,7 @@
 const { randomUUID, randomBytes } = require('node:crypto');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const { actorName, invalidateStaffNames } = require('../utils/actorName');
 
 const roles = { admin: ['attendance', 'mortuary'], secretary: ['attendance'], scanner_operator: ['attendance'], treasurer: ['mortuary'] };
 const publicUser = user => Object.fromEntries(['userId', 'staffId', 'fullName', 'username', 'email', 'phoneNumber', 'role', 'modules', 'status', 'isTemporaryPassword', 'lastLoginDate'].map(key => [key, user[key]]));
@@ -12,7 +13,8 @@ function validateAccess(role, modules) {
   return Boolean(Object.hasOwn(roles, role) && Array.isArray(modules) && modules.length && new Set(modules).size === modules.length && modules.every(module => roles[role].includes(module)));
 }
 async function audit(req, user, action, before = null) {
-  await AuditLog.create({ logId: randomUUID(), userId: req.user.userId, userName: req.user.username, userRole: req.user.role,
+  invalidateStaffNames(); // names shown across the app may have changed
+  await AuditLog.create({ logId: randomUUID(), userId: req.user.userId, userName: actorName(req.user), userRole: req.user.role,
     action, module: 'admin', entityType: 'staff', entityId: user.userId, entityName: user.username,
     description: `${action.replaceAll('_', ' ')}: ${user.username}`, changes: { before, after: action === 'staff_deleted' ? null : publicUser(user) } });
 }

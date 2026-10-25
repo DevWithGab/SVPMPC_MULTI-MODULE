@@ -16,6 +16,8 @@ const auditLogRoutes = require('./shared/routes/auditLogRoutes');
 const qrImageRoutes = require('./modules/attendance/routes/qrImageRoutes');
 
 const { authenticateToken, authorizeModule, authorizeAdminOnly, requirePasswordChange } = require('./middleware/auth');
+const { User } = require('./shared/models');
+const { displayActorNames } = require('./shared/utils/actorName');
 const app = express();
 configureProxy(app);
 
@@ -68,6 +70,11 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
+
+/* Show staff full names (not usernames) in every "done by" field the API
+returns. Backup downloads keep the raw stored values so restores are exact. */
+const showActorNames = displayActorNames(User);
+app.use('/api', (req, res, next) => (req.path.includes('/backup/') ? next() : showActorNames(req, res, next)));
 
 // API routes
 app.use('/api/auth', authRoutes);

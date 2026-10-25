@@ -458,6 +458,11 @@ export const claimAPI = {
     return response.data;
   },
 
+  removeRequirement: async (claimId, requirementKey) => {
+    const response = await api.delete(`/mortuary/admin/claims/${claimId}/requirements/${encodeURIComponent(requirementKey)}`);
+    return response.data;
+  },
+
   updateRequirements: async (claimId, requirements) => {
     const response = await api.put(`/mortuary/admin/claims/${claimId}/requirements`, { requirements });
     return response.data;

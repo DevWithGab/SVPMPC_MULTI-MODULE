@@ -3,6 +3,7 @@ const Event = require('../models/Event');
 const Attendance = require('../models/Attendance');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
+const { actorName } = require('../../../shared/utils/actorName');
 
 const QR_FIELDS = ['qrCode', 'qrCodeUrl', 'qrCodeGenerated', 'qrCodeActive'];
 const NEW_MEMBER_FIELDS = ['memberId', 'memberName', 'email', 'phoneNumber', 'barangay', 'address', 'status', ...QR_FIELDS];
@@ -120,7 +121,7 @@ const restoreBackup = async (req, res) => {
 
     await createAuditLog({
       userId: req.user?.userId,
-      userName: req.user?.username || 'Unknown',
+      userName: actorName(req.user, 'Unknown'),
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'attendance',
@@ -146,7 +147,7 @@ const restoreBackup = async (req, res) => {
   } catch (error) {
     await createAuditLog({
       userId: req.user?.userId,
-      userName: req.user?.username || 'Unknown',
+      userName: actorName(req.user, 'Unknown'),
       userRole: req.user?.role || 'admin',
       action: 'data_restored',
       module: 'attendance',

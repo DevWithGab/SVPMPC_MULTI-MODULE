@@ -1,5 +1,5 @@
 .attendance-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; margin-bottom: 24px; }
-.attendance-metric { min-width: 0; min-height: 112px; display: flex; flex-direction: column; justify-content: center; padding: 16px 18px; border: 1px solid #dce3dd; border-radius: 5px; background: #fff; }
+.attendance-metric { min-width: 0; min-height: 112px; display: flex; flex-direction: column; justify-content: flex-start; padding: 16px 18px; border: 1px solid #dce3dd; border-radius: 5px; background: #fff; }
 .attendance-metric-heading { display: flex; min-height: 25px; align-items: center; justify-content: space-between; gap: 10px; }
 .attendance-metric-heading > p { color: #526058; font-size: 12px; font-weight: 600; line-height: 1.5; }
 .attendance-metric-icon { flex: 0 0 27px; width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #e2e7e3; border-radius: 4px; background: #f8faf8; color: #52715a; }
@@ -12,3 +12,7 @@
    since most of this grid's 20 callers pass 4 items). A fixed 2-column grid
    keeps pairs balanced instead. */
 @media(min-width: 481px) and (max-width: 1024px) { .attendance-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Desktop: six cards (mortuary admin dashboard) would auto-fit as 5 + 1 and
+   strand the last card; lay them out as two even rows of three instead. */
+@media(min-width: 1025px) { .attendance-metric-grid[data-count="6"] { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

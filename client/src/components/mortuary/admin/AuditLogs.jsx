@@ -86,12 +86,12 @@ const AuditLogs = () => {
     startDate: "",
     endDate: "",
     page: 1,
-    limit: 50,
+    limit: 100,
   });
 
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 50,
+    limit: 100,
     total: 0,
     pages: 1,
   });
@@ -202,7 +202,7 @@ const AuditLogs = () => {
       startDate: "",
       endDate: "",
       page: 1,
-      limit: 50,
+      limit: 100,
     });
 
   return (

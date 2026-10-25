@@ -1,11 +1,17 @@
 const AUTH_SESSION_KEYS = ['token', 'user', 'selectedModule', 'currentView'];
 
+/* Screens greet and label the signed-in staff member with `user.name`; make
+that their full name, falling back to the username for accounts without one. */
+export const withDisplayName = user => (user && typeof user === 'object'
+  ? { ...user, name: String(user.fullName || '').trim() || user.name || user.username }
+  : user);
+
 export function readAuthSession(storage = window.sessionStorage) {
   try {
     const token = storage.getItem('token');
     const user = JSON.parse(storage.getItem('user'));
     return token && user && typeof user === 'object' && !Array.isArray(user)
-      ? { token, user } : null;
+      ? { token, user: withDisplayName(user) } : null;
   } catch {
     return null;
   }
