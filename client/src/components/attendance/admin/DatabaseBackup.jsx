@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import BackupWorkspace from "../../shared/BackupWorkspace";
 import { backupAPI } from "../../../services/api";
 import { downloadJson, isModuleBackup } from "../../../utils/moduleBackup";
+import useAdditionalBackupExports from "../../../hooks/useAdditionalBackupExports";
 
 const normalizeAttendanceRecord = (record) => ({
   ...record,
@@ -54,6 +55,7 @@ export default function DatabaseBackup({
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [lastExport, setLastExport] = useState(null);
+  const { additionalExports, individualExportError } = useAdditionalBackupExports("attendance", ["members", "events", "attendanceLogs"]);
 
   const downloadMembersCSV = () => {
     const csv = toCSV([
@@ -201,10 +203,11 @@ export default function DatabaseBackup({
         { label: "Members", description: "Member profiles and contact details", count: members.length, download: downloadMembersCSV },
         { label: "Events", description: "Event dates, locations and status", count: events.length, download: downloadEventsCSV },
         { label: "Attendance logs", description: "Member attendance and scan times", count: attendanceLogs.length, download: downloadAttendanceCSV },
+        ...additionalExports,
       ]}
       {...{ downloadFullBackup, exporting, exportError, lastExport,
         restoreFile, pendingRestore, restoring, restoreResult, parseError,
-        handleFileSelect, cancelRestore, confirmRestore }}
+        handleFileSelect, cancelRestore, confirmRestore, individualExportError }}
     />
   );
 }

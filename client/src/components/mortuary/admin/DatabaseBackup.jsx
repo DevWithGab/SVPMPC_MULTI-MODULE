@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import BackupWorkspace from "../../shared/BackupWorkspace";
 import { backupAPI } from "../../../services/api";
 import { downloadJson, isModuleBackup } from "../../../utils/moduleBackup";
+import useAdditionalBackupExports from "../../../hooks/useAdditionalBackupExports";
 
 const downloadBlob = (content, type, filename) => {
   const blob = new Blob([content], { type });
@@ -35,6 +36,7 @@ export default function DatabaseBackup({
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [lastExport, setLastExport] = useState(null);
+  const { additionalExports, individualExportError } = useAdditionalBackupExports("mortuary", ["members", "contributions", "ledgers"]);
 
   /* Hindi field sa Member yung balance ng member - derived ito sa latest
   entry ng Ledger history nila. Fetched separately (at lazily, habang bukas
@@ -231,10 +233,11 @@ export default function DatabaseBackup({
         { label: "Members", description: "Member profiles and contact details", count: members.length, download: downloadMembersCSV },
         { label: "Contributions", description: "Payments and reference numbers", count: contributions.length, download: downloadContributionsCSV },
         { label: "Member balances", description: "Full ledger and transaction history", count: loadingLedgers ? "Loading…" : ledgerLoadError ? "Unavailable" : ledgers.length, download: downloadLedgerCSV, disabled: loadingLedgers || Boolean(ledgerLoadError) },
+        ...additionalExports,
       ]}
       {...{ downloadFullBackup, exporting, exportError, lastExport,
         restoreFile, pendingRestore, restoring, restoreResult, parseError,
-        handleFileSelect, cancelRestore, confirmRestore, ledgerLoadError }}
+        handleFileSelect, cancelRestore, confirmRestore, ledgerLoadError, individualExportError }}
     />
   );
 }

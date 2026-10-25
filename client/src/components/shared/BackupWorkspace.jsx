@@ -6,7 +6,7 @@ import "./BackupWorkspace.css";
 export default function BackupWorkspace({
   module, exports, downloadFullBackup, exporting, exportError, lastExport,
   restoreFile, pendingRestore, restoring, restoreResult, parseError,
-  handleFileSelect, cancelRestore, confirmRestore, ledgerLoadError,
+  handleFileSelect, cancelRestore, confirmRestore, ledgerLoadError, individualExportError,
 }) {
   const inputRef = useRef(null);
   const name = module === "attendance" ? "Attendance" : "Mortuary";
@@ -58,19 +58,20 @@ export default function BackupWorkspace({
           </div>
           <div className="bw-setting-content">
             {ledgerLoadError && <p className="bw-error" role="alert">{ledgerLoadError} Refresh the page to retry.</p>}
+            {individualExportError && <p className="bw-error" role="alert">{individualExportError}</p>}
             <div className="bw-table-scroll">
               <table className="bw-export-table">
                 <thead><tr><th scope="col">Dataset</th><th scope="col">Records</th><th scope="col">Export</th></tr></thead>
-                <tbody>{exports.map(({ label, count, download, disabled }) => (
+                <tbody>{exports.map(({ label, count, download, disabled, loading }) => (
                   <tr key={label}>
                     <th scope="row">{label}</th>
                     <td>{typeof count === "number" ? count.toLocaleString() : count}</td>
-                    <td><button type="button" className="bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} CSV`}>Download CSV</button></td>
+                    <td><button type="button" className="bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} CSV`} aria-busy={loading || undefined}>{loading ? "Preparing..." : "Download CSV"}</button></td>
                   </tr>
                 ))}</tbody>
               </table>
             </div>
-            <p className="bw-help">Counts reflect loaded records. CSV exports cannot be used to restore the database.</p>
+            <p className="bw-help">Additional datasets are counted when exported. Existing counts reflect loaded records. CSV exports cannot be used to restore the database.</p>
           </div>
         </section>
 
