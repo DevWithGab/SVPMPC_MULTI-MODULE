@@ -1,16 +1,11 @@
 import React, { useMemo, useState } from "react";
 import {
   AlertTriangle,
-  Calendar,
-  CheckCircle2,
-  Clock,
   Edit3,
   Loader2,
-  MapPin,
   Search,
   RotateCcw,
   Trash2,
-  XCircle,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -35,44 +30,6 @@ const statusLabels = {
   closed: "Closed",
   rejected: "Rejected",
   cancelled: "Cancelled",
-};
-
-const getStatusColor = (status) => {
-  switch (status) {
-    case "active":
-      return "text-coop-green bg-green-50 border-green-200";
-    case "upcoming":
-      return "text-amber-600 bg-amber-50 border-amber-200";
-    case "pending_approval":
-    case "draft":
-      return "text-blue-600 bg-blue-50 border-blue-200";
-    case "rejected":
-      return "text-red-600 bg-red-50 border-red-200";
-    case "cancelled":
-      return "text-slate-500 bg-slate-50 border-slate-200";
-    case "closed":
-      return "text-slate-500 bg-slate-50 border-slate-200";
-    default:
-      return "text-slate-500 bg-slate-50 border-slate-200";
-  }
-};
-
-const getStatusIcon = (status) => {
-  switch (status) {
-    case "active":
-      return <CheckCircle2 className="w-4 h-4" />;
-    case "upcoming":
-      return <Clock className="w-4 h-4" />;
-    case "pending_approval":
-    case "draft":
-      return <Loader2 className="w-4 h-4" />;
-    case "rejected":
-    case "cancelled":
-    case "closed":
-      return <XCircle className="w-4 h-4" />;
-    default:
-      return <Calendar className="w-4 h-4" />;
-  }
 };
 
 const getStatusLabel = (status) => statusLabels[status] || status;
@@ -447,80 +404,38 @@ const EventManagement = ({ events = [], setEvents }) => {
       <Modal
         isOpen={Boolean(viewedEvent)}
         onClose={() => setViewedEvent(null)}
-        title="Event Details"
-        className="aae-event-modal max-w-lg"
+        title={viewedEvent?.status === "closed" ? "Closed event details" : "Event details"}
+        className="aae-event-modal aae-view-modal max-w-lg"
       >
         {viewedEvent && (
-          <div className="space-y-5">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-lg font-bold text-slate-900">
-                {getEventName(viewedEvent)}
-              </h3>
-              <div
-                className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${getStatusColor(viewedEvent.status)}`}
-              >
-                {getStatusIcon(viewedEvent.status)}
-                <span>{getStatusLabel(viewedEvent.status)}</span>
-              </div>
+          <div className="aae-view-details">
+            <div className="aae-view-summary">
+              <div><p>Attendance event</p><h3>{getEventName(viewedEvent)}</h3></div>
+              <span className={`aae-event-status aae-status-${viewedEvent.status}`}>{getStatusLabel(viewedEvent.status)}</span>
             </div>
-
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Date
-                </dt>
-                <dd className="mt-1 flex items-center gap-2 text-slate-700">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  {eventDate(viewedEvent)}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Time (PHT)
-                </dt>
-                <dd className="mt-1 flex items-center gap-2 text-slate-700">
-                  <Clock className="w-4 h-4 text-slate-400" />
-                  {formatTimeRange(
-                    viewedEvent.startTime,
-                    viewedEvent.endTime,
-                  )}{" "}
-                  PHT
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Location
-                </dt>
-                <dd className="mt-1 flex items-center gap-2 text-slate-700">
-                  <MapPin className="w-4 h-4 text-slate-400" />
-                  {viewedEvent.location}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="font-semibold text-slate-500 text-xs uppercase tracking-wide">
-                  Description
-                </dt>
-                <dd className="mt-1 text-slate-700">
-                  {viewedEvent.description || "No description provided."}
-                </dd>
-              </div>
+            <dl className="aae-view-fields">
+              <div><dt>Event reference</dt><dd>{getEventKey(viewedEvent)}</dd></div>
+              <div><dt>Scheduled date</dt><dd>{eventDate(viewedEvent)}</dd></div>
+              <div><dt>Time (PHT)</dt><dd>{formatTimeRange(viewedEvent.startTime, viewedEvent.endTime)}</dd></div>
+              <div><dt>Location</dt><dd>{viewedEvent.location || 'Not specified'}</dd></div>
+              <div><dt>Description</dt><dd>{viewedEvent.description || 'No description provided.'}</dd></div>
             </dl>
-
+            {viewedEvent.status === 'closed' && <p className="aae-view-note">This event is closed. Recorded details are read-only. Use <strong>Reopen event</strong> to set a new attendance schedule.</p>}
             <div className="aae-modal-actions">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setViewedEvent(null)}
-                className="border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
+                className="sd-button"
               >
                 Close
               </Button>
               {['draft', 'pending_approval'].includes(viewedEvent.status) && <>
-                <Button type="button" variant="outline" onClick={() => { setEventToReject(viewedEvent); setViewedEvent(null); }} className="border-red-200 text-red-700">Reject event</Button>
-                <Button type="button" onClick={() => { approveEvent(viewedEvent); setViewedEvent(null); }} className="bg-coop-green text-white">Approve event</Button>
+                <Button type="button" variant="outline" onClick={() => { setEventToReject(viewedEvent); setViewedEvent(null); }} className="sd-button border-red-200 text-red-700">Reject event</Button>
+                <Button type="button" onClick={() => { approveEvent(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Approve event</Button>
               </>}
-              {['upcoming', 'active'].includes(viewedEvent.status) && <Button type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="bg-coop-green text-white">Edit schedule</Button>}
-              {viewedEvent.status === 'closed' && <Button type="button" onClick={() => { openReopenModal(viewedEvent); setViewedEvent(null); }} className="bg-coop-green text-white">Reopen event</Button>}
+              {['upcoming', 'active'].includes(viewedEvent.status) && <Button type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Edit schedule</Button>}
+              {viewedEvent.status === 'closed' && <Button type="button" onClick={() => { openReopenModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Reopen event</Button>}
             </div>
           </div>
         )}
