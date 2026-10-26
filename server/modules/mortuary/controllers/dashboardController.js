@@ -8,9 +8,6 @@ const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const getClaimFinancialTotals = async (match) => {
   const collected = { $ifNull: ['$deduction.totalCollected', 0] };
-  const payout = { $ifNull: ['$payout.amount', 0] };
-  // A claim is settled once a payout amount exists on it.
-  const isReleased = { $ne: [{ $ifNull: ['$payout.amount', null] }, null] };
 
   const [claimTotals] = await Claim.aggregate([
     /* Tinotal ng dashboards yung every claim; ipinapasa ng Claims Income
@@ -20,11 +17,7 @@ const getClaimFinancialTotals = async (match) => {
     {
       $group: {
         _id: null,
-        totalDeductionsCollected: { $sum: { $cond: [isReleased, 0, collected] } },
-        totalReleased: { $sum: payout },
-        netClaimsBalance: {
-          $sum: { $cond: [isReleased, { $subtract: [collected, payout] }, 0] },
-        },
+        totalDeductionsCollected: { $sum: collected },
       },
     },
   ]);
@@ -32,8 +25,6 @@ const getClaimFinancialTotals = async (match) => {
   const round = (n) => Math.round((n || 0) * 100) / 100;
   return {
     totalDeductionsCollected: round(claimTotals?.totalDeductionsCollected),
-    totalReleased: round(claimTotals?.totalReleased),
-    netClaimsBalance: round(claimTotals?.netClaimsBalance),
   };
 };
 
@@ -154,7 +145,7 @@ const getTreasurerDashboard = async (req, res) => {
 
     const totalCollected = allContributions.length > 0 ? allContributions[0].total : 0;
 
-    const { totalDeductionsCollected, totalReleased, netClaimsBalance } = await getClaimFinancialTotals();
+    const { totalDeductionsCollected } = await getClaimFinancialTotals();
 
     res.status(200).json({
       success: true,
@@ -171,8 +162,6 @@ const getTreasurerDashboard = async (req, res) => {
         /* Death-fund assessment totals sa lahat ng claims - tingnan yung
         getClaimFinancialTotals kung bakit separate ito sa fundBalance. */
         totalDeductionsCollected,
-        totalReleased,
-        netClaimsBalance,
         healthRatio: activeMembers > 0 ? Math.round(((activeMembers - lowBalanceCount) / activeMembers) * 100) : null,
         // Member standing breakdown
         memberStanding: {
@@ -232,7 +221,7 @@ const getAdminDashboard = async (req, res) => {
 
     const totalClaims = Object.values(claimCountsByStatus).reduce((sum, n) => sum + n, 0);
 
-    const { totalDeductionsCollected, totalReleased, netClaimsBalance } = await getClaimFinancialTotals();
+    const { totalDeductionsCollected } = await getClaimFinancialTotals();
 
     /* Recent claim activity - flatten yung last few statusHistory entries
     galing sa pinaka-recently updated claims. */
@@ -283,11 +272,6 @@ const getAdminDashboard = async (req, res) => {
           total: totalClaims,
           ...claimCountsByStatus,
           totalDeductionsCollected,
-          totalReleased,
-          /* Ito yung income ng cooperative galing sa claims side: yung
-          surplus na naiwan once na-disburse na yung claim. Separate ito
-          sa sariling contribution balances ng members (fundBalance). */
-          netClaimsBalance,
         },
         recentClaimActivities,
         claimsNeedingAttention,

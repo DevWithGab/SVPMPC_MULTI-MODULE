@@ -1,19 +1,16 @@
 /* Treasurer-side claim processing.
 
 Hiniwalay ito sa sarili nitong file, bukod sa deductionController.js, para manatiling
-klaro at distinct sa codebase yung dalawang money flow na dulot ng isang claim:
+klaro at distinct sa codebase yung money flow na dulot ng isang claim:
   - Flow A (collection/assessment): sisingilin ang bawat ibang active member ng maliit
     na fixed amount papunta sa sari-sariling ledger nila kapag namatay ang isang
     member. Dati pa itong existing bilang blanket, manually-triggered action
     (processAutomaticDeduction); ang processClaimDeduction sa baba ay parehong
     mekanismo, tumatakbo lang per-claim, gamit ang configurable DeductionSetting rate
     at tinatag ang bawat ledger row ng claimId.
-  - Flow B (payout): ang pool na kolekta ng Flow A - ang total na naibawas mula sa
-    ledger ng bawat ibang member para sa claim na ito - ay ibinabayad sa beneficiary
-    ng namatay na member - buong halaga, walang cap. Kung mas mababa ang inirelease ng
-    Treasurer, ang natira ay income ng cooperative. Ang OWN ledger
-    balance ng namatay na member ay sadyang hindi ang payout figure: personal
-    contribution balance niya ito, hindi ang death benefit. */
+
+Ang deduction na ang huling hakbang ng claim - wala nang release/disbursement step
+sa system, kaya kolekta lang ang tina-track dito. */
 const Claim = require('../models/Claim');
 const DeductionSetting = require('../models/DeductionSetting');
 const Ledger = require('../models/Ledger');
@@ -23,7 +20,6 @@ const { getPaginationParams, buildPaginatedResponse } = require('../../../shared
 const { getMemberBalanceSnapshots } = require('./deductionController');
 const { getClaimFinancialTotals } = require('./dashboardController');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
-const { getLatestBalance } = require('../utils/ledgerBalance');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { actorName } = require('../../../shared/utils/actorName');
 
@@ -44,11 +40,6 @@ const resolveDeductionRate = async () => {
     settingId: setting?.settingId,
   };
 };
-
-/* Parehong ang Awaiting Release list at releaseClaim ay rito rinesolve ang payout
-para yung figure na napreview ay yung talagang ireleases. Ang death benefit ay ang
-buong totalCollected na naitala sa claim nung oras ng deduction - walang cap. */
-const resolvePayoutAmount = (claim) => claim?.deduction?.totalCollected ?? 0;
 
 /* Lahat ng claim kahit anong status - ito ang backing ng Claims Report at
 Deductions & Payouts tabs ng Reports screen, na kailangan ng buong list imbes na
@@ -113,82 +104,9 @@ const listPendingDeduction = async (req, res) => {
   }
 };
 
-const listAwaitingRelease = async (req, res) => {
-  try {
-    const { page, limit, skip } = getPaginationParams(req.query);
-    const query = { status: 'deduction_processed' };
-    if (req.query.search?.trim()) {
-      const regex = new RegExp(escapeRegex(req.query.search.trim()), 'i');
-      query.$or = [{ claimId: regex }, { memberName: regex }, { beneficiaryName: regex }];
-    }
-
-    const total = await Claim.countDocuments(query);
-    const claims = await Claim.find(query).sort({ dateFiled: 1 }).skip(skip).limit(limit).lean();
-
-    /* Ang payout ay derived galing sa kolekta para sa claim - hindi pagpipilian ito ng
-    Treasurer - kaya ipapadala explicitly ang resolved split para maipakita read-only
-    ng disbursement form. */
-    const withPayout = claims.map((claim) => {
-      const payoutAmount = resolvePayoutAmount(claim);
-      return {
-        ...claim,
-        payoutAmount,
-        retainedAmount: Math.round(((claim.deduction?.totalCollected ?? 0) - payoutAmount) * 100) / 100,
-      };
-    });
-
-    res.status(200).json(buildPaginatedResponse(withPayout, total, page, limit));
-  } catch (error) {
-    console.error('Error fetching claims awaiting release:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching claims awaiting release',
-      error: safeErrorMessage(error),
-    });
-  }
-};
-
-/* Ang Claim Disbursement Report - lahat ng claim na naibayad na, para sa
-record-keeping (DV number, sino nagrelease, kailan, magkano). */
-const listReleasedClaims = async (req, res) => {
-  try {
-    const { page, limit, skip } = getPaginationParams(req.query);
-    const { search } = req.query;
-    const query = { status: 'released' };
-
-    if (search) {
-      const regex = new RegExp(escapeRegex(search), 'i');
-      query.$or = [
-        { claimId: regex },
-        { memberName: regex },
-        { beneficiaryName: regex },
-        { 'payout.dvNumber': regex },
-      ];
-    }
-
-    const total = await Claim.countDocuments(query);
-    const claims = await Claim.find(query).sort({ 'payout.releasedAt': -1 }).skip(skip).limit(limit).lean();
-
-    res.status(200).json(buildPaginatedResponse(claims, total, page, limit));
-  } catch (error) {
-    console.error('Error fetching disbursement report:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching disbursement report',
-      error: safeErrorMessage(error),
-    });
-  }
-};
-
-/* Ang Claims Income Report - isang row per claim na nakarating na sa deduction stage,
-nagpapakita kung saan napunta ang pera: kolekta mula sa members, release sa
-beneficiary, at retained ng cooperative. Ito ang per-claim breakdown sa likod ng
-tatlong dashboard tiles, para makita ng Treasurer kung aling mga claim ang
-gumawa ng totals imbes na totals lang.
-
-Derived ang income sa parehong paraan ng pagderive ni getClaimFinancialTotals, at sa
-parehong dahilan: ang actual payout kapag settled na ang claim, ang buong nakolekta
-bilang projection bago mangyari yun. */
+/* Ang Claims Summary - isang row per claim na nakarating na sa deduction stage,
+nagpapakita kung magkano ang nakolekta mula sa members para sa bawat claim. Ito ang
+per-claim breakdown sa likod ng "Total deductions collected" dashboard tile. */
 const listClaimFinancials = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -208,36 +126,16 @@ const listClaimFinancials = async (req, res) => {
       .limit(limit)
       .lean();
 
-    const round = (n) => Math.round((n || 0) * 100) / 100;
-    const rows = claims.map((claim) => {
-      const collected = claim.deduction?.totalCollected ?? 0;
-      const released = claim.payout?.amount ?? null;
-      const settled = released != null;
-      return {
-        claimId: claim.claimId,
-        memberName: claim.memberName,
-        beneficiaryName: claim.beneficiaryName,
-        status: claim.status,
-        amountPerMember: claim.deduction?.amountPerMember ?? 0,
-        membersCharged: claim.deduction?.membersCharged ?? 0,
-        totalCollected: collected,
-        // Still held for an unreleased claim, matching the dashboard tile.
-        amountHeld: settled ? 0 : collected,
-        // null until released, so the UI can show "pending" rather than ₱0.
-        amountReleased: released,
-        /* Nareresognize ang income pag narelease na, kaya 0 ang contribution ng unsettled
-        claim sa totals. Display-only lang ang projections sa baba: kung ano ang IRERELEASE
-        at IREREtain ng claim na ito, ipinapakita greyed out para hindi malito ang forecast
-        sa pera na talagang gumalaw na. */
-        netIncome: settled ? round(collected - released) : 0,
-        projectedRelease: collected,
-        projectedIncome: 0,
-        settled,
-        processedAt: claim.deduction?.processedAt ?? null,
-        releasedAt: claim.payout?.releasedAt ?? null,
-        dvNumber: claim.payout?.dvNumber ?? null,
-      };
-    });
+    const rows = claims.map((claim) => ({
+      claimId: claim.claimId,
+      memberName: claim.memberName,
+      beneficiaryName: claim.beneficiaryName,
+      status: claim.status,
+      amountPerMember: claim.deduction?.amountPerMember ?? 0,
+      membersCharged: claim.deduction?.membersCharged ?? 0,
+      totalCollected: claim.deduction?.totalCollected ?? 0,
+      processedAt: claim.deduction?.processedAt ?? null,
+    }));
 
     /* Sakop ng totals lahat ng matching claim, hindi lang yung page na ipinapakita -
     magiging misleading kung ang report footer ay idadagdag lang base sa current page. */
@@ -475,170 +373,11 @@ const processClaimDeduction = async (req, res) => {
   }
 };
 
-/* Flow B, per claim: babayaran ang pool na kolekta sa Flow A papunta sa beneficiary -
-ito ang recording step ng Claim Disbursement. Required ang DV (Disbursement Voucher)
-number dahil ito ang physical paper trail na umaasa na rito mismo ang accounting ng
-cooperative. */
-const releaseClaim = async (req, res) => {
-  try {
-    const { claimId } = req.params;
-    const { paymentMethod, dvNumber, releaseDate, remarks } = req.body;
-    const releasedBy = actorName(req.user, 'treasurer');
-
-    if (!dvNumber?.trim()) {
-      return res.status(400).json({ success: false, message: 'A DV (Disbursement Voucher) number is required' });
-    }
-
-    /* Atomically kinukuha dito ang exclusive right ng request na ito para irelease ang
-    benefit - parehong reasoning ng processClaimDeduction sa taas: kung dumating sabay
-    ang dalawang request para sa parehong claim, yun lang talagang nakapagpalit ng
-    deduction_processed -> releasing ang mananalo, kaya isa lang na payout ledger entry
-    ang magagawa kailanman. */
-    const claim = await Claim.findOneAndUpdate(
-      { claimId, status: 'deduction_processed' },
-      { $set: { status: 'releasing' } },
-      { new: true }
-    );
-    if (!claim) {
-      const existing = await Claim.findOne({ claimId });
-      if (!existing) {
-        return res.status(404).json({ success: false, message: 'Claim not found' });
-      }
-      return res.status(400).json({
-        success: false,
-        message: `Claim cannot be released from status "${existing.status}"`,
-      });
-    }
-
-    /* Idineklara dito (hindi sa loob ng try sa baba) dahil kailangan pa rin itong basahin
-    ng audit log at response na gagawin pagkatapos ng try block na iyon. */
-    let before, payoutAmount, totalCollected, retainedAmount;
-
-    try {
-      /* Ang death benefit ay ang pool na kolekta mula sa ibang members para sa claim na
-      ito. Puwedeng magtype ang Treasurer ng mas mababang amount na irerelease (hal.
-      partial disbursement), pero hindi puwedeng lumagpas sa nakolekta - rinesolve
-      server-side ang maxPayout para ang request ay puwede lang humingi ng LESS, hindi
-      ng more. */
-      totalCollected = claim.deduction?.totalCollected ?? 0;
-      const maxPayout = resolvePayoutAmount(claim);
-
-      const hasRequestedAmount = req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '';
-      const requestedAmount = hasRequestedAmount ? Number(req.body.amount) : maxPayout;
-
-      if (isNaN(requestedAmount) || requestedAmount <= 0) {
-        throw Object.assign(new Error('Invalid payout amount'), { statusCode: 400 });
-      }
-      if (requestedAmount > maxPayout) {
-        throw Object.assign(new Error(`Amount to release cannot exceed ₱${maxPayout.toLocaleString('en-PH')} (the total collected for this claim).`), { statusCode: 400 });
-      }
-
-      payoutAmount = Math.round(requestedAmount * 100) / 100;
-      /* Ang hindi nairelease - kung nagrelease ng mas mababa ang Treasurer kaysa sa
-      nakolekta - ay income ng cooperative. Direktang
-      binabasa ni getClaimFinancialTotals ang claim.payout.amount, kaya tugma na ito sa
-      kung anumang amount na talagang nairelease dito. */
-      retainedAmount = Math.round((totalCollected - payoutAmount) * 100) / 100;
-
-      const parsedReleaseDate = releaseDate ? new Date(releaseDate) : new Date();
-      const effectiveReleaseDate = isNaN(parsedReleaseDate.getTime()) ? new Date() : parsedReleaseDate;
-
-      const currentBalance = await getLatestBalance(claim.memberId);
-      before = claim.toObject();
-
-      /* Dumadaan lang ang payout SA ledger ng namatay na member imbes na galing dito:
-      ang pera ay mula sa assessment na sisingilin sa ibang members, kaya naitatala ito
-      bilang credit-in/debit-out sa same row at hindi nagagalaw ang sariling contribution
-      balance ng namatay na member. Ang released benefit lang ang naitatala dito - ang
-      retained surplus ay income ng cooperative at wala itong lipat sa kahit kaninong
-      ledger. */
-      const ledgerEntry = new Ledger({
-        ledgerId: uuidv4(),
-        memberId: claim.memberId,
-        transactionType: 'claim_payout',
-        description: `Death benefit payout to ${claim.beneficiaryName} from death fund assessment (DV# ${dvNumber.trim()})`,
-        credit: payoutAmount,
-        debit: payoutAmount,
-        balance: currentBalance,
-        referenceId: claimId,
-        beneficiary: claim.beneficiaryName,
-        paymentMethod: paymentMethod || 'cash',
-        transactionDate: effectiveReleaseDate,
-        recordedBy: releasedBy,
-      });
-      await ledgerEntry.save();
-
-      const now = new Date();
-      claim.status = 'released';
-      claim.payout = {
-        amount: payoutAmount,
-        paymentMethod: paymentMethod || 'cash',
-        dvNumber: dvNumber.trim(),
-        remarks: remarks?.trim() || undefined,
-        releasedBy,
-        releasedAt: effectiveReleaseDate,
-        ledgerId: ledgerEntry.ledgerId,
-      };
-      claim.statusHistory.push({
-        status: 'released',
-        changedBy: releasedBy,
-        changedAt: now,
-        notes: retainedAmount > 0
-          ? `₱${payoutAmount} released to ${claim.beneficiaryName} (DV# ${dvNumber.trim()}); ₱${retainedAmount} of the ₱${totalCollected} collected retained as cooperative income`
-          : `₱${payoutAmount} released to ${claim.beneficiaryName} (DV# ${dvNumber.trim()})`,
-      });
-
-      await claim.save();
-    } catch (error) {
-      /* Ibabalik ang lock para hindi matagalang tigil ang claim sa "releasing" kapag
-      nagfail sa gitna ang validation check o final save - para puwedeng i-retry ng
-      Treasurer mula sa parehong deduction_processed state. */
-      await Claim.updateOne({ claimId, status: 'releasing' }, { $set: { status: 'deduction_processed' } });
-      if (error.statusCode) {
-        return res.status(error.statusCode).json({ success: false, message: error.message });
-      }
-      throw error;
-    }
-
-    await createAuditLog({
-      userId: req.user?.userId,
-      userName: releasedBy,
-      userRole: req.user?.role || 'treasurer',
-      action: 'claim_released',
-      module: 'mortuary',
-      entityType: 'claim',
-      entityId: claim.claimId,
-      entityName: claim.memberName,
-      description: `Released ₱${payoutAmount} of ₱${totalCollected} collected to ${claim.beneficiaryName} for claim ${claim.claimId} (DV# ${dvNumber.trim()})${retainedAmount > 0 ? `; ₱${retainedAmount} retained as cooperative income` : ''}`,
-      changes: { before, after: claim.toObject() },
-      status: 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Claim released successfully',
-      data: claim,
-    });
-  } catch (error) {
-    console.error('Error releasing claim:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error releasing claim',
-      error: safeErrorMessage(error),
-    });
-  }
-};
-
 module.exports = {
   listAllClaims,
   listPendingDeduction,
-  listAwaitingRelease,
-  listReleasedClaims,
   listClaimFinancials,
   getClaimById,
   processClaimDeduction,
   previewClaimDeduction,
-  releaseClaim,
 };

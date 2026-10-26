@@ -10,7 +10,6 @@ const dashboardController = require('../controllers/dashboardController');
 const contributionController = require('../controllers/contributionController');
 const ledgerController = require('../controllers/ledgerController');
 const adminController = require('../controllers/adminController');
-const payoutController = require('../controllers/payoutController');
 const claimController = require('../controllers/claimController');
 const beneficiaryController = require('../controllers/beneficiaryController');
 const backupController = require('../controllers/backupController');
@@ -34,10 +33,6 @@ router.delete('/members/:memberId', adminController.deleteMember);
 // Contribution management routes (admin has full access)
 router.get('/contributions', contributionController.getAllContributions);
 router.post('/contributions', contributionController.recordContribution);
-
-// Payout management routes (admin only)
-router.get('/payouts', payoutController.getAllPayouts);
-router.get('/payouts/:payoutId', payoutController.getPayoutById);
 
 // Ledger management routes
 router.get('/ledger', ledgerController.getAllLedger);

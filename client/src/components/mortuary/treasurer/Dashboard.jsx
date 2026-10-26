@@ -2,7 +2,7 @@ import { Button as ActionButton } from '../../ui/button';
 import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import { contributionTrend, memberBalanceCoverage, contributionGrowth } from '../../../utils/dashboardMetrics';
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown, ArrowRight, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, ArrowRight, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
@@ -75,11 +75,9 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
   const claimsConfig = {
     claims: { label: "Claims" },
     pendingDeduction: { label: "Pending deduction", color: "#f59e0b" },
-    awaitingRelease: { label: "Awaiting release", color: "#3b82f6" },
   };
   const claimsData = [
     { stage: 'pendingDeduction', claims: claimsCounts?.pendingDeduction ?? 0, fill: 'var(--color-pendingDeduction)' },
-    { stage: 'awaitingRelease', claims: claimsCounts?.awaitingRelease ?? 0, fill: 'var(--color-awaitingRelease)' },
   ];
   const outstandingClaims = claimsData.reduce((total, row) => total + row.claims, 0);
 
@@ -226,14 +224,14 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
         <Panel as="div" className="td-panel td-chart-panel">
           <div className="mb-4">
             <p className="text-sm font-semibold text-slate-900">Claims Awaiting Action</p>
-            <p className="text-xs text-slate-400 mt-0.5">Current claims pending deduction or benefit release</p>
+            <p className="text-xs text-slate-400 mt-0.5">Current claims pending deduction</p>
           </div>
 
           {claimsError || !claimsCounts || outstandingClaims === 0 ? (
             <div role="status" className="flex h-[240px] items-center justify-center text-center text-sm text-slate-500">
               {claimsError ? 'Unable to load claim counts. Retry using the notice above.'
                 : !claimsCounts ? 'Loading claim counts...'
-                : 'No claims pending deduction or release.'}
+                : 'No claims pending deduction.'}
             </div>
           ) : (
             <ChartContainer config={claimsConfig} className="h-[240px] w-full">
@@ -274,16 +272,15 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
         </Panel>
 
           <Panel as="section" className="td-panel" aria-labelledby="td-fund-title">
-            <PanelHeader as="div" className="td-panel-heading"><h2 id="td-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></PanelHeader>
+            <PanelHeader as="div" className="td-panel-heading"><h2 id="td-fund-title">Fund activity</h2><p>All-time claim assessments.</p></PanelHeader>
             <dl className="td-fund-totals">
               <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{(stats?.totalDeductionsCollected || 0).toLocaleString()}</dd><small>One time assessment collected</small></div>
-              <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{(stats?.totalReleased || 0).toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
             </dl>
           </Panel>
           <nav className="td-tools" aria-label="Mortuary workspace">
             <h2>Workspace</h2>
             {[
-              ['claims', 'Claims', 'Process deductions and release benefits.'],
+              ['claims', 'Claims', 'Process claim deductions.'],
               ['members', 'Member balances', 'Review balances and member standing.'],
               ['reports', 'Mortuary reports', 'Review fund activity and export records.'],
             ].map(([tab, label, description]) => <button key={tab} onClick={() => setActiveTab(tab)}><span><strong>{label}</strong><small>{description}</small></span><ArrowRight size={15} aria-hidden="true" /></button>)}

@@ -5,34 +5,33 @@ import { Input as TextInput } from '../../ui/input';
 import { useEffect, useId, useRef } from 'react';
 import { ArrowRight, Loader2, RefreshCw, Search, X } from 'lucide-react';
 import { Pagination } from '../../ui/pagination';
-import { fieldClass, peso, shortDate } from './claimWorkflowUtils';
+import { fieldClass, shortDate } from './claimWorkflowUtils';
 
 export function Action({ children, primary = false, className = '', ...props }) {
   return <Button type="button" variant={primary ? 'default' : 'outline'} {...props} className={`mc-action ${className}`}>{children}</Button>;
 }
 
-export function ClaimQueue({ queue, release = false, onSelect }) {
+export function ClaimQueue({ queue, onSelect }) {
   const { claims, loading, error, total, page, setPage, search, setSearch, refresh } = queue;
-  return <Panel as="section" className="mc-register" aria-busy={loading} aria-label={release ? 'Claims awaiting release' : 'Claims pending deduction'}>
+  return <Panel as="section" className="mc-register" aria-busy={loading} aria-label="Claims pending deduction">
     <div className="mc-queue-filters">
-      <div className="mc-search-field"><label htmlFor={release ? 'mc-release-search' : 'mc-deduction-search'}>Find a claim</label><div className="relative">
+      <div className="mc-search-field"><label htmlFor="mc-deduction-search">Find a claim</label><div className="relative">
         <Search aria-hidden="true" className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-        <TextInput id={release ? 'mc-release-search' : 'mc-deduction-search'} aria-label="Search by member, beneficiary or claim ID" placeholder="Search member, beneficiary or claim ID" value={search} onChange={(e) => setSearch(e.target.value)} className={`${fieldClass} pl-9 pr-10`} />
+        <TextInput id="mc-deduction-search" aria-label="Search by member, beneficiary or claim ID" placeholder="Search member, beneficiary or claim ID" value={search} onChange={(e) => setSearch(e.target.value)} className={`${fieldClass} pl-9 pr-10`} />
         {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-1 top-1 rounded p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button>}
       </div></div>
       <Action onClick={refresh} disabled={loading}><RefreshCw aria-hidden="true" className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Action>
     </div>
     {!loading && error ? <div role="alert" className="space-y-3 px-5 py-12 text-center"><p className="text-sm text-red-700">{error}</p><Action onClick={refresh}>Try again</Action></div>
       : loading ? <div role="status" className="flex items-center justify-center gap-2 py-20 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Loading claims…</div>
-        : !claims.length ? <div className="px-5 py-16 text-center"><h3 className="font-semibold text-slate-900">{search ? 'No matching claims' : release ? 'No claims awaiting release' : 'No claims pending deduction'}</h3><p className="mt-2 text-sm text-slate-500">{search ? 'Try a different name or claim ID.' : release ? 'Claims appear here after their deductions are processed.' : 'Claims appear here once they have been approved.'}</p>{search && <Action className="mt-4" onClick={() => setSearch('')}>Clear search</Action>}</div>
-          : <div className="mc-table-scroll" role="region" aria-label={release ? 'Release register' : 'Deduction register'} tabIndex={0}><DataTable className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-600"><tr><th scope="col" className="px-5 py-3 font-medium">Member / claim</th><th scope="col" className="hidden px-5 py-3 font-medium lg:table-cell">Beneficiary</th><th scope="col" className="hidden whitespace-nowrap px-5 py-3 font-medium md:table-cell">{release ? 'Deducted on' : 'Approved on'}</th>{release && <th scope="col" className="whitespace-nowrap px-5 py-3 text-right font-medium">For release</th>}<th scope="col" className="px-5 py-3 text-right font-medium">Action</th></tr></thead>
+        : !claims.length ? <div className="px-5 py-16 text-center"><h3 className="font-semibold text-slate-900">{search ? 'No matching claims' : 'No claims pending deduction'}</h3><p className="mt-2 text-sm text-slate-500">{search ? 'Try a different name or claim ID.' : 'Claims appear here once they have been approved.'}</p>{search && <Action className="mt-4" onClick={() => setSearch('')}>Clear search</Action>}</div>
+          : <div className="mc-table-scroll" role="region" aria-label="Deduction register" tabIndex={0}><DataTable className="w-full text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-600"><tr><th scope="col" className="px-5 py-3 font-medium">Member / claim</th><th scope="col" className="hidden px-5 py-3 font-medium lg:table-cell">Beneficiary</th><th scope="col" className="hidden whitespace-nowrap px-5 py-3 font-medium md:table-cell">Approved on</th><th scope="col" className="px-5 py-3 text-right font-medium">Action</th></tr></thead>
             <tbody className="divide-y divide-slate-100">{claims.map((claim) => <tr key={claim.claimId} className="hover:bg-slate-50/60">
               <td className="min-w-44 px-5 py-4"><p className="font-semibold text-slate-900">{claim.memberName || '—'}</p><p className="mt-1 text-xs text-slate-500">{claim.claimId}</p><p className="mt-1 text-xs text-slate-500 lg:hidden">Beneficiary: {claim.beneficiaryName || '—'}</p></td>
               <td className="hidden px-5 py-4 text-slate-600 lg:table-cell">{claim.beneficiaryName || '—'}</td>
-              <td className="hidden whitespace-nowrap px-5 py-4 text-slate-600 md:table-cell">{shortDate(release ? claim.deduction?.processedAt : claim.approval?.approvedAt)}</td>
-              {release && <td className="whitespace-nowrap px-5 py-4 text-right font-semibold tabular-nums text-slate-900">{peso(claim.payoutAmount ?? claim.deduction?.totalCollected)}{claim.retainedAmount > 0 && <p className="mt-1 text-xs font-normal text-slate-500">{peso(claim.retainedAmount)} retained</p>}</td>}
-              <td className="px-5 py-4 text-right"><Action className="whitespace-nowrap" aria-label={`${release ? 'Prepare release' : 'Review deduction'} for ${claim.memberName}, ${claim.claimId}`} onClick={() => onSelect(claim)}>{release ? 'Prepare release' : 'Review deduction'}<ArrowRight aria-hidden="true" className="h-3.5 w-3.5" /></Action></td>
+              <td className="hidden whitespace-nowrap px-5 py-4 text-slate-600 md:table-cell">{shortDate(claim.approval?.approvedAt)}</td>
+              <td className="px-5 py-4 text-right"><Action className="whitespace-nowrap" aria-label={`Review deduction for ${claim.memberName}, ${claim.claimId}`} onClick={() => onSelect(claim)}>Review deduction<ArrowRight aria-hidden="true" className="h-3.5 w-3.5" /></Action></td>
             </tr>)}</tbody>
           </DataTable></div>}
     <div className="mc-pagination">

@@ -29,7 +29,6 @@ import { ToastContainer, useToast } from "../../components/ui/toast";
 import {
   contributionAPI,
   treasurerAPI,
-  payoutAPI,
   mortuaryMemberAPI,
 } from "../../services/api";
 
@@ -89,7 +88,6 @@ const AdminPortal = ({ onBack, user }) => {
 
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
-  const [payouts, setPayouts] = useState([]);
   const [stats, setStats] = useState(null);
 
   const [statusFilter, setStatusFilter] = useState("all");
@@ -118,18 +116,16 @@ const AdminPortal = ({ onBack, user }) => {
       const [
         membersRes,
         contributionsRes,
-        payoutsRes,
         dashboardRes,
         balancesRes,
       ] = await Promise.all([
         loadAllPages(page => mortuaryMemberAPI.getAllMembers({ page, limit: 100 })).then(members => ({ success: true, members })),
         contributionAPI.getAllContributions(),
-        payoutAPI.getAllPayouts(),
         treasurerAPI.getDashboard(),
         treasurerAPI.getAllMemberBalances(),
       ]);
 
-      if (!dashboardRes?.data || !balancesRes?.data || [membersRes, contributionsRes, payoutsRes, dashboardRes, balancesRes].some(result => result?.success === false)) {
+      if (!dashboardRes?.data || !balancesRes?.data || [membersRes, contributionsRes, dashboardRes, balancesRes].some(result => result?.success === false)) {
         throw new Error('Incomplete mortuary response');
       }
       if (membersRes.members) {
@@ -150,9 +146,6 @@ const AdminPortal = ({ onBack, user }) => {
         setContributions(contributionsRes.data);
       }
 
-      if (payoutsRes.payouts) {
-        setPayouts(payoutsRes.payouts);
-      }
 
       if (dashboardRes && dashboardRes.data) {
         setStats({
@@ -227,7 +220,6 @@ const AdminPortal = ({ onBack, user }) => {
           <Dashboard
             stats={stats}
             contributions={contributions}
-            payouts={payouts}
             members={members}
             setActiveTab={setActiveSection}
             user={user}

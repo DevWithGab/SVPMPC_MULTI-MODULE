@@ -50,7 +50,7 @@ export default function ClaimsPendingDeduction({ user, onProcessed }) {
       await showClaimAlert({
         icon: 'success',
         title: 'Deduction processed successfully',
-        text: `Claim ${target.claimId} has been recorded under JV ${jvNumber.trim()} and is now awaiting release.`,
+        text: `Claim ${target.claimId} has been recorded under JV ${jvNumber.trim()}. The claim is now complete.`,
         confirmButtonText: 'Done',
       });
       queue.refresh();
@@ -67,7 +67,7 @@ export default function ClaimsPendingDeduction({ user, onProcessed }) {
   return <div className="mc-view space-y-5">
     <header className="mc-view-heading">
       <div><h2 className="text-2xl font-bold text-slate-900 tracking-tight">Pending deduction</h2><p className="mt-1.5 text-sm text-slate-500">Review approved claims, record a JV number, and confirm the member assessment.</p></div>
-      <div className="mc-rate"><p className="text-xs text-slate-500">Current deduction / member</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{rateLoading ? 'Loading…' : rate ? peso(rate.amount) : 'Unavailable'}</p><p className="mt-0.5 text-xs text-slate-500">Set by Admin{rate?.effectiveDate ? ` · ${shortDate(rate.effectiveDate)}` : ''}</p></div>
+      <div className="mc-rate"><p className="text-xs text-slate-500">Current deduction / member</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{rateLoading ? 'Loading…' : rate ? peso(rate.amount) : 'Unavailable'}</p><p className="mt-0.5 text-xs text-slate-500">Set in Settings{rate?.effectiveDate ? ` · ${shortDate(rate.effectiveDate)}` : ''}</p></div>
     </header>
     <ClaimQueue queue={queue} onSelect={open} />
     {target && <ClaimDialog title={done ? 'Deduction recorded' : preview ? 'Confirm deduction' : 'Review deduction'} step={done ? 'Completed' : preview ? 'Step 2 of 2 · Confirm assessment' : 'Step 1 of 2 · Claim details'} busy={busy} onClose={close} footer={done ? <Action primary onClick={close}>Done</Action> : <>
@@ -75,7 +75,7 @@ export default function ClaimsPendingDeduction({ user, onProcessed }) {
       {preview ? <Action primary disabled={busy} onClick={process}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Processing deduction…' : 'Confirm deduction'}</Action> : <Action primary type="submit" form="deduction-details" disabled={busy || !jvNumber.trim()}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Calculating impact…' : 'Review impact'}</Action>}
     </>}>
       <ClaimIdentity claim={target} />
-      {done ? <div role="status" className="flex gap-3 text-sm leading-6 text-slate-700"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-coop-green" /><p>The assessment has been recorded under <strong>{jvNumber.trim()}</strong>. This claim is now in <strong>Awaiting Release</strong>.</p></div> : preview ? <>
+      {done ? <div role="status" className="flex gap-3 text-sm leading-6 text-slate-700"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-coop-green" /><p>The assessment has been recorded under <strong>{jvNumber.trim()}</strong>. This claim is now complete.</p></div> : preview ? <>
         <dl><Detail label="JV number">{jvNumber.trim()}</Detail><Detail label="Active members to be charged">{Number(preview.membersCharged).toLocaleString()}</Detail><Detail label="Deduction per member">{peso(preview.amountPerMember)}</Detail><Detail label="Total assessment" strong>{peso(preview.totalCollected)}</Detail></dl>
         {preview.membersGoingNegative > 0 && <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900"><strong>{preview.membersGoingNegative.toLocaleString()} members</strong> will have a negative balance after this assessment.</div>}
         <div className="flex gap-2 text-sm leading-6 text-slate-600"><AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-amber-600" /><p>Confirming deducts the amount from the eligible members’ balances immediately. This action cannot be undone from this screen.</p></div>

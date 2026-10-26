@@ -18,8 +18,6 @@ import {
   Contributions,
   MemberLedger,
   ClaimsPendingDeduction,
-  ClaimsAwaitingRelease,
-  ClaimDisbursementReport,
   ClaimIncomeReport,
   Reports,
   FundSettings
@@ -74,8 +72,6 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
   <div className="mc-tabs" role="group" aria-label="Claims views">
     {[
       { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
-      { id: 'awaiting-release', label: 'Awaiting Release', count: counts?.awaitingRelease ?? 0 },
-      { id: 'disbursement-report', label: 'Disbursement Report', count: 0 },
       { id: 'income-report', label: 'Claims Summary', count: 0 },
     ].map((opt) => (
       <button
@@ -113,7 +109,7 @@ const PortalSkeleton = () => (
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
   const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
-  const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'awaiting-release', 'disbursement-report', 'income-report']); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
+  const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'income-report']); // 'pending-deduction' | 'income-report'
   const [members, setMembers] = useState([]);
   /* Iba ito sa `members` sa taas (na yung balances aggregation lang ang
   sakop, active members only - eksakto yung kailangan ng Member
@@ -145,7 +141,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [noticeThresholds, setNoticeThresholds] = useState(DEFAULT_NOTICE_THRESHOLDS);
   const [ledgerSnapshot, setLedgerSnapshot] = useState({ memberId: null, entries: [] });
   const [loadingMemberLedger, setLoadingMemberLedger] = useState(false);
-  const [claimsCounts, setClaimsCounts] = useState({ pendingDeduction: 0, awaitingRelease: 0 });
+  const [claimsCounts, setClaimsCounts] = useState({ pendingDeduction: 0 });
   const [toast, setToast] = useState(null);
   
   // Search and filter states
@@ -365,15 +361,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   cheap nito - kailangan lang yung pagination total, hindi na yung actual rows. */
   const fetchClaimsCounts = useCallback(async () => {
     try {
-      const [pendingRes, releaseRes] = await Promise.all([
-        api.get('/mortuary/treasurer/claims/pending-deduction', { params: { limit: 1 } }),
-        api.get('/mortuary/treasurer/claims/awaiting-release', { params: { limit: 1 } }),
-      ]);
-      if (!pendingRes.data.success || !releaseRes.data.success) throw new Error('Unable to load claim counts');
+      const pendingRes = await api.get('/mortuary/treasurer/claims/pending-deduction', { params: { limit: 1 } });
+      if (!pendingRes.data.success) throw new Error('Unable to load claim counts');
       markLoaded('claims');
       setClaimsCounts({
         pendingDeduction: pendingRes.data?.pagination?.total ?? 0,
-        awaitingRelease: releaseRes.data?.pagination?.total ?? 0,
       });
     } catch (error) {
       console.error('Error fetching claims counts:', error);
@@ -638,14 +630,10 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       case 'claims':
         return (
           <div className="mortuary-claims">
-            <header className="mc-header"><p className="mc-eyebrow">Mortuary management / Claims</p><h1>Claims</h1><p className="mc-description">Review member assessments, release benefits, and track claim records.</p></header>
+            <header className="mc-header"><p className="mc-eyebrow">Mortuary management / Claims</p><h1>Claims</h1><p className="mc-description">Review member assessments and track claim records.</p></header>
             <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
             {claimsView === 'pending-deduction' ? (
               <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
-            ) : claimsView === 'awaiting-release' ? (
-              <ClaimsAwaitingRelease user={user} showToast={showToast} onReleased={refreshAllData} />
-            ) : claimsView === 'disbursement-report' ? (
-              <ClaimDisbursementReport />
             ) : (
               <ClaimIncomeReport />
             )}

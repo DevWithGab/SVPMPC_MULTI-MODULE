@@ -32,13 +32,10 @@ const {
 const {
   listAllClaims,
   listPendingDeduction,
-  listAwaitingRelease,
-  listReleasedClaims,
   listClaimFinancials,
   getClaimById,
   processClaimDeduction,
-  previewClaimDeduction,
-  releaseClaim
+  previewClaimDeduction
 } = require('../controllers/treasurerClaimController');
 
 const { getCurrentRate, getRateHistory, updateRate } = require('../controllers/deductionSettingController');
@@ -100,15 +97,12 @@ router.post('/ledger/bulk-upload', bulkUploadLimiter, bulkUploadLedger);
 // Treasurer's notification (live query, no separate notification model).
 router.get('/claims', listAllClaims);
 router.get('/claims/pending-deduction', listPendingDeduction);
-router.get('/claims/awaiting-release', listAwaitingRelease);
 /* Yung literal paths sa taas dapat mauna bago yung '/claims/:claimId' param
 route sa baba, kung hindi, maaaring i-match ni Express as claimId yung
-"disbursement-report" at iba pa. */
-router.get('/claims/disbursement-report', listReleasedClaims);
+"income-report". */
 router.get('/claims/income-report', listClaimFinancials);
 router.get('/claims/:claimId', getClaimById);
 router.get('/claims/:claimId/deduction-preview', previewClaimDeduction);
 router.post('/claims/:claimId/process-deduction', processClaimDeduction);
-router.post('/claims/:claimId/release', releaseClaim);
 
 module.exports = router;

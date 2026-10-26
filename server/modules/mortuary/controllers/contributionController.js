@@ -131,7 +131,7 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
           recordedBy,
           paymentMethod: finalPaymentMethod,
           /* Laging i-stamp yung actual posting time (tugma sa recordPayout,
-          processAutomaticDeduction, releaseClaim, etc). Yung paggamit sa
+          processAutomaticDeduction, processClaimDeduction, etc). Yung paggamit sa
           treasurer-editable payment date dito (madalas date lang na walang
           time, e.g. "2026-08-16") ay nagiging dahilan para mag-sort *before*
           yung bagong contributions kumpara sa same-day entries na may

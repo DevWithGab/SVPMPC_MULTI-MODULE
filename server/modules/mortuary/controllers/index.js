@@ -4,7 +4,6 @@ const contributionController = require('./contributionController');
 const ledgerController = require('./ledgerController');
 const deductionController = require('./deductionController');
 const adminController = require('./adminController');
-const payoutController = require('./payoutController');
 const claimController = require('./claimController');
 const beneficiaryController = require('./beneficiaryController');
 const deductionSettingController = require('./deductionSettingController');
@@ -17,7 +16,6 @@ module.exports = {
   ledgerController,
   deductionController,
   adminController,
-  payoutController,
   claimController,
   beneficiaryController,
   deductionSettingController,

@@ -22,7 +22,7 @@ const REPORT_TYPES = [
   { id: 'deceasedMembers', label: 'Deceased Members', icon: Heart },
   { id: 'negativeBalances', label: 'Negative Balances', icon: AlertTriangle },
   { id: 'memberStanding', label: 'Member Standing', icon: Users },
-  { id: 'deductions', label: 'Deductions & Payouts', icon: Receipt },
+  { id: 'deductions', label: 'Claim Deductions', icon: Receipt },
 ];
 
 const STANDING_BADGE_STYLES = {
@@ -122,7 +122,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       .sort((a, b) => a.balance - b.balance);
   }, [members, minimumBalance]);
 
-  /* Per-claim deduction/payout line items - mas detalyado kesa sa isang
+  /* Per-claim deduction line items - mas detalyado kesa sa isang
   aggregate total kasi makikita exactly kung aling claims nag-fund sa
   collected amount. */
   const deductionsData = useMemo(() => {
@@ -133,8 +133,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       status: c.status,
       deductionCollected: c.deduction?.totalCollected || 0,
       deductionDate: c.deduction?.processedAt || null,
-      payoutAmount: c.payout?.amount || 0,
-      payoutDate: c.payout?.releasedAt || null,
     }));
   }, [claims]);
 
@@ -172,14 +170,13 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   );
 
   /* Monthly/Annually breakdown ng Financial Summary - bawat period bucket
-  nagsum ng contributions base sa payment date, deductions base kung kailan
-  na-process, at payouts base kung kailan na-release (puwedeng magkaiba ang
-  period kesa sa pagkafile mismo ng claim). */
+  nagsum ng contributions base sa payment date at deductions base kung kailan
+  na-process (puwedeng magkaiba ang period kesa sa pagkafile mismo ng claim). */
   const periodBreakdown = useMemo(() => {
     const buckets = new Map();
     const ensure = (key) => {
       if (!buckets.has(key)) {
-        buckets.set(key, { period: key, contributions: 0, deductionsCollected: 0, payoutsReleased: 0 });
+        buckets.set(key, { period: key, contributions: 0, deductionsCollected: 0 });
       }
       return buckets.get(key);
     };
@@ -194,10 +191,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
         const key = getPeriodKey(c.deductionDate, summaryPeriod);
         if (key) ensure(key).deductionsCollected += c.deductionCollected;
       }
-      if (c.payoutAmount) {
-        const key = getPeriodKey(c.payoutDate, summaryPeriod);
-        if (key) ensure(key).payoutsReleased += c.payoutAmount;
-      }
     });
 
     return Array.from(buckets.values())
@@ -211,11 +204,9 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   const metrics = useMemo(() => {
     const totalContributions = contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
     const totalDeductionsCollected = deductionsData.reduce((sum, c) => sum + c.deductionCollected, 0);
-    const totalPayoutsReleased = deductionsData.reduce((sum, c) => sum + c.payoutAmount, 0);
     return {
       totalContributions,
       totalDeductionsCollected,
-      totalPayoutsReleased,
       activeMembers: members.filter(m => m.status === 'active').length,
       inactiveMembers: members.filter(m => m.status === 'inactive').length,
       deceasedMembers: deceasedMembers.length,
@@ -282,12 +273,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           { title: 'Financial position', head: ['Particulars', 'Amount (PHP)'], widths: [125, 51], numberColumns: [1],
             body: [['Total fund balance', reportAmount(stats?.fundBalance)],
               ['Contributions collected', reportAmount(metrics.totalContributions)],
-              ['Deductions collected', reportAmount(metrics.totalDeductionsCollected)],
-              ['Payouts released', reportAmount(metrics.totalPayoutsReleased)]] },
+              ['Deductions collected', reportAmount(metrics.totalDeductionsCollected)]] },
           { title: summaryPeriod === 'monthly' ? 'Monthly breakdown' : 'Annual breakdown',
-            head: [summaryPeriod === 'monthly' ? 'Month' : 'Year', 'Contributions', 'Deductions', 'Payouts'],
-            widths: [44, 44, 44, 44], numberColumns: [1, 2, 3],
-            body: periodBreakdown.map(row => [row.label, reportAmount(row.contributions), reportAmount(row.deductionsCollected), reportAmount(row.payoutsReleased)]) },
+            head: [summaryPeriod === 'monthly' ? 'Month' : 'Year', 'Contributions', 'Deductions'],
+            widths: [60, 58, 58], numberColumns: [1, 2],
+            body: periodBreakdown.map(row => [row.label, reportAmount(row.contributions), reportAmount(row.deductionsCollected)]) },
         ];
       } else if (reportType === 'contributions') {
         sections = [{ head: ['Payment date', 'Passbook No.', 'Member name', 'Amount (PHP)', 'Status'],
@@ -315,9 +305,9 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             total: ['Total balance', '', ...brgyCol(['']), '', reportAmount(-filteredTotalShortfall)] },
         ];
       } else if (reportType === 'deductions') {
-        sections = [{ head: ['Claim ID', 'Member name', 'Status', 'Deducted (PHP)', 'Released (PHP)'],
-          widths: [31, 48, 31, 33, 33], numberColumns: [3, 4],
-          body: filteredDeductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected), reportAmount(c.payoutAmount)]) }];
+        sections = [{ head: ['Claim ID', 'Member name', 'Status', 'Deducted (PHP)'],
+          widths: [38, 64, 38, 36], numberColumns: [3],
+          body: filteredDeductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected)]) }];
       }
       const logo = await loadReportLogo();
       const doc = createMortuaryReportPdf({ title, scope, sections, logo, highlights });
@@ -341,11 +331,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       csvContent += `"Total Fund Balance","₱${(stats?.fundBalance || 0).toLocaleString()}"\n`;
       csvContent += `"Total Contributions","₱${metrics.totalContributions.toLocaleString()}"\n`;
       csvContent += `"Total Deductions Collected","₱${metrics.totalDeductionsCollected.toLocaleString()}"\n`;
-      csvContent += `"Total Payouts Released","₱${metrics.totalPayoutsReleased.toLocaleString()}"\n`;
       csvContent += '\n';
-      csvContent += `"${summaryPeriod === 'monthly' ? 'Month' : 'Year'}","Contributions","Deductions Collected","Payouts Released"\n`;
+      csvContent += `"${summaryPeriod === 'monthly' ? 'Month' : 'Year'}","Contributions","Deductions Collected"\n`;
       periodBreakdown.forEach((row) => {
-        csvContent += `"${row.label}","₱${row.contributions.toLocaleString()}","₱${row.deductionsCollected.toLocaleString()}","₱${row.payoutsReleased.toLocaleString()}"\n`;
+        csvContent += `"${row.label}","₱${row.contributions.toLocaleString()}","₱${row.deductionsCollected.toLocaleString()}"\n`;
       });
     } else if (reportType === 'contributions') {
       filename = `contributions-${new Date().toISOString().split('T')[0]}.csv`;
@@ -377,10 +366,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
         ...filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
       csvContent = rows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
     } else if (reportType === 'deductions') {
-      filename = `deductions-payouts-${new Date().toISOString().split('T')[0]}.csv`;
-      csvContent = 'Claim ID,Member,Status,Deducted,Released\n';
+      filename = `claim-deductions-${new Date().toISOString().split('T')[0]}.csv`;
+      csvContent = 'Claim ID,Member,Status,Deducted\n';
       filteredDeductionsData.forEach(c => {
-        csvContent += `"${c.claimId}","${c.memberName}","${getClaimStatusMeta(c.status).label}","${c.deductionCollected}","${c.payoutAmount}"\n`;
+        csvContent += `"${c.claimId}","${c.memberName}","${getClaimStatusMeta(c.status).label}","${c.deductionCollected}"\n`;
       });
     }
 
@@ -403,10 +392,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   };
 
   const scope = {
-    summary: 'All recorded contributions, deductions and released payouts.',
+    summary: 'All recorded contributions and claim deductions.',
     contributions: 'All recorded member contributions and payment statuses.',
     claims: 'All filed claims, beneficiaries and processing statuses.',
-    deductions: 'Collections and released benefits for each claim.',
+    deductions: 'Amount collected for each claim.',
     deceasedMembers: 'Deceased members in the current roster.',
     negativeBalances: 'Deceased members excluded. Largest shortfall first.',
     memberStanding: 'Active members only. Lowest posted balance first.',
@@ -415,7 +404,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     <div className="financial-reports pb-12">
       <PageHeader className="reports-page-heading">
         <div><p className="reports-eyebrow">Mortuary management / Reports</p><h1>Reports</h1>
-          <p className="reports-description">Review fund activity, member balances and benefit releases.</p></div>
+          <p className="reports-description">Review fund activity, member balances and claim deductions.</p></div>
         <p className="text-xs text-slate-500">Reporting currency <strong className="ml-1 text-slate-700">PHP</strong></p>
       </PageHeader>
       <div className="reports-workspace">
@@ -461,7 +450,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                 ['Total fund balance', '₱' + reportAmount(stats?.fundBalance), 'Current fund position', FileText],
                 ['Contributions collected', '₱' + reportAmount(metrics.totalContributions), 'All recorded contributions', TrendingUp],
                 ['Deductions collected', '₱' + reportAmount(metrics.totalDeductionsCollected), 'Member assessments collected', ClipboardCheck],
-                ['Payouts released', '₱' + reportAmount(metrics.totalPayoutsReleased), 'Benefits paid to beneficiaries', Receipt],
               ]} /></div>
             )}
             {reportType === 'summary' && (
@@ -494,7 +482,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                         </th>
                         <th scope="col" className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Contributions</th>
                         <th scope="col" className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deductions Collected</th>
-                        <th scope="col" className="text-right px-4 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Payouts Released</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -503,12 +490,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                           <td className="px-4 py-2.5 text-xs font-semibold text-slate-900">{row.label}</td>
                           <td className="px-4 py-2.5 text-xs text-right text-coop-green font-semibold">₱{reportAmount(row.contributions)}</td>
                           <td className="px-4 py-2.5 text-xs text-right text-slate-700">₱{reportAmount(row.deductionsCollected)}</td>
-                          <td className="px-4 py-2.5 text-xs text-right text-rose-600">₱{reportAmount(row.payoutsReleased)}</td>
                         </tr>
                       ))}
                       {periodBreakdown.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="py-10 text-center text-sm text-slate-400">
+                          <td colSpan={3} className="py-10 text-center text-sm text-slate-400">
                             No dated records to break down yet.
                           </td>
                         </tr>
@@ -664,7 +650,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deducted</th>
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Released</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -680,7 +665,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                           </span>
                         </td>
                         <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{reportAmount(c.deductionCollected)}</td>
-                        <td className="px-5 py-2.5 text-xs font-semibold text-rose-600">₱{reportAmount(c.payoutAmount)}</td>
                       </tr>
                     );
                   })}

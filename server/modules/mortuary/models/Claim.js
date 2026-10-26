@@ -70,12 +70,14 @@ const claimSchema = new mongoose.Schema(
         'pending_requirements',
         'approved',
         'pending_deduction',
-        /* Transient lock states ito: nandito lang muna ang claim habang tumatakbo ang
-        sariling request ng processClaimDeduction/releaseClaim - ang pag-claim nito
+        /* Transient lock state ito: nandito lang muna ang claim habang tumatakbo ang
+        sariling request ng processClaimDeduction - ang pag-claim nito
         atomically (findOneAndUpdate gamit ang prior status bilang filter) ang
         pumipigil sa dalawang concurrent request na magkasabay gumawa ng money math
-        para sa parehong claim. Ibabalik kapag nagfail; tingnan ang mga function na
-        iyon sa treasurerClaimController.js para malaman kung bakit ito existing. */
+        para sa parehong claim. Ibabalik kapag nagfail; tingnan ang function na
+        iyon sa treasurerClaimController.js para malaman kung bakit ito existing.
+        Ang 'releasing'/'released' ay para na lang sa mga lumang claim na na-release
+        bago tinanggal ang release step. */
         'deduction_processing',
         'deduction_processed',
         'releasing',

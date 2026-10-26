@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { createRequire } = require('node:module');
 
 // Same VM-sandbox require-interception helper as staffAccess.test.js/
-// claimRelease.test.js/automaticDeduction.test.js.
+// automaticDeduction.test.js.
 function load(path, dependencies) {
   const filename = require.resolve(path);
   const localRequire = createRequire(filename);

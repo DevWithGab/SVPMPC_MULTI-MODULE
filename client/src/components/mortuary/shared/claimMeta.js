@@ -77,7 +77,7 @@ export const CLAIM_STATUS_ACTION = {
   pending_requirements: { actor: 'admin', label: 'Review Requirements', hint: 'Needs your review' },
   approved: { actor: 'admin', label: 'Review Claim', hint: 'Needs your review' },
   pending_deduction: { actor: 'treasurer', label: 'View', hint: 'With Treasurer' },
-  deduction_processed: { actor: 'treasurer', label: 'View', hint: 'With Treasurer' },
+  deduction_processed: { actor: null, label: 'View Details', hint: '' },
   released: { actor: null, label: 'View Details', hint: '' },
   rejected: { actor: null, label: 'View Details', hint: '' },
 };

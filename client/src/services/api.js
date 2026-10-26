@@ -686,21 +686,6 @@ export const adminAPI = {
 };
 
 // ============================================
-// ADMIN - PAYOUT MANAGEMENT API
-// ============================================
-export const payoutAPI = {
-  getAllPayouts: async () => {
-    const response = await api.get('/mortuary/admin/payouts');
-    return response.data;
-  },
-
-  getPayoutById: async (payoutId) => {
-    const response = await api.get(`/mortuary/admin/payouts/${payoutId}`);
-    return response.data;
-  },
-};
-
-// ============================================
 // MORTUARY - TREASURER API
 // ============================================
 export const treasurerAPI = {
@@ -768,7 +753,7 @@ export const treasurerAPI = {
   // Balance reminders use printed/PDF notices; SMS APIs have been removed.
 
   /* Lahat ng claim kahit anong status - ginagamit ng Reports screen (Claims
-  Report / Deductions & Payouts), na kailangan ng full list imbes isang
+  Report / Claim Deductions), na kailangan ng full list imbes isang
   lifecycle stage sa isang pagkakataon lang gaya ng mga method sa baba. */
   getAllClaims: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims', { params });
@@ -779,11 +764,6 @@ export const treasurerAPI = {
   mismo yung notification (walang separate notification model). */
   getPendingDeductionClaims: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims/pending-deduction', { params });
-    return response.data;
-  },
-
-  getAwaitingReleaseClaims: async (params = {}) => {
-    const response = await api.get('/mortuary/treasurer/claims/awaiting-release', { params });
     return response.data;
   },
 
@@ -846,22 +826,9 @@ export const treasurerAPI = {
     return URL.createObjectURL(response.data);
   },
 
-  releaseClaim: async (claimId, data = {}) => {
-    const response = await api.post(`/mortuary/treasurer/claims/${claimId}/release`, data);
-    return response.data;
-  },
-
-  /* Claim Disbursement Report - lahat ng claim na na-release na, para sa
-  record-keeping (DV number, released by/when, amount). */
-  getDisbursementReport: async (params = {}) => {
-    const response = await api.get('/mortuary/treasurer/claims/disbursement-report', { params });
-    return response.data;
-  },
-
-  /* Claims Income Report - isang row per claim na naabot na yung deduction
-  stage: collected from members, released to the beneficiary, retained as
-  income. May dala pa rin yung response ng `totals` across sa lahat ng
-  matching claim (hindi lang yung page). */
+  /* Claims Summary - isang row per claim na naabot na yung deduction stage,
+  kung magkano ang nakolekta mula sa members. May dala pa rin yung response
+  ng `totals` across sa lahat ng matching claim (hindi lang yung page). */
   getClaimIncomeReport: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims/income-report', { params });
     return response.data;

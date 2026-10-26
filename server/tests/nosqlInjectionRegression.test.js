@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { createRequire } = require('node:module');
 
 // Same VM-sandbox require-interception helper as staffAccess.test.js/
-// claimRelease.test.js/automaticDeduction.test.js. Each of the endpoints
+// automaticDeduction.test.js. Each of the endpoints
 // below had the same root cause: a raw req.body field (an object, not a
 // string, when a crafted payload like {"$ne": null} is sent) used directly
 // as a Mongoose query value. A plain truthiness check (`!field`) doesn't

@@ -30,9 +30,9 @@ test('claim deductions and releases show success and error alerts inside the cla
     originalApi = { ...api };
     const claim = {
       claimId: 'CLAIM-TEST', memberName: 'Test Member', beneficiaryName: 'Test Beneficiary',
-      payoutAmount: 500, deduction: { totalCollected: 500 },
+      deduction: { totalCollected: 500 },
     };
-    api.getPendingDeductionClaims = api.getAwaitingReleaseClaims = async () => ({ data: [claim] });
+    api.getPendingDeductionClaims = async () => ({ data: [claim] });
     api.getDeductionRate = async () => ({ data: { amount: 50 } });
     api.previewClaimDeduction = async () => ({ data: { amountPerMember: 50, totalCollected: 500, membersCharged: 10 } });
     let fail = true;
@@ -41,11 +41,6 @@ test('claim deductions and releases show success and error alerts inside the cla
       if (fail) throw { response: { data: { message: 'Deduction rejected' } } };
       writes.push({ id, payload });
       return { data: claim };
-    };
-    api.releaseClaim = async (id, payload) => {
-      if (fail) throw { response: { data: { message: 'Release rejected' } } };
-      writes.push({ id, payload });
-      return { data: { ...claim, payout: { amount: payload.amount, dvNumber: payload.dvNumber } } };
     };
     const button = label => [...container.querySelectorAll('button')].find(el => el.textContent.trim() === label);
     const click = label => act(async () => button(label).click());
@@ -70,24 +65,6 @@ test('claim deductions and releases show success and error alerts inside the cla
     assert.match(container.textContent, /Deduction recorded/);
     assert.equal(writes.length, 1);
 
-    fail = true;
-    const { default: Release } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/ClaimsAwaitingRelease.jsx');
-    await act(async () => root.render(React.createElement(Release, { user: { name: 'Treasurer' } })));
-    await click('Prepare release');
-    assert.equal(container.querySelector('#release-amount').readOnly, true, 'the calculated payout cannot be edited');
-    assert.match(container.querySelector('#release-amount').value, /500\.00/);
-    await fill('#release-dv', 'DV-TEST');
-    await submit('#release-details');
-    await click('Confirm release');
-    assert.equal(alerts.at(-1).title, 'Could not record release');
-    assert.equal(container.querySelector('[role="alert"]').textContent, 'Release rejected');
-    fail = false;
-    await click('Confirm release');
-    assert.equal(alerts.at(-1).title, 'Claim released successfully');
-    assert.match(alerts.at(-1).text, /DV-TEST/);
-    assert.ok(button('Print receipt'), 'receipt printing remains available after the alert');
-    assert.equal(writes.length, 2);
-    assert.equal(writes[1].payload.amount, 500);
   } finally {
     await act(async () => root.unmount());
     if (originalApi) Object.assign(api, originalApi);

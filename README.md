@@ -10,7 +10,7 @@ Every newly registered member is automatically enrolled in both Attendance and M
 
 You can copy this description into an AI conversation, or ask the AI to read this README before working on the project:
 
-> This repository contains the SVPMPC cooperative management system, a JavaScript application with a React/Vite frontend and an Express/MongoDB backend. It has two modules: Attendance, for event approval, member QR codes, scanning, manual attendance, and reports; and Mortuary, for contributions, member ledgers, beneficiaries, death claims, deductions, and benefit releases. Both modules use shared Member and User models. The active frontend has staff portals for administrators, secretaries, scanner operators, and treasurers, plus a Super Admin area. Follow the current routes, controllers, and models when making changes. Preserve shared member data, role restrictions, claim status transitions, and ledger accounting rules. Read the relevant source files before assuming that older guides, backup components, or API helper functions describe active features.
+> This repository contains the SVPMPC cooperative management system, a JavaScript application with a React/Vite frontend and an Express/MongoDB backend. It has two modules: Attendance, for event approval, member QR codes, scanning, manual attendance, and reports; and Mortuary, for contributions, member ledgers, beneficiaries, death claims, and claim deductions. Both modules use shared Member and User models. The active frontend has staff portals for administrators, secretaries, scanner operators, and treasurers, plus a Super Admin area. Follow the current routes, controllers, and models when making changes. Preserve shared member data, role restrictions, claim status transitions, and ledger accounting rules. Read the relevant source files before assuming that older guides, backup components, or API helper functions describe active features.
 
 ## What the system does
 
@@ -40,7 +40,6 @@ The mortuary module tracks member contributions and the cooperative's financial 
 - Register death claims and track documentary requirements.
 - Approve or reject claims and pass approved claims to the treasurer.
 - Assess contributions from active members for an approved claim.
-- Release the benefit to the beneficiary and record a disbursement voucher number.
 - Generate low-balance notices, track audit activity, and manage backup/restore operations.
 
 The main claim workflow is:
@@ -56,12 +55,10 @@ Register claim and track requirements
                 |
     Treasurer processes deduction
                 |
-        deduction_processed
-                |
-    Treasurer releases cash benefit
-                |
-             released
+        deduction_processed  (final step)
 ```
+
+Deduction is the last step in the system; there is no release/disbursement step. Claims released before that step was removed keep their `released` status and payout history.
 
 Approval adds an `approved` history entry and moves the claim to `pending_deduction`. Filing a claim marks the associated member as deceased. The claim stores snapshots of member and beneficiary details so later profile changes do not rewrite the original claim information.
 
@@ -73,7 +70,7 @@ Approval adds an `approved` history entry and moves the claim to `pending_deduct
 | Administrator (`admin`) | Attendance administration and approvals; mortuary records, claim approvals, beneficiary maintenance, deduction settings, reports, and audit tools. |
 | Secretary (`secretary`) | Attendance event preparation, member directory, manual attendance, and reports. |
 | Scanner Operator (`scanner_operator`) | Attendance scanner portal and QR-based attendance recording. |
-| Treasurer (`treasurer`) | Mortuary contributions, balances, ledgers, claim deductions, benefit releases, and financial reporting. |
+| Treasurer (`treasurer`) | Mortuary contributions, balances, ledgers, claim deductions, fund settings, and financial reporting. |
 
 The database also supports a `member` user role, but `client/src/App.jsx` currently routes to staff portals, not an active member portal. Some backend routes have different role combinations, so check the middleware on the specific endpoint before changing access behavior. A Super Admin account does not automatically bypass every route's authorization check.
 
@@ -93,9 +90,7 @@ The database also supports a `member` user role, but `client/src/App.jsx` curren
 - The latest balance is determined by posting order (`createdAt`, then `_id`), not the user-entered `transactionDate`. See [ledgerBalance.js](server/modules/mortuary/utils/ledgerBalance.js).
 - Claim deductions use the active treasurer-configured **DeductionSetting**. The current claim-processing fallback is **PHP 25 per active member** if no setting exists.
 - Deduction processing can produce negative member balances; do not silently exclude members simply because their balance is insufficient.
-- The beneficiary's benefit is the full amount assessed for the claim, with no cap. It is not the deceased member's personal ledger balance.
-- If the treasurer releases less than the amount collected, the remainder is treated as cooperative income.
-- Releasing a claim records the payout without subtracting it from the deceased member's personal contribution balance.
+- The system tracks only the amount collected for each claim; payouts to beneficiaries are not recorded. The amount collected is not the deceased member's personal ledger balance.
 - SMS support, including notification history endpoints, has been removed. Use the Treasurer's printed/PDF member notices for balance reminders. Existing SMS records in MongoDB are left untouched.
 
 For example, a claim assessed at PHP 60,000 results in a PHP 50,000 benefit and PHP 10,000 retained income. A claim assessed at PHP 20,000 results in a PHP 20,000 benefit and no retained income.

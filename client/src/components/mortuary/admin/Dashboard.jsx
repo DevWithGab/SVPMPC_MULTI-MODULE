@@ -147,7 +147,7 @@ const NotificationBell = ({ items, count, onViewAll }) => {
   );
 };
 
-const RecentActivities = ({ contributions, payouts, onViewAll }) => {
+const RecentActivities = ({ contributions, onViewAll }) => {
   const activities = [
     ...(contributions || []).slice(0, 3).map((c) => ({
       type: "contribution",
@@ -155,16 +155,6 @@ const RecentActivities = ({ contributions, payouts, onViewAll }) => {
       desc: `₱${formatAmount(c.amount)} from ${c.member_name || `Member #${c.member_id}`}`,
       time: c.created_at || c.date,
       status: c.status || "Paid",
-    })),
-    ...(payouts || []).slice(0, 3).map((p) => ({
-      type: "payout",
-      title: "Benefit Disbursement",
-      desc: `Payout of ₱${formatAmount(p.amount)} to ${p.beneficiary || "Beneficiary"}`,
-      /* Yung payoutAPI nagbabalik ng `payout_date`, hindi `created_at`/`date`
-      - pag mali yung field na binasa, nagiging Invalid Date dito at sa sort
-      sa baba. */
-      time: p.payout_date || p.created_at || p.date,
-      status: p.status || "Released",
     })),
   ].sort((a, b) => new Date(b.time) - new Date(a.time));
 
@@ -282,7 +272,6 @@ const RecentClaimActivities = ({ activities, onViewAll }) => (
 const Dashboard = ({
   stats,
   contributions,
-  payouts,
   members = [],
   setActiveTab,
   user,
@@ -341,22 +330,12 @@ const Dashboard = ({
       "Dec",
     ];
     const currentYear = new Date().getFullYear();
-    const data = months.map((month) => ({ month, collected: 0, paidOut: 0 }));
+    const data = months.map((month) => ({ month, collected: 0 }));
 
     (contributions || []).forEach((c) => {
       const date = new Date(c.created_at || c.date);
       if (date.getFullYear() === currentYear)
         data[date.getMonth()].collected += toAmount(c.amount);
-    });
-
-    (payouts || []).forEach((p) => {
-      /* Yung payoutAPI nagbabalik ng `payout_date`, hindi `created_at`/`date`
-      - pag mali yung field na binasa, naging Invalid Date ang every payout,
-      kaya palaging labas sa `currentYear` check at nananatiling zero yung
-      "Paid Out" bars ng chart kahit gaano karami ang na-release talaga. */
-      const date = new Date(p.payout_date || p.created_at || p.date);
-      if (date.getFullYear() === currentYear)
-        data[date.getMonth()].paidOut += toAmount(p.amount);
     });
 
     return data.slice(0, new Date().getMonth() + 1);
@@ -365,23 +344,17 @@ const Dashboard = ({
   const fundOverviewData = generateFundOverviewData();
 
   const totalCollected = toAmount(stats?.totalCollected);
-  const totalPaidOut = (payouts || []).reduce(
-    (sum, p) => sum + toAmount(p.amount),
-    0,
-  );
   const currentBalance = toAmount(stats?.fundBalance);
-  const openingBalance = currentBalance - totalCollected + totalPaidOut;
   const activeMembers = members.filter(member => member.status === 'active');
   const minimumBalance = stats?.minimumBalance ?? 1000;
   const negativeBalanceCount = activeMembers.filter(member => getMemberStanding(member.currentBalance, minimumBalance) === 'negativeBalance').length;
   const atRiskCount = activeMembers.filter(member => getMemberStanding(member.currentBalance, minimumBalance) === 'atRisk').length;
 
-  /* Claim-specific totals (death-fund assessment collected vs. benefits
-  released) - iba ito sa member-contribution figures sa taas. */
+  /* Claim-specific total (death-fund assessment collected) - iba ito sa
+  member-contribution figures sa taas. */
   const totalDeductionsCollected = toAmount(
     claimCounts.totalDeductionsCollected,
   );
-  const totalClaimsReleased = toAmount(claimCounts.totalReleased);
 
   const exportToCSV = (data, filename) => {
     if (data.length === 0) return;
@@ -471,7 +444,6 @@ const Dashboard = ({
         ["Total fund balance", `₱${currentBalance.toLocaleString()}`, "Available balance", Wallet],
         ["Active members", formatAmount(stats?.activeMembers), "Currently contributing", Users],
         ["Total collected", `₱${totalCollected.toLocaleString()}`, "All-time member contributions", CreditCard],
-        ["Total paid out", `₱${totalPaidOut.toLocaleString()}`, "All-time payouts", Banknote],
         ["At Risk", atRiskCount.toLocaleString(), `Active members with PHP 0 to below PHP ${minimumBalance.toLocaleString()}`, Clock],
         ["Negative Balance", negativeBalanceCount.toLocaleString(), "Active members with a balance below PHP 0", XCircle],
       ]} />
@@ -495,16 +467,12 @@ const Dashboard = ({
           </CardHeader>
           <CardContent className="p-5 pt-0">
             <p className="text-xs font-semibold text-slate-500 mb-3">
-              Collection vs Payout
+              Monthly Collections
             </p>
             <div className="flex items-center gap-4 text-xs text-slate-500 mb-3">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-coop-green inline-block" />{" "}
                 Collected
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-200 inline-block" />{" "}
-                Paid Out
               </span>
             </div>
 
@@ -537,20 +505,14 @@ const Dashboard = ({
                         border: "1px solid #e2e8f0",
                         fontSize: 12,
                       }}
-                      formatter={(value, name) => [
+                      formatter={(value) => [
                         `₱${value.toLocaleString()}`,
-                        name === "collected" ? "Collected" : "Paid Out",
+                        "Collected",
                       ]}
                     />
                     <Bar
                       dataKey="collected"
                       fill="#2D7A3E"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={24}
-                    />
-                    <Bar
-                      dataKey="paidOut"
-                      fill="#bbe5c3"
                       radius={[4, 4, 0, 0]}
                       maxBarSize={24}
                     />
@@ -568,21 +530,9 @@ const Dashboard = ({
                 Fund Summary
               </p>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Opening Balance</span>
-                <span className="font-semibold text-slate-900">
-                  ₱{openingBalance.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">Total Collected</span>
                 <span className="font-semibold text-slate-900">
                   ₱{totalCollected.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Total Paid Out</span>
-                <span className="font-semibold text-slate-900">
-                  ₱{totalPaidOut.toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm bg-green-50 -mx-2 px-2 py-2.5 rounded-lg">
@@ -597,7 +547,7 @@ const Dashboard = ({
           </CardContent>
         </Card>
           <div className="mad-activity-grid">
-            <RecentActivities contributions={contributions} payouts={payouts} />
+            <RecentActivities contributions={contributions} />
             <RecentClaimActivities activities={recentClaimActivities} onViewAll={() => setActiveTab("claims")} />
           </div>
         </div>
@@ -612,7 +562,7 @@ const Dashboard = ({
               {[
                 ["Pending requirements", claimCounts.pending_requirements, Clock, "amber"],
                 ["Pending deduction", claimCounts.pending_deduction, Banknote, "blue"],
-                ["Claims released", claimCounts.released, ClipboardCheck, "green"],
+                ["Deductions processed", (claimCounts.deduction_processed || 0) + (claimCounts.released || 0), ClipboardCheck, "green"],
                 ["Claims rejected", claimCounts.rejected, XCircle, "rose"],
               ].map(([label, count, Icon, tone]) => (
                 <button key={label} onClick={() => setActiveTab("claims")}>
@@ -626,10 +576,9 @@ const Dashboard = ({
           </Panel>
 
           <Panel as="section" className="td-panel" aria-labelledby="mad-fund-title">
-            <PanelHeader as="div" className="td-panel-heading"><h2 id="mad-fund-title">Fund activity</h2><p>All-time assessments and benefits.</p></PanelHeader>
+            <PanelHeader as="div" className="td-panel-heading"><h2 id="mad-fund-title">Fund activity</h2><p>All-time claim assessments.</p></PanelHeader>
             <dl className="td-fund-totals">
               <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{totalDeductionsCollected.toLocaleString()}</dd><small>One time assessment collected</small></div>
-              <div><dt><TrendingDown size={15} aria-hidden="true" />Total claims released</dt><dd>₱{totalClaimsReleased.toLocaleString()}</dd><small>Benefits paid out (max ₱50,000/claim)</small></div>
             </dl>
             <button className="mad-panel-link" onClick={() => setActiveTab("claims")}>View claims <ArrowRight size={15} aria-hidden="true" /></button>
           </Panel>

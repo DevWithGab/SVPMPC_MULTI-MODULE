@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { createRequire } = require('node:module');
 
-// Same VM-sandbox require-interception helper as staffAccess.test.js/
-// claimRelease.test.js — loads the real controller source with specific
+// Same VM-sandbox require-interception helper as staffAccess.test.js
+// — loads the real controller source with specific
 // `require()` targets swapped for in-memory fakes, so the actual
 // idempotency logic under test runs unmodified against fake data instead
 // of a live MongoDB connection (this suite has no DB-connected tests).
