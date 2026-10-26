@@ -742,13 +742,13 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  bulkUploadLedger: async (csv, action = 'preview') => {
-    const response = await api.post('/mortuary/treasurer/ledger/bulk-upload', { csv, action });
+  bulkUploadLedger: async (csv, action = 'preview', dateOrder = 'auto') => {
+    const response = await api.post('/mortuary/treasurer/ledger/bulk-upload', { csv, action, dateOrder });
     return response.data;
   },
 
-  bulkUploadPayments: async (csv, action = 'preview') => {
-    const response = await api.post('/mortuary/treasurer/contributions/bulk-upload', { csv, action });
+  bulkUploadPayments: async (csv, action = 'preview', dateOrder = 'auto') => {
+    const response = await api.post('/mortuary/treasurer/contributions/bulk-upload', { csv, action, dateOrder });
     return response.data;
   },
 

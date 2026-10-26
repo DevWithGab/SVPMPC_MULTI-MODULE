@@ -1,3 +1,4 @@
+import CsvDateOrder from '../components/mortuary/shared/CsvDateOrder';
 import MortuaryAuditLogs from '../components/mortuary/admin/AuditLogs';
 import MortuaryBackup from '../components/mortuary/admin/DatabaseBackup';
 import { importHeaderLabel } from '../utils/importHeaders';
@@ -139,6 +140,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
 
   // CSV upload state
   const [csvFile, setCsvFile] = useState(null);
+  const [csvDateOrder, setCsvDateOrder] = useState('auto');
   const [csvPreview, setCsvPreview] = useState([]);
   const [bulkError, setBulkError] = useState('');
   const [bulkResult, setBulkResult] = useState(null);
@@ -435,7 +437,8 @@ const SuperAdmin = ({ onAuthenticated }) => {
     }
     setLoading(true);
     try {
-      const parsed = parseMemberUpload(await file.text());
+      setCsvFile(file);
+      const parsed = parseMemberUpload(await file.text(), csvDateOrder);
       setCsvPreview(parsed.preview);
       setCsvFile(file);
     } catch (error) {
@@ -443,13 +446,22 @@ const SuperAdmin = ({ onAuthenticated }) => {
     } finally { setLoading(false); }
   };
 
+  const changeCsvDateOrder = async value => {
+    setCsvDateOrder(value); setCsvPreview([]); setBulkError(''); setBulkResult(null);
+    if (!csvFile) return;
+    setLoading(true);
+    try { setCsvPreview(parseMemberUpload(await csvFile.text(), value).preview); }
+    catch (error) { setBulkError(error.message); }
+    finally { setLoading(false); }
+  };
+
   const handleBulkUpload = async () => {
-    if (!csvFile || loading || bulkInFlight.current || bulkResult) return;
+    if (!csvFile || !csvPreview.length || loading || bulkInFlight.current || bulkResult) return;
     bulkInFlight.current = true;
     setLoading(true);
     setBulkError('');
     try {
-      const { members, rowNumbers } = parseMemberUpload(await csvFile.text());
+      const { members, rowNumbers } = parseMemberUpload(await csvFile.text(), csvDateOrder);
       const response = await adminAPI.bulkCreateMembers(members);
       setBulkResult({
         ...response,
@@ -1137,11 +1149,12 @@ const SuperAdmin = ({ onAuthenticated }) => {
                   <p>Replace the sample row with your members. Keep the column headers and save as CSV UTF-8.</p>
                   <p><strong>Required:</strong> memberName, barangay, address.</p>
                   <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, Passbook No. Email and phone number may be blank. Any email supplied must be unique. Enter a unique passbook number, or leave Passbook No. blank to generate one automatically. Older member templates are also accepted.</p>
-                  <p>Use YYYY-MM-DD for dates and male, female, or other for gender. Blank gender defaults to male.</p>
+                  <p>YYYY-MM-DD is the recommended date format. Use male, female, or other for gender. Blank gender defaults to male.</p>
                   <p>Format Passbook No. and phone columns as Text in your spreadsheet to keep leading zeros (for example, 000123 and 09123456789). Enclose addresses containing commas in double quotes.</p>
                   <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>
                 </UploadTemplateCard>
                 <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading} hint="Upload your completed member CSV, then review the first five rows below." />
+                <CsvDateOrder value={csvDateOrder} onChange={changeCsvDateOrder} disabled={loading || !!bulkResult} />
                 {bulkError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{bulkError}</div>}
                 {bulkResult && <div role="status" className="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
                   <p className="font-semibold">{bulkResult.summary.successful} members created. {bulkResult.summary.failed} members could not be created.</p>
@@ -1199,7 +1212,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
                 </Button>
                 <Button
                   onClick={handleBulkUpload}
-                  disabled={!csvFile || loading || !!bulkResult}
+                  disabled={!csvFile || !csvPreview.length || loading || !!bulkResult}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}

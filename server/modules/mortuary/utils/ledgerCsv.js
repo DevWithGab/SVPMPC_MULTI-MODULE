@@ -1,3 +1,4 @@
+const { parseCsvDate } = require('../../../shared/utils/csvDate');
 const { readCsv, MAX_BYTES } = require('./paymentCsv');
 const TYPES = ['contribution', 'payout', 'adjustment', 'penalty', 'automatic_deduction', 'claim_payout'];
 const REQUIRED = ['memberId', 'transactionDate', 'credit', 'debit'];
@@ -7,7 +8,7 @@ const keyOf = entry => JSON.stringify([entry.memberId, entry.transactionDate, en
 const referenceKey = entry => entry.referenceId ? JSON.stringify([entry.memberId, entry.referenceId]) : null;
 const sameEntry = (left, right) => keyOf(left) === keyOf(right) && left.transactionType === right.transactionType;
 
-function validateLedgerEntries(entries) {
+function validateLedgerEntries(entries, dateOrder = 'auto') {
   if (!Array.isArray(entries) || !entries.length) throw new Error('Provide at least one ledger entry.');
   if (entries.length > MAX_ROWS) throw new Error(`Maximum ${MAX_ROWS} entries per upload.`);
   const seen = new Map();
@@ -18,8 +19,9 @@ function validateLedgerEntries(entries) {
     const entry = {};
     for (const field of [...REQUIRED, ...OPTIONAL]) entry[field] = String(source[field] ?? '').trim();
     if (!entry.memberId || entry.memberId.length > 100) errors.push('Passbook No. is required (maximum 100 characters).');
-    const date = new Date(`${entry.transactionDate}T00:00:00.000Z`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.transactionDate) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== entry.transactionDate) errors.push('Use a valid transactionDate in YYYY-MM-DD format.');
+    const parsedDate = parseCsvDate(entry.transactionDate, dateOrder);
+    if (parsedDate.error) errors.push('Transaction date: ' + parsedDate.error);
+    else entry.transactionDate = parsedDate.value;
     for (const field of ['credit', 'debit']) {
       const value = entry[field] || '0';
       if (!/^\d+(\.\d{1,2})?$/.test(value) || !Number.isSafeInteger(Math.round(Number(value) * 100))) errors.push(`${field} must be a non-negative amount with up to 2 decimal places, without currency signs or commas.`);
@@ -48,7 +50,7 @@ function validateLedgerEntries(entries) {
   });
 }
 
-function parseLedgerCsv(csv) {
+function parseLedgerCsv(csv, dateOrder = 'auto') {
   if (typeof csv !== 'string' || !csv.trim()) throw new Error('Choose a CSV file containing ledger entries.');
   if (Buffer.byteLength(csv, 'utf8') > MAX_BYTES) throw new Error('CSV file must be 1 MB or smaller.');
   const [rawHeaders, ...rows] = readCsv(csv, MAX_ROWS, 'entries');
@@ -68,7 +70,7 @@ function parseLedgerCsv(csv) {
     ...Object.fromEntries(headers.map((header, i) => [header, cells[i] || ''])),
     csvRow: cells.line,
     csvErrors: cells.length === headers.length ? [] : ['Column count does not match the header.'],
-  })));
+  })), dateOrder);
 }
 
 module.exports = { parseLedgerCsv, validateLedgerEntries, keyOf, referenceKey, sameEntry, MAX_ROWS };

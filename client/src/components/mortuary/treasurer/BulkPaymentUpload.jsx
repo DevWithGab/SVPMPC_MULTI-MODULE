@@ -1,10 +1,11 @@
+import CsvDateOrder from '../shared/CsvDateOrder';
 import { Table as DataTable } from '../../ui/table';
 import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../shared/BulkUploadDialog';
 import { treasurerAPI } from '../../../services/api';
-import { buildPaymentCsvTemplate, formatPaymentCsvDate } from '../../../utils/paymentCsvTemplate';
+import { buildPaymentCsvTemplate } from '../../../utils/paymentCsvTemplate';
 
 const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value || 0);
 const statusLabels = {
@@ -16,6 +17,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
   const inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState('');
+  const [dateOrder, setDateOrder] = useState('auto');
   const [filename, setFilename] = useState('');
   const [filePickerVersion, setFilePickerVersion] = useState(0);
   const [result, setResult] = useState(null);
@@ -53,7 +55,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
     inFlight.current = true;
     setBusy(true); setError(''); setSuccessMessage('');
     try {
-      const response = await treasurerAPI.bulkUploadPayments(csv, action);
+      const response = await treasurerAPI.bulkUploadPayments(csv, action, dateOrder);
       const fullyImported = action === 'import' && response.success && response.summary?.failed === 0 && response.summary?.invalid === 0;
       setResult(fullyImported ? null : response);
       setCompleted(action === 'import' && !fullyImported);
@@ -89,13 +91,14 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
         {canImport && <Button type="button" disabled={busy} onClick={() => submit('import')} className="gap-2 bg-coop-green text-white hover:bg-coop-darkGreen"><Upload className="h-4 w-4" aria-hidden="true" />Import {summary.ready} Payments</Button>}
       </>}>
         <UploadTemplateCard onDownload={downloadTemplate} disabled={busy}>
-          <p><strong>Required columns:</strong> Passbook No., amount, payment_date (MM-DD-YYYY), reference_number.</p>
-          <p><strong>Date example:</strong> 10-20-2026 (month-day-year). Excel dates such as 10/20/2026 also work, as do existing YYYY-MM-DD files. Dates are always interpreted month first when the year is last.</p>
+          <p><strong>Required columns:</strong> Passbook No., amount, payment_date (YYYY-MM-DD recommended), reference_number.</p>
+          <p>Use the date-order selector below for numeric dates. Preview dates before importing.</p>
           <p><strong>Optional:</strong> payment_method (cash), notes. Use positive amounts with up to two decimal places, without currency signs or thousands separators.</p>
           <p>Use a receipt or transaction reference for each payment. An already recorded payment with the same member and reference is skipped; conflicting amounts or dates must be corrected. Separate payments by the same member need different references.</p>
           <p>Replace the sample row with actual passbook numbers and payment details. Keep leading zeros in passbook numbers when editing in a spreadsheet.</p>
         </UploadTemplateCard>
         <UploadFilePicker key={filePickerVersion} filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 1,000 payments · Maximum 1 MB" />
+      <CsvDateOrder value={dateOrder} disabled={busy} onChange={value => { setDateOrder(value); setResult(null); setCompleted(false); setError(''); }} />
         {successMessage && <p role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{successMessage}</p>}
         {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {summary && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
@@ -113,7 +116,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
             <tbody className="divide-y divide-slate-100">{result.rows.map(row => <tr key={row.row}>
               <td className="px-3 py-3">{row.row}</td>
               <td className="px-3 py-3"><p className="font-medium">{row.memberName || row.entry.memberId}</p><p className="text-xs text-slate-500">Passbook No.: {row.entry.memberId}</p></td>
-              <td className="px-3 py-3 whitespace-nowrap">{formatPaymentCsvDate(row.entry.paymentDate)}</td>
+              <td className="px-3 py-3 whitespace-nowrap">{row.entry.paymentDate}</td>
               <td className="px-3 py-3 break-all">{row.entry.referenceNumber}</td>
               <td className="px-3 py-3 whitespace-nowrap tabular-nums">{money(row.entry.amount)}</td>
               <td className={`px-3 py-3 ${row.errors.length ? 'text-rose-700' : 'text-slate-700'}`}><p className="font-medium">{statusLabels[row.status]}</p>{row.errors.map(message => <p key={message} className="text-xs mt-1">{message}</p>)}</td>

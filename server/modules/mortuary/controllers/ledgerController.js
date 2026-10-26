@@ -172,7 +172,7 @@ const bulkUploadLedger = async (req, res) => {
     const action = req.body.action || 'import';
     try {
       if (!['preview', 'import'].includes(action)) throw new Error('Choose preview or import.');
-      rows = req.body.csv !== undefined ? parseLedgerCsv(req.body.csv) : validateLedgerEntries(req.body.ledgerEntries);
+      rows = req.body.csv !== undefined ? parseLedgerCsv(req.body.csv, req.body.dateOrder) : validateLedgerEntries(req.body.ledgerEntries, req.body.dateOrder);
     } catch (error) {
       return res.status(400).json({ success: false, message: error.message });
     }

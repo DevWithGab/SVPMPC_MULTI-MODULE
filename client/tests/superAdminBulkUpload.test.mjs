@@ -48,6 +48,15 @@ test('Super Admin keeps failed rows visible and shows request errors inside the 
     await choose('memberName\nMaria');
     assert.match(container.querySelector('[role="alert"]').textContent, /Missing required columns/);
     assert.equal(button('Upload Members').disabled, true);
+    await choose('memberName,barangay,address,dateOfBirth\nMaria,Centro,Street,03/04/1970');
+    assert.match(container.querySelector('[role="alert"]').textContent, /Ambiguous/);
+    assert.equal(button('Upload Members').disabled, true);
+    const dateOrder = [...container.querySelectorAll('select')].find(node => node.querySelector('option[value="dmy"]'));
+    await act(async () => { dateOrder.value = 'dmy'; dateOrder.dispatchEvent(new window.Event('change', { bubbles: true })); });
+    assert.match(container.textContent, /1970-04-03/);
+    assert.equal(container.querySelector('[role="alert"]'), null);
+    assert.equal(button('Upload Members').disabled, false);
+
   } finally {
     if (original) Object.assign(api, original);
     await act(async () => root.unmount());

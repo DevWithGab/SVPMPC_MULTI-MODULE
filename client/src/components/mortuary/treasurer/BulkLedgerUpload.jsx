@@ -1,3 +1,4 @@
+import CsvDateOrder from '../shared/CsvDateOrder';
 import { Table as DataTable } from '../../ui/table';
 import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
@@ -11,6 +12,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
   const inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState('');
+  const [dateOrder, setDateOrder] = useState('auto');
   const [filename, setFilename] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -36,7 +38,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
     inFlight.current = true;
     setBusy(true); setError('');
     try {
-      const response = await treasurerAPI.bulkUploadLedger(csv, action);
+      const response = await treasurerAPI.bulkUploadLedger(csv, action, dateOrder);
       setResult(response);
       setCompleted(action === 'import');
       if (action === 'import') {
@@ -61,7 +63,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
         {canImport && <Button type="button" disabled={busy} onClick={() => submit('import')} className="gap-2 bg-coop-green text-white hover:bg-coop-darkGreen"><Upload className="h-4 w-4" aria-hidden="true" />Import {summary.ready} Entries</Button>}
       </>}>
       <UploadTemplateCard onDownload={onDownloadTemplate} disabled={busy}>
-        <p>Required columns: Passbook No., transactionDate (YYYY-MM-DD), credit, debit. Keep leading zeros in passbook numbers.</p>
+        <p>Required columns: Passbook No., transactionDate (YYYY-MM-DD recommended), credit, debit. Keep leading zeros in passbook numbers.</p>
         <p>Enter a positive amount in either credit or debit and 0 in the other, with up to two decimal places, without currency signs or thousands separators.</p>
         <p>Optional columns: description, transactionType, referenceId, paymentMethod (cash). Transaction types: contribution, payout, adjustment, penalty, automatic_deduction, claim_payout.</p>
         <p>For daily payments, enter the amount in credit, 0 in debit, and contribution as the transactionType. Use the receipt or transaction reference from your collection system as referenceId.</p>
@@ -69,6 +71,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
         <p>A reference reused for the same member with different transaction details needs correction. Existing entries are never overwritten. Unknown passbook numbers and invalid values must be corrected before importing.</p>
       </UploadTemplateCard>
       <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 1,000 entries · Maximum 1 MB" />
+      <CsvDateOrder value={dateOrder} disabled={busy} onChange={value => { setDateOrder(value); setResult(null); setCompleted(false); setError(''); }} />
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       {summary && !completed && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
         <p><strong>{summary.ready} ready</strong> · {summary.duplicates || 0} duplicates will not be recorded · {summary.invalid} need correction · {summary.total} total</p>

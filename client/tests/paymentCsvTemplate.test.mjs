@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const { parsePaymentCsv } = require('../../server/modules/mortuary/utils/paymentCsv.js');
 test('downloaded payment template passes the server validator without changing IDs', () => {
   const csv = buildPaymentCsvTemplate(new Date('2026-10-20T04:00:00Z'));
-  assert.ok(csv.includes(',10-20-2026,'));
+  assert.ok(csv.includes(',2026-10-20,'));
   const [row] = parsePaymentCsv(csv);
   assert.deepEqual(row.errors, []);
   assert.equal(row.entry.paymentDate, '2026-10-20');

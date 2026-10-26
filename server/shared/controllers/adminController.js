@@ -1,3 +1,4 @@
+const { parseCsvDate } = require('../utils/csvDate');
 const { Member } = require('../models');
 const Beneficiary = require('../../modules/mortuary/models/Beneficiary');
 const { v4: uuidv4 } = require('uuid');
@@ -161,6 +162,11 @@ const bulkCreateMembers = async (req, res) => {
 
     for (const [index, memberData] of members.entries()) {
       try {
+        if (memberData.dateOfBirth) {
+          const parsed = parseCsvDate(memberData.dateOfBirth, req.body.dateOrder);
+          if (parsed.error) throw new Error('Date of birth: ' + parsed.error);
+          memberData.dateOfBirth = parsed.value;
+        }
         memberData.email = normalizeContact(memberData.email);
         memberData.phoneNumber = normalizeContact(memberData.phoneNumber);
         const invalidContact = contactError(memberData.email, memberData.phoneNumber);

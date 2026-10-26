@@ -22,7 +22,7 @@ async function bulkUploadPayments(req, res) {
   let rows;
   try {
     if (!['preview', 'import'].includes(req.body.action)) throw new Error('Choose preview or import.');
-    rows = parsePaymentCsv(req.body.csv);
+    rows = parsePaymentCsv(req.body.csv, req.body.dateOrder);
   } catch (error) { return res.status(400).json({ success: false, message: error.message }); }
   try {
     if (req.body.action === 'preview') {

@@ -1,6 +1,7 @@
+import { parseCsvDate } from './csvDate.js';
 import { isPassbookHeader } from './importHeaders.js';
 
-export function parseMemberUpload(text) {
+export function parseMemberUpload(text, dateOrder = 'auto') {
   const records = [];
   const rowNumbers = [];
   let line = 1, recordLine = 1;
@@ -39,9 +40,14 @@ export function parseMemberUpload(text) {
   const members = rows.map((values, index) => {
     if (values.length !== headers.length) throw new Error(`Row ${rowNumbers[index + 1]} has ${values.length} values; expected ${headers.length}. Put addresses containing commas inside double quotes.`);
     const entry = Object.fromEntries(headers.map((header, i) => [isPassbookHeader(header) ? 'passbookNo' : header, values[i]]));
+    if (entry.dateOfBirth) {
+      const date = parseCsvDate(entry.dateOfBirth, dateOrder);
+      if (date.error) throw new Error('Row ' + rowNumbers[index + 1] + ', dateOfBirth: ' + date.error);
+      entry.dateOfBirth = date.value;
+    }
     return { ...entry, gender: entry.gender || 'male', modules: ['attendance', 'mortuary'] };
   });
-  return { members, rowNumbers: rowNumbers.slice(1), preview: rows.slice(0, 5).map(values => Object.fromEntries(headers.map((header, i) => [header, values[i]]))) };
+  return { members, rowNumbers: rowNumbers.slice(1), preview: rows.slice(0, 5).map((values, index) => Object.fromEntries(headers.map((header, i) => [header, header === 'dateOfBirth' ? members[index].dateOfBirth : values[i]]))) };
 }
 
 export function memberUploadError(error) {
