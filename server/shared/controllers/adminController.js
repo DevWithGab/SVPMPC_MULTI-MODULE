@@ -159,7 +159,7 @@ const bulkCreateMembers = async (req, res) => {
       failed: [],
     };
 
-    for (const memberData of members) {
+    for (const [index, memberData] of members.entries()) {
       try {
         memberData.email = normalizeContact(memberData.email);
         memberData.phoneNumber = normalizeContact(memberData.phoneNumber);
@@ -172,6 +172,7 @@ const bulkCreateMembers = async (req, res) => {
         if (existingMember) {
           console.log(`❌ Email already exists: ${memberData.email}`);
           results.failed.push({
+            row: index + 2,
             email: memberData.email,
             memberName: memberData.memberName,
             reason: 'Email already exists',
@@ -188,6 +189,7 @@ const bulkCreateMembers = async (req, res) => {
         if (existingMemberId) {
           console.log(`❌ MemberId already exists: ${memberId}`);
           results.failed.push({
+            row: index + 2,
             email: memberData.email,
             memberName: memberData.memberName,
             reason: `Passbook No. ${memberId} already exists`,
@@ -241,6 +243,7 @@ const bulkCreateMembers = async (req, res) => {
           else if (error.keyPattern?.email || error.keyValue?.email) reason = 'Email already exists';
         }
         results.failed.push({
+          row: index + 2,
           email: memberData.email,
           memberName: memberData.memberName || 'Unknown',
           reason,

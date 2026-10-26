@@ -1,4 +1,5 @@
-import { importHeaderLabel, isPassbookHeader } from '../utils/importHeaders';
+import { importHeaderLabel } from '../utils/importHeaders';
+import { parseMemberUpload, memberUploadError } from '../utils/memberBulkUpload';
 import useUrlState from '../hooks/useUrlState';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -137,6 +138,9 @@ const SuperAdmin = ({ onAuthenticated }) => {
   // CSV upload state
   const [csvFile, setCsvFile] = useState(null);
   const [csvPreview, setCsvPreview] = useState([]);
+  const [bulkError, setBulkError] = useState('');
+  const [bulkResult, setBulkResult] = useState(null);
+  const bulkInFlight = useRef(false);
 
   // Create Member form: validation + post-success confirmation
   const [memberErrors, setMemberErrors] = useState({});
@@ -410,128 +414,57 @@ const SuperAdmin = ({ onAuthenticated }) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleCSVUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setCsvFile(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target.result;
-        const lines = text.split('\n').filter(line => line.trim());
-        
-        // Parse CSV properly handling quoted fields
-        const parseCSVLine = (line) => {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
-          
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              result.push(current.trim());
-              current = '';
-            } else {
-              current += char;
-            }
-          }
-          result.push(current.trim());
-          return result;
-        };
-        
-        const headers = parseCSVLine(lines[0]);
-        const preview = lines.slice(1, 6).map(line => {
-          const values = parseCSVLine(line);
-          return headers.reduce((obj, header, index) => {
-            obj[header] = values[index] || '';
-            return obj;
-          }, {});
-        });
-        setCsvPreview(preview);
-      };
-      reader.readAsText(file);
+  const resetBulkUpload = () => {
+    setCsvFile(null);
+    setCsvPreview([]);
+    setBulkError('');
+    setBulkResult(null);
+  };
+
+  const handleCSVUpload = async (event) => {
+    const file = event.target.files?.[0];
+    // Allow choosing the same filename after correcting its contents.
+    event.target.value = '';
+    resetBulkUpload();
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setBulkError('Choose a CSV file. Save your spreadsheet as CSV UTF-8 before uploading.');
+      return;
     }
+    setLoading(true);
+    try {
+      const parsed = parseMemberUpload(await file.text());
+      setCsvPreview(parsed.preview);
+      setCsvFile(file);
+    } catch (error) {
+      setBulkError(error.message || 'Unable to read this file. Please choose it again.');
+    } finally { setLoading(false); }
   };
 
   const handleBulkUpload = async () => {
-    if (!csvFile || loading) return;
-    
+    if (!csvFile || loading || bulkInFlight.current || bulkResult) return;
+    bulkInFlight.current = true;
     setLoading(true);
+    setBulkError('');
     try {
-      const text = await csvFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      // Parse CSV properly handling quoted fields
-      const parseCSVLine = (line) => {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            result.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        result.push(current.trim());
-        return result;
-      };
-      
-      const headers = parseCSVLine(lines[0]);
-      console.log('CSV Headers:', headers);
-      
-      const members = lines.slice(1)
-        .filter(line => line.trim())
-        .map((line, index) => {
-          const values = parseCSVLine(line);
-          console.log(`Row ${index + 1} values:`, values);
-          
-          const memberData = {
-            memberName: values[headers.indexOf('memberName')],
-            email: values[headers.indexOf('email')],
-            phoneNumber: values[headers.indexOf('phoneNumber')],
-            barangay: values[headers.indexOf('barangay')],
-            address: values[headers.indexOf('address')],
-            beneficiaries: values[headers.indexOf('beneficiaries')] || '',
-            beneficiaryRelationship: values[headers.indexOf('beneficiaryRelationship')] || '',
-            beneficiaryContactNumber: values[headers.indexOf('beneficiaryContactNumber')] || '',
-            dateOfBirth: values[headers.indexOf('dateOfBirth')] || '',
-            gender: values[headers.indexOf('gender')] || 'male',
-            modules: ['attendance', 'mortuary']
-          };
-          
-          // Accept the new template header and legacy memberId templates.
-          const passbookIndex = headers.findIndex(isPassbookHeader);
-          const memberIdIndex = passbookIndex !== -1 ? passbookIndex : headers.indexOf('memberId');
-          if (memberIdIndex !== -1 && values[memberIdIndex]) {
-            memberData.passbookNo = values[memberIdIndex];
-          }
-          
-          console.log(`Parsed member ${index + 1}:`, memberData);
-          return memberData;
-        });
-
-      console.log('Sending members to API:', members);
+      const { members, rowNumbers } = parseMemberUpload(await csvFile.text());
       const response = await adminAPI.bulkCreateMembers(members);
-      console.log('API Response:', response);
-      
-      showToast(`Bulk upload complete! ${response.summary.successful} successful, ${response.summary.failed} failed`, 'success');
-      setShowBulkModal(false);
-      setCsvFile(null);
-      setCsvPreview([]);
-      fetchMembers();
+      setBulkResult({
+        ...response,
+        results: {
+          ...response.results,
+          failed: response.results.failed.map(row => ({
+            ...row,
+            row: rowNumbers[row.row - 2] ?? row.row,
+          })),
+        },
+      });
+      // Keep failures visible and prevent resubmitting successful rows.
+      if (response.summary.successful > 0) fetchMembers();
     } catch (error) {
-      console.error('Upload error:', error);
-      showToast('Error uploading CSV', 'error');
+      setBulkError(error.response || error.request ? memberUploadError(error) : error.message);
     } finally {
+      bulkInFlight.current = false;
       setLoading(false);
     }
   };
@@ -1188,8 +1121,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
                   aria-label="Close bulk member upload"
                   onClick={() => {
                     setShowBulkModal(false);
-                    setCsvFile(null);
-                    setCsvPreview([]);
+                    resetBulkUpload();
                   }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
                 >
@@ -1206,6 +1138,22 @@ const SuperAdmin = ({ onAuthenticated }) => {
                   <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>
                 </UploadTemplateCard>
                 <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading} hint="Upload your completed member CSV, then review the first five rows below." />
+                {bulkError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{bulkError}</div>}
+                {bulkResult && <div role="status" className="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
+                  <p className="font-semibold">{bulkResult.summary.successful} members created. {bulkResult.summary.failed} members could not be created.</p>
+                  <p className="mt-2">{bulkResult.summary.failed ? 'Correct the rows listed below and upload a new CSV containing only those failed members. Members created successfully must not be uploaded again.' : 'All members were created successfully. You can close this window or choose another file.'}</p>
+                </div>}
+                {!!bulkResult?.results?.failed?.length && <div className="overflow-x-auto rounded-lg border border-red-200">
+                  <table className="w-full text-left text-sm">
+                    <caption className="p-3 text-left font-semibold text-red-800">Members that need correction</caption>
+                    <thead className="bg-red-50"><tr>{['CSV row', 'Member', 'Reason'].map(label => <th key={label} className="px-3 py-2">{label}</th>)}</tr></thead>
+                    <tbody>{bulkResult.results.failed.map((row, index) => <tr key={index} className="border-t border-red-100">
+                      <td className="px-3 py-3">{row.row ?? 'Not provided'}</td>
+                      <td className="px-3 py-3"><p>{row.memberName || 'Name missing'}</p><p className="text-slate-500">{row.email}</p></td>
+                      <td className="px-3 py-3 text-red-800">{row.reason}</td>
+                    </tr>)}</tbody>
+                  </table>
+                </div>}
                 {csvPreview.length > 0 && (
                   <div>
                     <p className="text-sm font-bold text-slate-700 mb-2">Preview (first 5 rows):</p>
@@ -1239,20 +1187,19 @@ const SuperAdmin = ({ onAuthenticated }) => {
                   disabled={loading}
                   onClick={() => {
                     setShowBulkModal(false);
-                    setCsvFile(null);
-                    setCsvPreview([]);
+                    resetBulkUpload();
                   }}
                   className="flex-1"
                 >
-                  Cancel
+                  {bulkResult ? 'Done' : 'Cancel'}
                 </Button>
                 <Button
                   onClick={handleBulkUpload}
-                  disabled={!csvFile || loading}
+                  disabled={!csvFile || loading || !!bulkResult}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
                   {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                  Upload Members
+                  {bulkResult ? 'Choose a new file to upload again' : 'Upload Members'}
                 </Button>
               </div>
             </Motion.div>

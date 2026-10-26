@@ -75,6 +75,8 @@ test('manual passbook numbers preserve leading zeros and reject duplicates acros
   ] });
   assert.equal(bulk.data.summary.successful, 2);
   assert.equal(bulk.data.summary.failed, 2);
+  assert.equal(bulk.data.results.failed[0].row, 2);
+  assert.equal(bulk.data.results.failed[1].row, 5);
   assert.deepEqual(rows.members.map(row => row.memberId), ['000123', '000124', '000125']);
   assert.ok(bulk.data.results.failed.every(row => /Passbook No.*already exists/.test(row.reason)));
 });
