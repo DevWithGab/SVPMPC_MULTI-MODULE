@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act } from 'react';
@@ -19,7 +20,11 @@ test('daily CSV and printed summary include all pages, exact totals and safe tex
   assert.ok(csv.includes('OR-129'));
   assert.ok(csv.includes('"Total added","13000"'));
   assert.equal(csv.includes('Private edit reason'), false);
-  const doc = dailySummaryPdf(summary);
+  const logo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO-PRINT.png', import.meta.url)));
+  const doc = dailySummaryPdf(summary, logo);
+  assert.ok(Object.keys(doc.internal.collections.addImage_images).length > 0);
+  assert.ok(doc.internal.pageSize.getHeight() > doc.internal.pageSize.getWidth());
+  assert.throws(() => dailySummaryPdf(summary), /logo is required/);
   assert.equal(doc.lastAutoTable.body.length, 130);
   assert.ok(doc.getNumberOfPages() > 1);
   const text = doc.internal.pages.flat().join('\n');

@@ -20,6 +20,7 @@ export default function DailyLedgerSummary({ refreshVersion = 0 }) {
   const [refresh, setRefresh] = useState(0);
   const [page, setPage] = useState(1);
   const [exportError, setExportError] = useState('');
+  const [exporting, setExporting] = useState(false);
   const ready = !loading && !error && result?.date === date;
   useEffect(() => {
     let cancelled = false;
@@ -32,9 +33,12 @@ export default function DailyLedgerSummary({ refreshVersion = 0 }) {
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [date, refresh, refreshVersion]);
-  const exportData = action => {
+  const exportData = async action => {
+    if (!ready || exporting) return;
+    setExporting(true);
     setExportError('');
-    try { action(result); } catch (cause) { setExportError(cause.message || 'Unable to export the summary.'); }
+    try { await action(result); } catch (cause) { setExportError(cause.message || 'Unable to export the summary.'); }
+    finally { setExporting(false); }
   };
   const totals = result?.totals;
   const rows = ready ? result.rows : [];
@@ -43,9 +47,9 @@ export default function DailyLedgerSummary({ refreshVersion = 0 }) {
     <div className="reports-document-heading">
       <div><h2 id="daily-summary-title">Daily summary</h2><p>Review amounts added to member ledgers for one day.</p></div>
       <div className="reports-export-actions">
-        <button className="reports-button reports-button-primary" disabled={!ready} onClick={() => exportData(downloadDailySummaryPdf)}><Download size={16} aria-hidden="true" />Download PDF</button>
-        <button className="reports-button" disabled={!ready} onClick={() => exportData(printDailySummary)}><Printer size={16} aria-hidden="true" />Print summary</button>
-        <button className="reports-button" disabled={!ready} onClick={() => exportData(downloadDailySummary)}>Download CSV</button>
+        <button className="reports-button reports-button-primary" disabled={!ready || exporting} onClick={() => exportData(downloadDailySummaryPdf)}><Download size={16} aria-hidden="true" />Download PDF</button>
+        <button className="reports-button" disabled={!ready || exporting} onClick={() => exportData(printDailySummary)}><Printer size={16} aria-hidden="true" />Print summary</button>
+        <button className="reports-button" disabled={!ready || exporting} onClick={() => exportData(downloadDailySummary)}>Download CSV</button>
       </div>
     </div>
     <div className="reports-filters">
@@ -58,6 +62,7 @@ export default function DailyLedgerSummary({ refreshVersion = 0 }) {
     </div>
     {loading && <p role="status" className="reports-empty">Loading amounts added...</p>}
     {error && <p role="alert" className="p-5 text-red-700">{error} Use Refresh summary to retry.</p>}
+    {exporting && <p role="status" className="p-5 text-sm">Preparing your export...</p>}
     {exportError && <p role="alert" className="p-5 text-red-700">{exportError}</p>}
     {ready && <>
       <dl className="daily-summary-totals">

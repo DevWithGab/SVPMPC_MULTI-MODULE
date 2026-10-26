@@ -1,5 +1,4 @@
-import { jsPDF } from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
+import { createMortuaryReportPdf, loadReportLogo } from './mortuaryReportPdf.js';
 
 export const dailyHeaders = ['Passbook No.', 'Member', 'Reference', 'Type', 'Amount added'];
 export const dailyTypeLabel = type => ({ contribution: 'Contribution', adjustment: 'Opening balance / adjustment', automatic_deduction: 'Automatic deduction', penalty: 'Penalty', payout: 'Payout', claim_payout: 'Claim payout' })[type] || type;
@@ -26,37 +25,38 @@ export function downloadDailySummary(summary) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function dailySummaryPdf(summary) {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+export function dailySummaryPdf(summary, logo) {
   const t = summary.totals;
-  doc.setFontSize(14); doc.text('St. Vincent Parish Multi-Purpose Cooperative', 12, 15);
-  doc.setFontSize(12); doc.text(`Member ledger - Daily amounts added: ${summary.date}`, 12, 23);
-  doc.setFontSize(9);
-  doc.text('Transaction date in Asia/Manila | Latest recorded amounts | All added amounts for this date', 12, 30);
-  doc.text(`Total added: PHP ${money(t.totalAdded)}    Members: ${t.members}    Entries: ${t.transactions}`, 12, 37);
-  doc.text('Includes contributions and opening balance credits.', 12, 44);
-  if (t.pendingEdits) doc.text(`${t.pendingEdits} saved edit(s) still need payment reporting / audit completion.`, 12, 51);
-  autoTable(doc, { startY: t.pendingEdits ? 57 : 50, margin: { top: 15, bottom: 15, left: 12, right: 12 },
-    head: [dailyHeaders], body: dailyRows(summary.rows).map(row => row.map((value, index) => index >= 4 ? money(value) : value)),
-    theme: 'grid', rowPageBreak: 'avoid', styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
-    headStyles: { fillColor: [36, 94, 50] }, columnStyles: { 4: { halign: 'right' } } });
-  if (!summary.rows.length) doc.text('No amounts added on this date.', 12, 68);
-  for (let page = 1; page <= doc.getNumberOfPages(); page++) {
-    doc.setPage(page); doc.setFontSize(8); doc.text(`${summary.date} | Amounts in PHP | Page ${page} of ${doc.getNumberOfPages()}`, 12, 203);
-  }
-  return doc;
+  const date = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(summary.date + 'T00:00:00+08:00'));
+  const pendingNote = t.pendingEdits ? ` ${t.pendingEdits} saved edit(s) await reporting / audit completion.` : '';
+  return createMortuaryReportPdf({
+    title: 'Daily Member Ledger Summary',
+    logo,
+    highlights: [{ label: 'Transaction date', value: date }],
+    scope: 'Amounts added to member ledgers, including contributions and opening balance credits. Latest saved amounts in Philippine time.' + pendingNote,
+    metadataLabel: 'SUMMARY',
+    metadataValue: `Total added: PHP ${money(t.totalAdded)} | Members: ${t.members} | Entries: ${t.transactions}`,
+    sections: [{
+      head: dailyHeaders,
+      body: dailyRows(summary.rows).map(row => row.map((value, index) => index === 4 ? money(value) : value)),
+      widths: [25, 47, 34, 39, 31],
+      numberColumns: [4],
+      emptyMessage: 'No amounts added on this date.',
+      total: [{ content: 'Total added (PHP)', colSpan: 4 }, money(t.totalAdded)],
+    }],
+  });
 }
 
-export function printDailySummary(summary) {
+export async function printDailySummary(summary) {
   const popup = window.open('', '_blank');
   if (!popup) throw new Error('Allow popups to print the daily summary.');
   try {
-    const doc = dailySummaryPdf(summary); doc.autoPrint();
+    const doc = dailySummaryPdf(summary, await loadReportLogo()); doc.autoPrint();
     const url = URL.createObjectURL(doc.output('blob')); popup.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (error) { popup.close(); throw error; }
 }
 
-export function downloadDailySummaryPdf(summary) {
-  dailySummaryPdf(summary).save(`Member-ledger-daily-summary-${summary.date}.pdf`);
+export async function downloadDailySummaryPdf(summary) {
+  dailySummaryPdf(summary, await loadReportLogo()).save(`Member-ledger-daily-summary-${summary.date}.pdf`);
 }
