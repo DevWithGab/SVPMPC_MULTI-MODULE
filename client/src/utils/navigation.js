@@ -27,7 +27,8 @@ export function readUrlValue(search, key, fallback, allowed) {
 
 export function updateUrlValue(search, key, value, fallback, extra = {}) {
   const params = new URLSearchParams(search);
-  if (key === 'tab') ['claim', 'member', 'claimsView'].forEach(name => params.delete(name));
+  if (key === 'tab') ['claim', 'member', 'claimsView', 'month'].forEach(name => params.delete(name));
+  if (key === 'claimsView') params.delete('month');
   for (const [name, next] of Object.entries({ [key]: value === fallback ? null : value, ...extra })) {
     if (next == null || next === '') params.delete(name);
     else params.set(name, String(next));

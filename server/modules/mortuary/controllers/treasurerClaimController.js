@@ -18,10 +18,11 @@ const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { getMemberBalanceSnapshots } = require('./deductionController');
-const { getClaimFinancialTotals } = require('./dashboardController');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { actorName } = require('../../../shared/utils/actorName');
+
+const round2 = (n) => Math.round(n * 100) / 100;
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -104,52 +105,81 @@ const listPendingDeduction = async (req, res) => {
   }
 };
 
-/* Ang Claims Summary - isang row per claim na nakarating na sa deduction stage,
-nagpapakita kung magkano ang nakolekta mula sa members para sa bawat claim. Ito ang
-per-claim breakdown sa likod ng "Total deductions collected" dashboard tile. */
-const listClaimFinancials = async (req, res) => {
+/* Ang Deduction Summary - isang month-end record per buwan (Philippine time), kasama
+ang bawat claim na na-deduct sa buwan na iyon at ang detalye nito. Ang batches ay
+binibilang gamit ang deduction.batchId; ang mga lumang claim na naproseso bago
+nagkaroon ng batches ay tig-isang batch ang turing. */
+const DEDUCTION_TIMEZONE = 'Asia/Manila';
+
+const listDeductionSummary = async (req, res) => {
   try {
-    const { page, limit, skip } = getPaginationParams(req.query);
-    const { search } = req.query;
+    const search = String(req.query.search || '').trim();
+    // Optional "YYYY-MM": only that month (used by the month detail page).
+    const month = typeof req.query.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.month) ? req.query.month : null;
 
     // Claims that never reached a deduction have no money to report on.
     const query = { 'deduction.totalCollected': { $gt: 0 } };
     if (search) {
       const regex = new RegExp(escapeRegex(search), 'i');
-      query.$or = [{ claimId: regex }, { memberName: regex }, { beneficiaryName: regex }];
+      query.$or = [{ claimId: regex }, { memberName: regex }, { beneficiaryName: regex }, { 'deduction.jvNumber': regex }];
     }
 
-    const total = await Claim.countDocuments(query);
-    const claims = await Claim.find(query)
-      .sort({ 'deduction.processedAt': -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const months = await Claim.aggregate([
+      { $match: query },
+      { $sort: { 'deduction.processedAt': 1, claimId: 1 } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$deduction.processedAt', timezone: DEDUCTION_TIMEZONE } },
+          batches: { $addToSet: { $ifNull: ['$deduction.batchId', '$claimId'] } },
+          claimCount: { $sum: 1 },
+          totalCollected: { $sum: '$deduction.totalCollected' },
+          claims: {
+            $push: {
+              claimId: '$claimId',
+              memberName: '$memberName',
+              beneficiaryName: '$beneficiaryName',
+              beneficiaryRelationship: '$beneficiaryRelationship',
+              dateOfDeath: '$dateOfDeath',
+              dateFiled: '$dateFiled',
+              approvedBy: '$approval.approvedBy',
+              approvedAt: '$approval.approvedAt',
+              status: '$status',
+              batchId: '$deduction.batchId',
+              jvNumber: '$deduction.jvNumber',
+              processedAt: '$deduction.processedAt',
+              processedBy: '$deduction.processedBy',
+              ratePerClaim: '$deduction.amountPerMember',
+              membersCharged: '$deduction.membersCharged',
+              totalCollected: '$deduction.totalCollected',
+            },
+          },
+        },
+      },
+      { $match: month ? { _id: month } : { _id: { $ne: null } } },
+      { $sort: { _id: -1 } },
+    ]);
 
-    const rows = claims.map((claim) => ({
-      claimId: claim.claimId,
-      memberName: claim.memberName,
-      beneficiaryName: claim.beneficiaryName,
-      status: claim.status,
-      amountPerMember: claim.deduction?.amountPerMember ?? 0,
-      membersCharged: claim.deduction?.membersCharged ?? 0,
-      totalCollected: claim.deduction?.totalCollected ?? 0,
-      processedAt: claim.deduction?.processedAt ?? null,
+    const monthly = months.map(({ _id, batches, ...month }) => ({
+      month: _id,
+      batchCount: batches.length,
+      ...month,
+      totalCollected: round2(month.totalCollected || 0),
     }));
 
-    /* Sakop ng totals lahat ng matching claim, hindi lang yung page na ipinapakita -
-    magiging misleading kung ang report footer ay idadagdag lang base sa current page. */
-    const totals = await getClaimFinancialTotals(query);
-
     res.status(200).json({
-      ...buildPaginatedResponse(rows, total, page, limit),
-      totals,
+      success: true,
+      data: monthly,
+      totals: {
+        totalCollected: round2(monthly.reduce((sum, m) => sum + m.totalCollected, 0)),
+        claimCount: monthly.reduce((sum, m) => sum + m.claimCount, 0),
+        batchCount: monthly.reduce((sum, m) => sum + m.batchCount, 0),
+      },
     });
   } catch (error) {
-    console.error('Error fetching claim income report:', error);
+    console.error('Error fetching deduction summary:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching claim income report',
+      message: 'Error fetching deduction summary',
       error: safeErrorMessage(error),
     });
   }
@@ -189,7 +219,6 @@ const parseClaimIds = (value) => {
 };
 const INVALID_CLAIM_IDS = `Select between 1 and ${MAX_BATCH_CLAIMS} claims to process.`;
 
-const round2 = (n) => Math.round(n * 100) / 100;
 
 /* Pinagsasama ang computation ng preview at ng totoong batch para siguradong yung
 napreview ay yung talagang sisingilin: bawat active member ay sisingilin ng rate x
@@ -411,7 +440,7 @@ const processDeductionBatch = async (req, res) => {
 module.exports = {
   listAllClaims,
   listPendingDeduction,
-  listClaimFinancials,
+  listDeductionSummary,
   getClaimById,
   previewDeductionBatch,
   processDeductionBatch,

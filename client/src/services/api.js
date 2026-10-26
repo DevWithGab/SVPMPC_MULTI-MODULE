@@ -829,11 +829,10 @@ export const treasurerAPI = {
     return URL.createObjectURL(response.data);
   },
 
-  /* Claims Summary - isang row per claim na naabot na yung deduction stage,
-  kung magkano ang nakolekta mula sa members. May dala pa rin yung response
-  ng `totals` across sa lahat ng matching claim (hindi lang yung page). */
-  getClaimIncomeReport: async (params = {}) => {
-    const response = await api.get('/mortuary/treasurer/claims/income-report', { params });
+  /* Deduction Summary - isang month-end record per buwan, kasama ang bawat
+  claim na na-deduct sa buwan na iyon, at `totals` across sa lahat ng matching. */
+  getDeductionSummary: async (params = {}) => {
+    const response = await api.get('/mortuary/treasurer/claims/deduction-summary', { params });
     return response.data;
   },
 };

@@ -40,7 +40,10 @@ test('Mortuary route permissions separate claims, finance, and Super Admin opera
     [admin, 'post', '/members/create', ['super_admin']],
     [admin, 'get', '/backup/export', ['super_admin']], [admin, 'post', '/backup/restore', ['super_admin']],
     [finance, 'get', '/dashboard', finances], [finance, 'post', '/ledger/bulk-upload', finances],
+<<<<<<< Updated upstream
     [finance, 'post', '/ledger/:memberId/entries/:ledgerId/correct', finances],
+=======
+>>>>>>> Stashed changes
     [finance, 'post', '/claims/deduction-batch', finances],
     [legacy, 'post', '/contributions/record', finances],
   ]) {

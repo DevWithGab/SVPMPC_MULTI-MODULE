@@ -8,6 +8,6 @@ export { default as FundBalances } from './FundBalances.jsx';
 export { default as ContributionManagement } from './ContributionManagement.jsx';
 export { default as LedgerReports } from './LedgerReports.jsx';
 export { default as ClaimsPendingDeduction } from './ClaimsPendingDeduction.jsx';
-export { default as ClaimIncomeReport } from './ClaimIncomeReport.jsx';
+export { default as DeductionSummary } from './DeductionSummary.jsx';
 export { default as Reports } from './Reports.jsx';
 export { default as FundSettings } from './FundSettings.jsx';

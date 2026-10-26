@@ -17,7 +17,7 @@ import {
   Notices,
   MemberLedger,
   ClaimsPendingDeduction,
-  ClaimIncomeReport,
+  DeductionSummary,
   Reports,
   FundSettings
 } from '../../components/mortuary/treasurer';
@@ -71,7 +71,7 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
   <div className="mc-tabs" role="group" aria-label="Claims views">
     {[
       { id: 'pending-deduction', label: 'Pending Deduction', count: counts?.pendingDeduction ?? 0 },
-      { id: 'income-report', label: 'Claims Summary', count: 0 },
+      { id: 'deduction-summary', label: 'Deduction Summary', count: 0 },
     ].map((opt) => (
       <button
         key={opt.id}
@@ -110,7 +110,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
   const [requestedTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
   const activeTab = requestedTab === 'contributions' ? 'ledger' : requestedTab;
-  const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'income-report']); // 'pending-deduction' | 'income-report'
+  const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'deduction-summary']); // 'pending-deduction' | 'deduction-summary'
 
   const [members, setMembers] = useState([]);
   /* Iba ito sa `members` sa taas (na yung balances aggregation lang ang
@@ -628,7 +628,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             {claimsView === 'pending-deduction' ? (
               <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
             ) : (
-              <ClaimIncomeReport />
+              <DeductionSummary />
             )}
           </div>
         );

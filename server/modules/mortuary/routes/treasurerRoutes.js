@@ -32,7 +32,7 @@ const {
 const {
   listAllClaims,
   listPendingDeduction,
-  listClaimFinancials,
+  listDeductionSummary,
   getClaimById,
   previewDeductionBatch,
   processDeductionBatch
@@ -100,8 +100,8 @@ router.get('/claims', listAllClaims);
 router.get('/claims/pending-deduction', listPendingDeduction);
 /* Yung literal paths sa taas dapat mauna bago yung '/claims/:claimId' param
 route sa baba, kung hindi, maaaring i-match ni Express as claimId yung
-"income-report". */
-router.get('/claims/income-report', listClaimFinancials);
+"deduction-summary". */
+router.get('/claims/deduction-summary', listDeductionSummary);
 /* Batch deduction - pinipili ng Treasurer ang maraming pending claim (hal. lahat ng
 death claim ng buwan) at isang beses lang sisingilin ang bawat member, iisang JV. */
 router.post('/claims/deduction-batch/preview', previewDeductionBatch);
