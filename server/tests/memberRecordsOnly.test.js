@@ -114,12 +114,10 @@ test('Mortuary single and bulk member creation save members and ledgers without 
     '../../../shared/models': { Member, User: ForbiddenAccount }, '../models': { Ledger },
   });
   const body = { name: 'Member Example', contact: '09123456789', barangay: 'Sample', address: 'Sample address' };
-  const single = response(); await controller.createMember({ body }, single);
-  assert.equal(single.data.success, true);
   const bulk = response(); await controller.bulkCreateMembers({ body: { members: [body, body] } }, bulk);
   assert.equal(bulk.data.success, true);
-  assert.equal(members.length, 3);
-  assert.equal(ledgers.length, 3);
+  assert.equal(members.length, 2);
+  assert.equal(ledgers.length, 2);
   assert.ok(members.every(member => !member.username && !member.passwordHash));
   assert.ok(members.every(member => member.modules.join(',') === 'attendance,mortuary'));
 });

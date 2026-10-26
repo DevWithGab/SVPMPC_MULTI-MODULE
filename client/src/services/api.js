@@ -417,6 +417,13 @@ export const mortuaryMemberAPI = {
     const response = await api.get('/mortuary/admin/members', { params });
     return response.data;
   },
+
+  /* Parehong registration ng Super Admin - naka-enroll ang member sa Mortuary
+  at Attendance (shared Member record). */
+  createMember: async (memberData) => {
+    const response = await api.post('/mortuary/admin/members/create', memberData);
+    return response.data;
+  },
 };
 
 // ============================================

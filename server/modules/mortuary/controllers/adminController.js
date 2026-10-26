@@ -20,8 +20,7 @@ const nextSequentialMemberId = async () => {
 /* Gumagawa at nag-save ng Member gamit ang bagong-generate na sequential ID,
 tumitry ulit kung na-claim na yung parehong ID ng concurrent request's insert.
 Yung memberId's unique index ang totoong guard; ito ay para lang hindi
-sumulpot yung benign race bilang raw 500 (createMember) o ugly per-row error
-(bulkCreateMembers) sa halip na tahimik na mag-retry gamit yung next ID. */
+sumulpot yung benign race bilang ugly per-row error (bulkCreateMembers) sa halip na tahimik na mag-retry gamit yung next ID. */
 const MAX_MEMBER_ID_RETRIES = 5;
 const createMemberWithRetry = async (buildMemberDoc) => {
   let lastError;
@@ -107,69 +106,6 @@ const adminController = {
   },
 
   // Create new member
-  createMember: async (req, res) => {
-    try {
-      const { name, contact, barangay, address, status = 'active' } = req.body;
-
-      /* Separate required fields sa Member yung barangay at address - yung
-      barangay ang ginagamit ng treasurer screens para mag-filter at mag-group,
-      kaya hindi puwedeng placeholder lang o infer galing sa address text. */
-      if (!name || !contact || !barangay || !address) {
-        return res.status(400).json({
-          success: false,
-          message: 'Name, contact, barangay and address are required'
-        });
-      }
-
-      const member = await createMemberWithRetry((memberId) => new Member({
-        memberId,
-        memberName: name,
-        phoneNumber: contact,
-        email: `member${memberId}@temp.com`, // Temporary email
-        barangay: barangay.trim(),
-        address: address.trim(),
-        status,
-        joinDate: new Date(),
-        modules: ['attendance', 'mortuary']
-      }));
-
-      // Create initial ledger entry
-      const ledger = new Ledger({
-        ledgerId: `L${Date.now()}`,
-        memberId: member.memberId,
-        transactionType: 'contribution',
-        description: 'Initial member registration',
-        credit: 0,
-        debit: 0,
-        balance: 0,
-        transactionDate: new Date()
-      });
-
-      await ledger.save();
-
-      res.json({
-        success: true,
-        message: 'Member created successfully',
-        member: {
-          id: member.memberId,
-          name: member.memberName,
-          contact: member.phoneNumber,
-          barangay: member.barangay,
-          address: member.address,
-          status: member.status,
-          join_date: member.joinDate.toISOString().split('T')[0]
-        }
-      });
-    } catch (error) {
-      console.error('Error creating member:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create member',
-        error: safeErrorMessage(error)
-      });
-    }
-  },
-
   // Update member
   updateMember: async (req, res) => {
     try {
@@ -299,7 +235,7 @@ const adminController = {
       /* Bawat row ay humihingi ng fresh ID kay createMemberWithRetry sa save time,
       hindi nagre-reserve ng block of IDs up front - kung pre-computed na
       nextId/nextId++ dito, go stale ito (at silently collide) laban sa isang
-      concurrent single createMember call o ibang bulk upload na tumatakbo sa
+      concurrent single member registration o ibang bulk upload na tumatakbo sa
       same time, na walang paraan para ma-recover mid-loop. */
       for (const memberData of members) {
         try {

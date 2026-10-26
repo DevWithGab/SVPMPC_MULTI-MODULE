@@ -193,6 +193,7 @@ const AdminPortal = ({ onBack, user }) => {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             setActiveTab={setActiveSection}
+            onMemberAdded={fetchInitialData}
           />
         );
       case "claims":

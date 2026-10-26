@@ -30,7 +30,10 @@ router.get('/balances', require('../controllers/deductionController').getAllMemb
 
 // Member management routes (admin only)
 router.get('/members', adminController.getAllMembers);
-router.post('/members/create', superAdminOnly, adminController.createMember);
+/* Ang claims officer (at admin/super admin) ay puwedeng mag-add ng member mula sa
+Mortuary. Parehong logic ng Super Admin registration ang ginagamit, kaya ang bagong
+member ay naka-enroll din sa Attendance (shared Member record, parehong modules). */
+router.post('/members/create', require('../../../shared/controllers/adminController').createMember);
 router.post('/members/bulk-create', superAdminOnly, bulkUploadLimiter, adminController.bulkCreateMembers);
 router.put('/members/:memberId', superAdminOnly, adminController.updateMember);
 router.delete('/members/:memberId', superAdminOnly, adminController.deleteMember);

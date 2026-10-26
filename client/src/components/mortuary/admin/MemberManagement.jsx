@@ -4,7 +4,7 @@ import { Input as TextInput, Select } from '../../ui/input';
 import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useEffect, useState } from 'react';
-import { Users, UserCheck, UserMinus, Heart, Search, FileText } from 'lucide-react';
+import { Users, UserCheck, UserMinus, Heart, Search, FileText, UserPlus } from 'lucide-react';
 import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
@@ -12,12 +12,16 @@ import '../treasurer/MemberBalances.css';
 import './MemberManagement.css';
 import { getStandingLabel, getMemberStanding } from '../../../utils/memberStanding';
 import BeneficiaryHistory from './BeneficiaryHistory';
+import CreateMemberModal from '../../shared/CreateMemberModal';
+import { mortuaryMemberAPI } from '../../../services/api';
 
 const MemberManagement = ({
-  filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab, minimumBalance = 1000
+  filteredMembers, members, statusFilter, setStatusFilter, searchQuery, setSearchQuery, setActiveTab, minimumBalance = 1000, onMemberAdded
 }) => {
   const { page, limit, setPage } = usePagination(1, 100);
   const [beneficiaryMember, setBeneficiaryMember] = useState(null);
+  const [addingMember, setAddingMember] = useState(false);
+  const barangays = [...new Set(members.map((m) => m.barangay).filter(Boolean))].sort();
 
   useEffect(() => {
     setPage(1);
@@ -55,7 +59,9 @@ const MemberManagement = ({
           <h1>Member management</h1>
           <p className="mb-description">Review registered members, check balances, and access claims and beneficiaries.</p>
         </div>
+        {onMemberAdded && <ActionButton onClick={() => setAddingMember(true)}><UserPlus size={15} aria-hidden="true" />Add member</ActionButton>}
       </PageHeader>
+      <CreateMemberModal isOpen={addingMember} onClose={() => setAddingMember(false)} barangays={barangays} createMember={mortuaryMemberAPI.createMember} onCreated={onMemberAdded} />
 
       <AttendanceMetricGrid label="Membership overview" items={[
         ['Total members', members.length.toLocaleString(), 'Registered mortuary fund participants', Users],
