@@ -31,6 +31,7 @@ import "./AuditLogs.css";
 /* Plain-language labels para yung log ay basahin na parang kwento ng
 nangyari sa claim, hindi dump ng internal action codes. */
 const ACTION_LABELS = {
+  ledger_corrected: "Ledger Corrected",
   claim_created: "Claim Filed",
   claim_approved: "Claim Approved",
   claim_rejected: "Claim Rejected",

@@ -24,6 +24,7 @@ const auditLogSchema = new mongoose.Schema(
     action: {
       type: String,
       enum: [
+        'ledger_corrected',
         'staff_created', 'staff_updated', 'staff_password_reset', 'staff_deleted',
         'event_created',
         'event_updated',
@@ -62,7 +63,7 @@ const auditLogSchema = new mongoose.Schema(
     },
     entityType: {
       type: String,
-      enum: ['staff', 'event', 'attendance', 'member', 'scanner', 'report', 'filter', 'backup', 'claim'],
+      enum: ['staff', 'event', 'attendance', 'member', 'scanner', 'report', 'filter', 'backup', 'claim', 'ledger'],
       required: true,
     },
     entityId: {

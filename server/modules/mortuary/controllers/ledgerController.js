@@ -9,6 +9,18 @@ const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { parseLedgerCsv, validateLedgerEntries } = require('../utils/ledgerCsv');
 const { createLedgerImportService, summarize } = require('../services/ledgerImportService');
 const ledgerImport = createLedgerImportService({ Member, Ledger, Contribution, getLatestBalancesByMember });
+const { decorateLedgerEntries } = require('../utils/ledgerCorrections');
+const { createLedgerCorrectionService } = require('../services/ledgerCorrectionService');
+const ledgerCorrections = createLedgerCorrectionService({ Ledger, Contribution, AuditLog: require('../../../shared/models/AuditLog') });
+
+const correctLedgerEntry = async (req, res) => {
+  try {
+    const posting = await ledgerCorrections.correct(req.params.memberId, req.params.ledgerId, req.body, req.user);
+    res.json({ success: true, message: 'Correction recorded. The original entry is preserved.', ledgerId: posting.ledgerId, balance: posting.balance });
+  } catch (error) {
+    res.status(error.status || 500).json({ success: false, saved: Boolean(error.saved), message: error.status ? error.message : 'Unable to save the correction. Retry the same request safely.' });
+  }
+};
 
 // Get member ledger - with pagination
 const getMemberLedger = async (req, res) => {
@@ -57,7 +69,7 @@ const getMemberLedger = async (req, res) => {
       balance: entry.balance
     }));
 
-    const response = buildPaginatedResponse(formattedEntries, total, page, limit);
+    const response = buildPaginatedResponse(decorateLedgerEntries(formattedEntries, ledgerEntries, allEntries), total, page, limit);
 
     res.status(200).json({
       ...response,
@@ -193,6 +205,7 @@ const bulkUploadLedger = async (req, res) => {
 };
 
 module.exports = {
+  correctLedgerEntry,
   getMemberLedger,
   getAllLedger,
   getMemberBalance,

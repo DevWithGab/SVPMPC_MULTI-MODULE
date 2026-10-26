@@ -34,11 +34,19 @@ function createLedgerImportService({ Member, Ledger, Contribution, getLatestBala
     const exact = new Map(), byReference = new Map(), byId = new Map(), byImportKey = new Map();
     for (const document of existing) {
       const ledger = normalizedLedger(document.toObject ? document.toObject() : document);
+      // A correction is not a new CSV payment. Keep original references reserved.
+      if (ledger.correction) continue;
       exact.set(keyOf(ledger), ledger);
       const ref = referenceKey(ledger);
       if (ref) byReference.set(ref, ledger);
       byId.set(ledger.ledgerId, ledger);
       if (ledger.importKey) byImportKey.set(ledger.importKey, ledger);
+    }
+    for (const document of existing.filter(row => row.correction)) {
+      const ledger = normalizedLedger(document.toObject ? document.toObject() : document);
+      const replacement = { ...ledger, debit: 0, transactionType: ledger.correction.originalType };
+      // Also recognize an amended reference-free CSV carrying the corrected amount.
+      if (!exact.has(keyOf(replacement))) exact.set(keyOf(replacement), replacement);
     }
     // A failed reporting write can be finished on retry without another ledger credit.
     const paymentIds = existing.filter(ledger => ledger.importKey && isPayment(ledger)).map(ledger => ledger.ledgerId);
@@ -51,7 +59,7 @@ function createLedgerImportService({ Member, Ledger, Contribution, getLatestBala
       if (!memberById.has(row.entry.memberId)) row.errors.push('Passbook No. was not found.');
       const matches = [exact.get(keyOf(row.entry)), byReference.get(referenceKey(row.entry)), byId.get(row.entry.ledgerId), byImportKey.get(importKeyOf(row.entry))].filter(Boolean);
       if (matches.some(stored => !sameEntry(stored, row.entry))) {
-        row.errors.push('This reference or ledgerId is already recorded with different transaction details. Check the original transaction; it will not be overwritten.');
+        row.errors.push('This reference or ledgerId is already recorded with different transaction details. Use Correct entry in the member ledger; CSV uploads will not overwrite a payment.');
       }
       if (row.errors.length) return { ...row, status: 'error' };
       if (matches.length) {

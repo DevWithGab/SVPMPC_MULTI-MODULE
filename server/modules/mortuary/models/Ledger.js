@@ -9,6 +9,23 @@ const ledgerSchema = new mongoose.Schema(
     },
     // New CSV imports reserve a stable transaction identity. Existing rows omit it.
     importKey: { type: String, unique: true, sparse: true },
+    // One successor per entry. Both correction legs share one atomic posting.
+    correctionOf: { type: String, unique: true, sparse: true },
+    correction: {
+      type: new mongoose.Schema({
+        rootLedgerId: { type: String, required: true },
+        originalType: { type: String, enum: ['contribution', 'adjustment'], required: true },
+        beforeAmount: { type: Number, required: true },
+        afterAmount: { type: Number, required: true },
+        reason: { type: String, required: true },
+        userId: { type: String, required: true },
+        userName: { type: String, required: true },
+        userRole: { type: String, required: true },
+        contributionId: String,
+        completed: { type: Boolean, default: false },
+      }, { _id: false }),
+      default: undefined,
+    },
     memberId: {
       type: String,
       required: true,

@@ -8,6 +8,7 @@ import React, { useRef, useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import BulkLedgerUpload from './BulkLedgerUpload';
+import LedgerCorrectionDialog from './LedgerCorrectionDialog';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF } from '../../../utils/balanceNotice';
 import { outputMemberLedgerPdf } from '../../../utils/memberLedgerPdf';
@@ -116,6 +117,7 @@ const MemberLedger = ({
   refreshData
 }) => {
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [correctionDialog, setCorrectionDialog] = useState(null);
   const [transactionFilter, setTransactionFilter] = useState('all');
   const [datePreset, setDatePreset] = useState('all'); // 'all' | 'thisMonth' | 'lastMonth' | 'thisYear'
   const [sortOrder, setSortOrder] = useState('desc');
@@ -173,8 +175,8 @@ const MemberLedger = ({
     const csvContent = [
       headers.join(','),
       ...entries.map(e => [
-        e.date, e.ref_no, e.received || 0, e.withdrawn || 0, e.balance, `"${e.description || 'N/A'}"`
-      ].join(','))
+        e.date, e.ref_no, e.received || 0, e.withdrawn || 0, e.balance, e.description || 'N/A'
+      ].map(value => `"${String(value).replaceAll('"', '""')}"`).join(','))
     ].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -206,7 +208,8 @@ const MemberLedger = ({
 
       const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return sortOrder === 'asc' ? createdA - createdB : createdB - createdA;
+      const postingDiff = createdA - createdB || (a.correctionSequence ?? 0) - (b.correctionSequence ?? 0);
+      return sortOrder === 'asc' ? postingDiff : -postingDiff;
     });
 
     const totalReceived = mEntries.reduce((sum, e) => sum + (e.received || 0), 0);
@@ -219,6 +222,9 @@ const MemberLedger = ({
 
     return (
       <div className="member-ledger space-y-5 print:space-y-0">
+        {correctionDialog && <LedgerCorrectionDialog entry={correctionDialog.entry} historyOnly={correctionDialog.historyOnly} member={currentMember}
+          onClose={() => { setCorrectionDialog(null); refreshData?.(); }}
+          onSaved={async () => { setCorrectionDialog(null); await refreshData?.(); showToast?.('Correction recorded. The original entry has been preserved.', 'success'); }} />}
         {/* Header */}
         <PageHeader className="ml-header ml-screen"><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></PageHeader>
 
@@ -436,6 +442,12 @@ const MemberLedger = ({
                       </td>
                       <td className="px-5 py-3.5 text-sm text-slate-600 font-mono align-top" title={entry.ref_no}>
                         {shortenRef(entry.ref_no)}
+                        {(entry.corrected || entry.correctionKind) && <p className="mt-1 font-sans text-xs font-semibold text-slate-700">{entry.corrected ? 'Corrected' : entry.correctionKind === 'reversal' ? 'Correction reversal' : 'Corrected replacement'}</p>}
+                        {entry.correctionPending && <p className="mt-1 font-sans text-xs text-amber-800">Correction needs retry</p>}
+                        <div className="ml-screen mt-2 flex flex-col items-start gap-2 font-sans">
+                          {(entry.canCorrect || entry.correctionPending) && ['finance_officer', 'treasurer', 'super_admin'].includes(user?.role) && <button type="button" className="ml-text-button" onClick={() => setCorrectionDialog({ entry })}>{entry.correctionPending ? 'Finish correction' : 'Correct entry'}</button>}
+                          {entry.correctionHistory?.length > 0 && <button type="button" className="ml-text-button" onClick={() => setCorrectionDialog({ entry, historyOnly: true })}>View correction history</button>}
+                        </div>
                       </td>
                       <td className="px-5 py-3.5 text-sm text-right font-mono font-medium align-top text-green-600">
                         {entry.received > 0 ? formatPeso(entry.received) : <span className="text-slate-300">—</span>}

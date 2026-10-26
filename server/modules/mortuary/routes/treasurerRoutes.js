@@ -92,6 +92,7 @@ router.get('/ledger', getAllLedger);
 router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLimiter, bulkUploadLedger);
+router.post('/ledger/:memberId/entries/:ledgerId/correct', require('../controllers/ledgerController').correctLedgerEntry);
 
 // Claims processing routes — a claim sitting in "pending_deduction" is the
 // Treasurer's notification (live query, no separate notification model).
