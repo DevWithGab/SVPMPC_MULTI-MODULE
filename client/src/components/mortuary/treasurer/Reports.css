@@ -58,6 +58,8 @@
 .reports-text-button:disabled { opacity: .45; cursor: not-allowed; }
 .reports-text-button:hover:not(:disabled) { text-decoration: underline; }
 .reports-filters label { display: block; max-width: 360px; font-size: 12px; font-weight: 600; }
+.reports-filter-fields { display: flex; flex-wrap: wrap; gap: 12px 16px; }
+.reports-filter-fields label { flex: 1 1 220px; }
 .reports-filters select { display: block; width: 100%; min-height: 40px; margin-top: 7px; padding: 8px 10px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; font-size: 13px; font-weight: 400; }
 .reports-filters > p { margin-top: 10px; font-size: 11px; color: #647069; line-height: 1.6; }
 .reports-metrics { padding: 20px; }

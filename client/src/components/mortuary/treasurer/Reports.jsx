@@ -2,11 +2,10 @@ import { Select } from '../../ui/input';
 import { PageHeader, Panel } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Receipt, Loader2 } from 'lucide-react';
+import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Loader2 } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
-import { getClaimStatusMeta } from '../shared/claimMeta';
 import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, reportAmount } from '../../../utils/mortuaryReportPdf';
 import { reportCsvHeader } from '../../../utils/reportCsvHeader';
 import { loadAllPages } from '../../../utils/loadAllPages';
@@ -18,11 +17,10 @@ import './Reports.css';
 const REPORT_TYPES = [
   { id: 'summary', label: 'Financial Summary', icon: FileText },
   { id: 'contributions', label: 'Contributions', icon: TrendingUp },
-  { id: 'claims', label: 'Claims Report', icon: ClipboardCheck },
+  { id: 'claims', label: 'Deduction Report', icon: ClipboardCheck },
   { id: 'deceasedMembers', label: 'Deceased Members', icon: Heart },
   { id: 'negativeBalances', label: 'Negative Balances', icon: AlertTriangle },
   { id: 'memberStanding', label: 'Member Standing', icon: Users },
-  { id: 'deductions', label: 'Claim Deductions', icon: Receipt },
 ];
 
 const STANDING_BADGE_STYLES = {
@@ -56,6 +54,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   const [reportType, setReportType] = useState('summary');
   const [summaryPeriod, setSummaryPeriod] = useState('monthly'); // 'monthly' | 'annually'
   const [barangayFilter, setBarangayFilter] = useState('all');
+  const [claimMonth, setClaimMonth] = useState('all'); // 'YYYY-MM' the claim was filed, Deduction Report only
   const { page, limit, setPage } = usePagination(1, 100);
   const [claims, setClaims] = useState([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
@@ -65,7 +64,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
 
   useEffect(() => {
     setPage(1);
-  }, [barangayFilter, reportType, setPage]);
+  }, [barangayFilter, claimMonth, reportType, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +78,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   }, []);
 
   const negativeMembers = useMemo(() => negativeBalanceMembers(members), [members]);
-  const needsClaims = ['summary', 'claims', 'deductions'].includes(reportType);
+  const needsClaims = ['summary', 'claims'].includes(reportType);
   const reportLoading = membersLoading || (needsClaims && claimsLoading);
   const reportError = membersError || (needsClaims ? claimsError : '');
   const exportDisabled = exporting || reportLoading || !!reportError;
@@ -144,9 +143,20 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     () => (barangayFilter === 'all' ? contributions : contributions.filter((c) => matchesBarangay(barangayByMemberId.get(String(c.member_id))))),
     [contributions, barangayFilter, barangayByMemberId],
   );
+  /* Months (YYYY-MM) in which claims were filed, newest first, for the
+  Deduction Report's month filter. */
+  const claimMonthOptions = useMemo(
+    () => [...new Set(claims.map((c) => getPeriodKey(c.dateFiled, 'monthly')).filter(Boolean))].sort().reverse(),
+    [claims],
+  );
   const filteredClaims = useMemo(
-    () => (barangayFilter === 'all' ? claims : claims.filter((c) => matchesBarangay(barangayByMemberId.get(String(c.memberId))))),
-    [claims, barangayFilter, barangayByMemberId],
+    () => claims.filter((c) => (barangayFilter === 'all' || matchesBarangay(barangayByMemberId.get(String(c.memberId))))
+      && (claimMonth === 'all' || getPeriodKey(c.dateFiled, 'monthly') === claimMonth)),
+    [claims, barangayFilter, claimMonth, barangayByMemberId],
+  );
+  const filteredClaimsDeducted = useMemo(
+    () => Math.round(filteredClaims.reduce((sum, c) => sum + (c.deduction?.totalCollected || 0), 0) * 100) / 100,
+    [filteredClaims],
   );
   const filteredDeceasedMembers = useMemo(
     () => (barangayFilter === 'all' ? deceasedMembers : deceasedMembers.filter((m) => matchesBarangay(m.barangay))),
@@ -163,10 +173,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   const filteredTotalShortfall = useMemo(
     () => Math.round(filteredNegativeMembers.reduce((sum, member) => sum - member.balance, 0) * 100) / 100,
     [filteredNegativeMembers],
-  );
-  const filteredDeductionsData = useMemo(
-    () => (barangayFilter === 'all' ? deductionsData : deductionsData.filter((c) => matchesBarangay(barangayByMemberId.get(String(c.memberId))))),
-    [deductionsData, barangayFilter, barangayByMemberId],
   );
 
   /* Monthly/Annually breakdown ng Financial Summary - bawat period bucket
@@ -221,7 +227,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     else if (reportType === 'deceasedMembers') data = filteredDeceasedMembers;
     else if (reportType === 'memberStanding') data = filteredMemberStandingList;
     else if (reportType === 'negativeBalances') data = filteredNegativeMembers;
-    else if (reportType === 'deductions') data = filteredDeductionsData;
 
     const total = data.length;
     const startIndex = (page - 1) * limit;
@@ -234,7 +239,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       hasNextPage: endIndex < total,
       hasPrevPage: page > 1
     };
-  }, [reportType, filteredContributions, filteredClaims, filteredDeceasedMembers, filteredMemberStandingList, filteredNegativeMembers, filteredDeductionsData, page, limit]);
+  }, [reportType, filteredContributions, filteredClaims, filteredDeceasedMembers, filteredMemberStandingList, filteredNegativeMembers, page, limit]);
 
   /* Title, scope and emphasised filter shared by the PDF and CSV exports, so
   both open with the same report header. A barangay the report is filtered to
@@ -246,13 +251,18 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   };
   const reportHeader = () => {
     const byBarangay = reportType !== 'summary' && barangayFilter !== 'all';
+    const byMonth = reportType === 'claims' && claimMonth !== 'all';
     let scope = REPORT_SCOPES[reportType] || 'All recorded transactions.';
     if (reportType !== 'summary' && !byBarangay) scope += ' Barangay: All barangays.';
+    if (reportType === 'claims' && !byMonth) scope += ' Month filed: All months.';
     return {
       byBarangay,
       scope,
       title: REPORT_TYPES.find(type => type.id === reportType)?.label || 'Mortuary Fund Report',
-      highlights: byBarangay ? [{ label: 'Barangay', value: barangayFilter }] : [],
+      highlights: [
+        ...(byBarangay ? [{ label: 'Barangay', value: barangayFilter }] : []),
+        ...(byMonth ? [{ label: 'Month filed', value: formatPeriodLabel(claimMonth, 'monthly') }] : []),
+      ],
     };
   };
 
@@ -284,9 +294,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           widths: [28, 30, 62, 32, 24], numberColumns: [3],
           body: filteredContributions.map(c => [date(c.payment_date || c.created_at), c.member_id, c.member_name || '-', reportAmount(c.amount), c.status || 'Paid']) }];
       } else if (reportType === 'claims') {
-        sections = [{ head: ['Claim ID', 'Member', 'Beneficiary', 'Date filed', 'Status'],
-          widths: [31, 42, 42, 28, 33],
-          body: filteredClaims.map(c => [c.claimId, c.memberName, c.beneficiaryName, date(c.dateFiled), getClaimStatusMeta(c.status).label]) }];
+        sections = [{ head: ['Member', 'Beneficiary', 'Deducted on', 'Deducted (PHP)'],
+          widths: [56, 56, 32, 32], numberColumns: [3],
+          body: filteredClaims.map(c => [c.memberName, c.beneficiaryName, date(c.deduction?.processedAt), c.deduction?.totalCollected ? reportAmount(c.deduction.totalCollected) : '-']),
+          total: ['Total deducted', '', '', reportAmount(filteredClaimsDeducted)] }];
       } else if (reportType === 'deceasedMembers') {
         sections = [{ head: ['Passbook No.', 'Member name', ...brgyCol(['Barangay']), 'Join date'], widths: byBarangay ? [40, 100, 36] : [31, 66, 49, 30],
           body: filteredDeceasedMembers.map(m => [m.id || m.memberId, m.name || m.memberName, ...brgyCol([m.barangay || '-']), date(m.join_date || m.joinDate)]) }];
@@ -304,10 +315,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             emptyMessage: 'No members have a negative balance.',
             total: ['Total balance', '', ...brgyCol(['']), '', reportAmount(-filteredTotalShortfall)] },
         ];
-      } else if (reportType === 'deductions') {
-        sections = [{ head: ['Claim ID', 'Member name', 'Status', 'Deducted (PHP)'],
-          widths: [38, 64, 38, 36], numberColumns: [3],
-          body: filteredDeductionsData.map(c => [c.claimId, c.memberName, getClaimStatusMeta(c.status).label, reportAmount(c.deductionCollected)]) }];
       }
       const logo = await loadReportLogo();
       const doc = createMortuaryReportPdf({ title, scope, sections, logo, highlights });
@@ -343,11 +350,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
         csvContent += `"${new Date(c.payment_date || c.created_at).toLocaleDateString()}","${c.member_id}","${c.member_name || ''}","${c.amount}","${c.status}"\n`;
       });
     } else if (reportType === 'claims') {
-      filename = `claims-${new Date().toISOString().split('T')[0]}.csv`;
-      csvContent = 'Claim ID,Member,Beneficiary,Date Filed,Status\n';
-      filteredClaims.forEach(c => {
-        csvContent += `"${c.claimId}","${c.memberName}","${c.beneficiaryName}","${new Date(c.dateFiled).toLocaleDateString()}","${getClaimStatusMeta(c.status).label}"\n`;
-      });
+      filename = `claims-${claimMonth === 'all' ? '' : claimMonth + '-'}${new Date().toISOString().split('T')[0]}.csv`;
+      const rows = [['Member', 'Beneficiary', 'Deducted On', 'Deducted (PHP)'],
+        ...filteredClaims.map(c => [c.memberName, c.beneficiaryName, c.deduction?.processedAt ? new Date(c.deduction.processedAt).toLocaleDateString() : '', c.deduction?.totalCollected ?? '']),
+        ['Total deducted', '', '', filteredClaimsDeducted]];
+      csvContent = rows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
     } else if (reportType === 'deceasedMembers') {
       filename = `deceased-members-${new Date().toISOString().split('T')[0]}.csv`;
       csvContent = 'Passbook No.,Name,Barangay,Join Date\n';
@@ -365,12 +372,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       const rows = [['Passbook No.', 'Member Name', 'Barangay', 'Status', 'Balance (PHP)', 'Shortfall to Zero (PHP)'],
         ...filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
       csvContent = rows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
-    } else if (reportType === 'deductions') {
-      filename = `claim-deductions-${new Date().toISOString().split('T')[0]}.csv`;
-      csvContent = 'Claim ID,Member,Status,Deducted\n';
-      filteredDeductionsData.forEach(c => {
-        csvContent += `"${c.claimId}","${c.memberName}","${getClaimStatusMeta(c.status).label}","${c.deductionCollected}"\n`;
-      });
     }
 
     /* Kung walang BOM, mag-guess si Excel ng encoding base sa system
@@ -394,8 +395,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
   const scope = {
     summary: 'All recorded contributions and claim deductions.',
     contributions: 'All recorded member contributions and payment statuses.',
-    claims: 'All filed claims, beneficiaries and processing statuses.',
-    deductions: 'Amount collected for each claim.',
+    claims: 'Filed claims with their beneficiaries and deductions.',
     deceasedMembers: 'Deceased members in the current roster.',
     negativeBalances: 'Deceased members excluded. Largest shortfall first.',
     memberStanding: 'Active members only. Lowest posted balance first.',
@@ -410,7 +410,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       <div className="reports-workspace">
         <nav className="reports-navigation" aria-label="Financial report selection">
           {[
-            { label: 'Fund activity', ids: ['summary', 'contributions', 'claims', 'deductions'] },
+            { label: 'Fund activity', ids: ['summary', 'contributions', 'claims'] },
             { label: 'Member records', ids: ['memberStanding', 'negativeBalances', 'deceasedMembers'] },
           ].map(group => <div key={group.label} className="reports-nav-group">
             <p className="reports-eyebrow">{group.label}</p>
@@ -439,8 +439,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
             <span>{reportLoading ? 'Loading records...' : reportError ? 'Data unavailable' : reportType === 'summary' ? periodBreakdown.length + ' reporting periods' : paginatedData.total.toLocaleString() + ' records'}</span>
           </div>
           {reportType !== 'summary' && <section className="reports-filters" aria-labelledby="reports-filter-title">
-            <div className="reports-filter-heading"><h3 id="reports-filter-title">Filter report</h3><button type="button" className="reports-text-button" disabled={barangayFilter === 'all'} onClick={() => { setBarangayFilter('all'); setPage(1); }}>Reset filter</button></div>
+            <div className="reports-filter-heading"><h3 id="reports-filter-title">Filter report</h3><button type="button" className="reports-text-button" disabled={barangayFilter === 'all' && (reportType !== 'claims' || claimMonth === 'all')} onClick={() => { setBarangayFilter('all'); setClaimMonth('all'); setPage(1); }}>Reset filter</button></div>
+            <div className="reports-filter-fields">
             <label>Barangay<Select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setPage(1); }}><option value="all">All barangays</option>{barangayOptions.map(b => <option key={b} value={b}>{b}</option>)}</Select></label>
+            {reportType === 'claims' && <label>Month filed<Select value={claimMonth} onChange={e => { setClaimMonth(e.target.value); setPage(1); }}><option value="all">All months</option>{claimMonthOptions.map(m => <option key={m} value={m}>{formatPeriodLabel(m, 'monthly')}</option>)}</Select></label>}
+            </div>
             <p>Applies to the displayed records and both exports.</p>
           </section>}
           {(reportError || exportError) && <p role="alert" className="m-5 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{reportError || exportError}</p>}
@@ -534,31 +537,30 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               <DataTable className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
                     <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Beneficiary</th>
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Date Filed</th>
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
+                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deducted On</th>
+                    <th scope="col" className="text-right px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deducted</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {paginatedData.data.map((c) => {
-                    const meta = getClaimStatusMeta(c.status);
                     return (
                       <tr key={c.claimId}>
-                        <td className="px-5 py-2.5 text-xs font-mono text-slate-500">{c.claimId.slice(0, 8)}</td>
                         <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">{c.memberName}</td>
                         <td className="px-5 py-2.5 text-xs text-slate-500">{c.beneficiaryName}</td>
-                        <td className="px-5 py-2.5 text-xs text-slate-500">{new Date(c.dateFiled).toLocaleDateString()}</td>
-                        <td className="px-5 py-2.5">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full border ${meta.bg} ${meta.text} ${meta.border}`}>
-                            {meta.label}
-                          </span>
-                        </td>
+                        <td className="px-5 py-2.5 text-xs text-slate-500">{c.deduction?.processedAt ? new Date(c.deduction.processedAt).toLocaleDateString() : '—'}</td>
+                        <td className="px-5 py-2.5 text-xs text-right font-semibold text-slate-900">{c.deduction?.totalCollected ? '₱' + reportAmount(c.deduction.totalCollected) : '—'}</td>
                       </tr>
                     );
                   })}
                 </tbody>
+                {filteredClaims.length > 0 && <tfoot>
+                  <tr className="border-t border-slate-200 bg-slate-50">
+                    <td colSpan={3} className="px-5 py-2.5 text-xs font-semibold text-slate-900">Total deducted ({filteredClaims.length.toLocaleString()} {filteredClaims.length === 1 ? 'claim' : 'claims'})</td>
+                    <td className="px-5 py-2.5 text-xs text-right font-semibold text-slate-900">₱{reportAmount(filteredClaimsDeducted)}</td>
+                  </tr>
+                </tfoot>}
               </DataTable>
             )}
 
@@ -641,37 +643,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                 </tbody>
               </DataTable>
             )}
-
-            {reportType === 'deductions' && (
-              <DataTable className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50">
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Claim ID</th>
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Member</th>
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Status</th>
-                    <th scope="col" className="text-left px-5 py-2.5 text-xs font-medium text-slate-400 uppercase tracking-wide">Deducted</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedData.data.map((c) => {
-                    const meta = getClaimStatusMeta(c.status);
-                    return (
-                      <tr key={c.claimId}>
-                        <td className="px-5 py-2.5 text-xs font-mono text-slate-500">{c.claimId.slice(0, 8)}</td>
-                        <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">{c.memberName}</td>
-                        <td className="px-5 py-2.5">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full border ${meta.bg} ${meta.text} ${meta.border}`}>
-                            {meta.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{reportAmount(c.deductionCollected)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </DataTable>
-            )}
-
             {paginatedData.total === 0 && reportType !== 'summary' && !reportLoading && !reportError && (
               <div role="status" className="reports-empty">{reportType === 'negativeBalances' ? 'No members have a negative balance.' : 'No records to display.'}</div>
             )}

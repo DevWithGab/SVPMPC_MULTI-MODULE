@@ -19,7 +19,8 @@ export default function DeductionMonthDetail({ month, onBack }) {
     // The parent keys this page by month, so a new month starts with fresh state.
     let active = true;
     treasurerAPI.getDeductionSummary({ month })
-      .then((res) => { if (active) setData(res?.data?.[0] || { month, claims: [], batchCount: 0, claimCount: 0, totalCollected: 0 }); })
+      // Pick the requested month explicitly; never fall back to whichever month came first.
+      .then((res) => { if (active) setData((res?.data || []).find((m) => m.month === month) || { month, claims: [], batchCount: 0, claimCount: 0, totalCollected: 0 }); })
       .catch(() => { if (active) setError('Unable to load this month’s claims. Please try again.'); });
     return () => { active = false; };
   }, [month]);

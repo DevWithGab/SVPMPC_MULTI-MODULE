@@ -65,6 +65,20 @@ test('Deduction Summary shows month-end records with each deceased member', asyn
     assert.match(rows[0].textContent, /138 × ₱100\.00/);
     assert.match(container.querySelector('tfoot').textContent, /₱27,600\.00/);
 
+    // Opening September shows only September, even if the server sends other months too.
+    api.getDeductionSummary = async () => ({
+      data: [
+        { month: '2026-10', batchCount: 1, claimCount: 1, totalCollected: 13800, claims: [{ ...claim('C1', 'Jennifer Salvador', 'Marilyn Salvador') }] },
+        { month: '2026-09', batchCount: 1, claimCount: 1, totalCollected: 5300, claims: [{ ...claim('C3', 'Maricel Gonzales', 'Dominador Gonzales'), totalCollected: 5300 }] },
+      ],
+    });
+    await act(async () => button('Deduction Summary').click());
+    await act(async () => new Promise(resolve => setTimeout(resolve, 350)));
+    await act(async () => container.querySelector('button[aria-label="View claims for September 2026"]').click());
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    assert.match(text(), /Maricel Gonzales/);
+    assert.doesNotMatch(text(), /Jennifer Salvador/, 'October claims must not appear on the September page');
+
     await act(async () => button('Deduction Summary').click());
     assert.equal(new URLSearchParams(location.search).get('month'), null);
     await act(async () => new Promise(resolve => setTimeout(resolve, 350)));
