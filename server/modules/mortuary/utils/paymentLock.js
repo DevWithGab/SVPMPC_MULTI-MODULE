@@ -7,4 +7,10 @@ async function withMemberPaymentLock(memberId, work) {
   try { return await current; }
   finally { if (pending.get(memberId) === current) pending.delete(memberId); }
 }
-module.exports = { withMemberPaymentLock };
+// Acquire overlapping batch locks in a consistent order to avoid deadlocks.
+async function withMemberPaymentLocks(memberIds, work) {
+  const ids = [...new Set(memberIds)].sort();
+  const acquire = index => index === ids.length ? work() : withMemberPaymentLock(ids[index], () => acquire(index + 1));
+  return acquire(0);
+}
+module.exports = { withMemberPaymentLock, withMemberPaymentLocks };

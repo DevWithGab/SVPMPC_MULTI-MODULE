@@ -87,7 +87,7 @@ const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError,
         <div><p className="td-eyebrow">Mortuary management / Overview</p><h1>Mortuary dashboard</h1><p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p></div>
         <div className="td-header-actions">
           <ActionButton variant="outline" className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
-          <ActionButton variant="default" className="td-button td-primary" onClick={() => setActiveTab('contributions')}>Manage contributions <ArrowRight size={15} aria-hidden="true" /></ActionButton>
+          <ActionButton variant="default" className="td-button td-primary" onClick={() => setActiveTab('ledger')}>Open member ledger <ArrowRight size={15} aria-hidden="true" /></ActionButton>
         </div>
       </PageHeader>
       <AttendanceMetricGrid label="Mortuary fund overview" busy={refreshing} items={[

@@ -5,7 +5,7 @@ import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import {
-  Users, CreditCard, FileText, LayoutGrid, BarChart3, Bell,
+  Users, FileText, LayoutGrid, BarChart3, Bell,
   LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu, Banknote
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
@@ -15,7 +15,6 @@ import {
   Dashboard,
   MemberBalances,
   Notices,
-  Contributions,
   MemberLedger,
   ClaimsPendingDeduction,
   ClaimIncomeReport,
@@ -108,8 +107,10 @@ const PortalSkeleton = () => (
 
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
+
   const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
   const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'income-report']); // 'pending-deduction' | 'income-report'
+
   const [members, setMembers] = useState([]);
   /* Iba ito sa `members` sa taas (na yung balances aggregation lang ang
   sakop, active members only - eksakto yung kailangan ng Member
@@ -146,7 +147,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
-  const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
   const [memberFilter, setMemberFilter] = useState('all');
   const [barangayFilter, setBarangayFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
@@ -380,14 +380,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     setActiveTab('ledger', { member: member.id || member.memberId });
   };
 
-  /* "Record Payment" (Contributions tab) - ito yung general flow, naghahanap
-  sa lahat ng member. */
-  const openAddContribution = () => {
-    setLockedContributionMember(null);
-    setNewContribution((prev) => ({ ...prev, member_id: '' }));
-    setIsAddContributionOpen(true);
-  };
-
   /* "Add Deposit" galing sa ledger page ng specific member - napili na
   yung member na yun dahil nandoon na sa ledger niya, kaya lock na lang
   yung Member field sa kanya imbes na pahanapin ulit yung treasurer. */
@@ -571,7 +563,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
   const relevantKeys = {
     dashboard: ['stats', 'contributions'], members: ['members'], notices: ['members'],
-    contributions: ['contributions'], claims: ['claims'],
+    claims: ['claims'],
     ledger: selectedMemberId ? ['members', 'ledger'] : ['ledgerList'],
     reports: ['reportMembers'],
   }[activeTab] || [];
@@ -638,16 +630,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
               <ClaimIncomeReport />
             )}
           </div>
-        );
-      case 'contributions':
-        return (
-          <Contributions
-            contributions={contributions}
-            paymentSearchQuery={paymentSearchQuery}
-            setPaymentSearchQuery={setPaymentSearchQuery}
-            setIsAddContributionOpen={openAddContribution}
-            onPaymentsImported={refreshAllData}
-          />
         );
       case 'reports':
         return (
@@ -742,7 +724,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <SidebarItem id="notices" icon={Bell} label="Notices" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" badgeCount={claimsCounts.pendingDeduction} activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="reports" icon={BarChart3} label="Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="settings" icon={Banknote} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
         </nav>

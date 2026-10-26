@@ -5,7 +5,7 @@ import { Button } from '../../ui/button';
 import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../shared/BulkUploadDialog';
 import { treasurerAPI } from '../../../services/api';
 
-const labels = { ready: 'Ready', error: 'Needs correction', imported: 'Recorded', failed: 'Needs retry' };
+const labels = { ready: 'Ready', resume: 'Ready to finish', duplicate: 'Duplicate — will not be recorded', skipped: 'Duplicate — not recorded', error: 'Needs correction', imported: 'Recorded', failed: 'Needs retry' };
 
 export default function BulkLedgerUpload({ onClose, onImported, onDownloadTemplate }) {
   const inFlight = useRef(false);
@@ -45,7 +45,8 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
       }
     } catch (failure) {
       setResult(failure.response?.data?.rows ? failure.response.data : null);
-      setError(failure.response?.data?.message || 'Unable to process this file. Preview again before retrying.');
+      setCompleted(false);
+      setError(failure.response?.data?.message || 'Unable to confirm this upload. Preview the same file again; saved entries will not be recorded twice.');
     } finally { setBusy(false); inFlight.current = false; }
   };
 
@@ -63,15 +64,18 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
         <p>Required columns: Passbook No., transactionDate (YYYY-MM-DD), credit, debit. Keep leading zeros in passbook numbers.</p>
         <p>Enter a positive amount in either credit or debit and 0 in the other, with up to two decimal places, without currency signs or thousands separators.</p>
         <p>Optional columns: description, transactionType, referenceId, paymentMethod (cash). Transaction types: contribution, payout, adjustment, penalty, automatic_deduction, claim_payout.</p>
-        <p>Every row is checked. Unknown passbook numbers, invalid values, and duplicate entries must be corrected before importing.</p>
+        <p>For daily payments, enter the amount in credit, 0 in debit, and contribution as the transactionType. Use the receipt or transaction reference from your collection system as referenceId.</p>
+        <p>You can add daily transactions to the same CSV or upload a new file. Duplicates are skipped automatically; only new entries affect balances. Keep the original referenceId when re-uploading a transaction.</p>
+        <p>A reference reused for the same member with different transaction details needs correction. Existing entries are never overwritten. Unknown passbook numbers and invalid values must be corrected before importing.</p>
       </UploadTemplateCard>
       <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 1,000 entries · Maximum 1 MB" />
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       {summary && !completed && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-        <p><strong>{summary.ready} ready</strong> · {summary.invalid} need correction · {summary.total} total</p>
+        <p><strong>{summary.ready} ready</strong> · {summary.duplicates || 0} duplicates will not be recorded · {summary.invalid} need correction · {summary.total} total</p>
         {!!summary.invalid && <p className="mt-2 text-rose-700">Correct every listed error and upload the corrected file. No entries will be imported while errors remain.</p>}
+        {!summary.invalid && !summary.ready && !!summary.duplicates && <p className="mt-2">All entries are already recorded. Nothing new to import.</p>}
       </div>}
-      {completed && <p role="status" className="rounded-lg bg-slate-100 p-3 text-sm text-slate-700">{result.results.success.length} recorded · {result.results.failed.length} failed. {result.results.failed.length ? 'Review the errors below. Preview again before retrying; remove entries already recorded.' : 'All ledger entries were imported successfully.'}</p>}
+      {completed && <p role="status" className="rounded-lg bg-slate-100 p-3 text-sm text-slate-700">{result.results.success.length} recorded · {summary?.duplicates || 0} duplicates not recorded · {result.results.failed.length} need retry. {result.results.failed.length ? 'Review the errors below. Preview the same CSV again to retry; saved entries will be skipped.' : 'Upload complete. Duplicate entries did not change any balances.'}</p>}
       {!!result?.rows?.length && <div className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white">
         <DataTable className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>
@@ -85,7 +89,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
             <td className="px-3 py-3 tabular-nums">{row.entry.credit}</td>
             <td className="px-3 py-3 tabular-nums">{row.entry.debit}</td>
             <td className="px-3 py-3">{row.entry.transactionType}</td>
-            <td className={`px-3 py-3 ${row.errors.length ? 'text-rose-700' : 'text-slate-700'}`}><p className="font-medium">{labels[row.status]}</p>{row.errors.map(message => <p key={message} className="mt-1 text-xs">{message}</p>)}</td>
+            <td className={`px-3 py-3 ${row.errors.length ? 'text-rose-700' : 'text-slate-700'}`}><p className="font-medium">{labels[row.status]}</p>{row.message && <p className="mt-1 text-xs">{row.message}</p>}{row.errors.map(message => <p key={message} className="mt-1 text-xs">{message}</p>)}</td>
           </tr>)}</tbody>
         </DataTable>
       </div>}

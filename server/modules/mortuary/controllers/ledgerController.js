@@ -6,8 +6,9 @@ const { Member } = require('../../../shared/models');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { LATEST_FIRST, getLatestBalance, getLatestBalancesByMember } = require('../utils/ledgerBalance');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
-const { parseLedgerCsv, validateLedgerEntries, keyOf } = require('../utils/ledgerCsv');
-const { randomUUID } = require('node:crypto');
+const { parseLedgerCsv, validateLedgerEntries } = require('../utils/ledgerCsv');
+const { createLedgerImportService, summarize } = require('../services/ledgerImportService');
+const ledgerImport = createLedgerImportService({ Member, Ledger, Contribution, getLatestBalancesByMember });
 
 // Get member ledger - with pagination
 const getMemberLedger = async (req, res) => {
@@ -161,127 +162,24 @@ const bulkUploadLedger = async (req, res) => {
     } catch (error) {
       return res.status(400).json({ success: false, message: error.message });
     }
-    /* I-check muna lahat ng row bago magsulat ng kahit ano, kasama na kapag import: puwedeng
-    nagbago na yung data dahil baka may lumipas na oras mula nung na-preview ng user.
-
-    Dati, 2-3 sequential DB round trips ito PER ROW (member lookup, duplicate-entry lookup,
-    duplicate-ledgerId lookup) - kasama yung row cap sa baba, pag 1000-row file, aabot ng
-    ~3000 queries lang para ma-validate. Sa ngayon, isa lang na fetch per batch - base sa
-    eksaktong member IDs, dates, at ledgerIds na ginagamit ng upload na ito - kaya naging 3
-    queries na lang lahat-lahat kahit gaano karami ang rows, tapos yung per-row logic
-    nagagana na laban sa in-memory lookups. */
-    const candidateRows = rows.filter(row => !row.errors.length);
-    const memberIds = [...new Set(candidateRows.map(row => row.entry.memberId))];
-    const members = memberIds.length ? await Member.find({ memberId: { $in: memberIds } }) : [];
-    const memberById = new Map(members.map(member => [member.memberId, member]));
-
-    const dates = [...new Set(candidateRows.map(row => row.entry.transactionDate))].map(d => new Date(d));
-    const existingLedgers = memberIds.length
-      ? await Ledger.find({ memberId: { $in: memberIds }, transactionDate: { $in: dates } })
-      : [];
-    const existingKeys = new Set(existingLedgers.map(ledger => keyOf({
-      memberId: ledger.memberId, transactionDate: ledger.transactionDate.toISOString().slice(0, 10),
-      credit: ledger.credit, debit: ledger.debit, referenceId: ledger.referenceId || null,
-    })));
-
-    const ledgerIdsToCheck = candidateRows.map(row => row.entry.ledgerId).filter(Boolean);
-    const existingLedgerIds = new Set(ledgerIdsToCheck.length
-      ? (await Ledger.find({ ledgerId: { $in: ledgerIdsToCheck } }, { ledgerId: 1 })).map(l => l.ledgerId)
-      : []);
-
-    for (const row of rows) {
-      if (row.errors.length) continue;
-      const member = memberById.get(row.entry.memberId);
-      row.memberName = member?.memberName || '';
-      if (!member) row.errors.push('Passbook No. was not found.');
-      if (existingKeys.has(keyOf(row.entry))) row.errors.push('This ledger entry is already recorded. Remove it from the CSV.');
-      if (row.entry.ledgerId && existingLedgerIds.has(row.entry.ledgerId)) row.errors.push('This ledgerId is already in use.');
-      row.status = row.errors.length ? 'error' : 'ready';
+    if (action === 'preview') {
+      const checked = await ledgerImport.preview(rows);
+      return res.json({ success: true, rows: checked, summary: summarize(checked) });
     }
-    const summary = { total: rows.length, ready: rows.filter(row => !row.errors.length).length, invalid: rows.filter(row => row.errors.length).length };
-    if (action === 'preview') return res.json({ success: true, rows, summary });
-    if (summary.invalid) return res.status(400).json({ success: false, message: 'Correct every listed error and preview again. No ledger entries were imported.', rows, summary });
-    const ledgerEntries = rows.map(row => row.entry);
-
+    const result = await ledgerImport.importRows(rows, req.user?.username || req.user?.userId || req.user?.role || 'admin');
+    const summary = summarize(result.rows);
     const results = {
-      success: [],
-      failed: [],
-      total: ledgerEntries.length
+      success: result.rows.filter(row => row.status === 'imported').map(row => ({ memberId: row.entry.memberId, ledgerId: row.ledgerId, balance: row.balance })),
+      failed: result.rows.filter(row => row.status === 'failed').map(row => ({ entry: row.entry, reason: row.errors.join('; ') })),
+      skipped: result.rows.filter(row => row.status === 'skipped').map(row => ({ row: row.row, entry: row.entry, reason: 'Duplicate - not recorded' })),
+      total: result.rows.length,
     };
-
-    /* Lahat ng row na nakarating dito ay pumasa na sa member-existence, duplicate-entry, at
-    required-field checks sa itaas - at yung summary.invalid gate sa taas ay agad nang bumalik
-    kapag may fail sa mga yun. Kung ulitin pa yung parehong checks per row dito (bilang second
-    loop), wala talagang mahuhuli pa; dead work na lang ito mula nung hiniwalay yung dalawang
-    loop. Yung natitirang totoong cost per row ay yung write mismo, plus running balance.
-
-    Posting order ang ginamit, hindi yung uploaded transactionDate: puwedeng may back-dated o
-    future-dated rows sa bulk file, at kailangang sundin ng running balance yung order kung
-    saan talagang na-write yung rows. Isang batched lookup ang nagse-seed ng starting balance
-    ng kada member (0 kapag walang prior rows, same fallback na ginagamit ng
-    getLatestBalance); tapos in-memory running total na ang nagdadala nito pasulong kahit
-    maraming rows ng same member sa upload na ito. */
-    const balances = await getLatestBalancesByMember(memberIds);
-
-    for (const [index, entry] of ledgerEntries.entries()) {
-      try {
-        const currentBalance = balances.get(entry.memberId) || 0;
-        const credit = entry.credit;
-        const debit = entry.debit;
-        const newBalance = Math.round((currentBalance + credit - debit) * 100) / 100;
-        balances.set(entry.memberId, newBalance);
-
-        console.log(`💰 Creating ledger: ${entry.memberId}, Credit: ${credit}, Debit: ${debit}, New Balance: ${newBalance}`);
-
-        const normalizedPaymentMethod = typeof entry.paymentMethod === 'string'
-          ? entry.paymentMethod.trim().toLowerCase()
-          : undefined;
-
-        // Create ledger entry
-        const ledgerEntry = new Ledger({
-          ledgerId: entry.ledgerId || `L${randomUUID()}`,
-          memberId: entry.memberId,
-          transactionType: entry.transactionType || (credit > 0 ? 'contribution' : 'payout'),
-          transactionDate: new Date(entry.transactionDate),
-          description: entry.description || 'Bulk upload',
-          credit: credit,
-          debit: debit,
-          balance: newBalance,
-          referenceId: entry.referenceId || entry.ref_no || null,
-          // paymentMethod defaults to schema value when omitted.
-          ...(normalizedPaymentMethod && { paymentMethod: normalizedPaymentMethod })
-        });
-
-        await ledgerEntry.save();
-        rows[index].status = 'imported';
-        console.log(`✅ Ledger entry saved: ${ledgerEntry.ledgerId}`);
-        results.success.push({
-          memberId: entry.memberId,
-          ledgerId: ledgerEntry.ledgerId,
-          balance: newBalance
-        });
-
-      } catch (error) {
-        rows[index].status = 'failed';
-        rows[index].errors.push('Unable to save this entry. Refresh and preview the remaining entries before retrying.');
-        console.error(`❌ Error processing entry:`, error.message);
-        results.failed.push({
-          entry,
-          reason: error.message
-        });
-      }
-    }
-
-    console.log(`\n📊 Upload Summary: ${results.success.length} successful, ${results.failed.length} failed`);
-    if (results.failed.length > 0) {
-      console.log('Failed entries:', results.failed);
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Processed ${results.total} entries: ${results.success.length} successful, ${results.failed.length} failed`,
-      results,
-      rows
+    return res.status(result.blocked ? 400 : 200).json({
+      success: !result.blocked,
+      message: result.blocked
+        ? 'Correct the listed errors and preview again. No new ledger entries were recorded. Duplicates can stay in the file.'
+        : `Recorded ${summary.imported} entries; ${summary.duplicates} duplicates not recorded; ${summary.failed} need retry.`,
+      results, rows: result.rows, summary,
     });
 
   } catch (error) {

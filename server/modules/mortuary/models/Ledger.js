@@ -7,6 +7,8 @@ const ledgerSchema = new mongoose.Schema(
       unique: true,
       required: true,
     },
+    // New CSV imports reserve a stable transaction identity. Existing rows omit it.
+    importKey: { type: String, unique: true, sparse: true },
     memberId: {
       type: String,
       required: true,

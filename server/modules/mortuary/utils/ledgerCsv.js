@@ -4,12 +4,15 @@ const REQUIRED = ['memberId', 'transactionDate', 'credit', 'debit'];
 const OPTIONAL = ['description', 'transactionType', 'referenceId', 'paymentMethod', 'status', 'ledgerId'];
 const MAX_ROWS = 1000;
 const keyOf = entry => JSON.stringify([entry.memberId, entry.transactionDate, entry.credit, entry.debit, entry.referenceId || null]);
+const referenceKey = entry => entry.referenceId ? JSON.stringify([entry.memberId, entry.referenceId]) : null;
+const sameEntry = (left, right) => keyOf(left) === keyOf(right) && left.transactionType === right.transactionType;
 
 function validateLedgerEntries(entries) {
   if (!Array.isArray(entries) || !entries.length) throw new Error('Provide at least one ledger entry.');
   if (entries.length > MAX_ROWS) throw new Error(`Maximum ${MAX_ROWS} entries per upload.`);
-  const seen = new Set();
-  const ledgerIds = new Set();
+  const seen = new Map();
+  const references = new Map();
+  const ledgerIds = new Map();
   return entries.map((source, index) => {
     const errors = [...(source.csvErrors || [])];
     const entry = {};
@@ -30,12 +33,18 @@ function validateLedgerEntries(entries) {
     entry.description = entry.description || 'Bulk upload';
     entry.referenceId = entry.referenceId || null;
     if (!entry.ledgerId) delete entry.ledgerId;
-    if (entry.ledgerId && ledgerIds.has(entry.ledgerId)) errors.push('Repeated ledgerId in this CSV.');
-    if (entry.ledgerId) ledgerIds.add(entry.ledgerId);
     const key = keyOf(entry);
-    if (seen.has(key)) errors.push('Duplicate entry in this CSV (same passbook, date, amounts, and reference).');
-    seen.add(key);
-    return { row: source.csvRow || index + 2, entry, errors, status: errors.length ? 'error' : 'ready' };
+    const ref = referenceKey(entry);
+    const matches = [seen.get(key), ref && references.get(ref), entry.ledgerId && ledgerIds.get(entry.ledgerId)].filter(Boolean);
+    if (matches.some(previous => !sameEntry(previous, entry))) errors.push('This reference or ledgerId is repeated with different transaction details. Check the original transaction; it will not be overwritten.');
+    const duplicate = !errors.length && matches.length > 0;
+    if (!errors.length) {
+      seen.set(key, entry);
+      if (ref) references.set(ref, entry);
+      if (entry.ledgerId) ledgerIds.set(entry.ledgerId, entry);
+    }
+    return { row: source.csvRow || index + 2, entry, errors, status: errors.length ? 'error' : duplicate ? 'duplicate' : 'ready',
+      ...(duplicate ? { message: 'Repeated in this CSV. Only the first copy will be recorded.' } : {}) };
   });
 }
 
@@ -62,4 +71,4 @@ function parseLedgerCsv(csv) {
   })));
 }
 
-module.exports = { parseLedgerCsv, validateLedgerEntries, keyOf, MAX_ROWS };
+module.exports = { parseLedgerCsv, validateLedgerEntries, keyOf, referenceKey, sameEntry, MAX_ROWS };
