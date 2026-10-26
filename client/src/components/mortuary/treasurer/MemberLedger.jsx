@@ -84,7 +84,7 @@ const groupEntriesByMonth = (entries, sortOrder) => {
   return orderedKeys.map((key) => {
     const groupEntries = buckets.get(key);
     const chronologicallyLast = [...groupEntries].sort(
-      (a, b) => new Date(b.date) - new Date(a.date) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      (a, b) => new Date(b.date) - new Date(a.date) || new Date(b.createdAt || 0) - new Date(a.createdAt || 0) || (b.correctionSequence ?? 0) - (a.correctionSequence ?? 0)
     )[0];
     return {
       key,
@@ -227,6 +227,7 @@ const MemberLedger = ({
           onSaved={async () => { setCorrectionDialog(null); await refreshData?.(); showToast?.('Correction recorded. The original entry has been preserved.', 'success'); }} />}
         {/* Header */}
         <PageHeader className="ml-header ml-screen"><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></PageHeader>
+        {memberLedgerEntries.some(entry => entry.correctionKind) && <p className="text-sm text-slate-600">Correction reversals are accounting adjustments, not cash withdrawals. The linked replacement shows the corrected amount.</p>}
 
         {/* Controls */}
         <div className="ml-controls ml-screen">

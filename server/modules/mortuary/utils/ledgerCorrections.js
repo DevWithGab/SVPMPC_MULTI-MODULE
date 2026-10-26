@@ -19,6 +19,7 @@ function decorateLedgerEntries(formatted, documents, allEntries) {
       canCorrect: !successors.has(doc.ledgerId) && Boolean(isCorrectable(doc, first?.ledgerId)) };
     if (!doc.correction) return [common];
     const c = doc.correction;
+    common.date = new Date(doc.createdAt).toISOString().slice(0, 10);
     const correction = { ...common, correctionKind: 'replacement', received: doc.credit, withdrawn: 0, correctionSequence: 1,
       description: `Corrected payment / opening balance: ${c.reason}`, correctionPending: !c.completed,
       pendingCorrection: !c.completed ? { sourceLedgerId: doc.correctionOf, amount: c.afterAmount, reason: c.reason, expectedAmount: c.beforeAmount } : null };
