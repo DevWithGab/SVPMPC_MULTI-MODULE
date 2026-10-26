@@ -774,17 +774,18 @@ export const treasurerAPI = {
     return response.data;
   },
 
-  processClaimDeduction: async (claimId, data = {}) => {
-    const response = await api.post(`/mortuary/treasurer/claims/${claimId}/process-deduction`, data);
+  /* Batch deduction - isang JV number para sa lahat ng piniling claim; isang beses
+  lang sisingilin ang bawat member (rate x bilang ng claims). */
+  processDeductionBatch: async (claimIds, jvNumber) => {
+    const response = await api.post('/mortuary/treasurer/claims/deduction-batch', { claimIds, jvNumber });
     return response.data;
   },
 
-  /* Read-only dry run - ipinapakita bilang confirm-step preview bago
-  mag-commit sa deduction (ilang members, per-member amount, total
-  collected). Yung per-member amount ay laging galing sa configured rate
-  sa server; walang say ang Treasurer dito, kaya walang ipinapasa dito. */
-  previewClaimDeduction: async (claimId) => {
-    const response = await api.get(`/mortuary/treasurer/claims/${claimId}/deduction-preview`);
+  /* Read-only dry run - ipinapakita bilang confirm-step summary bago mag-commit
+  (ilang claim, ilang member, magkano bawat member, total). Yung rate ay laging
+  galing sa configured rate sa server. */
+  previewDeductionBatch: async (claimIds) => {
+    const response = await api.post('/mortuary/treasurer/claims/deduction-batch/preview', { claimIds });
     return response.data;
   },
 

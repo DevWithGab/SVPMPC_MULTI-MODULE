@@ -245,10 +245,10 @@ const getAllMemberBalances = async (req, res) => {
 
 /* Nagproseso ng automatic deduction para sa lahat ng members (triggered kung
 may namatay). Blanket, non-claim-linked counterpart ito ng
-processClaimDeduction sa treasurerClaimController.js - tingnan yung header
+processDeductionBatch sa treasurerClaimController.js - tingnan yung header
 comment ng module na yun ("Flow A") kung paano magkaugnay yung dalawa. Real
 money movement ito across every active member, kaya kinakailangan niyang
-i-resolve yung Admin-configured rate sa parehong paraan ng claim-linked
+i-resolve yung configured rate sa parehong paraan ng claim-linked
 flow, at audit-logged din sa parehong paraan. */
 const processAutomaticDeduction = async (req, res) => {
   try {

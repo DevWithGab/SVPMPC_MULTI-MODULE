@@ -71,7 +71,7 @@ const claimSchema = new mongoose.Schema(
         'approved',
         'pending_deduction',
         /* Transient lock state ito: nandito lang muna ang claim habang tumatakbo ang
-        sariling request ng processClaimDeduction - ang pag-claim nito
+        sariling request ng processDeductionBatch - ang pag-claim nito
         atomically (findOneAndUpdate gamit ang prior status bilang filter) ang
         pumipigil sa dalawang concurrent request na magkasabay gumawa ng money math
         para sa parehong claim. Ibabalik kapag nagfail; tingnan ang function na
@@ -109,6 +109,9 @@ const claimSchema = new mongoose.Schema(
     deduction: {
       deductionSettingId: { type: String },
       jvNumber: { type: String, trim: true },
+      // Claims processed together share one batchId and one JV number.
+      batchId: { type: String },
+      claimsInBatch: { type: Number },
       amountPerMember: { type: Number },
       membersCharged: { type: Number },
       totalCollected: { type: Number },

@@ -5,9 +5,9 @@ klaro at distinct sa codebase yung money flow na dulot ng isang claim:
   - Flow A (collection/assessment): sisingilin ang bawat ibang active member ng maliit
     na fixed amount papunta sa sari-sariling ledger nila kapag namatay ang isang
     member. Dati pa itong existing bilang blanket, manually-triggered action
-    (processAutomaticDeduction); ang processClaimDeduction sa baba ay parehong
-    mekanismo, tumatakbo lang per-claim, gamit ang configurable DeductionSetting rate
-    at tinatag ang bawat ledger row ng claimId.
+    (processAutomaticDeduction); ang processDeductionBatch sa baba ay parehong
+    mekanismo, tumatakbo lang para sa mga piniling claim (hal. lahat ng death claim
+    ng buwan), gamit ang configurable DeductionSetting rate at iisang JV number.
 
 Ang deduction na ang huling hakbang ng claim - wala nang release/disbursement step
 sa system, kaya kolekta lang ang tina-track dito. */
@@ -177,62 +177,89 @@ const getClaimById = async (req, res) => {
   }
 };
 
-/* Read-only dry run ng Flow A - para makita ng Treasurer kung sino eksakto at
-magkano ang maaapektuhan ng deduction na ito bago ito icommit. Parehong member
-snapshot na ginagamit ng processClaimDeduction, wala lang itong isusulat. */
-const previewClaimDeduction = async (req, res) => {
+/* Kinukuha at vina-validate ang listahan ng claimIds galing sa request body - string
+lang ang tinatanggap (hindi object na puwedeng gawing NoSQL operator), walang duplicate,
+at may limit para hindi masyadong malaki ang isang batch. */
+const MAX_BATCH_CLAIMS = 100;
+const parseClaimIds = (value) => {
+  if (!Array.isArray(value)) return null;
+  const ids = [...new Set(value.filter((id) => typeof id === 'string').map((id) => id.trim()).filter(Boolean))];
+  if (ids.length === 0 || ids.length !== value.length || ids.length > MAX_BATCH_CLAIMS) return null;
+  return ids;
+};
+const INVALID_CLAIM_IDS = `Select between 1 and ${MAX_BATCH_CLAIMS} claims to process.`;
+
+const round2 = (n) => Math.round(n * 100) / 100;
+
+/* Pinagsasama ang computation ng preview at ng totoong batch para siguradong yung
+napreview ay yung talagang sisingilin: bawat active member ay sisingilin ng rate x
+bilang ng claims, isang beses lang (isang ledger row) para sa buong batch. */
+const summarizeBatch = (claims, rate, members) => {
+  const claimCount = claims.length;
+  const amountPerMember = round2(rate * claimCount);
+  const membersCharged = members.length;
+  return {
+    claimCount,
+    ratePerClaim: rate,
+    amountPerMember,
+    membersCharged,
+    collectedPerClaim: round2(rate * membersCharged),
+    totalCollected: round2(amountPerMember * membersCharged),
+    membersGoingNegative: members.filter((m) => (m.balance || 0) - amountPerMember < 0).length,
+    claims: claims.map((claim) => ({
+      claimId: claim.claimId,
+      memberName: claim.memberName,
+      beneficiaryName: claim.beneficiaryName,
+    })),
+  };
+};
+
+/* Read-only dry run ng batch deduction - para makita ng Treasurer kung ilang claim,
+ilang member, at magkano ang sisingilin bago ito icommit. Parehong member snapshot na
+ginagamit ng processDeductionBatch, wala lang itong isusulat. */
+const previewDeductionBatch = async (req, res) => {
   try {
-    const { claimId } = req.params;
-    const claim = await Claim.findOne({ claimId });
-    if (!claim) {
-      return res.status(404).json({ success: false, message: 'Claim not found' });
+    const claimIds = parseClaimIds(req.body.claimIds);
+    if (!claimIds) {
+      return res.status(400).json({ success: false, message: INVALID_CLAIM_IDS });
     }
-    if (claim.status !== 'pending_deduction') {
+
+    const claims = await Claim.find({ claimId: { $in: claimIds } }).sort({ dateFiled: 1 });
+    const notReady = claimIds.filter((id) => !claims.some((c) => c.claimId === id && c.status === 'pending_deduction'));
+    if (notReady.length) {
       return res.status(400).json({
         success: false,
-        message: `Claim cannot be previewed for deduction from status "${claim.status}"`,
+        message: `These claims are no longer pending deduction: ${notReady.join(', ')}. Refresh the list and try again.`,
       });
     }
 
-    const { amount: amountPerMember } = await resolveDeductionRate();
-
-    if (isNaN(amountPerMember) || amountPerMember <= 0) {
+    const { amount: rate } = await resolveDeductionRate();
+    if (isNaN(rate) || rate <= 0) {
       return res.status(400).json({ success: false, message: 'Invalid deduction amount' });
     }
 
     const { members } = await getMemberBalanceSnapshots();
-    const membersCharged = members.length;
-    const totalCollected = Math.round(amountPerMember * membersCharged * 100) / 100;
-    const membersGoingNegative = members.filter((m) => (m.balance || 0) - amountPerMember < 0).length;
-
-    res.status(200).json({
-      success: true,
-      data: {
-        claimId,
-        memberName: claim.memberName,
-        amountPerMember,
-        membersCharged,
-        totalCollected,
-        membersGoingNegative,
-      },
-    });
+    res.status(200).json({ success: true, data: summarizeBatch(claims, rate, members) });
   } catch (error) {
-    console.error('Error previewing claim deduction:', error);
+    console.error('Error previewing deduction batch:', error);
     res.status(500).json({
       success: false,
-      message: 'Error previewing claim deduction',
+      message: 'Error previewing deduction batch',
       error: safeErrorMessage(error),
     });
   }
 };
 
-/* Flow A, per claim: sisingilin ang bawat ibang active member ng configured rate,
-parehong mekanismo ng blanket automatic-deduction, tinag sa claim na ito. */
-const processClaimDeduction = async (req, res) => {
+/* Flow A, isang batch (hal. lahat ng death claim ng buwan): isang beses lang
+sisingilin ang bawat active member - rate x bilang ng claims, isang ledger row - at
+iisang JV number ang gamit ng lahat ng claim sa batch. Bawat claim ay may sariling
+deduction record (rate, members charged, kolekta para sa claim na iyon) at batchId
+para makita kung aling claims ang sabay na naproseso. */
+const processDeductionBatch = async (req, res) => {
   try {
-    const { claimId } = req.params;
     const processedBy = actorName(req.user, 'treasurer');
     const jvNumber = String(req.body.jvNumber || '').trim();
+    const claimIds = parseClaimIds(req.body.claimIds);
 
     if (!jvNumber) {
       return res.status(400).json({
@@ -240,134 +267,142 @@ const processClaimDeduction = async (req, res) => {
         message: 'JV (Journal Disbursement) number is required before processing the deduction',
       });
     }
-
-    /* Treasurers often still type a literal "JV#"/"JV-" prefix out of habit
-    from the paper JV slip, but the ledger's own Reference column already
-    makes it a deduction entry via its transaction type - repeating "JV#"
-    there is just noise. Strip it for the ledger's own reference only; the
-    claim record and audit trail below keep the number exactly as entered. */
-    const ledgerReference = jvNumber.replace(/^jv\s*[#:\-.]?\s*/i, '') || jvNumber;
-
-    /* Atomically kinukuha dito ang exclusive right ng request na ito para iproseso ang
-    deduction. Kung dumating sabay ang dalawang request para sa parehong claim
-    (double-click, retried request, dalawang open tabs), yun lang talagang nakapagpalit
-    ng pending_deduction -> deduction_processing ang mananalo - ang isa ay makukuha ng
-    null pabalik at mareject sa baba, imbes na dalawa silang magsisingil sa lahat ng
-    active member. */
-    const claim = await Claim.findOneAndUpdate(
-      { claimId, status: 'pending_deduction' },
-      { $set: { status: 'deduction_processing' } },
-      { new: true }
-    );
-    if (!claim) {
-      const existing = await Claim.findOne({ claimId });
-      if (!existing) {
-        return res.status(404).json({ success: false, message: 'Claim not found' });
-      }
-      return res.status(400).json({
-        success: false,
-        message: `Claim cannot be processed for deduction from status "${existing.status}"`,
-      });
+    if (!claimIds) {
+      return res.status(400).json({ success: false, message: INVALID_CLAIM_IDS });
     }
 
-    /* Idineklara dito (hindi sa loob ng try sa baba) dahil kailangan pa rin itong basahin
-    ng audit log at response na gagawin pagkatapos ng try block na iyon. */
-    let before, deductionAmount, totalCollected = 0, membersCharged = 0;
+    /* Isa-isang kinukuha ang exclusive lock ng bawat claim (pending_deduction ->
+    deduction_processing, atomic per document). Kung may isang claim na hindi
+    makuha - naproseso na, nasa ibang batch na sabay na tumatakbo, o wala - ibabalik
+    ang mga nakuha na at irereject ang buong batch, para walang member na
+    masisingil para sa kalahating batch o dalawang beses para sa iisang claim. */
+    const locked = [];
+    const releaseLocks = () => Claim.updateMany(
+      { claimId: { $in: locked.map((c) => c.claimId) }, status: 'deduction_processing' },
+      { $set: { status: 'pending_deduction' } }
+    );
+    for (const claimId of claimIds) {
+      const claim = await Claim.findOneAndUpdate(
+        { claimId, status: 'pending_deduction' },
+        { $set: { status: 'deduction_processing' } },
+        { new: true }
+      );
+      if (!claim) {
+        if (locked.length) await releaseLocks();
+        const existing = await Claim.findOne({ claimId });
+        if (!existing) {
+          return res.status(404).json({ success: false, message: `Claim ${claimId} not found` });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Claim ${claimId} cannot be processed for deduction from status "${existing.status}"`,
+        });
+      }
+      locked.push(claim);
+    }
+
+    const batchId = uuidv4();
+    let summary;
+    const befores = new Map();
 
     try {
-      let deductionSettingId;
-      ({ amount: deductionAmount, settingId: deductionSettingId } = await resolveDeductionRate());
-
-      if (isNaN(deductionAmount) || deductionAmount <= 0) {
+      const { amount: rate, settingId: deductionSettingId } = await resolveDeductionRate();
+      if (isNaN(rate) || rate <= 0) {
         throw Object.assign(new Error('Invalid deduction amount'), { statusCode: 400 });
       }
 
       const { members } = await getMemberBalanceSnapshots();
+      const amountPerMember = round2(rate * locked.length);
+      const description = locked.length === 1
+        ? `Death fund assessment for ${locked[0].memberName}`
+        : `Death fund assessment for ${locked.length} death claims`;
 
+      const charged = [];
       for (const member of members) {
         try {
-          const currentBalance = member.balance || 0;
-          const newBalance = currentBalance - deductionAmount;
-
           const ledgerEntry = new Ledger({
             ledgerId: uuidv4(),
             memberId: member.memberId,
             transactionType: 'automatic_deduction',
-            description: `Death fund assessment for ${claim.memberName}`,
-            debit: deductionAmount,
+            description,
+            debit: amountPerMember,
             credit: 0,
-            balance: newBalance,
-            referenceId: ledgerReference,
+            balance: round2((member.balance || 0) - amountPerMember),
+            // Kept exactly as entered (e.g. "JV-1923823"), same as the claim record.
+            referenceId: jvNumber,
             transactionDate: new Date(),
             recordedBy: processedBy,
           });
           await ledgerEntry.save();
-
-          totalCollected += deductionAmount;
-          membersCharged += 1;
-
+          charged.push(member);
         } catch (memberError) {
           console.error(`Error processing deduction for member ${member.memberId}:`, memberError);
         }
       }
 
-      before = claim.toObject();
+      summary = summarizeBatch(locked, rate, charged);
       const now = new Date();
-      claim.status = 'deduction_processed';
-      claim.deduction = {
-        deductionSettingId,
-        jvNumber,
-        amountPerMember: deductionAmount,
-        membersCharged,
-        totalCollected,
-        processedBy,
-        processedAt: now,
-      };
-      claim.statusHistory.push({
-        status: 'deduction_processed',
-        changedBy: processedBy,
-        changedAt: now,
-        notes: `JV ${jvNumber}: charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total)`,
-      });
-
-      await claim.save();
+      for (const claim of locked) {
+        befores.set(claim.claimId, claim.toObject());
+        claim.status = 'deduction_processed';
+        claim.deduction = {
+          deductionSettingId,
+          jvNumber,
+          batchId,
+          claimsInBatch: locked.length,
+          amountPerMember: rate,
+          membersCharged: summary.membersCharged,
+          totalCollected: summary.collectedPerClaim,
+          processedBy,
+          processedAt: now,
+        };
+        claim.statusHistory.push({
+          status: 'deduction_processed',
+          changedBy: processedBy,
+          changedAt: now,
+          notes: `JV ${jvNumber}: batch of ${locked.length} claims - charged ${summary.membersCharged} active members ₱${rate} for this claim (₱${summary.collectedPerClaim} collected)`,
+        });
+        await claim.save();
+      }
     } catch (error) {
-      /* Ibabalik ang lock para hindi matagalang tigil ang claim sa "deduction_processing"
-      kapag nagfail sa gitna ang rate lookup, member snapshot, o final save - para
-      puwedeng i-retry ng Treasurer mula sa parehong pending_deduction state. */
-      await Claim.updateOne({ claimId, status: 'deduction_processing' }, { $set: { status: 'pending_deduction' } });
+      /* Ibabalik ang locks para hindi matagalang tigil ang claims sa
+      "deduction_processing" kapag nagfail sa gitna ang rate lookup, member snapshot,
+      o final save - para puwedeng i-retry ng Treasurer mula sa pending_deduction. */
+      await releaseLocks();
       if (error.statusCode) {
         return res.status(error.statusCode).json({ success: false, message: error.message });
       }
       throw error;
     }
 
-    await createAuditLog({
-      userId: req.user?.userId,
-      userName: processedBy,
-      userRole: req.user?.role || 'treasurer',
-      action: 'claim_deduction_processed',
-      module: 'mortuary',
-      entityType: 'claim',
-      entityId: claim.claimId,
-      entityName: claim.memberName,
-      description: `JV ${jvNumber}: charged ${membersCharged} active members ₱${deductionAmount} each (₱${totalCollected} total) for claim ${claim.claimId}`,
-      changes: { before, after: claim.toObject() },
-      status: 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-    });
+    for (const claim of locked) {
+      await createAuditLog({
+        userId: req.user?.userId,
+        userName: processedBy,
+        userRole: req.user?.role || 'treasurer',
+        action: 'claim_deduction_processed',
+        module: 'mortuary',
+        entityType: 'claim',
+        entityId: claim.claimId,
+        entityName: claim.memberName,
+        description: `JV ${jvNumber}: batch of ${locked.length} claims - charged ${summary.membersCharged} active members ₱${summary.ratePerClaim} for claim ${claim.claimId} (₱${summary.collectedPerClaim} collected)`,
+        changes: { before: befores.get(claim.claimId), after: claim.toObject() },
+        status: 'success',
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message: `Deduction processed for ${membersCharged} members`,
-      data: claim,
+      message: `Deduction processed for ${locked.length} claims and ${summary.membersCharged} members`,
+      data: { ...summary, batchId, jvNumber, processedBy, processedAt: locked[0].deduction.processedAt },
     });
   } catch (error) {
-    console.error('Error processing claim deduction:', error);
+    console.error('Error processing deduction batch:', error);
     res.status(500).json({
       success: false,
-      message: 'Error processing claim deduction',
+      message: 'Error processing deduction batch',
       error: safeErrorMessage(error),
     });
   }
@@ -378,6 +413,6 @@ module.exports = {
   listPendingDeduction,
   listClaimFinancials,
   getClaimById,
-  processClaimDeduction,
-  previewClaimDeduction,
+  previewDeductionBatch,
+  processDeductionBatch,
 };

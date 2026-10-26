@@ -53,7 +53,7 @@ Register claim and track requirements
                 |
         pending_deduction
                 |
-    Treasurer processes deduction
+    Treasurer processes deduction (batch)
                 |
         deduction_processed  (final step)
 ```
@@ -67,7 +67,7 @@ Approval adds an `approved` history entry and moves the claim to `pending_deduct
 | Role | Main responsibilities in the current application |
 | --- | --- |
 | Super Admin (`super_admin`) | Central member record administration and bulk member import through the Super Admin area. |
-| Administrator (`admin`) | Attendance administration and approvals; mortuary records, claim approvals, beneficiary maintenance, deduction settings, reports, and audit tools. |
+| Administrator (`admin`) | Attendance administration and approvals; mortuary records, claim approvals, beneficiary maintenance, reports, and audit tools. |
 | Secretary (`secretary`) | Attendance event preparation, member directory, manual attendance, and reports. |
 | Scanner Operator (`scanner_operator`) | Attendance scanner portal and QR-based attendance recording. |
 | Treasurer (`treasurer`) | Mortuary contributions, balances, ledgers, claim deductions, fund settings, and financial reporting. |
@@ -89,6 +89,7 @@ The database also supports a `member` user role, but `client/src/App.jsx` curren
 - Ledger balances are running totals: previous balance + credit - debit.
 - The latest balance is determined by posting order (`createdAt`, then `_id`), not the user-entered `transactionDate`. See [ledgerBalance.js](server/modules/mortuary/utils/ledgerBalance.js).
 - Claim deductions use the active treasurer-configured **DeductionSetting**. The current claim-processing fallback is **PHP 25 per active member** if no setting exists.
+- The treasurer processes deductions in batches: they select one or more pending claims (for example, all of a month's death claims) and enter one JV number. Each active member is charged once, as a single ledger entry, for the rate times the number of claims. Every claim in the batch stores the same JV number and `batchId`, plus its own share of the amount collected.
 - Deduction processing can produce negative member balances; do not silently exclude members simply because their balance is insufficient.
 - The system tracks only the amount collected for each claim; payouts to beneficiaries are not recorded. The amount collected is not the deceased member's personal ledger balance.
 - SMS support, including notification history endpoints, has been removed. Use the Treasurer's printed/PDF member notices for balance reminders. Existing SMS records in MongoDB are left untouched.

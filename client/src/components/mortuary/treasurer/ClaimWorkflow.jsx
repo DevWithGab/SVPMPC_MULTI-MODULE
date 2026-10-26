@@ -3,7 +3,7 @@ import { Panel, ModalActions, DialogHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import { Input as TextInput } from '../../ui/input';
 import { useEffect, useId, useRef } from 'react';
-import { ArrowRight, Loader2, RefreshCw, Search, X } from 'lucide-react';
+import { Loader2, RefreshCw, Search, X } from 'lucide-react';
 import { Pagination } from '../../ui/pagination';
 import { fieldClass, shortDate } from './claimWorkflowUtils';
 
@@ -11,8 +11,13 @@ export function Action({ children, primary = false, className = '', ...props }) 
   return <Button type="button" variant={primary ? 'default' : 'outline'} {...props} className={`mc-action ${className}`}>{children}</Button>;
 }
 
-export function ClaimQueue({ queue, onSelect }) {
+const checkboxClass = 'h-4 w-4 rounded border-slate-300 accent-coop-green';
+
+/* Selection survives search and paging (keyed by claimId), so the treasurer can
+gather e.g. every death claim of the month into one batch. */
+export function ClaimQueue({ queue, selected, onToggle, onToggleAll }) {
   const { claims, loading, error, total, page, setPage, search, setSearch, refresh } = queue;
+  const allOnPageSelected = claims.length > 0 && claims.every((claim) => selected.has(claim.claimId));
   return <Panel as="section" className="mc-register" aria-busy={loading} aria-label="Claims pending deduction">
     <div className="mc-queue-filters">
       <div className="mc-search-field"><label htmlFor="mc-deduction-search">Find a claim</label><div className="relative">
@@ -26,12 +31,13 @@ export function ClaimQueue({ queue, onSelect }) {
       : loading ? <div role="status" className="flex items-center justify-center gap-2 py-20 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Loading claims…</div>
         : !claims.length ? <div className="px-5 py-16 text-center"><h3 className="font-semibold text-slate-900">{search ? 'No matching claims' : 'No claims pending deduction'}</h3><p className="mt-2 text-sm text-slate-500">{search ? 'Try a different name or claim ID.' : 'Claims appear here once they have been approved.'}</p>{search && <Action className="mt-4" onClick={() => setSearch('')}>Clear search</Action>}</div>
           : <div className="mc-table-scroll" role="region" aria-label="Deduction register" tabIndex={0}><DataTable className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-600"><tr><th scope="col" className="px-5 py-3 font-medium">Member / claim</th><th scope="col" className="hidden px-5 py-3 font-medium lg:table-cell">Beneficiary</th><th scope="col" className="hidden whitespace-nowrap px-5 py-3 font-medium md:table-cell">Approved on</th><th scope="col" className="px-5 py-3 text-right font-medium">Action</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">{claims.map((claim) => <tr key={claim.claimId} className="hover:bg-slate-50/60">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-600"><tr><th scope="col" className="w-12 px-5 py-3"><input type="checkbox" className={checkboxClass} aria-label="Select all claims on this page" checked={allOnPageSelected} onChange={(e) => onToggleAll(claims, e.target.checked)} /></th><th scope="col" className="px-5 py-3 font-medium">Member / claim</th><th scope="col" className="hidden px-5 py-3 font-medium lg:table-cell">Beneficiary</th><th scope="col" className="hidden whitespace-nowrap px-5 py-3 font-medium md:table-cell">Date of death</th><th scope="col" className="hidden whitespace-nowrap px-5 py-3 font-medium md:table-cell">Approved on</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">{claims.map((claim) => <tr key={claim.claimId} className={selected.has(claim.claimId) ? 'bg-green-50/60' : 'hover:bg-slate-50/60'}>
+              <td className="w-12 px-5 py-4"><input type="checkbox" className={checkboxClass} aria-label={`Select claim ${claim.claimId} for ${claim.memberName}`} checked={selected.has(claim.claimId)} onChange={() => onToggle(claim)} /></td>
               <td className="min-w-44 px-5 py-4"><p className="font-semibold text-slate-900">{claim.memberName || '—'}</p><p className="mt-1 text-xs text-slate-500">{claim.claimId}</p><p className="mt-1 text-xs text-slate-500 lg:hidden">Beneficiary: {claim.beneficiaryName || '—'}</p></td>
               <td className="hidden px-5 py-4 text-slate-600 lg:table-cell">{claim.beneficiaryName || '—'}</td>
+              <td className="hidden whitespace-nowrap px-5 py-4 text-slate-600 md:table-cell">{shortDate(claim.dateOfDeath)}</td>
               <td className="hidden whitespace-nowrap px-5 py-4 text-slate-600 md:table-cell">{shortDate(claim.approval?.approvedAt)}</td>
-              <td className="px-5 py-4 text-right"><Action className="whitespace-nowrap" aria-label={`Review deduction for ${claim.memberName}, ${claim.claimId}`} onClick={() => onSelect(claim)}>Review deduction<ArrowRight aria-hidden="true" className="h-3.5 w-3.5" /></Action></td>
             </tr>)}</tbody>
           </DataTable></div>}
     <div className="mc-pagination">
@@ -64,10 +70,6 @@ export function ClaimDialog({ title, step, busy, onClose, children, footer }) {
       <ModalActions as="footer" className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">{footer}</ModalActions>
     </div>
   </dialog>;
-}
-
-export function ClaimIdentity({ claim }) {
-  return <div className="border-b border-slate-200 pb-4"><p className="text-xs text-slate-500">{claim.claimId}</p><p className="mt-1 text-lg font-semibold text-slate-900">{claim.memberName}</p><p className="mt-1 text-sm text-slate-600">Beneficiary: <span className="font-medium text-slate-900">{claim.beneficiaryName || '—'}</span></p></div>;
 }
 
 export function Detail({ label, children, strong = false }) {

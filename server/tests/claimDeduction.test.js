@@ -17,13 +17,14 @@ function load(path, dependencies) {
 }
 const response = () => ({ status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } });
 
-// processClaimDeduction (Flow A, per-claim) is the same blanket
+// processDeductionBatch (Flow A, a batch of claims) is the same blanket
 // per-member-charge mechanism as processAutomaticDeduction, but its
 // duplicate-prevention is a DIFFERENT mechanism: not a deterministic
-// ledgerId per member, but a single atomic claim-level lock
+// ledgerId per member, but an atomic lock on every claim in the batch
 // (Claim.findOneAndUpdate({claimId, status:'pending_deduction'},
 // {$set:{status:'deduction_processing'}})) — only one caller can ever win
-// that status flip. The fakes below implement that check-and-set with no
+// each status flip, and a batch that loses any of them gives back the ones
+// it won. The fakes below implement that check-and-set with no
 // internal `await` between reading and writing, matching real MongoDB's
 // atomicity for a single document, which is what actually lets two
 // concurrent calls in this test reliably produce one winner and one
@@ -65,9 +66,14 @@ function database(members, { claims = [] } = {}) {
       const stored = state.claims.find(c => c.claimId === query.claimId);
       return stored ? new ClaimDoc({ ...stored }) : null;
     },
-    updateOne: async (query, update) => {
-      const stored = state.claims.find(c => c.claimId === query.claimId && c.status === query.status);
-      if (stored) Object.assign(stored, update.$set);
+    find: query => {
+      const docs = state.claims.filter(c => query.claimId.$in.includes(c.claimId)).map(c => new ClaimDoc({ ...c }));
+      return { sort: async () => docs };
+    },
+    updateMany: async (query, update) => {
+      for (const stored of state.claims) {
+        if (query.claimId.$in.includes(stored.claimId) && stored.status === query.status) Object.assign(stored, update.$set);
+      }
     },
   };
 
@@ -110,138 +116,137 @@ const baseMembers = () => [
   { memberId: '003', memberName: 'Member Three', balance: -200 },
 ];
 const pendingClaim = (overrides = {}) => ({ claimId: 'CLM-1', memberName: 'Deceased Member', status: 'pending_deduction', ...overrides });
+const twoClaims = () => [pendingClaim(), pendingClaim({ claimId: 'CLM-2', memberName: 'Second Deceased' })];
+const request = (body, user = { username: 'treasurer.jane' }) => ({ body, user, ip: '', get: () => '' });
 
-test('processClaimDeduction charges every active member the configured rate with correct arithmetic', async () => {
-  const db = database(baseMembers(), { claims: [pendingClaim()] });
-  const { processClaimDeduction } = controller(db);
+test('a batch charges every active member once for all claims, sharing one JV number', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  const { processDeductionBatch } = controller(db);
 
   const res = response();
-  await processClaimDeduction({ params: { claimId: 'CLM-1' }, body: { jvNumber: 'JV-001' }, user: { username: 'treasurer.jane' }, ip: '', get: () => '' }, res);
+  await processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-001' }), res);
 
   assert.equal(res.code, 200);
-  assert.equal(res.data.data.deduction.membersCharged, 3);
-  assert.equal(res.data.data.deduction.totalCollected, 75, '3 members * ₱25 = ₱75 exactly');
-  assert.equal(res.data.data.status, 'deduction_processed');
-  assert.equal(db.state.ledgers.length, 3);
+  assert.equal(res.data.data.claimCount, 2);
+  assert.equal(res.data.data.amountPerMember, 50, '2 claims * ₱25');
+  assert.equal(res.data.data.totalCollected, 150, '3 members * ₱50');
+  assert.equal(db.state.ledgers.length, 3, 'one ledger row per member for the whole batch');
 
   const byMember = Object.fromEntries(db.state.ledgers.map(row => [row.memberId, row]));
-  assert.equal(byMember['001'].balance, 475, '500 - 25');
-  assert.equal(byMember['002'].balance, 975, '1000 - 25');
-  assert.equal(byMember['003'].balance, -225, '-200 - 25');
-  // Ledger reference drops the redundant "JV" prefix; the claim's own
-  // deduction.jvNumber record keeps the full value as entered.
-  assert.ok(db.state.ledgers.every(row => row.referenceId === '001'));
-  assert.equal(res.data.data.deduction.jvNumber, 'JV-001');
-  assert.ok(db.state.ledgers.every(row => row.description.includes('Deceased Member')));
+  assert.equal(byMember['001'].balance, 450, '500 - 50');
+  assert.equal(byMember['003'].balance, -250, '-200 - 50');
+  // The ledger reference keeps the number exactly as entered, "JV" prefix included.
+  assert.ok(db.state.ledgers.every(row => row.referenceId === 'JV-001' && row.debit === 50));
+
+  for (const claim of db.state.claims) {
+    assert.equal(claim.status, 'deduction_processed');
+    assert.equal(claim.deduction.jvNumber, 'JV-001');
+    assert.equal(claim.deduction.batchId, res.data.data.batchId);
+    assert.equal(claim.deduction.claimsInBatch, 2);
+    assert.equal(claim.deduction.amountPerMember, 25);
+    assert.equal(claim.deduction.totalCollected, 75, 'each claim records its own share');
+  }
 });
 
-test('a missing JV number is rejected before the claim lock is even attempted', async () => {
-  const db = database(baseMembers(), { claims: [pendingClaim()] });
-  const { processClaimDeduction } = controller(db);
-
+test('preview reports the same figures without writing anything', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
   const res = response();
-  await processClaimDeduction({ params: { claimId: 'CLM-1' }, body: {}, user: {}, ip: '', get: () => '' }, res);
+  await controller(db).previewDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), res);
+  assert.equal(res.code, 200);
+  assert.equal(res.data.data.amountPerMember, 50);
+  assert.equal(res.data.data.totalCollected, 150);
+  assert.equal(res.data.data.membersGoingNegative, 1);
+  assert.equal(db.state.ledgers.length, 0);
+  assert.ok(db.state.claims.every(c => c.status === 'pending_deduction'));
+});
 
-  assert.equal(res.code, 400);
-  assert.equal(db.state.claims[0].status, 'pending_deduction', 'the claim must not be touched at all');
+test('a missing JV number or claim list is rejected before any claim is locked', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  const { processDeductionBatch } = controller(db);
+
+  for (const body of [{ claimIds: ['CLM-1'] }, { jvNumber: 'JV-1' }, { jvNumber: 'JV-1', claimIds: [] }, { jvNumber: 'JV-1', claimIds: [{ $ne: null }] }, { jvNumber: 'JV-1', claimIds: ['CLM-1', 'CLM-1'] }]) {
+    const res = response();
+    await processDeductionBatch(request(body), res);
+    assert.equal(res.code, 400);
+  }
+  assert.ok(db.state.claims.every(c => c.status === 'pending_deduction'), 'no claim may be touched');
   assert.equal(db.state.ledgers.length, 0);
 });
 
-test('two concurrent requests for the same claim: exactly one is processed, the other is cleanly rejected', async () => {
-  const db = database(baseMembers(), { claims: [pendingClaim()] });
-  const { processClaimDeduction } = controller(db);
-  const req = (jv) => ({ params: { claimId: 'CLM-1' }, body: { jvNumber: jv }, user: { username: 'treasurer.jane' }, ip: '', get: () => '' });
+test('two concurrent batches over the same claim: exactly one is processed', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  const { processDeductionBatch } = controller(db);
 
   const resA = response();
   const resB = response();
   await Promise.all([
-    processClaimDeduction(req('JV-A'), resA),
-    processClaimDeduction(req('JV-B'), resB),
+    processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-A' }), resA),
+    processDeductionBatch(request({ claimIds: ['CLM-1'], jvNumber: 'JV-B' }), resB),
   ]);
 
-  const codes = [resA.code, resB.code].sort();
-  assert.deepEqual(codes, [200, 400], 'one request succeeds, the other is rejected by the atomic lock');
-  assert.equal(db.state.ledgers.length, 3, 'members are charged exactly once, not twice');
-  assert.equal(db.state.claims[0].status, 'deduction_processed');
+  assert.deepEqual([resA.code, resB.code].sort(), [200, 400]);
+  assert.equal(db.state.ledgers.length, 3, 'members are charged by one batch only');
 });
 
-test('a retried request against an already-processed claim is rejected and does not re-charge anyone', async () => {
+test('a batch containing an already-processed claim is rejected and gives back the claims it locked', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim(), pendingClaim({ claimId: 'CLM-2', status: 'deduction_processed' })] });
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-001' }), res);
+
+  assert.equal(res.code, 400);
+  assert.match(res.data.message, /CLM-2.*"deduction_processed"/);
+  assert.equal(db.state.claims[0].status, 'pending_deduction', 'CLM-1 must be unlocked again');
+  assert.equal(db.state.ledgers.length, 0);
+});
+
+test('an unknown claim returns 404 and leaves the rest of the batch pending', async () => {
   const db = database(baseMembers(), { claims: [pendingClaim()] });
-  const { processClaimDeduction } = controller(db);
-  const req = { params: { claimId: 'CLM-1' }, body: { jvNumber: 'JV-001' }, user: { username: 'treasurer.jane' }, ip: '', get: () => '' };
-
-  const first = response();
-  await processClaimDeduction(req, first);
-  assert.equal(first.code, 200);
-
-  const retry = response();
-  await processClaimDeduction(req, retry);
-  assert.equal(retry.code, 400);
-  assert.match(retry.data.message, /deduction_processed/);
-  assert.equal(db.state.ledgers.length, 3, 'the retry must not add a second set of charges');
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'NOPE'], jvNumber: 'JV-1' }), res);
+  assert.equal(res.code, 404);
+  assert.equal(db.state.claims[0].status, 'pending_deduction');
 });
 
-test('a claim not found returns 404; a claim in the wrong status reports that status and is left untouched', async () => {
-  const db = database(baseMembers(), { claims: [pendingClaim({ claimId: 'CLM-2', status: 'approved' })] });
-  const { processClaimDeduction } = controller(db);
+test('a failed operation releases every lock, and a retry then succeeds', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  const { processDeductionBatch } = controller(db);
 
-  const missing = response();
-  await processClaimDeduction({ params: { claimId: 'NOPE' }, body: { jvNumber: 'JV-1' }, user: {}, ip: '', get: () => '' }, missing);
-  assert.equal(missing.code, 404);
-
-  const wrongStatus = response();
-  await processClaimDeduction({ params: { claimId: 'CLM-2' }, body: { jvNumber: 'JV-1' }, user: {}, ip: '', get: () => '' }, wrongStatus);
-  assert.equal(wrongStatus.code, 400);
-  assert.match(wrongStatus.data.message, /"approved"/);
-  assert.equal(db.state.claims[0].status, 'approved');
-});
-
-test('a failed operation releases the claim lock back to pending_deduction, and a retry then succeeds', async () => {
-  const db = database(baseMembers(), { claims: [pendingClaim()] });
-  const { processClaimDeduction } = controller(db);
-
-  // Force the first attempt to fail partway through, after the lock has
-  // already been acquired (an invalid rate is the simplest realistic
-  // trigger — the same guard previewClaimDeduction uses).
   db.state.deductionRate = { amount: 0, settingId: 'DED-1' };
   const failed = response();
-  await processClaimDeduction({ params: { claimId: 'CLM-1' }, body: { jvNumber: 'JV-001' }, user: {}, ip: '', get: () => '' }, failed);
+  await processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-001' }), failed);
   assert.equal(failed.code, 400);
-  assert.equal(db.state.claims[0].status, 'pending_deduction', 'the lock must be released, not left stuck in deduction_processing');
+  assert.ok(db.state.claims.every(c => c.status === 'pending_deduction'), 'locks must be released');
   assert.equal(db.state.ledgers.length, 0);
 
-  // Fix the underlying problem and retry from the same (now-restored) state.
   db.state.deductionRate = { amount: 25, settingId: 'DED-1' };
   const retried = response();
-  await processClaimDeduction({ params: { claimId: 'CLM-1' }, body: { jvNumber: 'JV-002' }, user: {}, ip: '', get: () => '' }, retried);
+  await processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-002' }), retried);
   assert.equal(retried.code, 200);
-  assert.equal(db.state.claims[0].status, 'deduction_processed');
-  assert.equal(db.state.ledgers.length, 3);
+  assert.ok(db.state.claims.every(c => c.status === 'deduction_processed'));
 });
 
 test('a single member\'s ledger write failing does not abort the batch for everyone else', async () => {
-  const db = database(baseMembers(), { claims: [pendingClaim()] });
+  const db = database(baseMembers(), { claims: twoClaims() });
   db.state.failForMemberId = '002';
-  const { processClaimDeduction } = controller(db);
-
   const res = response();
-  await processClaimDeduction({ params: { claimId: 'CLM-1' }, body: { jvNumber: 'JV-001' }, user: {}, ip: '', get: () => '' }, res);
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-001' }), res);
 
   assert.equal(res.code, 200);
-  assert.equal(res.data.data.deduction.membersCharged, 2, 'the failing member is excluded, the other two still proceed');
-  assert.equal(res.data.data.deduction.totalCollected, 50);
-  assert.equal(db.state.ledgers.length, 2);
+  assert.equal(res.data.data.membersCharged, 2);
+  assert.equal(res.data.data.totalCollected, 100);
+  assert.equal(db.state.claims[0].deduction.totalCollected, 50);
   assert.ok(!db.state.ledgers.some(row => row.memberId === '002'));
 });
 
- test('claim deductions ignore supplied operator names in ledger, claim history and audit', async () => {
+test('claim deductions ignore supplied operator names in ledger, claim history and audit', async () => {
   const db = database(baseMembers(), { claims: [pendingClaim()] });
   const audits = [];
   db.deps['../../../shared/services/auditLoggingService'] = { createAuditLog: async row => audits.push(row) };
   const res = response();
-  await controller(db).processClaimDeduction({ params: { claimId: 'CLM-1' }, body: { jvNumber: 'JV-SEC', processedBy: 'forged.operator' }, user: { userId: 'STAFF-1', username: 'real.operator', role: 'treasurer', id: 'mongo-id' }, ip: '', get: () => '' }, res);
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'], jvNumber: 'JV-SEC', processedBy: 'forged.operator' }, { userId: 'STAFF-1', username: 'real.operator', role: 'treasurer', id: 'mongo-id' }), res);
   assert.equal(res.code, 200);
   assert.ok(db.state.ledgers.every(row => row.recordedBy === 'real.operator'));
+  assert.ok(db.state.ledgers.every(row => row.description.includes('Deceased Member')), 'a single-claim batch names the deceased');
   assert.equal(db.state.claims[0].deduction.processedBy, 'real.operator');
   assert.ok(db.state.claims[0].statusHistory.every(row => row.changedBy === 'real.operator'));
   assert.equal(audits[0].userName, 'real.operator');

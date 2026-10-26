@@ -34,8 +34,8 @@ const {
   listPendingDeduction,
   listClaimFinancials,
   getClaimById,
-  processClaimDeduction,
-  previewClaimDeduction
+  previewDeductionBatch,
+  processDeductionBatch
 } = require('../controllers/treasurerClaimController');
 
 const { getCurrentRate, getRateHistory, updateRate } = require('../controllers/deductionSettingController');
@@ -101,8 +101,10 @@ router.get('/claims/pending-deduction', listPendingDeduction);
 route sa baba, kung hindi, maaaring i-match ni Express as claimId yung
 "income-report". */
 router.get('/claims/income-report', listClaimFinancials);
+/* Batch deduction - pinipili ng Treasurer ang maraming pending claim (hal. lahat ng
+death claim ng buwan) at isang beses lang sisingilin ang bawat member, iisang JV. */
+router.post('/claims/deduction-batch/preview', previewDeductionBatch);
+router.post('/claims/deduction-batch', processDeductionBatch);
 router.get('/claims/:claimId', getClaimById);
-router.get('/claims/:claimId/deduction-preview', previewClaimDeduction);
-router.post('/claims/:claimId/process-deduction', processClaimDeduction);
 
 module.exports = router;
