@@ -59,8 +59,8 @@ test('one Mortuary sign-in routes each account by its server role; staff forms o
     await act(async () => root.render(React.createElement(MemoryRouter, { initialEntries: ['/mortuary/claims_officer?tab=backup'] }, React.createElement(ClaimsPortal, { user: { role: 'claims_officer', name: 'Test Staff' }, onBack() {} }))));
     const names = [...container.querySelectorAll('button[aria-current]')].map(button => button.getAttribute('aria-label'));
     assert.ok(container.textContent.includes('Claims Officer'));
-    for (const label of ['Dashboard', 'Claims', 'Beneficiaries']) assert.ok(container.querySelector(`button[aria-label="${label}"]`));
-    for (const label of ['Members', 'Audit Logs', 'Backup & Restore']) assert.equal(container.querySelector(`button[aria-label="${label}"]`), null);
+    for (const label of ['Dashboard', 'Members', 'Claims', 'Beneficiaries']) assert.ok(container.querySelector(`button[aria-label="${label}"]`), label);
+    for (const label of ['Audit Logs', 'Backup & Restore']) assert.ok(!container.querySelector(`button[aria-label="${label}"]`), label);
     assert.deepEqual(names, ['Dashboard']);
   } finally {
     await act(async () => root.unmount());

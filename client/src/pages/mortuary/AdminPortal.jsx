@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  Users,
   Menu,
   LogOut,
   HeartHandshake,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import {
   Dashboard,
+  MemberManagement,
   Claims,
   Beneficiaries,
 } from "../../components/mortuary/admin";
@@ -74,7 +76,7 @@ const AdminPortal = ({ onBack, user }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'claims', 'beneficiaries']);
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -83,6 +85,8 @@ const AdminPortal = ({ onBack, user }) => {
   const [members, setMembers] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
 
   useEffect(() => {
@@ -161,13 +165,36 @@ const AdminPortal = ({ onBack, user }) => {
 
   const sidebarItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
+    { id: "members", label: "Members", icon: Users },
     { id: "claims", label: "Claims", icon: ClipboardCheck },
     { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
   ];
 
 
+  const filteredMembers = members.filter((member) => {
+    const matchesStatus =
+      statusFilter === "all" || member.status === statusFilter;
+    const matchesSearch =
+      member.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.id?.toString().includes(searchQuery);
+    return matchesStatus && matchesSearch;
+  });
+
   const renderContent = () => {
     switch (activeSection) {
+      case "members":
+        return (
+          <MemberManagement
+            minimumBalance={stats?.minimumBalance}
+            filteredMembers={filteredMembers}
+            members={members}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            setActiveTab={setActiveSection}
+          />
+        );
       case "claims":
         return <Claims user={user} />;
       case "beneficiaries":
