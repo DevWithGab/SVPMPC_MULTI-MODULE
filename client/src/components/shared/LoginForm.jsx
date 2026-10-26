@@ -64,17 +64,17 @@ export default function LoginForm({
       helpText:
         "Scanner operator access • Contact your administrator for assistance",
     },
-    treasurer: {
+    mortuary: {
       icon: Calculator,
-      title: "Treasurer / Staff Access",
+      title: "Mortuary sign in",
       subtitle: `Sign in to manage ${selectedSystemData?.title}`,
       usernameLabel: "Username",
       passwordLabel: "Password",
       usernamePlaceholder: "Enter your username",
-      passwordPlaceholder: "Enter treasurer password",
+      passwordPlaceholder: "Enter your password",
       buttonText: "Sign In",
       buttonIcon: LogIn,
-      helpText: "Treasurer access • Contact administrator for assistance",
+      helpText: "Use your staff account. Your assigned role determines your workspace.",
     },
   };
 
@@ -89,7 +89,7 @@ export default function LoginForm({
       transition={{ duration: 0.5 }}
     >
       {/* Back Button */}
-      <BackButton onClick={onBack}>Back to Role Selection</BackButton>
+      <BackButton onClick={onBack}>{type === 'mortuary' ? 'Back to System Selection' : 'Back to Role Selection'}</BackButton>
 
       {/* Professional Logo Branding */}
       <CooperativeLogo icon={currentConfig.icon} />

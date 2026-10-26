@@ -423,6 +423,8 @@ export const mortuaryMemberAPI = {
 // MORTUARY - DASHBOARD API
 // ============================================
 export const mortuaryDashboardAPI = {
+  getFundOverview: async () => (await api.get('/mortuary/admin/fund-overview')).data,
+  getBalances: async () => (await api.get('/mortuary/admin/balances')).data,
   getDashboard: async (memberId) => {
     const response = await api.get(`/mortuary/dashboard/${memberId}`);
     return response.data;

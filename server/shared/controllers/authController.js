@@ -1,3 +1,4 @@
+const { moduleRoles } = require('../utils/staffRoles');
 const User = require('../models/User');
 const CredentialLog = require('../models/CredentialLog');
 const jwt = require('jsonwebtoken');
@@ -56,7 +57,9 @@ const login = async (req, res) => {
       const allowedRolesByExpectedRole = {
         secretary: ['secretary'],
         scanner_operator: ['scanner_operator'],
-        treasurer: ['treasurer'],
+        treasurer: ['treasurer', 'finance_officer'],
+        finance_officer: ['finance_officer', 'treasurer'],
+        claims_officer: ['claims_officer', 'admin'],
         admin: ['admin', 'super_admin'],
         super_admin: ['super_admin'],
       };
@@ -74,7 +77,7 @@ const login = async (req, res) => {
     Attendance-only admin puwede pa rin makapasok sa Mortuary admin login.
     Si super_admin by design naman nagmamanage ng both modules kaya sine-skip
     niya yung check na ito. */
-    if (module && user.role !== 'super_admin' && !user.modules?.includes(module)) {
+    if (module && user.role !== 'super_admin' && (!user.modules?.includes(module) || !moduleRoles[module]?.includes(user.role))) {
       return res.status(403).json({
         message: `This account isn't registered for the ${module} system.`,
       });

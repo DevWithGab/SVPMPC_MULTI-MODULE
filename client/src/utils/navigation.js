@@ -2,6 +2,7 @@ import { MODULE_ROLES } from './constants.js';
 import { withDisplayName } from './authSession.js';
 
 export function portalPath(module, role) {
+  if (module === 'mortuary') role = ({ admin: 'claims_officer', treasurer: 'finance_officer' })[role] || role;
   return MODULE_ROLES[module]?.includes(role) ? `/${module}/${role}` : '/';
 }
 

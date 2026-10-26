@@ -66,7 +66,9 @@ const getRoleColor = (role) =>
 const ROLE_LABELS = {
   admin: "Admin",
   super_admin: "Super Admin",
-  treasurer: "Treasurer",
+  treasurer: "Finance Officer (legacy)",
+  claims_officer: "Claims Officer",
+  finance_officer: "Finance Officer",
   secretary: "Secretary",
   member: "Member",
 };
@@ -329,8 +331,10 @@ const AuditLogs = () => {
               onChange={(e) => handleFilterChange("userRole", e.target.value)}
             >
               <option value="">All roles</option>
-              <option value="admin">Admin</option>
-              <option value="treasurer">Treasurer</option>
+              <option value="claims_officer">Claims Officer</option>
+              <option value="finance_officer">Finance Officer</option>
+              <option value="admin">Admin (legacy)</option>
+              <option value="treasurer">Treasurer (legacy)</option>
               <option value="super_admin">Super Admin</option>
             </Select>
           </label>

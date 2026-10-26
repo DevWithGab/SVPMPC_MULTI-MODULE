@@ -1,7 +1,8 @@
 const express = require('express');
 const {
   authenticateToken,
-  authorizeAdminOnly,
+  authorizeClaimsOnly,
+  authorizeRoles,
   bulkUploadLimiter
 } = require('../../../middleware');
 
@@ -18,48 +19,52 @@ const router = express.Router();
 
 // All admin operations require administrator access.
 router.use(authenticateToken);
-router.use(authorizeAdminOnly);
+router.use(authorizeClaimsOnly);
+const superAdminOnly = authorizeRoles('super_admin');
 
 // Dashboard routes
 router.get('/dashboard', dashboardController.getAdminDashboard);
+// Read-only context for the Claims Officer dashboard.
+router.get('/fund-overview', dashboardController.getTreasurerDashboard);
+router.get('/balances', require('../controllers/deductionController').getAllMemberBalances);
 
 // Member management routes (admin only)
 router.get('/members', adminController.getAllMembers);
-router.post('/members/create', adminController.createMember);
-router.post('/members/bulk-create', bulkUploadLimiter, adminController.bulkCreateMembers);
-router.put('/members/:memberId', adminController.updateMember);
-router.delete('/members/:memberId', adminController.deleteMember);
+router.post('/members/create', superAdminOnly, adminController.createMember);
+router.post('/members/bulk-create', superAdminOnly, bulkUploadLimiter, adminController.bulkCreateMembers);
+router.put('/members/:memberId', superAdminOnly, adminController.updateMember);
+router.delete('/members/:memberId', superAdminOnly, adminController.deleteMember);
 
 // Contribution management routes (admin has full access)
 router.get('/contributions', contributionController.getAllContributions);
-router.post('/contributions', contributionController.recordContribution);
+router.post('/contributions', superAdminOnly, contributionController.recordContribution);
 
 // Ledger management routes
-router.get('/ledger', ledgerController.getAllLedger);
-router.get('/ledger/:memberId', ledgerController.getMemberLedger);
+router.get('/ledger', superAdminOnly, ledgerController.getAllLedger);
+router.get('/ledger/:memberId', superAdminOnly, ledgerController.getMemberLedger);
 
 // Claims management routes
-router.post('/claims', authenticateToken, authorizeAdminOnly, claimController.createClaim);
-router.get('/claims', authenticateToken, authorizeAdminOnly, claimController.getAllClaims);
-router.get('/claims/:claimId', authenticateToken, authorizeAdminOnly, claimController.getClaimById);
-router.post('/claims/:claimId/requirements', authenticateToken, authorizeAdminOnly, claimController.addRequirement);
-router.put('/claims/:claimId/requirements', authenticateToken, authorizeAdminOnly, claimController.updateRequirements);
-router.delete('/claims/:claimId/requirements/:requirementKey', authenticateToken, authorizeAdminOnly, claimController.removeRequirement);
-router.put('/claims/:claimId/verification', authenticateToken, authorizeAdminOnly, claimController.updateVerification);
-router.put('/claims/:claimId/approve', authenticateToken, authorizeAdminOnly, claimController.approveClaim);
-router.put('/claims/:claimId/reject', authenticateToken, authorizeAdminOnly, claimController.rejectClaim);
+router.post('/claims', authenticateToken, authorizeClaimsOnly, claimController.createClaim);
+router.get('/claims', authenticateToken, authorizeClaimsOnly, claimController.getAllClaims);
+router.get('/claims/:claimId', authenticateToken, authorizeClaimsOnly, claimController.getClaimById);
+router.post('/claims/:claimId/requirements', authenticateToken, authorizeClaimsOnly, claimController.addRequirement);
+router.put('/claims/:claimId/requirements', authenticateToken, authorizeClaimsOnly, claimController.updateRequirements);
+router.delete('/claims/:claimId/requirements/:requirementKey', authenticateToken, authorizeClaimsOnly, claimController.removeRequirement);
+router.put('/claims/:claimId/verification', authenticateToken, authorizeClaimsOnly, claimController.updateVerification);
+router.put('/claims/:claimId/approve', authenticateToken, authorizeClaimsOnly, claimController.approveClaim);
+router.put('/claims/:claimId/reject', authenticateToken, authorizeClaimsOnly, claimController.rejectClaim);
 
 // Beneficiaries routes
-router.get('/beneficiaries', authenticateToken, authorizeAdminOnly, beneficiaryController.getAllBeneficiaries);
-router.post('/beneficiaries/bulk-upload', authenticateToken, authorizeAdminOnly, bulkUploadLimiter, beneficiaryController.bulkUploadBeneficiaries);
-router.get('/beneficiaries/:memberId/history', authenticateToken, authorizeAdminOnly, beneficiaryController.getBeneficiaryHistory);
-router.put('/beneficiaries/:memberId', authenticateToken, authorizeAdminOnly, beneficiaryController.updateBeneficiary);
+router.get('/beneficiaries', authenticateToken, authorizeClaimsOnly, beneficiaryController.getAllBeneficiaries);
+router.post('/beneficiaries/bulk-upload', authenticateToken, authorizeClaimsOnly, bulkUploadLimiter, beneficiaryController.bulkUploadBeneficiaries);
+router.get('/beneficiaries/:memberId/history', authenticateToken, authorizeClaimsOnly, beneficiaryController.getBeneficiaryHistory);
+router.put('/beneficiaries/:memberId', authenticateToken, authorizeClaimsOnly, beneficiaryController.updateBeneficiary);
 
 /* Database backup/restore - yung restore ay bulk write sa live data, kaya
 same explicit auth din ang ginagamit nito kagaya ng ibang consequential
 routes sa taas. */
-router.get('/backup/export', authenticateToken, authorizeAdminOnly, backupController.getFullBackup);
-router.get('/backup/ledger', authenticateToken, authorizeAdminOnly, backupController.getLedgerExport);
-router.post('/backup/restore', authenticateToken, authorizeAdminOnly, backupController.restoreBackup);
+router.get('/backup/export', authenticateToken, superAdminOnly, backupController.getFullBackup);
+router.get('/backup/ledger', authenticateToken, superAdminOnly, backupController.getLedgerExport);
+router.post('/backup/restore', authenticateToken, superAdminOnly, backupController.restoreBackup);
 
 module.exports = router;

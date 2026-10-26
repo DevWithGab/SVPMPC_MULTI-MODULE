@@ -6,29 +6,23 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
-  Users,
-  FileText,
   LayoutGrid,
   Menu,
   LogOut,
   HeartHandshake,
   ClipboardCheck,
-  Shield,
 } from "lucide-react";
 import {
   Dashboard,
-  MemberManagement,
   Claims,
   Beneficiaries,
-  AuditLogs,
-  DatabaseBackup,
 } from "../../components/mortuary/admin";
 import { Card } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { ToastContainer, useToast } from "../../components/ui/toast";
 import {
   contributionAPI,
-  treasurerAPI,
+  mortuaryDashboardAPI,
   mortuaryMemberAPI,
 } from "../../services/api";
 
@@ -80,7 +74,7 @@ const AdminPortal = ({ onBack, user }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'auditlogs', 'backup']);
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'claims', 'beneficiaries']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -90,8 +84,6 @@ const AdminPortal = ({ onBack, user }) => {
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState(null);
 
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -121,8 +113,8 @@ const AdminPortal = ({ onBack, user }) => {
       ] = await Promise.all([
         loadAllPages(page => mortuaryMemberAPI.getAllMembers({ page, limit: 100 })).then(members => ({ success: true, members })),
         contributionAPI.getAllContributions(),
-        treasurerAPI.getDashboard(),
-        treasurerAPI.getAllMemberBalances(),
+        mortuaryDashboardAPI.getFundOverview(),
+        mortuaryDashboardAPI.getBalances(),
       ]);
 
       if (!dashboardRes?.data || !balancesRes?.data || [membersRes, contributionsRes, dashboardRes, balancesRes].some(result => result?.success === false)) {
@@ -169,52 +161,17 @@ const AdminPortal = ({ onBack, user }) => {
 
   const sidebarItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
-    { id: "members", label: "Members", icon: Users },
     { id: "claims", label: "Claims", icon: ClipboardCheck },
     { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
-    { id: "auditlogs", label: "Audit Logs", icon: Shield },
-    { id: "backup", label: "Backup & Restore", icon: FileText },
   ];
 
-  const filteredMembers = members.filter((member) => {
-    const matchesStatus =
-      statusFilter === "all" || member.status === statusFilter;
-    const matchesSearch =
-      member.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.id?.toString().includes(searchQuery);
-    return matchesStatus && matchesSearch;
-  });
 
   const renderContent = () => {
     switch (activeSection) {
-      case "members":
-        return (
-          <MemberManagement
-            minimumBalance={stats?.minimumBalance}
-            filteredMembers={filteredMembers}
-            members={members}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            setActiveTab={setActiveSection}
-          />
-        );
       case "claims":
         return <Claims user={user} />;
       case "beneficiaries":
         return <Beneficiaries user={user} />;
-      case "auditlogs":
-        return <AuditLogs />;
-      case "backup":
-        return (
-          <DatabaseBackup
-            members={members}
-            contributions={contributions}
-            user={user}
-            onRestored={fetchInitialData}
-          />
-        );
       default:
         return (
           <Dashboard
@@ -322,15 +279,15 @@ const AdminPortal = ({ onBack, user }) => {
             <div className="flex items-center gap-3 px-1 pb-2">
               <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-full flex items-center justify-center shrink-0">
                 <span className="text-white text-xs font-bold">
-                  {(user?.name || "Admin").charAt(0).toUpperCase()}
+                  {(user?.name || "Claims Officer").charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white truncate">
-                  {user?.name || "Admin User"}
+                  {user?.name || "Claims Officer"}
                 </p>
                 <p className="text-[11px] text-green-100/60">
-                  System Administrator
+                  Claims Officer
                 </p>
               </div>
             </div>
@@ -378,7 +335,7 @@ const AdminPortal = ({ onBack, user }) => {
           </button>
           <div className="text-center">
             <h1 className="font-bold text-white text-base tracking-tight">
-              Mortuary Admin
+              Claims Officer
             </h1>
             <p className="text-green-100/60 text-xs font-medium">
               Fund Management

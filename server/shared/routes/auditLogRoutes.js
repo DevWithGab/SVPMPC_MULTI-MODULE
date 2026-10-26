@@ -18,12 +18,13 @@ router.use(authenticateToken);
 /* Puwedeng may contact details yung stored audit snapshots. Hindi gumagamit
 ng audit APIs ang scanner screens at hindi dapat makalusot dito papalampas
 sa attendance response privacy. */
-router.use(authorizeRoles('admin', 'super_admin', 'secretary', 'treasurer'));
+router.use(authorizeRoles('admin', 'super_admin', 'secretary'));
 router.use((req, res, next) => {
   if (req.user.role === 'super_admin') { req.auditModule = req.query.module; return next(); }
-  const modules = req.user.modules || [];
+  const modules = (req.user.modules || []).filter(module => module === 'attendance');
+  if (!modules.length) return res.status(403).json({ message: 'Mortuary audit logs are available to Super Admin only.' });
   if (req.query.module && !modules.includes(req.query.module)) return res.status(403).json({ message: 'Module access denied' });
-  req.auditModule = req.query.module || modules.filter(module => ['attendance', 'mortuary'].includes(module));
+  req.auditModule = req.query.module || modules;
   next();
 });
 

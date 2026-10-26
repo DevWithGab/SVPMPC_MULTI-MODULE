@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { authorizeTreasurerOnly } = require('../../../middleware/auth');
 
 // Authentication, password change, and module access are enforced by server.js.
 
@@ -21,13 +22,13 @@ const ledgerController = require('../controllers/ledgerController');
 router.get('/dashboard/:memberId', dashboardController.getDashboard);
 
 // Legacy contribution routes
-router.post('/contributions/record', contributionController.recordContribution);
+router.post('/contributions/record', authorizeTreasurerOnly, contributionController.recordContribution);
 router.get('/contributions/:memberId', contributionController.getContributionHistory);
 router.get('/contributions', contributionController.getAllContributions);
 
 // Legacy ledger routes
-router.get('/ledger/:memberId', ledgerController.getMemberLedger);
-router.get('/ledger', ledgerController.getAllLedger);
-router.get('/balance/:memberId', ledgerController.getMemberBalance);
+router.get('/ledger/:memberId', authorizeTreasurerOnly, ledgerController.getMemberLedger);
+router.get('/ledger', authorizeTreasurerOnly, ledgerController.getAllLedger);
+router.get('/balance/:memberId', authorizeTreasurerOnly, ledgerController.getMemberBalance);
 
 module.exports = router;

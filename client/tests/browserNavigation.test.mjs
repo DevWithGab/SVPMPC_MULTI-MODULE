@@ -62,13 +62,11 @@ test('login and portal screens follow browser Back/Forward, including direct log
     shows('Select Module');
 
     await mount('/?module=mortuary&role=treasurer');
-    shows('Treasurer / Staff Access');
-    await click('Back to Role Selection');
-    shows('Select Your Role');
-    await click('Back to Modules');
+    shows('Mortuary sign in');
+    await click('Back to System Selection');
     shows('Select Module');
     await mount('/?module=mortuary&role=scanner_operator');
-    shows('Select Your Role');
+    shows('Mortuary sign in');
     await mount('/?module=unknown&role=admin');
     shows('Select Module');
 

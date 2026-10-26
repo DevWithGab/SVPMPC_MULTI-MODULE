@@ -3,7 +3,8 @@ const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const { actorName, invalidateStaffNames } = require('../utils/actorName');
 
-const roles = { admin: ['attendance', 'mortuary'], secretary: ['attendance'], scanner_operator: ['attendance'], treasurer: ['mortuary'] };
+const { roleModules: roles } = require('../utils/staffRoles');
+const managedRoles = [...Object.keys(roles), 'treasurer'];
 const publicUser = user => Object.fromEntries(['userId', 'staffId', 'fullName', 'username', 'email', 'phoneNumber', 'role', 'modules', 'status', 'isTemporaryPassword', 'lastLoginDate'].map(key => [key, user[key]]));
 const temporaryPassword = () => randomBytes(18).toString('base64url');
 const normalizeUsername = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -22,7 +23,7 @@ const failure = (res, error) => res.status(error.code === 11000 ? 409 : 500).jso
 
 exports.list = async (req, res) => {
   res.set('Cache-Control', 'no-store');
-  const users = await User.find({ role: { $in: Object.keys(roles) } }).select('-passwordHash').sort({ createdAt: -1 });
+  const users = await User.find({ role: { $in: managedRoles } }).select('-passwordHash').sort({ createdAt: -1 });
   res.json({ users: users.map(publicUser) });
 };
 exports.create = async (req, res) => {
@@ -46,7 +47,7 @@ exports.update = async (req, res) => {
   const { role, modules, status } = req.body;
   if (!validateAccess(role, modules) || !['active', 'inactive', 'suspended'].includes(status)) return res.status(400).json({ message: 'Invalid role, modules, or account status.' });
   try {
-    const user = await User.findOne({ userId: req.params.userId, role: { $in: Object.keys(roles) } });
+    const user = await User.findOne({ userId: req.params.userId, role: { $in: managedRoles } });
     if (!user) return res.status(404).json({ message: 'Staff account not found.' });
     const before = publicUser(user);
     if (req.body.fullName !== undefined) {
@@ -67,7 +68,7 @@ exports.update = async (req, res) => {
 };
 exports.resetPassword = async (req, res) => {
   try {
-    const user = await User.findOne({ userId: req.params.userId, role: { $in: Object.keys(roles) } });
+    const user = await User.findOne({ userId: req.params.userId, role: { $in: managedRoles } });
     if (!user) return res.status(404).json({ message: 'Staff account not found.' });
     const password = temporaryPassword();
     Object.assign(user, { passwordHash: password, isTemporaryPassword: true, sessionVersion: (user.sessionVersion || 0) + 1 });
@@ -81,7 +82,7 @@ exports.validateAccess = validateAccess;
 exports.remove = async (req, res) => {
   if (req.params.userId === req.user.userId) return res.status(403).json({ message: 'You cannot delete your own account.' });
   try {
-    const user = await User.findOneAndDelete({ userId: req.params.userId, role: { $in: Object.keys(roles) } });
+    const user = await User.findOneAndDelete({ userId: req.params.userId, role: { $in: managedRoles } });
     if (!user) return res.status(404).json({ message: 'Staff account not found.' });
     await audit(req, user, 'staff_deleted', publicUser(user));
     res.json({ userId: user.userId, message: 'Staff account deleted.' });

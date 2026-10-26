@@ -58,7 +58,7 @@ export default function ApproveRejectClaimModal({ isOpen, onClose, mode, claim, 
             <CheckCircle2 className="w-5 h-5 text-coop-green shrink-0 mt-0.5" />
             <p className="text-sm text-slate-700">
               This will approve the claim for <span className="font-bold">{claim?.memberName}</span> and move it to{' '}
-              <span className="font-bold">Pending Monthly Deduction</span>, ready for the Treasurer to process.
+              <span className="font-bold">Pending Monthly Deduction</span>, ready for the Finance Officer to process.
             </p>
           </div>
         ) : (

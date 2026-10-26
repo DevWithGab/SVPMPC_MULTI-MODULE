@@ -1,3 +1,4 @@
+const { moduleRoles, claimsRoles, financeRoles } = require('../shared/utils/staffRoles');
 const jwt = require('jsonwebtoken');
 const User = require('../shared/models/User');
 
@@ -75,12 +76,7 @@ const authorizeModule = (module) => {
     if (req.user.role === 'super_admin') return next();
     if (!req.user.modules?.includes(module)) return res.status(403).json({ message: 'Module access denied' });
     // Check if user has access to the specific module
-    const moduleAccess = {
-      'mortuary': ['admin', 'treasurer'],
-      /* Wala na self-service access ang Members sa attendance system - yung
-      QR codes nila ay physically issued and used na lang. */
-      'attendance': ['admin', 'secretary', 'scanner_operator']
-    };
+    const moduleAccess = moduleRoles;
 
     if (!moduleAccess[module] || !moduleAccess[module].includes(req.user.role)) {
       return res.status(403).json({ 
@@ -94,11 +90,12 @@ const authorizeModule = (module) => {
 };
 
 // Middleware for specific role combinations
-const authorizeMortuaryRoles = authorizeRoles('admin', 'treasurer', 'super_admin');
+const authorizeMortuaryRoles = authorizeRoles(...new Set([...claimsRoles, ...financeRoles]));
 /* Wala na self-service access ang Members sa attendance system - yung
 QR codes nila ay physically issued and used na lang. */
 const authorizeAttendanceRoles = authorizeRoles('admin', 'secretary', 'scanner_operator', 'super_admin');
-const authorizeTreasurerOnly = authorizeRoles('treasurer', 'admin', 'super_admin');
+const authorizeTreasurerOnly = authorizeRoles(...financeRoles);
+const authorizeClaimsOnly = authorizeRoles(...claimsRoles);
 const authorizeSecretaryOnly = authorizeRoles('secretary', 'admin', 'super_admin');
 /* Parang admin-or-above ang treatment ng super_admin saanman ginagamit ang
 authorizeAdminOnly - yung login gate (authController's expectedRole check)
@@ -120,6 +117,7 @@ module.exports = {
   authorizeMortuaryRoles,
   authorizeAttendanceRoles,
   authorizeTreasurerOnly,
+  authorizeClaimsOnly,
   authorizeSecretaryOnly,
   authorizeAdminOnly
 };

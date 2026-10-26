@@ -19,8 +19,8 @@ pair. Yung mismong listahan ng mga pair na valid ay naka-define na sa constants.
 (ROLE_MODULES) - dito lang kailangan sabihin kung ANO ang ipapakita sa bawat isa,
 hindi kung alin sa mga pair ang valid. */
 const PORTAL_COMPONENTS = {
-  '/mortuary/admin': MortuaryAdminPortal,
-  '/mortuary/treasurer': MortuaryTreasurerPortal,
+  '/mortuary/claims_officer': MortuaryAdminPortal,
+  '/mortuary/finance_officer': MortuaryTreasurerPortal,
   '/attendance/secretary': AttendanceSecretaryPortal,
   '/attendance/scanner_operator': AttendanceOperatorPortal,
   '/attendance/admin': AttendanceAdminPortal,
@@ -79,12 +79,14 @@ function AppRoutes() {
       <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'admin', user, token)} />} />
       {Object.entries(portals).map(([path, Portal]) => (
         <Route key={path} path={path} element={
-          isSuperAdmin && path.endsWith('/admin') ? createElement(Portal, { user: authUser, token: authToken, onBack: handleLogout })
+          isSuperAdmin && (path.endsWith('/admin') || path.startsWith('/mortuary/')) ? createElement(Portal, { user: authUser, token: authToken, onBack: handleLogout })
             : !session ? <Navigate to="/" replace state={{ from: { pathname: location.pathname, search: location.search } }} />
             : home !== path ? <Navigate to={home} replace />
               : createElement(Portal, { user: session.user, token: session.token, onBack: handleLogout })
         } />
       ))}
+      <Route path="/mortuary/admin" element={<Navigate to="/mortuary/claims_officer" replace />} />
+      <Route path="/mortuary/treasurer" element={<Navigate to="/mortuary/finance_officer" replace />} />
       <Route path="*" element={<Navigate to={home} replace />} />
     </Routes>
   );
@@ -97,12 +99,12 @@ function AppRoutes() {
   screen) ay umaasa sa normal page scrolling gamit ang min-h-screen, kaya HINDI dapat
   i-wrap ng ganito - kapag ginawa, ma-clip ito laban sa overflow-hidden na walang
   paraan para mag-scroll. */
-  const isAdminPortalRoute = location.pathname === '/attendance/admin' || location.pathname === '/mortuary/admin';
+  const isAdminPortalRoute = location.pathname === '/attendance/admin' || location.pathname.startsWith('/mortuary/');
   if (isSuperAdmin && isAdminPortalRoute) {
     return (
       <div className="h-dvh flex flex-col overflow-hidden">
         <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-emerald-900 text-white p-3 shrink-0">
-          <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/admin">Mortuary</Link>
+          <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/claims_officer">Mortuary</Link>
           <button className="ml-auto" onClick={handleLogout}>Sign out</button>
         </nav>
         <div className="flex-1 min-h-0">{routesElement}</div>
@@ -112,7 +114,7 @@ function AppRoutes() {
 
   return (<>
     {isSuperAdmin && <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-emerald-900 text-white p-3">
-      <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/admin">Mortuary</Link>
+      <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/claims_officer">Mortuary</Link>
       <button className="ml-auto" onClick={handleLogout}>Sign out</button>
     </nav>}
     {routesElement}

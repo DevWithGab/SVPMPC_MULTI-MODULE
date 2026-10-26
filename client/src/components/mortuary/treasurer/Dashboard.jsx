@@ -11,7 +11,7 @@ import './Dashboard.css';
 import { MEMBER_STANDING_LABELS } from '../../../utils/memberStanding';
 
 const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError, setActiveTab, onRefresh, refreshing = false }) => {
-  const firstName = user?.name?.split(' ')[0] || 'Treasurer';
+  const firstName = user?.name?.split(' ')[0] || 'Finance Officer';
   const healthyRatio = memberBalanceCoverage(stats);
   const minimumBalance = stats?.minimumBalance ?? 1000;
 

@@ -96,11 +96,11 @@ test('staff creation and reset return credentials once, exclude secrets from lis
   assert.ok(!JSON.stringify(logs).includes(oldPassword));
   assert.ok(!JSON.stringify(logs).includes(reset.data.credentials.password));
   const updated = response();
-  await staff.update({ user: actor, params: { userId: users[0].userId }, body: { role: 'admin', modules: ['mortuary'], status: 'inactive' } }, updated);
+  await staff.update({ user: actor, params: { userId: users[0].userId }, body: { role: 'claims_officer', modules: ['mortuary'], status: 'inactive' } }, updated);
   assert.equal(users[0].sessionVersion, 2);
   assert.equal(users[0].status, 'inactive');
   assert.equal(logs[2].changes.before.role, 'secretary');
-  assert.equal(logs[2].changes.after.role, 'admin');
+  assert.equal(logs[2].changes.after.role, 'claims_officer');
   const invalid = response(); await staff.create({ ...req, body: { ...req.body, role: 'super_admin' } }, invalid);
   assert.equal(invalid.code, 400);
   const crossModule = response(); await staff.create({ ...req, body: { ...req.body, modules: ['mortuary'] } }, crossModule);

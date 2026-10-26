@@ -406,12 +406,6 @@ const Dashboard = ({
       tab: "claims",
     },
     {
-      icon: Users,
-      label: "Manage Members",
-      desc: "View and manage members",
-      tab: "members",
-    },
-    {
       icon: HeartHandshake,
       label: "Beneficiaries",
       desc: "Manage claim beneficiaries",
@@ -419,7 +413,7 @@ const Dashboard = ({
     },
   ];
 
-  const firstName = user?.name?.split(" ")[0] || "Admin";
+  const firstName = user?.name?.split(" ")[0] || "Claims Officer";
 
   return (
     <div className="treasurer-dashboard mortuary-admin-dashboard">
@@ -552,7 +546,7 @@ const Dashboard = ({
           </div>
         </div>
 
-        <aside className="td-sidebar" aria-label="Claims and administration">
+        <aside className="td-sidebar" aria-label="Claims overview">
           <Panel as="section" className="td-panel" aria-labelledby="mad-claims-title">
             <PanelHeader as="div" className="td-panel-heading">
               <h2 id="mad-claims-title">Claims overview</h2>
@@ -583,7 +577,7 @@ const Dashboard = ({
             <button className="mad-panel-link" onClick={() => setActiveTab("claims")}>View claims <ArrowRight size={15} aria-hidden="true" /></button>
           </Panel>
 
-          <nav className="td-tools" aria-label="Administration workspace">
+          <nav className="td-tools" aria-label="Claims workspace">
             <h2>Workspace</h2>
             {quickActions.map((action) => (
               <button key={action.label} onClick={() => setActiveTab(action.tab)}>

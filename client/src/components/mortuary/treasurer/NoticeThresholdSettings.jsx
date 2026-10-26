@@ -43,7 +43,7 @@ export default function NoticeThresholdSettings({ user }) {
   return (
     <div className="fs-section">
       <p className="fs-section-description">
-        The balance ranges that trigger Notice 1, Notice 2, and the Final Notice printed from the Treasurer's
+        The balance ranges that trigger Notice 1, Notice 2, and the Final Notice printed from the Finance Officer's
         Member Ledger.
       </p>
 

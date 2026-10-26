@@ -6,7 +6,6 @@ import {
   UserCheck,
   Shield,
   ClipboardList,
-  Calculator,
 } from "lucide-react";
 
 // Import our new components
@@ -100,15 +99,6 @@ export default function SystemSelector({ onModuleSelect, notice }) {
         description: "Scan attendance QR codes",
         icon: UserCheck,
         code: "SOP",
-      });
-    } else if (systemId === "mortuary") {
-      // Only treasurer and admin for mortuary
-      baseRoles.unshift({
-        id: "treasurer",
-        title: "Treasurer / Staff",
-        description: "Manage fund & contributions",
-        icon: Calculator,
-        code: "TRS",
       });
     }
 
@@ -284,7 +274,6 @@ export default function SystemSelector({ onModuleSelect, notice }) {
         body: JSON.stringify({
           username: treasurerLoginData.username,
           password: treasurerLoginData.password,
-          expectedRole: "treasurer",
           module: selectedSystem,
         }),
       });
@@ -298,7 +287,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
 
         // Call the parent callback to navigate to the appropriate portal
         if (onModuleSelect) {
-          onModuleSelect(selectedSystem, "treasurer", data.user, data.token);
+          onModuleSelect(selectedSystem, data.user.role === 'super_admin' ? 'claims_officer' : data.user.role, data.user, data.token);
         }
 
         // Reset form
@@ -320,7 +309,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
     if (
       step === "ADMIN_LOGIN" ||
       step === "SECRETARY_LOGIN" ||
-      step === "TREASURER_LOGIN" ||
+      step === "MORTUARY_LOGIN" ||
       step === "OPERATOR_LOGIN"
     ) {
       back();
@@ -402,9 +391,9 @@ export default function SystemSelector({ onModuleSelect, notice }) {
           )}
 
           {/* Treasurer Login Form */}
-          {step === "TREASURER_LOGIN" && (
+          {step === "MORTUARY_LOGIN" && (
             <LoginForm
-              type="treasurer"
+              type="mortuary"
               selectedSystem={selectedSystem}
               systems={systems}
               loginData={treasurerLoginData}

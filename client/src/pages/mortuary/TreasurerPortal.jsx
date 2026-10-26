@@ -91,7 +91,7 @@ const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
 );
 
 const PortalSkeleton = () => (
-  <div className="space-y-6 animate-pulse" role="status" aria-label="Loading treasurer data">
+  <div className="space-y-6 animate-pulse" role="status" aria-label="Loading finance data">
     <div className="space-y-2">
       <div className="h-8 w-56 bg-slate-200 rounded" />
       <div className="h-4 w-72 bg-slate-100 rounded" />
@@ -108,7 +108,8 @@ const PortalSkeleton = () => (
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
 
-  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
+  const [requestedTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
+  const activeTab = requestedTab === 'contributions' ? 'ledger' : requestedTab;
   const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'income-report']); // 'pending-deduction' | 'income-report'
 
   const [members, setMembers] = useState([]);
@@ -733,11 +734,11 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           {!sidebarCollapsed && (
             <div className="flex items-center gap-3 px-1 pb-2">
               <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-full flex items-center justify-center shrink-0">
-                <span className="text-white text-xs font-bold">{(user?.name || 'Treasurer').charAt(0).toUpperCase()}</span>
+                <span className="text-white text-xs font-bold">{(user?.name || 'Finance Officer').charAt(0).toUpperCase()}</span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Treasurer'}</p>
-                <p className="text-[11px] text-green-100/60">Fund Treasurer</p>
+                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Finance Officer'}</p>
+                <p className="text-[11px] text-green-100/60">Finance Officer</p>
               </div>
             </div>
           )}
@@ -775,7 +776,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             <Menu className="w-5 h-5 text-white" />
           </button>
           <div className="text-center">
-            <h1 className="font-bold text-white text-base tracking-tight">Treasurer</h1>
+            <h1 className="font-bold text-white text-base tracking-tight">Finance Officer</h1>
             <p className="text-green-100/60 text-xs font-medium">Mortuary Fund</p>
           </div>
           <div className="w-10 h-10" />
