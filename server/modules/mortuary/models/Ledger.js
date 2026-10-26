@@ -17,7 +17,7 @@ const ledgerSchema = new mongoose.Schema(
         originalType: { type: String, enum: ['contribution', 'adjustment'], required: true },
         beforeAmount: { type: Number, required: true },
         afterAmount: { type: Number, required: true },
-        reason: { type: String, required: true },
+        reason: { type: String, default: '' },
         userId: { type: String, required: true },
         userName: { type: String, required: true },
         userRole: { type: String, required: true },

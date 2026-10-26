@@ -222,12 +222,11 @@ const MemberLedger = ({
 
     return (
       <div className="member-ledger space-y-5 print:space-y-0">
-        {correctionDialog && <LedgerCorrectionDialog entry={correctionDialog.entry} historyOnly={correctionDialog.historyOnly} member={currentMember}
+        {correctionDialog && <LedgerCorrectionDialog entry={correctionDialog.entry} member={currentMember}
           onClose={() => { setCorrectionDialog(null); refreshData?.(); }}
-          onSaved={async () => { setCorrectionDialog(null); await refreshData?.(); showToast?.('Correction recorded. The original entry has been preserved.', 'success'); }} />}
+          onSaved={async () => { setCorrectionDialog(null); await refreshData?.(); showToast?.('Amount updated. The change is saved in the audit log.', 'success'); }} />}
         {/* Header */}
         <PageHeader className="ml-header ml-screen"><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></PageHeader>
-        {memberLedgerEntries.some(entry => entry.correctionKind) && <p className="text-sm text-slate-600">Correction reversals are accounting adjustments, not cash withdrawals. The linked replacement shows the corrected amount.</p>}
 
         {/* Controls */}
         <div className="ml-controls ml-screen">
@@ -443,11 +442,9 @@ const MemberLedger = ({
                       </td>
                       <td className="px-5 py-3.5 text-sm text-slate-600 font-mono align-top" title={entry.ref_no}>
                         {shortenRef(entry.ref_no)}
-                        {(entry.corrected || entry.correctionKind) && <p className="mt-1 font-sans text-xs font-semibold text-slate-700">{entry.corrected ? 'Corrected' : entry.correctionKind === 'reversal' ? 'Correction reversal' : 'Corrected replacement'}</p>}
-                        {entry.correctionPending && <p className="mt-1 font-sans text-xs text-amber-800">Correction needs retry</p>}
+                        {entry.correctionPending && <p className="mt-1 font-sans text-xs text-amber-800">Edit needs retry</p>}
                         <div className="ml-screen mt-2 flex flex-col items-start gap-2 font-sans">
-                          {(entry.canCorrect || entry.correctionPending) && ['finance_officer', 'treasurer', 'super_admin'].includes(user?.role) && <button type="button" className="ml-text-button" onClick={() => setCorrectionDialog({ entry })}>{entry.correctionPending ? 'Finish correction' : 'Correct entry'}</button>}
-                          {entry.correctionHistory?.length > 0 && <button type="button" className="ml-text-button" onClick={() => setCorrectionDialog({ entry, historyOnly: true })}>View correction history</button>}
+                          {(entry.canCorrect || entry.correctionPending) && ['finance_officer', 'treasurer', 'super_admin'].includes(user?.role) && <button type="button" className="ml-text-button" onClick={() => setCorrectionDialog({ entry })}>{entry.correctionPending ? 'Finish edit' : 'Edit amount'}</button>}
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-sm text-right font-mono font-medium align-top text-green-600">

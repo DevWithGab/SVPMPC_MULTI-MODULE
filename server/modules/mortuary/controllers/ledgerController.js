@@ -16,7 +16,7 @@ const ledgerCorrections = createLedgerCorrectionService({ Ledger, Contribution, 
 const correctLedgerEntry = async (req, res) => {
   try {
     const posting = await ledgerCorrections.correct(req.params.memberId, req.params.ledgerId, req.body, req.user);
-    res.json({ success: true, message: 'Correction recorded. The original entry is preserved.', ledgerId: posting.ledgerId, balance: posting.balance });
+    res.json({ success: true, message: 'Amount updated. The change is recorded in the audit log.', ledgerId: posting.ledgerId, balance: posting.balance });
   } catch (error) {
     res.status(error.status || 500).json({ success: false, saved: Boolean(error.saved), message: error.status ? error.message : 'Unable to save the correction. Retry the same request safely.' });
   }
@@ -35,12 +35,12 @@ const getMemberLedger = async (req, res) => {
     }
 
     // Get total count for pagination
-    const total = await Ledger.countDocuments({ memberId });
+    const total = await Ledger.countDocuments({ memberId, correction: { $exists: false } });
 
     /* Naka-sort ito sa posting order, kasunod kung paano nacompute yung running `balance`
     column - kung isosort natin yung statement base sa editable transactionDate, lalabas na
     parang tumatalbog-talbog yung balance column. Check utils/ledgerBalance. */
-    const ledgerEntries = await Ledger.find({ memberId })
+    const ledgerEntries = await Ledger.find({ memberId, correction: { $exists: false } })
       .sort(LATEST_FIRST)
       .skip(skip)
       .limit(limit);
@@ -49,8 +49,9 @@ const getMemberLedger = async (req, res) => {
 
     // Calculate totals (from all entries, not just paginated)
     const allEntries = await Ledger.find({ memberId });
-    const totalCredits = allEntries.reduce((sum, entry) => sum + entry.credit, 0);
-    const totalDebits = allEntries.reduce((sum, entry) => sum + entry.debit, 0);
+    const totals = decorateLedgerEntries(allEntries.map(entry => ({ received: entry.credit, withdrawn: entry.debit })), allEntries, allEntries);
+    const totalCredits = Math.round(totals.reduce((sum, entry) => sum + entry.received, 0) * 100) / 100;
+    const totalDebits = Math.round(totals.reduce((sum, entry) => sum + (entry.withdrawn || 0), 0) * 100) / 100;
 
     /* I-format yung ledger entries para consistent sa inaasahan ng frontend. Kasama yung
     createdAt (full timestamp) kasabay ng date (day-only) para ma-break ng client yung
@@ -95,7 +96,7 @@ const getAllLedger = async (req, res) => {
     const { transactionType } = req.query;
     const { page, limit, skip } = getPaginationParams(req.query);
 
-    let query = {};
+    let query = { correction: { $exists: false } };
     if (transactionType) {
       query.transactionType = transactionType;
     }
@@ -125,7 +126,8 @@ const getAllLedger = async (req, res) => {
       balance: entry.balance
     }));
 
-    res.status(200).json(buildPaginatedResponse(formattedEntries, total, page, limit));
+    const allEntries = await Ledger.find({ memberId: { $in: [...new Set(ledgerEntries.map(entry => entry.memberId))] } });
+    res.status(200).json(buildPaginatedResponse(decorateLedgerEntries(formattedEntries, ledgerEntries, allEntries), total, page, limit));
   } catch (error) {
     res.status(500).json({ 
       success: false,

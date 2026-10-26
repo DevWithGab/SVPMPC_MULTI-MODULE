@@ -33,7 +33,7 @@ export const createMemberLedgerPdf = (member, entries, { logoDataUrl = null, fil
   const titleY = y + 13;
   const tableY = titleY + 12;
   const body = entries.map(entry => [
-    dateText(entry.date), `${entry.ref_no ?? ''}${entry.correctionKind ? `\nCorrection ${entry.correctionKind}` : entry.corrected ? '\nCorrected (see linked entries)' : ''}`,
+    dateText(entry.date), String(entry.ref_no ?? ''),
     entry.received ? money(entry.received) : '',
     entry.withdrawn ? money(entry.withdrawn) : '', money(entry.balance),
   ]);

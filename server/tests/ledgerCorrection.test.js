@@ -54,6 +54,28 @@ function harness({ referenceId = 'OR-1', type = 'contribution' } = {}) {
 }
 const correct = (db, values = body, id = 'original', user = actor) => db.service.correct('M1', id, values, user);
 
+test('amount-only edits require no reason and retain automatic before/after audit history', async () => {
+  const db = harness();
+  const { reason, ...amountOnly } = body;
+  await correct(db, amountOnly);
+  assert.equal(db.audits[0].changes.before.amount, 1000);
+  assert.equal(db.audits[0].changes.after.amount, 100);
+  assert.equal(db.audits[0].metadata.reason, '');
+  assert.equal(db.audits[0].userName, 'Finance Person');
+  await correct(db, amountOnly);
+  assert.equal(db.rows.length, 3);
+  const formatted = db.rows.map(row => ({ id: row.ledgerId, received: row.credit, withdrawn: row.debit, date: 'original-date', ref_no: row.referenceId, description: 'Original description' }));
+  const statement = decorateLedgerEntries(formatted, db.rows, db.rows);
+  assert.equal(statement.length, 2);
+  assert.deepEqual(statement.map(row => row.balance), [100, 600]);
+  assert.deepEqual(statement.map(row => row.received), [100, 500]);
+  assert.equal(statement.reduce((sum, row) => sum + row.withdrawn, 0), 0);
+  assert.equal(statement[0].date, 'original-date');
+  assert.equal(statement[0].description, 'Original description');
+  assert.equal(statement[0].ref_no, 'OR-1');
+  assert.equal(statement[0].correctionHistory, undefined);
+});
+
 test('correction preserves original values, posts both legs atomically and updates the one payment and audit record', async () => {
   const db = harness(); const original = structuredClone(db.rows[0]);
   const posting = await correct(db);
@@ -102,15 +124,15 @@ test('a later correction targets the replacement and preserves the full chain', 
   assert.equal(next.correction.rootLedgerId, 'original'); assert.equal(db.audits.length, 2);
   const formatted = db.rows.map(row => ({ id: row.ledgerId, received: row.credit, withdrawn: row.debit, balance: row.balance }));
   const lines = decorateLedgerEntries(formatted, db.rows, db.rows);
-  assert.equal(lines.length, 6); assert.equal(lines[0].corrected, true); assert.equal(lines[0].canCorrect, false);
-  const replacement = lines.find(row => row.id === next.ledgerId);
-  assert.equal(replacement.correctionHistory.length, 2); assert.equal(replacement.canCorrect, true);
-  assert.equal(lines.find(row => row.id === `${first.ledgerId}-reversal`).balance, 500);
+  assert.equal(lines.length, 2); assert.equal(lines[0].received, 250); assert.equal(lines[0].balance, 250); assert.equal(lines[0].canCorrect, true);
+  const replacement = lines.find(row => row.id === 'original');
+  assert.equal(replacement.correctionHistory, undefined); assert.equal(replacement.sourceLedgerId, next.ledgerId); assert.equal(replacement.canCorrect, true);
+  assert.equal(lines[1].balance, 750); assert.equal(lines.some(row => row.withdrawn > 0), false);
   assert.equal(lines.reduce((sum, row) => sum + row.received - row.withdrawn, 0), 750);
 });
 
 test('rejects invalid amounts/reasons, stale previews, unrelated members, deductions, payouts and non-opening adjustments', async () => {
-  for (const values of [{ ...body, amount: 0 }, { ...body, amount: -1 }, { ...body, amount: 1.001 }, { ...body, amount: true }, { ...body, amount: 1000 }, { ...body, reason: 'typo' }, { ...body, reason: 'x'.repeat(501) }]) await assert.rejects(correct(harness(), values), error => error.status === 400);
+  for (const values of [{ ...body, amount: 0 }, { ...body, amount: -1 }, { ...body, amount: 1.001 }, { ...body, amount: true }, { ...body, amount: 1000 }, { ...body, reason: 'x'.repeat(501) }]) await assert.rejects(correct(harness(), values), error => error.status === 400);
   for (const values of [{ ...body, expectedAmount: 999 }, { ...body, expectedBalance: 1499 }]) await assert.rejects(correct(harness(), values), error => error.status === 409);
   const db = harness(); await assert.rejects(db.service.correct('OTHER', 'original', body, actor), error => error.status === 404);
   for (const type of ['payout', 'penalty', 'automatic_deduction', 'claim_payout']) await assert.rejects(correct(harness({ type })), error => error.status === 400);
@@ -130,7 +152,53 @@ test('original CSV re-uploads remain duplicates; changed references cannot overw
   const source = { memberId: 'M1', transactionDate: '2026-10-20', credit: 1000, debit: 0, transactionType: 'contribution', referenceId: 'OR-1' };
   const old = await db.importer.preview(validateLedgerEntries([source])); assert.equal(old[0].status, 'duplicate');
   const changed = await db.importer.preview(validateLedgerEntries([{ ...source, credit: 100 }])); assert.equal(changed[0].status, 'error');
-  assert.match(changed[0].errors.join(' '), /Correct entry/);
+  assert.match(changed[0].errors.join(' '), /Edit amount/);
   const noRef = harness({ referenceId: null }); await correct(noRef);
   const amended = await noRef.importer.preview(validateLedgerEntries([{ ...source, referenceId: '', credit: 100 }])); assert.equal(amended[0].status, 'duplicate');
+});
+
+test('member and global ledger pagination excludes audit postings and returns restated balances and totals', async () => {
+  const db = harness(); await correct(db, { ...body, reason: '' });
+  const filename = require.resolve('../modules/mortuary/controllers/ledgerController');
+  const localRequire = require('node:module').createRequire(filename);
+  const match = (row, query) => Object.entries(query).every(([key, value]) => {
+    if (value && typeof value === 'object' && '$exists' in value) return (row[key] !== undefined) === value.$exists;
+    if (value?.$in) return value.$in.includes(row[key]);
+    return row[key] === value;
+  });
+  const Ledger = {
+    countDocuments: async query => db.rows.filter(row => match(row, query)).length,
+    find: query => {
+      let rows = db.rows.filter(row => match(row, query));
+      const result = {
+        sort(order) { rows.sort((a, b) => order.createdAt * (a.createdAt - b.createdAt)); return this; },
+        skip(count) { rows = rows.slice(count); return this; },
+        limit(count) { rows = rows.slice(0, count); return this; },
+        then(resolve) { return Promise.resolve(resolve(rows)); },
+      };
+      return result;
+    },
+  };
+  const dependencies = {
+    '../models/Ledger': Ledger,
+    '../../../shared/models': { Member: { findOne: async () => ({ memberName: 'Member One' }) } },
+    '../utils/ledgerBalance': { LATEST_FIRST: { createdAt: -1 }, getLatestBalance: async () => 600 },
+  };
+  const context = { module: { exports: {} }, console, require: name => dependencies[name] || localRequire(name) };
+  require('node:vm').runInNewContext(require('node:fs').readFileSync(filename, 'utf8'), context, { filename });
+  for (const action of ['getMemberLedger', 'getAllLedger']) {
+    for (const page of [1, 2]) {
+      const res = { status(code) { this.code = code; return this; }, json(data) { this.data = data; } };
+      await context.module.exports[action]({ params: { memberId: 'M1' }, query: { page: String(page), limit: '1' } }, res);
+      assert.equal(res.code, 200);
+      assert.equal(res.data.pagination.total, 2);
+      assert.equal(res.data.data.length, 1);
+      assert.equal(res.data.data[0].balance, page === 1 ? 600 : 100);
+      assert.equal(res.data.data[0].withdrawn, 0);
+      if (action === 'getMemberLedger') {
+        assert.equal(res.data.totalCredits, 600); assert.equal(res.data.totalDebits, 0);
+        assert.equal(res.data.currentBalance, 600); assert.equal(res.data.transactionCount, 2);
+      }
+    }
+  }
 });

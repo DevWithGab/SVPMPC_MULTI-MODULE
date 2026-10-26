@@ -8,6 +8,18 @@ const member = { name: 'Juan Dela Cruz', address: 'Dupax del Sur, Nueva Vizcaya'
 const entry = { date: '2026-10-22', ref_no: 'OR-2026-000000123456789', received: 100, withdrawn: 0, balance: -250.5 };
 const printLogo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO-PRINT.png', import.meta.url)));
 
+test('edited amounts print as one ordinary payment without audit notes or correction labels', () => {
+  const doc = createMemberLedgerPdf(member, [{ ...entry, received: 100, withdrawn: 0, balance: 100,
+    corrected: true, correctionHistory: [{ reason: 'PRIVATE AUDIT NOTE' }] }]);
+  const content = doc.internal.pages.flat().join('\n');
+  assert.ok(content.includes('100.00'));
+  assert.equal(content.includes('PRIVATE AUDIT NOTE'), false);
+  assert.equal(content.includes('Corrected'), false);
+  assert.equal(content.includes('reversal'), false);
+  const row = doc.lastAutoTable.body[0];
+  assert.deepEqual(row.cells[3].text, ['']);
+});
+
 test('ledger uses a small opaque logo without a dark transparency mask', () => {
   const doc = createMemberLedgerPdf(member, [entry], { logoDataUrl: printLogo });
   const image = Object.values(doc.internal.collections.addImage_images)[0];

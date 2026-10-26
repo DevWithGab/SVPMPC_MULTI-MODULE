@@ -4,7 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createServer } from 'vite';
 
-test('correction requires a reason, previews balances, retries unchanged and shows history', async () => {
+test('amount editing needs no reason, previews balances and retries unchanged', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   const container = document.createElement('div'); document.body.append(container);
   const root = createRoot(container);
@@ -29,27 +29,22 @@ test('correction requires a reason, previews balances, retries unchanged and sho
       element.dispatchEvent(new window.Event('input', { bubbles: true }));
     });
     await act(async () => root.render(React.createElement(Dialog, { entry, member, onClose() {}, onSaved() { saved++; } })));
-    assert.equal(button('Review correction').disabled, true);
+    assert.equal(button('Review change').disabled, true);
     await setValue(container.querySelector('input'), '100');
-    await setValue(container.querySelector('textarea'), 'Typo');
-    assert.equal(button('Review correction').disabled, true);
-    await setValue(container.querySelector('textarea'), 'Entered 1000 instead of 100 from the receipt.');
-    assert.equal(button('Review correction').disabled, false);
-    await act(async () => button('Review correction').click());
+    assert.equal(container.querySelector('textarea'), null);
+    assert.equal(button('Review change').disabled, false);
+    await act(async () => button('Review change').click());
     assert.match(container.textContent, /600\.00/); assert.equal(requests.length, 0);
-    await act(async () => button('Confirm correction').click());
+    await act(async () => button('Save amount').click());
     assert.match(container.querySelector('[role="alert"]').textContent, /retry/);
     assert.equal(button('Back'), undefined);
-    await act(async () => button('Retry correction').click());
+    await act(async () => button('Retry save').click());
     assert.equal(saved, 1); assert.deepEqual(requests[0], requests[1]);
-    assert.equal(requests[0].body.expectedBalance, 1500); assert.equal(requests[0].body.expectedAmount, 1000);
+    assert.equal(requests[0].body.reason, ''); assert.equal(requests[0].body.expectedBalance, 1500); assert.equal(requests[0].body.expectedAmount, 1000);
     assert.match(requests[0].url, /M%201\/entries\/ORIGINAL\/correct$/);
-    await act(async () => root.render(React.createElement(Dialog, { key: 'history', member, entry: { ...entry, correctionHistory: [{ ledgerId: 'C1', beforeAmount: 1000, afterAmount: 100, reason: 'Receipt amount checked.', userName: 'Finance Person', createdAt: '2026-10-26T00:00:00Z', completed: true }] }, historyOnly: true, onClose() {} })));
-    assert.match(container.textContent, /Finance Person/); assert.match(container.textContent, /Receipt amount checked/);
-    assert.equal(container.querySelector('input'), null);
     await act(async () => root.render(React.createElement(Dialog, { key: 'pending', member: { ...member, balance: 600 }, entry: { ...entry, id: 'CORRECTION', received: 100, pendingCorrection: { sourceLedgerId: 'ORIGINAL', amount: 100, expectedAmount: 1000, reason: 'Entered 1000 instead of 100 from the receipt.' } }, onClose() {}, onSaved() { saved++; } })));
     assert.match(container.textContent, /Current balance \(already adjusted\)/);
-    await act(async () => button('Retry correction').click());
+    await act(async () => button('Retry save').click());
     assert.equal(requests.at(-1).body.amount, 100); assert.match(requests.at(-1).url, /entries\/ORIGINAL\/correct$/);
   } finally {
     await act(async () => root.unmount()); if (api) api.post = originalPost;

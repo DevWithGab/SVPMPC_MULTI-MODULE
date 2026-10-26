@@ -13,8 +13,8 @@ function validateCorrection({ amount, reason }) {
   if (!['number', 'string'].includes(typeof amount) || !/^\d+(\.\d{1,2})?$/.test(String(amount)) || !Number.isSafeInteger(Math.round(Number(amount) * 100)) || Number(amount) <= 0) {
     throw fail(400, 'Enter a corrected amount greater than zero, with at most 2 decimal places.');
   }
-  if (typeof reason !== 'string' || reason.trim().length < 10 || reason.trim().length > 500) throw fail(400, 'Explain the correction using 10–500 characters.');
-  return { amount: Number(amount), reason: reason.trim() };
+  if (reason != null && (typeof reason !== 'string' || reason.trim().length > 500)) throw fail(400, 'An optional note must be at most 500 characters.');
+  return { amount: Number(amount), reason: reason?.trim() || '' };
 }
 
 function createLedgerCorrectionService({ Ledger, Contribution, AuditLog }) {
@@ -32,7 +32,7 @@ function createLedgerCorrectionService({ Ledger, Contribution, AuditLog }) {
     await AuditLog.updateOne({ logId: posting.ledgerId }, { $setOnInsert: {
       logId: posting.ledgerId, userId: correction.userId, userName: correction.userName, userRole: correction.userRole,
       action: 'ledger_corrected', module: 'mortuary', entityType: 'ledger', entityId: correction.rootLedgerId,
-      description: `Ledger amount corrected: ${correction.reason}`,
+      description: correction.reason ? `Ledger amount edited: ${correction.reason}` : 'Ledger amount edited',
       changes: { before: { ledgerId: posting.correctionOf, amount: correction.beforeAmount }, after: { ledgerId: posting.ledgerId, amount: correction.afterAmount } },
       metadata: { memberId: posting.memberId, reason: correction.reason, correctionOf: posting.correctionOf },
       timestamp: posting.createdAt,
@@ -48,7 +48,7 @@ function createLedgerCorrectionService({ Ledger, Contribution, AuditLog }) {
       const source = await Ledger.findOne({ memberId, ledgerId });
       if (!source) throw fail(404, 'Ledger entry not found for this member.');
       let posting = await Ledger.findOne({ correctionOf: ledgerId });
-      if (posting && (posting.correction.afterAmount !== values.amount || posting.correction.reason !== values.reason)) throw fail(409, 'This entry has already been corrected. Refresh the ledger and select the latest replacement entry.');
+      if (posting && (posting.correction.afterAmount !== values.amount || (posting.correction.reason || '') !== values.reason)) throw fail(409, 'This entry has already been corrected. Refresh the ledger and edit the current amount again.');
       if (!posting) {
         const first = await Ledger.findOne({ memberId }).sort(POSTING_ORDER);
         if (!isCorrectable(source, first?.ledgerId)) throw fail(400, 'Only payments and the opening credit balance can be corrected here. Finish any pending correction first.');
@@ -69,7 +69,7 @@ function createLedgerCorrectionService({ Ledger, Contribution, AuditLog }) {
         if (!Number.isSafeInteger(Math.round(balance * 100))) throw fail(400, 'The resulting balance is too large.');
         posting = new Ledger({
           ledgerId: correctionId(ledgerId), correctionOf: ledgerId, memberId,
-          transactionType: 'adjustment', description: `Correction: ${values.reason}`,
+          transactionType: 'adjustment', description: values.reason ? `Amount edit: ${values.reason}` : 'Ledger amount edit',
           // Single-document posting: debit reverses the old value; credit replaces it.
           debit: source.credit, credit: values.amount, balance,
           referenceId: source.referenceId, transactionDate: source.transactionDate,
