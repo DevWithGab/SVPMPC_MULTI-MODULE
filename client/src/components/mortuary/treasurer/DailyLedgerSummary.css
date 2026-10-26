@@ -1,0 +1,12 @@
+.daily-ledger-summary .reports-button { min-height: 44px; font-size: 14px; }
+.daily-ledger-summary .daily-date-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.daily-ledger-summary .reports-filters label { font-size: 14px; }
+.daily-ledger-summary input { margin-top: 8px; min-height: 44px; font-size: 16px; }
+.daily-ledger-summary .reports-document-heading > div:first-child > p,
+.daily-ledger-summary .reports-filters > p { font-size: 14px; }
+.daily-summary-totals { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 24px; padding: 24px 20px; }
+.daily-summary-totals dt { font-size: 14px; color: #647069; }
+.daily-summary-totals dd { margin-top: 8px; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: #17251d; overflow-wrap: anywhere; }
+.daily-summary-totals > div:first-child dd { color: #245e32; }
+.daily-ledger-summary .reports-content th, .daily-ledger-summary .reports-content td { font-size: 14px; }
+@media (max-width: 640px) { .daily-summary-totals { grid-template-columns: 1fr 1fr; gap: 20px; } .daily-summary-totals > div:first-child { grid-column: 1 / -1; } }

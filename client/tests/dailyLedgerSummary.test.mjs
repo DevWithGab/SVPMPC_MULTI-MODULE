@@ -6,7 +6,7 @@ import { createServer } from 'vite';
 import { MemoryRouter } from 'react-router-dom';
 import { dailySummaryCsv, dailySummaryPdf } from '../src/utils/dailyLedgerSummary.js';
 
-const data = (date, count = 65) => ({ date, timezone: 'Asia/Manila', totals: { contributions: count * 100, deductions: 0, adjustmentCredits: 0, adjustmentDebits: 0, netChange: count * 100, members: count, transactions: count, pendingEdits: 0 }, rows: Array.from({ length: count }, (_, index) => ({ id: `L${index}`, memberId: String(index).padStart(6, '0'), memberName: `Member ${index}`, reference: `OR-${index}`, transactionType: 'contribution', contribution: 100, deduction: 0, adjustmentCredit: 0, adjustmentDebit: 0 })) });
+const data = (date, count = 65) => ({ date, timezone: 'Asia/Manila', totals: { totalAdded: count * 100, members: count, transactions: count, pendingEdits: 0 }, rows: Array.from({ length: count }, (_, index) => ({ id: `L${index}`, memberId: String(index).padStart(6, '0'), memberName: `Member ${index}`, reference: `OR-${index}`, transactionType: 'contribution', amount: 100 })) });
 
 test('daily CSV and printed summary include all pages, exact totals and safe text without audit reasons', () => {
   const summary = data('2026-10-27', 130);
@@ -17,7 +17,7 @@ test('daily CSV and printed summary include all pages, exact totals and safe tex
   assert.ok(csv.includes('"000000"'));
   assert.ok(csv.includes("'=FORMULA"));
   assert.ok(csv.includes('OR-129'));
-  assert.ok(csv.includes('"Contributions recorded","13000"'));
+  assert.ok(csv.includes('"Total added","13000"'));
   assert.equal(csv.includes('Private edit reason'), false);
   const doc = dailySummaryPdf(summary);
   assert.equal(doc.lastAutoTable.body.length, 130);
@@ -25,6 +25,10 @@ test('daily CSV and printed summary include all pages, exact totals and safe tex
   const text = doc.internal.pages.flat().join('\n');
   assert.ok(text.includes('OR-129'));
   assert.equal(text.includes('Private edit reason'), false);
+  assert.doesNotMatch(text, /Deductions|withdrawals|Net ledger change|Adjustment debits/);
+  assert.doesNotMatch(csv, /Deductions|withdrawals|Net ledger change|Adjustment debits/);
+  assert.ok(text.includes('13,000.00'));
+  assert.equal(doc.lastAutoTable.columns.length, 5);
 });
 
 test('daily screen paginates, changes dates, hides failed results and retries without stale totals', async () => {
@@ -48,6 +52,8 @@ test('daily screen paginates, changes dates, hides failed results and retries wi
     await act(async () => root.render(React.createElement(MemoryRouter, { initialEntries: ['/?dailyDate=2026-10-27'] }, React.createElement(DailyLedgerSummary))));
     assert.equal(container.querySelectorAll('tbody tr').length, 50);
     assert.match(container.textContent, /6,500\.00/);
+    assert.doesNotMatch(container.textContent, /Deductions|withdrawals|Net ledger change/);
+    assert.equal(container.querySelectorAll('thead th').length, 5);
     await act(async () => container.querySelector('button[aria-label="Next page"]').click());
     assert.equal(container.querySelectorAll('tbody tr').length, 15);
     assert.match(container.textContent, /OR-64/);
@@ -57,18 +63,20 @@ test('daily screen paginates, changes dates, hides failed results and retries wi
       input.dispatchEvent(new window.Event('input', { bubbles: true }));
     });
     assert.equal(dates.at(-1), '2026-10-28');
-    assert.match(container.textContent, /No transactions recorded/);
+    assert.match(container.textContent, /No amounts added/);
     const button = label => [...container.querySelectorAll('button')].find(node => node.textContent === label);
     fail = true;
     await act(async () => button('Refresh summary').click());
     assert.match(container.querySelector('[role="alert"]').textContent, /Summary unavailable/);
     assert.equal(button('Print summary').disabled, true);
+    assert.equal(button('Download PDF').disabled, true);
     assert.equal(button('Download CSV').disabled, true);
     assert.equal(container.querySelector('table'), null);
     fail = false;
     await act(async () => button('Refresh summary').click());
-    assert.match(container.textContent, /No transactions recorded/);
+    assert.match(container.textContent, /No amounts added/);
     assert.equal(button('Download CSV').disabled, false);
+    assert.equal(button('Download PDF').disabled, false);
   } finally {
     await act(async () => root.unmount()); if (api) api.get = originalGet;
     globalThis.IS_REACT_ACT_ENVIRONMENT = originalAct; container.remove(); await vite.close();
