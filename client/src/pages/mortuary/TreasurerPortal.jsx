@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import {
   Users, CreditCard, FileText, LayoutGrid, BarChart3, Bell,
-  LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu
+  LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu, Banknote
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
@@ -21,7 +21,8 @@ import {
   ClaimsAwaitingRelease,
   ClaimDisbursementReport,
   ClaimIncomeReport,
-  Reports
+  Reports,
+  FundSettings
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
@@ -111,7 +112,7 @@ const PortalSkeleton = () => (
 
 const TreasurerPortal = ({ user, onBack, token }) => {
   // State management
-  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports']);
+  const [activeTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
   const [claimsView, setClaimsView] = useUrlState('claimsView', 'pending-deduction', ['pending-deduction', 'awaiting-release', 'disbursement-report', 'income-report']); // 'pending-deduction' | 'awaiting-release' | 'disbursement-report' | 'income-report'
   const [members, setMembers] = useState([]);
   /* Iba ito sa `members` sa taas (na yung balances aggregation lang ang
@@ -246,7 +247,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
 
   /* Admin-configured balance notice thresholds (Notice 1/2/Final) - read-only
   dito, para parehas yung classification ng Member Ledger / Member Balances
-  sa sinet ng Admin sa Mortuary Admin -> Notice Thresholds. Babalik sa
+  sa sinet sa Settings -> Notice thresholds. Babalik sa
   DEFAULT_NOTICE_THRESHOLDS kung mag-fail ito, para gumagana pa rin yung
   mga screens. */
   const fetchNoticeThresholds = useCallback(async () => {
@@ -670,6 +671,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             membersError={loadErrors.reportMembers}
           />
         );
+      case 'settings':
+        return <FundSettings user={user} />;
       case 'ledger':
         if (selectedMemberId && !selectedLedgerMember) return <p role="status" className="text-sm text-slate-600">{loaded.members ? 'This member could not be found. Select Members Ledger to return to the list.' : 'Loading member...'}</p>;
         return (
@@ -753,6 +756,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
           <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="contributions" icon={CreditCard} label="Contributions" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
           <SidebarItem id="reports" icon={BarChart3} label="Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="settings" icon={Banknote} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
         </nav>
 
         {/* Footer */}

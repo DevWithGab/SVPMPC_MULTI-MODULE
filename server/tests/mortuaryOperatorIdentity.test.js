@@ -75,7 +75,6 @@ test('claim verification ignores forged verifiedBy', async () => {
 });
 
 for (const [controllerName, modelName, action, payload] of [
-  ['benefitCapSettingController', 'BenefitCapSetting', 'updateCap', { amount: 50000 }],
   ['deductionSettingController', 'DeductionSetting', 'updateRate', { amount: 25 }],
   ['noticeThresholdSettingController', 'NoticeThresholdSetting', 'updateThresholds', {
     targetBalance: 500, notice1Min: 201, notice1Max: 499, notice2Min: 0, notice2Max: 200,

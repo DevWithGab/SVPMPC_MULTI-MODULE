@@ -1,6 +1,6 @@
 /* Shared "board-approval-style" supersede-then-insert pattern na ginagamit ng
 bawat Admin-configurable setting na nag-keep ng full history (DeductionSetting,
-BenefitCapSetting, NoticeThresholdSetting): isa lang palagi ang 'active' na row
+NoticeThresholdSetting): isa lang palagi ang 'active' na row
 (enforced by each model's own partial unique index on {status:'active'}), at
 hindi nag-overwrite yung updating - sine-supersede niya yung current active
 row at nag-insert ng bagong isa, kaya yung mga past claims/notices palaging

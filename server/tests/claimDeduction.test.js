@@ -89,7 +89,6 @@ function database(members, { claims = [] } = {}) {
     deps: {
       '../models/Claim': Claim,
       '../models/DeductionSetting': DeductionSetting,
-      '../models/BenefitCapSetting': {},
       '../models/Ledger': LedgerDoc,
       '../../../shared/models': { Member: {} },
       '../../../shared/utils/pagination': {},
@@ -97,7 +96,6 @@ function database(members, { claims = [] } = {}) {
       './dashboardController': { getClaimFinancialTotals: async () => ({}) },
       '../../../shared/services/auditLoggingService': { createAuditLog: async () => {} },
       '../utils/ledgerBalance': { getLatestBalance: async () => 0 },
-      '../config/claimBenefit': { DEFAULT_MAX_BENEFIT_AMOUNT: 50000, benefitPayoutFor: () => 0, benefitSurplusFor: () => 0 },
     },
   };
 }

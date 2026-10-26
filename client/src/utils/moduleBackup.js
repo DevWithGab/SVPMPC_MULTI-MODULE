@@ -17,7 +17,6 @@ export const BACKUP_COLLECTIONS = {
     ['contributions', 'Contributions'],
     ['ledgers', 'Ledger entries (balances)'],
     ['paymentImports', 'Bulk payment imports'],
-    ['benefitCapSettings', 'Benefit cap settings'],
     ['deductionSettings', 'Deduction rate settings'],
     ['noticeThresholdSettings', 'Notice settings & letters'],
     ['noticeBatchJobs', 'Notice batches'],

@@ -38,9 +38,7 @@ function makeClaim(overrides = {}) {
   };
 }
 
-// cap: the active BenefitCapSetting amount (null simulates none configured,
-// which falls back to the module's own DEFAULT_MAX_BENEFIT_AMOUNT).
-function controllerFor(claim, { cap = 50000 } = {}) {
+function controllerFor(claim) {
   const ledgers = [];
   const audits = [];
   // Mirrors real Mongoose findOneAndUpdate semantics closely enough for
@@ -61,7 +59,6 @@ function controllerFor(claim, { cap = 50000 } = {}) {
   const treasurerClaimController = load('../modules/mortuary/controllers/treasurerClaimController', {
     '../models/Claim': FakeClaim,
     '../models/DeductionSetting': { findOne: async () => null },
-    '../models/BenefitCapSetting': { findOne: async () => (cap === null ? null : { amount: cap }) },
     '../models/Ledger': class {
       constructor(data) { Object.assign(this, data); }
       async save() { ledgers.push(this); }
@@ -93,29 +90,29 @@ test('a claim cannot be released before its deduction has been processed', async
   assert.match(res.data.message, /approved/);
 });
 
-test('releasing with no amount specified pays out the full cap-bound ceiling', async () => {
+test('releasing with no amount specified pays out the full amount collected', async () => {
   const claim = makeClaim(); // totalCollected = 20000
-  const { controller, ledgers } = controllerFor(claim, { cap: 5000 }); // ceiling = min(20000, 5000) = 5000
+  const { controller, ledgers } = controllerFor(claim);
   const res = response();
   await controller.releaseClaim(req({ claimId: 'CLAIM-1' }, { dvNumber: 'DV-1' }), res);
   assert.equal(res.code, 200);
-  assert.equal(claim.payout.amount, 5000);
+  assert.equal(claim.payout.amount, 20000);
   assert.equal(claim.status, 'released');
-  assert.equal(ledgers[0].credit, 5000);
+  assert.equal(ledgers[0].credit, 20000);
 });
 
-test('the treasurer can release less than the cap-bound ceiling (a partial disbursement)', async () => {
-  const claim = makeClaim(); // totalCollected = 20000, ceiling with a 50000 cap = 20000
-  const { controller } = controllerFor(claim, { cap: 50000 });
+test('the treasurer can release less than the amount collected (a partial disbursement)', async () => {
+  const claim = makeClaim(); // totalCollected = 20000
+  const { controller } = controllerFor(claim);
   const res = response();
   await controller.releaseClaim(req({ claimId: 'CLAIM-1' }, { dvNumber: 'DV-1', amount: 15000 }), res);
   assert.equal(res.code, 200);
   assert.equal(claim.payout.amount, 15000);
 });
 
-test('releasing more than the cap-bound ceiling is rejected', async () => {
-  const claim = makeClaim(); // ceiling = min(20000, 50000) = 20000
-  const { controller } = controllerFor(claim, { cap: 50000 });
+test('releasing more than the amount collected is rejected', async () => {
+  const claim = makeClaim(); // totalCollected = 20000
+  const { controller } = controllerFor(claim);
   const res = response();
   await controller.releaseClaim({ params: { claimId: 'CLAIM-1' }, body: { dvNumber: 'DV-1', amount: 20000.01 } }, res);
   assert.equal(res.code, 400);

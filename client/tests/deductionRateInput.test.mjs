@@ -5,7 +5,6 @@ import { createRoot } from 'react-dom/client';
 import { createServer } from 'vite';
 
 for (const [component, apiName, method, inputId] of [
-  ['UpdateBenefitCapModal', 'benefitCapSettingAPI', 'updateCap', 'benefit-cap-amount'],
   ['UpdateDeductionRateModal', 'deductionSettingAPI', 'updateRate', 'deduction-rate-amount'],
 ]) test(`${component} adds commas, blocks letters, and saves the full amount`, async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
@@ -16,7 +15,7 @@ for (const [component, apiName, method, inputId] of [
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   let api, original;
   try {
-    const { default: Modal } = await vite.ssrLoadModule(`/src/components/mortuary/admin/modals/${component}.jsx`);
+    const { default: Modal } = await vite.ssrLoadModule(`/src/components/mortuary/treasurer/modals/${component}.jsx`);
     api = (await vite.ssrLoadModule('/src/services/api.js'))[apiName];
     original = api[method];
     const calls = [];

@@ -12,7 +12,6 @@ import {
   Menu,
   LogOut,
   HeartHandshake,
-  Banknote,
   ClipboardCheck,
   Shield,
 } from "lucide-react";
@@ -21,7 +20,6 @@ import {
   MemberManagement,
   Claims,
   Beneficiaries,
-  FundSettings,
   AuditLogs,
   DatabaseBackup,
 } from "../../components/mortuary/admin";
@@ -83,7 +81,7 @@ const AdminPortal = ({ onBack, user }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'fundSettings', 'auditlogs', 'backup']);
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'auditlogs', 'backup']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -181,7 +179,6 @@ const AdminPortal = ({ onBack, user }) => {
     { id: "members", label: "Members", icon: Users },
     { id: "claims", label: "Claims", icon: ClipboardCheck },
     { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
-    { id: "fundSettings", label: "Settings", icon: Banknote },
     { id: "auditlogs", label: "Audit Logs", icon: Shield },
     { id: "backup", label: "Backup & Restore", icon: FileText },
   ];
@@ -214,8 +211,6 @@ const AdminPortal = ({ onBack, user }) => {
         return <Claims user={user} />;
       case "beneficiaries":
         return <Beneficiaries user={user} />;
-      case "fundSettings":
-        return <FundSettings user={user} />;
       case "auditlogs":
         return <AuditLogs />;
       case "backup":

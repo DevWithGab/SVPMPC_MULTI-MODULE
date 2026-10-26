@@ -3,7 +3,6 @@ const Contribution = require('../models/Contribution');
 const Ledger = require('../models/Ledger');
 const Beneficiary = require('../models/Beneficiary');
 const Claim = require('../models/Claim');
-const BenefitCapSetting = require('../models/BenefitCapSetting');
 const DeductionSetting = require('../models/DeductionSetting');
 const NoticeThresholdSetting = require('../models/NoticeThresholdSetting');
 const NoticeBatchJob = require('../models/NoticeBatchJob');
@@ -27,7 +26,6 @@ const COLLECTIONS = [
   { name: 'contributions', Model: Contribution, key: 'contributionId', memberScoped: true },
   { name: 'ledgers', Model: Ledger, key: 'ledgerId', memberScoped: true },
   { name: 'paymentImports', Model: PaymentImport, key: '_id', memberScoped: true },
-  { name: 'benefitCapSettings', Model: BenefitCapSetting, key: 'settingId', singleActive: true },
   { name: 'deductionSettings', Model: DeductionSetting, key: 'settingId', singleActive: true },
   { name: 'noticeThresholdSettings', Model: NoticeThresholdSetting, key: 'settingId', singleActive: true },
   { name: 'noticeBatchJobs', Model: NoticeBatchJob, key: 'jobId' },

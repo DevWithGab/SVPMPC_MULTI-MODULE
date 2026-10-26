@@ -10,13 +10,12 @@ klaro at distinct sa codebase yung dalawang money flow na dulot ng isang claim:
     at tinatag ang bawat ledger row ng claimId.
   - Flow B (payout): ang pool na kolekta ng Flow A - ang total na naibawas mula sa
     ledger ng bawat ibang member para sa claim na ito - ay ibinabayad sa beneficiary
-    ng namatay na member, na may cap base sa Admin-configured BenefitCapSetting. Ang
-    kahit anong surplus pataas sa cap ay income ng cooperative. Ang OWN ledger
+    ng namatay na member - buong halaga, walang cap. Kung mas mababa ang inirelease ng
+    Treasurer, ang natira ay income ng cooperative. Ang OWN ledger
     balance ng namatay na member ay sadyang hindi ang payout figure: personal
     contribution balance niya ito, hindi ang death benefit. */
 const Claim = require('../models/Claim');
 const DeductionSetting = require('../models/DeductionSetting');
-const BenefitCapSetting = require('../models/BenefitCapSetting');
 const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
 const { v4: uuidv4 } = require('uuid');
@@ -27,11 +26,6 @@ const { createAuditLog } = require('../../../shared/services/auditLoggingService
 const { getLatestBalance } = require('../utils/ledgerBalance');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { actorName } = require('../../../shared/utils/actorName');
-const {
-  DEFAULT_MAX_BENEFIT_AMOUNT,
-  benefitPayoutFor,
-  benefitSurplusFor,
-} = require('../config/claimBenefit');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -51,22 +45,10 @@ const resolveDeductionRate = async () => {
   };
 };
 
-/* Ang benefit cap ay naka-set ng Admin sa Fund Settings → Benefit Cap at hindi
-pagpipilian ng Treasurer, kaya rito rinesolve ang bawat payout calculation imbes na
-umasa sa kung ano man galing sa request - parehong pattern ng resolveDeductionRate sa
-taas. */
-const resolveBenefitCap = async () => {
-  const setting = await BenefitCapSetting.findOne({ status: 'active' });
-  return setting?.amount ?? DEFAULT_MAX_BENEFIT_AMOUNT;
-};
-
 /* Parehong ang Awaiting Release list at releaseClaim ay rito rinesolve ang payout
-para yung figure na napreview ay yung talagang ireleases. Naitatala ang
-totalCollected sa claim nung oras ng deduction; nasa config/claimBenefit ang split
-formula para sumusunod ang dashboards sa parehong rule - rinesolve lang isang beses
-ang cap per request (tingnan ang call sites) at ipinapasa na lang imbes na
-re-queried per claim. */
-const resolvePayoutAmount = (claim, cap) => benefitPayoutFor(claim?.deduction?.totalCollected ?? 0, cap);
+para yung figure na napreview ay yung talagang ireleases. Ang death benefit ay ang
+buong totalCollected na naitala sa claim nung oras ng deduction - walang cap. */
+const resolvePayoutAmount = (claim) => claim?.deduction?.totalCollected ?? 0;
 
 /* Lahat ng claim kahit anong status - ito ang backing ng Claims Report at
 Deductions & Payouts tabs ng Reports screen, na kailangan ng buong list imbes na
@@ -146,14 +128,12 @@ const listAwaitingRelease = async (req, res) => {
     /* Ang payout ay derived galing sa kolekta para sa claim - hindi pagpipilian ito ng
     Treasurer - kaya ipapadala explicitly ang resolved split para maipakita read-only
     ng disbursement form. */
-    const cap = await resolveBenefitCap();
     const withPayout = claims.map((claim) => {
-      const payoutAmount = resolvePayoutAmount(claim, cap);
+      const payoutAmount = resolvePayoutAmount(claim);
       return {
         ...claim,
         payoutAmount,
         retainedAmount: Math.round(((claim.deduction?.totalCollected ?? 0) - payoutAmount) * 100) / 100,
-        maxBenefitAmount: cap,
       };
     });
 
@@ -207,9 +187,8 @@ tatlong dashboard tiles, para makita ng Treasurer kung aling mga claim ang
 gumawa ng totals imbes na totals lang.
 
 Derived ang income sa parehong paraan ng pagderive ni getClaimFinancialTotals, at sa
-parehong dahilan: ang actual payout kapag settled na ang claim, ang capped projection
-bago mangyari yun. Ang dahilan kung bakit nasa config/claimBenefit ang rule ay para
-manatiling sync ang dalawa imbes na isulat nang hiwalay sa bawat isa. */
+parehong dahilan: ang actual payout kapag settled na ang claim, ang buong nakolekta
+bilang projection bago mangyari yun. */
 const listClaimFinancials = async (req, res) => {
   try {
     const { page, limit, skip } = getPaginationParams(req.query);
@@ -229,7 +208,6 @@ const listClaimFinancials = async (req, res) => {
       .limit(limit)
       .lean();
 
-    const cap = await resolveBenefitCap();
     const round = (n) => Math.round((n || 0) * 100) / 100;
     const rows = claims.map((claim) => {
       const collected = claim.deduction?.totalCollected ?? 0;
@@ -252,10 +230,9 @@ const listClaimFinancials = async (req, res) => {
         at IREREtain ng claim na ito, ipinapakita greyed out para hindi malito ang forecast
         sa pera na talagang gumalaw na. */
         netIncome: settled ? round(collected - released) : 0,
-        projectedRelease: benefitPayoutFor(collected, cap),
-        projectedIncome: benefitSurplusFor(collected, cap),
+        projectedRelease: collected,
+        projectedIncome: 0,
         settled,
-        capApplied: collected > cap,
         processedAt: claim.deduction?.processedAt ?? null,
         releasedAt: claim.payout?.releasedAt ?? null,
         dvNumber: claim.payout?.dvNumber ?? null,
@@ -269,7 +246,6 @@ const listClaimFinancials = async (req, res) => {
     res.status(200).json({
       ...buildPaginatedResponse(rows, total, page, limit),
       totals,
-      maxBenefitAmount: cap,
     });
   } catch (error) {
     console.error('Error fetching claim income report:', error);
@@ -540,13 +516,12 @@ const releaseClaim = async (req, res) => {
 
     try {
       /* Ang death benefit ay ang pool na kolekta mula sa ibang members para sa claim na
-      ito, may cap base sa Admin-configured benefit cap. Puwedeng magtype ang Treasurer ng
-      mas mababang amount na irerelease (hal. partial disbursement), pero hindi puwedeng
-      lumagpas sa cap-bound ceiling na iyon - rinesolve server-side ang maxPayout para
-      ang request ay puwede lang humingi ng LESS, hindi ng more. */
-      const cap = await resolveBenefitCap();
+      ito. Puwedeng magtype ang Treasurer ng mas mababang amount na irerelease (hal.
+      partial disbursement), pero hindi puwedeng lumagpas sa nakolekta - rinesolve
+      server-side ang maxPayout para ang request ay puwede lang humingi ng LESS, hindi
+      ng more. */
       totalCollected = claim.deduction?.totalCollected ?? 0;
-      const maxPayout = resolvePayoutAmount(claim, cap);
+      const maxPayout = resolvePayoutAmount(claim);
 
       const hasRequestedAmount = req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '';
       const requestedAmount = hasRequestedAmount ? Number(req.body.amount) : maxPayout;
@@ -555,12 +530,12 @@ const releaseClaim = async (req, res) => {
         throw Object.assign(new Error('Invalid payout amount'), { statusCode: 400 });
       }
       if (requestedAmount > maxPayout) {
-        throw Object.assign(new Error(`Amount to release cannot exceed ₱${maxPayout.toLocaleString('en-PH')} (the benefit cap applied to this claim).`), { statusCode: 400 });
+        throw Object.assign(new Error(`Amount to release cannot exceed ₱${maxPayout.toLocaleString('en-PH')} (the total collected for this claim).`), { statusCode: 400 });
       }
 
       payoutAmount = Math.round(requestedAmount * 100) / 100;
-      /* Ang surplus na hindi nairelease - withheld man dahil sa cap o dahil nagrelease ng
-      mas mababa ang Treasurer kaysa sa ceiling - ay income ng cooperative. Direktang
+      /* Ang hindi nairelease - kung nagrelease ng mas mababa ang Treasurer kaysa sa
+      nakolekta - ay income ng cooperative. Direktang
       binabasa ni getClaimFinancialTotals ang claim.payout.amount, kaya tugma na ito sa
       kung anumang amount na talagang nairelease dito. */
       retainedAmount = Math.round((totalCollected - payoutAmount) * 100) / 100;

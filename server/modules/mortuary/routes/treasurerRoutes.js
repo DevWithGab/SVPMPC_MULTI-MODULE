@@ -41,9 +41,8 @@ const {
   releaseClaim
 } = require('../controllers/treasurerClaimController');
 
-const { getCurrentRate } = require('../controllers/deductionSettingController');
-const { getCurrentThresholds } = require('../controllers/noticeThresholdSettingController');
-const { getCurrentCap } = require('../controllers/benefitCapSettingController');
+const { getCurrentRate, getRateHistory, updateRate } = require('../controllers/deductionSettingController');
+const { getCurrentThresholds, getThresholdHistory, updateThresholds } = require('../controllers/noticeThresholdSettingController');
 const { startNoticeBatch, getNoticeBatchStatus, downloadNoticeBatch } = require('../controllers/noticeBatchController');
 
 const router = express.Router();
@@ -63,23 +62,22 @@ router.get('/contributions/:memberId', getContributionHistory);
 router.get('/contributions', getAllContributions);
 
 // Member balance management routes
-/* Read-only view lang ito ng Admin-set deduction rate. Si Admin lang ang
-makaka-change nito (POST ay nasa admin router) - kailangan lang makita ng
-Treasurer yung amount na sisingilin sa Process Deduction screen. */
+/* Current deduction rate - kailangan makita ng Treasurer yung amount na
+sisingilin sa Process Deduction screen. Ine-edit ito sa Settings (sa baba). */
 router.get('/deduction-rate', getCurrentRate);
 
-/* Read-only view lang ito ng Admin-set death benefit cap. Si Admin lang ang
-makaka-change nito (POST ay nasa admin router) - ipinapakita ito sa
-Treasurer's Claims Awaiting Release / Income Report screens kasama yung
-resolved payout, na echo na rin naman ng claim routes sa baba per-response. */
-router.get('/benefit-cap', getCurrentCap);
-
-/* Read-only view lang ito ng Admin-set balance notice thresholds. Si Admin
-lang ang makaka-change nito (POST ay nasa admin router) - kailangan lang
-malaman ng Treasurer's Member Ledger / Member Balances screens kung saan
-nag-kick in ang Notice 1/2/Final para parehas ang classification ng members
-base sa settings ng Admin. */
+/* Current balance notice thresholds - kailangan malaman ng Treasurer's Member
+Ledger / Member Balances screens kung saan nag-kick in ang Notice 1/2/Final. */
 router.get('/notice-thresholds', getCurrentThresholds);
+
+/* Fund settings (deduction rate, notice thresholds/content) -
+Treasurer na ang nagma-manage nito, hindi na si Admin. */
+router.get('/settings/deduction-rate/current', getCurrentRate);
+router.get('/settings/deduction-rate', getRateHistory);
+router.post('/settings/deduction-rate', updateRate);
+router.get('/settings/notice-thresholds/current', getCurrentThresholds);
+router.get('/settings/notice-thresholds', getThresholdHistory);
+router.post('/settings/notice-thresholds', updateThresholds);
 
 router.get('/balances/all', getAllMemberBalances);
 router.post('/balances/automatic-deduction', processAutomaticDeduction);

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { supersedeAndInsert } = require('../shared/utils/versionedSetting');
 
-// supersedeAndInsert backs DeductionSetting/BenefitCapSetting/
+// supersedeAndInsert backs DeductionSetting/
 // NoticeThresholdSetting: at most one row is ever 'active', enforced by
 // each model's own partial unique index. Confirmed live: 6 concurrent
 // updates produced 5 successes and 1 raw 500 before the retry loop existed

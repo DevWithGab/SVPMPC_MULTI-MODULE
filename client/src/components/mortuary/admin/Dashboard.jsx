@@ -444,12 +444,6 @@ const Dashboard = ({
       desc: "Manage claim beneficiaries",
       tab: "beneficiaries",
     },
-    {
-      icon: Banknote,
-      label: "Settings",
-      desc: "Deduction rate, benefit cap & more",
-      tab: "fundSettings",
-    },
   ];
 
   const firstName = user?.name?.split(" ")[0] || "Admin";

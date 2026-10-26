@@ -91,10 +91,10 @@ The database also supports a `member` user role, but `client/src/App.jsx` curren
 - A member's balance comes from **Ledger** records, not a balance field on **Member**.
 - Ledger balances are running totals: previous balance + credit - debit.
 - The latest balance is determined by posting order (`createdAt`, then `_id`), not the user-entered `transactionDate`. See [ledgerBalance.js](server/modules/mortuary/utils/ledgerBalance.js).
-- Claim deductions use the active administrator-configured **DeductionSetting**. The current claim-processing fallback is **PHP 25 per active member** if no setting exists.
+- Claim deductions use the active treasurer-configured **DeductionSetting**. The current claim-processing fallback is **PHP 25 per active member** if no setting exists.
 - Deduction processing can produce negative member balances; do not silently exclude members simply because their balance is insufficient.
-- The beneficiary's benefit is based on the amount assessed for the claim, capped at **PHP 50,000**. It is not the deceased member's personal ledger balance.
-- Amounts above the benefit cap are treated as cooperative income. The shared calculation is in [claimBenefit.js](server/modules/mortuary/config/claimBenefit.js).
+- The beneficiary's benefit is the full amount assessed for the claim, with no cap. It is not the deceased member's personal ledger balance.
+- If the treasurer releases less than the amount collected, the remainder is treated as cooperative income.
 - Releasing a claim records the payout without subtracting it from the deceased member's personal contribution balance.
 - SMS support, including notification history endpoints, has been removed. Use the Treasurer's printed/PDF member notices for balance reminders. Existing SMS records in MongoDB are left untouched.
 

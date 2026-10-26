@@ -510,61 +510,41 @@ export const beneficiaryAPI = {
 };
 
 // ============================================
-// MORTUARY - DEDUCTION SETTINGS API (Admin)
+// MORTUARY - DEDUCTION SETTINGS API (Treasurer)
 // ============================================
 export const deductionSettingAPI = {
   getCurrentRate: async () => {
-    const response = await api.get('/mortuary/admin/deduction-settings/current');
+    const response = await api.get('/mortuary/treasurer/settings/deduction-rate/current');
     return response.data;
   },
 
   getRateHistory: async (params = {}) => {
-    const response = await api.get('/mortuary/admin/deduction-settings', { params });
+    const response = await api.get('/mortuary/treasurer/settings/deduction-rate', { params });
     return response.data;
   },
 
   updateRate: async (rateData) => {
-    const response = await api.post('/mortuary/admin/deduction-settings', rateData);
+    const response = await api.post('/mortuary/treasurer/settings/deduction-rate', rateData);
     return response.data;
   },
 };
 
 // ============================================
-// MORTUARY - BENEFIT CAP SETTINGS API (Admin)
-// ============================================
-export const benefitCapSettingAPI = {
-  getCurrentCap: async () => {
-    const response = await api.get('/mortuary/admin/benefit-cap/current');
-    return response.data;
-  },
-
-  getCapHistory: async (params = {}) => {
-    const response = await api.get('/mortuary/admin/benefit-cap', { params });
-    return response.data;
-  },
-
-  updateCap: async (capData) => {
-    const response = await api.post('/mortuary/admin/benefit-cap', capData);
-    return response.data;
-  },
-};
-
-// ============================================
-// MORTUARY - NOTICE THRESHOLD SETTINGS API (Admin)
+// MORTUARY - NOTICE THRESHOLD SETTINGS API (Treasurer)
 // ============================================
 export const noticeThresholdSettingAPI = {
   getCurrentThresholds: async () => {
-    const response = await api.get('/mortuary/admin/notice-thresholds/current');
+    const response = await api.get('/mortuary/treasurer/settings/notice-thresholds/current');
     return response.data;
   },
 
   getThresholdHistory: async (params = {}) => {
-    const response = await api.get('/mortuary/admin/notice-thresholds', { params });
+    const response = await api.get('/mortuary/treasurer/settings/notice-thresholds', { params });
     return response.data;
   },
 
   updateThresholds: async (thresholdData) => {
-    const response = await api.post('/mortuary/admin/notice-thresholds', thresholdData);
+    const response = await api.post('/mortuary/treasurer/settings/notice-thresholds', thresholdData);
     return response.data;
   },
 };
@@ -819,31 +799,24 @@ export const treasurerAPI = {
 
   /* Read-only dry run - ipinapakita bilang confirm-step preview bago
   mag-commit sa deduction (ilang members, per-member amount, total
-  collected). Yung per-member amount ay laging galing sa Admin-set rate
+  collected). Yung per-member amount ay laging galing sa configured rate
   sa server; walang say ang Treasurer dito, kaya walang ipinapasa dito. */
   previewClaimDeduction: async (claimId) => {
     const response = await api.get(`/mortuary/treasurer/claims/${claimId}/deduction-preview`);
     return response.data;
   },
 
-  /* Yung active Admin-set deduction rate, read-only. Parehong underlying
-  setting na in-edit ng Admin sa Deduction Settings - ipinapakita dito para
+  /* Yung active deduction rate, read-only. Parehong underlying setting na
+  in-edit sa Treasurer -> Settings -> Deduction rate - ipinapakita dito para
   makita ng Process Deduction screen ng Treasurer yung rate na sisingilin. */
   getDeductionRate: async () => {
     const response = await api.get('/mortuary/treasurer/deduction-rate');
     return response.data;
   },
 
-  /* Yung active Admin-set death benefit cap, read-only - parehong underlying
-  setting na in-edit ng Admin sa Fund Settings -> Benefit Cap. */
-  getBenefitCap: async () => {
-    const response = await api.get('/mortuary/treasurer/benefit-cap');
-    return response.data;
-  },
-
-  /* Yung active Admin-set balance notice thresholds, read-only - pinapayagan
+  /* Yung active balance notice thresholds, read-only - pinapayagan
   ng Member Ledger / Member Balances na i-classify yung members (Notice
-  1/2/Final) sa parehong paraan na ikinonfigure ng Admin, pero hindi
+  1/2/Final) sa parehong paraan na ikinonfigure sa Settings, pero hindi
   mababago dito. */
   getNoticeThresholds: async () => {
     const response = await api.get('/mortuary/treasurer/notice-thresholds');
@@ -888,7 +861,7 @@ export const treasurerAPI = {
   /* Claims Income Report - isang row per claim na naabot na yung deduction
   stage: collected from members, released to the beneficiary, retained as
   income. May dala pa rin yung response ng `totals` across sa lahat ng
-  matching claim (hindi lang yung page) at yung active `maxBenefitAmount`. */
+  matching claim (hindi lang yung page). */
   getClaimIncomeReport: async (params = {}) => {
     const response = await api.get('/mortuary/treasurer/claims/income-report', { params });
     return response.data;

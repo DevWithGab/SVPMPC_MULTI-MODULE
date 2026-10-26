@@ -30,7 +30,7 @@ test('claim deductions and releases show success and error alerts inside the cla
     originalApi = { ...api };
     const claim = {
       claimId: 'CLAIM-TEST', memberName: 'Test Member', beneficiaryName: 'Test Beneficiary',
-      payoutAmount: 500, maxBenefitAmount: 500, deduction: { totalCollected: 500 },
+      payoutAmount: 500, deduction: { totalCollected: 500 },
     };
     api.getPendingDeductionClaims = api.getAwaitingReleaseClaims = async () => ({ data: [claim] });
     api.getDeductionRate = async () => ({ data: { amount: 50 } });

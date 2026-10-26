@@ -56,7 +56,7 @@ export default function ClaimsAwaitingRelease({ user, onReleased }) {
   return <div className="mc-view space-y-5">
     <header className="mc-view-heading"><div><h2 className="text-2xl font-bold text-slate-900 tracking-tight">Awaiting release</h2><p className="mt-1.5 text-sm text-slate-500">Record the disbursement for claims with completed deductions.</p></div></header>
     <ClaimQueue queue={queue} release onSelect={open} />
-    <p className="text-xs leading-5 text-slate-500">For release shows the beneficiary’s payout after the benefit cap. Any retained amount remains with the cooperative.</p>
+    <p className="text-xs leading-5 text-slate-500">For release shows the beneficiary’s payout, which is the full amount collected for the claim.</p>
     {target && <ClaimDialog title={released ? 'Disbursement recorded' : review ? 'Confirm release' : 'Prepare release'} step={released ? 'Completed' : review ? 'Step 2 of 2 · Confirm disbursement' : 'Step 1 of 2 · Disbursement details'} busy={busy} onClose={close} footer={released ? <>
       <Action onClick={() => printClaimReceipt(released)}><Printer className="h-4 w-4" />Print receipt</Action><Action primary onClick={close}>Done</Action>
     </> : <>
@@ -70,14 +70,14 @@ export default function ClaimsAwaitingRelease({ user, onReleased }) {
       </> : <>
         {review ? <>
           <div><p className="text-xs text-slate-500">Amount to beneficiary</p><p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{peso(amountValue)}</p></div>
-          <dl className="rounded-md bg-slate-50 px-4"><Detail label="Total collected">{peso(target.deduction?.totalCollected)}</Detail><Detail label="Benefit cap">{peso(target.maxBenefitAmount)}</Detail>{(target.deduction?.totalCollected ?? 0) - amountValue > 0 && <Detail label="Retained by cooperative">{peso((target.deduction?.totalCollected ?? 0) - amountValue)}</Detail>}</dl>
+          <dl className="rounded-md bg-slate-50 px-4"><Detail label="Total collected">{peso(target.deduction?.totalCollected)}</Detail>{(target.deduction?.totalCollected ?? 0) - amountValue > 0 && <Detail label="Retained by cooperative">{peso((target.deduction?.totalCollected ?? 0) - amountValue)}</Detail>}</dl>
           <dl><Detail label="DV number">{form.dvNumber.trim()}</Detail><Detail label="Release date">{shortDate(`${form.releaseDate}T00:00:00`)}</Detail>{form.remarks.trim() && <Detail label="Remarks">{form.remarks.trim()}</Detail>}</dl>
           <p className="border-t border-slate-200 pt-4 text-sm leading-6 text-slate-600">Confirm that the beneficiary, amount, and voucher details match the disbursement. Confirming marks this claim as released.</p>
         </> : <form id="release-details" onSubmit={(event) => { event.preventDefault(); if (amountValid && form.dvNumber.trim() && form.releaseDate) setReview(true); }} className="space-y-4">
           <FormField>
             <label htmlFor="release-amount" className="mb-1.5 block text-sm font-medium">Amount to release (fixed)</label>
             <TextInput id="release-amount" type="text" readOnly className={`${fieldClass} bg-slate-50 text-slate-600`} value={amountValid ? peso(amountValue) : 'Unavailable'} aria-describedby="release-amount-help" />
-            <p id="release-amount-help" className="mt-1.5 text-xs text-slate-500">This amount is fixed based on the deduction collected and the Admin-configured benefit cap.</p>
+            <p id="release-amount-help" className="mt-1.5 text-xs text-slate-500">This amount is fixed to the total deduction collected for this claim.</p>
             {!amountValid && <p className="mt-1 text-xs text-red-600">This claim has no valid payout amount. Refresh the claims list and try again.</p>}
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2"><FormField><label htmlFor="release-dv" className="mb-1.5 block text-sm font-medium">DV number (required)</label><TextInput id="release-dv" required autoComplete="off" className={fieldClass} placeholder="Enter voucher number" value={form.dvNumber} onChange={(e) => setForm({ ...form, dvNumber: e.target.value })} /></FormField><FormField><label htmlFor="release-date" className="mb-1.5 block text-sm font-medium">Release date (required)</label><TextInput id="release-date" type="date" required className={fieldClass} value={form.releaseDate} onChange={(e) => setForm({ ...form, releaseDate: e.target.value })} /></FormField></div>

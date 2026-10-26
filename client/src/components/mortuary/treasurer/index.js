@@ -12,3 +12,4 @@ export { default as ClaimsAwaitingRelease } from './ClaimsAwaitingRelease.jsx';
 export { default as ClaimDisbursementReport } from './ClaimDisbursementReport.jsx';
 export { default as ClaimIncomeReport } from './ClaimIncomeReport.jsx';
 export { default as Reports } from './Reports.jsx';
+export { default as FundSettings } from './FundSettings.jsx';

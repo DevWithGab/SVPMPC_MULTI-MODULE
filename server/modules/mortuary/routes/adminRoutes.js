@@ -13,9 +13,6 @@ const adminController = require('../controllers/adminController');
 const payoutController = require('../controllers/payoutController');
 const claimController = require('../controllers/claimController');
 const beneficiaryController = require('../controllers/beneficiaryController');
-const deductionSettingController = require('../controllers/deductionSettingController');
-const noticeThresholdSettingController = require('../controllers/noticeThresholdSettingController');
-const benefitCapSettingController = require('../controllers/benefitCapSettingController');
 const backupController = require('../controllers/backupController');
 
 const router = express.Router();
@@ -62,22 +59,6 @@ router.get('/beneficiaries', authenticateToken, authorizeAdminOnly, beneficiaryC
 router.post('/beneficiaries/bulk-upload', authenticateToken, authorizeAdminOnly, bulkUploadLimiter, beneficiaryController.bulkUploadBeneficiaries);
 router.get('/beneficiaries/:memberId/history', authenticateToken, authorizeAdminOnly, beneficiaryController.getBeneficiaryHistory);
 router.put('/beneficiaries/:memberId', authenticateToken, authorizeAdminOnly, beneficiaryController.updateBeneficiary);
-
-// Deduction settings routes
-router.get('/deduction-settings/current', authenticateToken, authorizeAdminOnly, deductionSettingController.getCurrentRate);
-router.get('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.getRateHistory);
-router.post('/deduction-settings', authenticateToken, authorizeAdminOnly, deductionSettingController.updateRate);
-
-// Balance notice threshold routes
-router.get('/notice-thresholds/current', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getCurrentThresholds);
-router.get('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.getThresholdHistory);
-router.post('/notice-thresholds', authenticateToken, authorizeAdminOnly, noticeThresholdSettingController.updateThresholds);
-
-/* Death benefit cap - ito yung maximum payout na pwedeng irelease per claim
-(kung may lumagpas pa sa cap, napupunta na yun sa cooperative income). */
-router.get('/benefit-cap/current', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCurrentCap);
-router.get('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.getCapHistory);
-router.post('/benefit-cap', authenticateToken, authorizeAdminOnly, benefitCapSettingController.updateCap);
 
 /* Database backup/restore - yung restore ay bulk write sa live data, kaya
 same explicit auth din ang ginagamit nito kagaya ng ibang consequential

@@ -28,7 +28,6 @@ export default function ClaimIncomeReport() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [totals, setTotals] = useState(null);
-  const [maxBenefit, setMaxBenefit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
@@ -41,7 +40,6 @@ export default function ClaimIncomeReport() {
       setRows(Array.isArray(res?.data) ? res.data : []);
       setTotal(res?.pagination?.total ?? 0);
       setTotals(res?.totals || null);
-      setMaxBenefit(res?.maxBenefitAmount ?? null);
     } catch {
       setRows([]);
       setTotal(0);
@@ -139,7 +137,7 @@ export default function ClaimIncomeReport() {
           unfiltered. */}
       <AttendanceMetricGrid label="Claims summary totals" busy={loading} items={[
         ['Total deductions collected', loading ? '—' : peso(totals?.totalDeductionsCollected), 'Held, awaiting release', TrendingUp],
-        ['Total claims released', loading ? '—' : peso(totals?.totalReleased), maxBenefit ? 'Benefits paid out (max ' + peso(maxBenefit) + '/claim)' : 'Benefits paid out', TrendingDown],
+        ['Total claims released', loading ? '—' : peso(totals?.totalReleased), 'Benefits paid out', TrendingDown],
       ]} />
 
       <Panel as="div" className="mc-register">
