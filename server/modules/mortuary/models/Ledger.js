@@ -77,6 +77,7 @@ const ledgerSchema = new mongoose.Schema(
 
 // Indexes for better query performance
 ledgerSchema.index({ memberId: 1 });
+ledgerSchema.index({ 'correction.rootLedgerId': 1 });
 ledgerSchema.index({ transactionType: 1 });
 ledgerSchema.index({ transactionDate: -1 });
 ledgerSchema.index({ memberId: 1, transactionDate: -1 });

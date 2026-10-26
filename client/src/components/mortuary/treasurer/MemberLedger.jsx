@@ -8,6 +8,7 @@ import React, { useRef, useState } from 'react';
 import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import BulkLedgerUpload from './BulkLedgerUpload';
+import DailyLedgerSummary from './DailyLedgerSummary';
 import LedgerCorrectionDialog from './LedgerCorrectionDialog';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF } from '../../../utils/balanceNotice';
@@ -116,6 +117,8 @@ const MemberLedger = ({
   refreshData
 }) => {
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [ledgerView, setLedgerView] = useState('register');
+  const [summaryVersion, setSummaryVersion] = useState(0);
   const [correctionDialog, setCorrectionDialog] = useState(null);
   const [transactionFilter, setTransactionFilter] = useState('all');
   const [datePreset, setDatePreset] = useState('all'); // 'all' | 'thisMonth' | 'lastMonth' | 'thisYear'
@@ -489,6 +492,11 @@ const MemberLedger = ({
   return (
     <div className="member-ledger">
       <PageHeader className="ml-header ml-list-header"><div><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Upload daily transactions by CSV, then select a member to review or edit recorded amounts.</p></div><ActionButton variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</ActionButton></PageHeader>
+      <div role="group" aria-label="Member ledger views" className="mb-5 flex gap-3">
+        <ActionButton variant={ledgerView === 'register' ? 'default' : 'outline'} aria-pressed={ledgerView === 'register'} onClick={() => setLedgerView('register')}>Member Register</ActionButton>
+        <ActionButton variant={ledgerView === 'daily' ? 'default' : 'outline'} aria-pressed={ledgerView === 'daily'} onClick={() => setLedgerView('daily')}>Daily Summary</ActionButton>
+      </div>
+      {ledgerView === 'daily' ? <DailyLedgerSummary refreshVersion={summaryVersion} /> : <>
       <section className="ml-filters" aria-labelledby="ml-member-filter-title">
         <div className="ml-filter-heading"><h2 id="ml-member-filter-title">Find a member</h2><button className="ml-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
         <div className="ml-filter-grid">
@@ -572,8 +580,9 @@ const MemberLedger = ({
         )}
       </section>
 
+      </>}
       {/* Bulk Upload Modal */}
-      {showBulkModal && <BulkLedgerUpload onClose={() => setShowBulkModal(false)} onImported={refreshData} onDownloadTemplate={downloadLedgerTemplate} />}
+      {showBulkModal && <BulkLedgerUpload onClose={() => setShowBulkModal(false)} onImported={async () => { setSummaryVersion(value => value + 1); await refreshData?.(); }} onDownloadTemplate={downloadLedgerTemplate} />}
     </div>
   );
 };

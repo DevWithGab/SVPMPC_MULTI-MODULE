@@ -89,6 +89,7 @@ router.get('/notices/batch/:jobId/download', downloadNoticeBatch);
 
 // Ledger management routes
 router.get('/ledger', getAllLedger);
+router.get('/ledger/daily-summary', require('../controllers/dailyLedgerSummaryController').getDailyLedgerSummary);
 router.get('/ledger/:memberId', getMemberLedger);
 router.get('/balance/:memberId', getMemberBalance);
 router.post('/ledger/bulk-upload', bulkUploadLimiter, bulkUploadLedger);
