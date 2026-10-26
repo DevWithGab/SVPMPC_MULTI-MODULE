@@ -112,7 +112,6 @@ const MemberLedger = ({
   setCurrentPage,
   itemsPerPage,
   pagination,
-  onAddDeposit,
   showToast,
   refreshData
 }) => {
@@ -241,12 +240,6 @@ const MemberLedger = ({
           >
             <ArrowLeft className="w-4 h-4" /> Back to list
           </button>
-          <ActionButton variant="default"
-            onClick={() => onAddDeposit(currentMember)}
-            className="ml-button ml-primary"
-          >
-            Add Deposit
-          </ActionButton>
         </div>
         <div className="ml-document-actions ml-screen">
           <section className="ml-action-group" aria-labelledby="ml-ledger-actions-title">
@@ -495,7 +488,7 @@ const MemberLedger = ({
 
   return (
     <div className="member-ledger">
-      <PageHeader className="ml-header ml-list-header"><div><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Find a member to review their contributions, deductions, and running balance.</p></div><ActionButton variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</ActionButton></PageHeader>
+      <PageHeader className="ml-header ml-list-header"><div><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Upload daily transactions by CSV, then select a member to review or edit recorded amounts.</p></div><ActionButton variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</ActionButton></PageHeader>
       <section className="ml-filters" aria-labelledby="ml-member-filter-title">
         <div className="ml-filter-heading"><h2 id="ml-member-filter-title">Find a member</h2><button className="ml-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
         <div className="ml-filter-grid">

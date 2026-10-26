@@ -7,7 +7,7 @@ const fail = (status, message) => Object.assign(new Error(message), { status });
 const correctionId = id => `CORR-${createHash('sha256').update(id).digest('hex')}`;
 const isCorrectable = (entry, firstId) => entry.correction
   ? entry.correction.completed
-  : entry.credit > 0 && !entry.debit && (entry.transactionType === 'contribution' || entry.transactionType === 'adjustment' && entry.ledgerId === firstId);
+  : entry.credit > 0 && !entry.debit && (entry.transactionType === 'contribution' || entry.transactionType === 'adjustment' && (entry.ledgerId === firstId || Boolean(entry.importKey)));
 
 function validateCorrection({ amount, reason }) {
   if (!['number', 'string'].includes(typeof amount) || !/^\d+(\.\d{1,2})?$/.test(String(amount)) || !Number.isSafeInteger(Math.round(Number(amount) * 100)) || Number(amount) <= 0) {
@@ -51,7 +51,7 @@ function createLedgerCorrectionService({ Ledger, Contribution, AuditLog }) {
       if (posting && (posting.correction.afterAmount !== values.amount || (posting.correction.reason || '') !== values.reason)) throw fail(409, 'This entry has already been corrected. Refresh the ledger and edit the current amount again.');
       if (!posting) {
         const first = await Ledger.findOne({ memberId }).sort(POSTING_ORDER);
-        if (!isCorrectable(source, first?.ledgerId)) throw fail(400, 'Only payments and the opening credit balance can be corrected here. Finish any pending correction first.');
+        if (!isCorrectable(source, first?.ledgerId)) throw fail(400, 'Only payments, opening credit balances, and CSV-uploaded credit adjustments can be edited here. Finish any pending correction first.');
         if (source.credit === values.amount) throw fail(400, 'The corrected amount must differ from the current amount.');
         if (Number(body.expectedAmount) !== source.credit) throw fail(409, 'The entry has changed. Refresh the ledger before correcting it.');
         const originalType = source.correction?.originalType || source.transactionType;

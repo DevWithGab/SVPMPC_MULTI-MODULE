@@ -3,7 +3,6 @@ import { loadAllPages } from '../../utils/loadAllPages';
 import LoadError from '../../components/shared/common/LoadError';
 import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Swal from 'sweetalert2';
 import {
   Users, FileText, LayoutGrid, BarChart3, Bell,
   LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu, Banknote
@@ -23,19 +22,10 @@ import {
 } from '../../components/mortuary/treasurer';
 
 // Import shared components
-import RecordContributionModal from '../../components/mortuary/treasurer/RecordContributionModal';
 import { Toast } from '../../components/ui/toast';
 import api from '../../services/api';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../utils/balanceNotice';
 
-const contributionAlert = Swal.mixin({
-  confirmButtonColor: '#245e32',
-  cancelButtonColor: '#647069',
-  customClass: { container: 'contribution-alert-container' },
-  // Handle keyboard events before the underlying payment modal's focus trap.
-  keydownListenerCapture: true,
-  returnFocus: false,
-});
 
 const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate, badgeCount = 0 }) => (
   <button
@@ -156,9 +146,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   const [ledgerPagination, setLedgerPagination] = useState(null);
   
   // Modal states
-  const [isAddContributionOpen, setIsAddContributionOpen] = useState(false);
-  const [isSubmittingContribution, setIsSubmittingContribution] = useState(false);
-  const contributionInFlight = useRef(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -176,20 +163,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   }, [isMobileMenuOpen]);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
 
-  // Form data states
-  const [newContribution, setNewContribution] = useState({
-    member_id: '',
-    amount: '',
-    payment_date: new Date().toISOString().split('T')[0],
-    status: 'paid',
-    referenceNumber: ''
-  });
-  /* Naseset ito pag binuksan yung "Add Deposit" galing sa ledger page ng
-  isang specific member - yung Member field makikita na locked/read-only
-  na doon sa member na yun imbes na search box, kasi napili na siya ng
-  treasurer dahil nandoon na sa ledger niya. Pag null, general "Record
-  Payment" flow ito na kaya pa mag-search sa lahat ng members. */
-  const [lockedContributionMember, setLockedContributionMember] = useState(null);
   const [selectedMemberId, setSelectedMemberId] = useUrlState('member', null);
   const selectedMemberLedger = ledgerSnapshot.memberId === selectedMemberId ? ledgerSnapshot.entries : [];
   const selectedLedgerMember = members.find(member => String(member.id || member.memberId) === selectedMemberId) || null;
@@ -381,29 +354,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     setActiveTab('ledger', { member: member.id || member.memberId });
   };
 
-  /* "Add Deposit" galing sa ledger page ng specific member - napili na
-  yung member na yun dahil nandoon na sa ledger niya, kaya lock na lang
-  yung Member field sa kanya imbes na pahanapin ulit yung treasurer. */
-  const openAddDepositForMember = (member) => {
-    setLockedContributionMember(member);
-    setNewContribution((prev) => ({ ...prev, member_id: (member.id || member.memberId)?.toString() || '' }));
-    setIsAddContributionOpen(true);
-  };
-
-  const closeAddContributionModal = () => {
-    if (contributionInFlight.current) return;
-    setIsAddContributionOpen(false);
-    setLockedContributionMember(null);
-  };
-
-  /* Hindi na papipiliin ng Record Contribution modal yung Treasurer ng
-  barangay agad - maghahanap na lang sila ng member, at yung totoong
-  (required) Member.barangay field ang automatic na lalabas once selected,
-  read-only. */
-  const selectedContributionMember = members.find(
-    (member) => (member.id || member.memberId)?.toString() === newContribution.member_id?.toString()
-  );
-
   // Refresh all data
   const refreshAllData = async () => {
     await Promise.all([
@@ -414,79 +364,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
       fetchClaimsCounts(),
       ...(selectedMemberId ? [refreshSelectedMemberLedger()] : [])
     ]);
-  };
-
-  // Event handlers
-  const handleAddContribution = async (e) => {
-    e.preventDefault();
-    if (contributionInFlight.current) return;
-    const amount = Number(newContribution.amount);
-    const validationError = !newContribution.member_id ? 'Please select a member.'
-      : !Number.isFinite(amount) || amount < 1 ? 'Please enter an amount of at least ₱1.'
-      : !newContribution.payment_date ? 'Please enter a payment date.'
-      : !newContribution.referenceNumber?.trim() ? 'Please enter a reference number.' : null;
-
-    contributionInFlight.current = true;
-    setIsSubmittingContribution(true);
-    try {
-      if (validationError) {
-        await contributionAlert.fire({ icon: 'warning', title: 'Check payment details', text: validationError });
-        return;
-      }
-      const member = lockedContributionMember || selectedContributionMember;
-      const formattedAmount = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
-      const confirmation = await contributionAlert.fire({
-        icon: 'question',
-        title: 'Record this contribution?',
-        text: `Member: ${member?.name || member?.memberName || newContribution.member_id}\nAmount: ${formattedAmount}\nPayment date: ${newContribution.payment_date}\nReference: ${newContribution.referenceNumber.trim()}`,
-        showCancelButton: true,
-        confirmButtonText: 'Yes, record payment',
-        cancelButtonText: 'Review details',
-        focusCancel: true,
-      });
-      if (!confirmation.isConfirmed) return;
-
-      const response = await api.post('/mortuary/treasurer/contributions/record', {
-        ...newContribution,
-        amount,
-        referenceNumber: newContribution.referenceNumber.trim(),
-      });
-
-      if (!response.data.success) throw new Error(response.data.message || 'Error recording contribution.');
-      if (response.data.success) {
-        const contributedMemberId = newContribution.member_id;
-        
-        setIsAddContributionOpen(false);
-        setLockedContributionMember(null);
-        setNewContribution({ member_id: '', amount: '', payment_date: new Date().toISOString().split('T')[0], status: 'paid', referenceNumber: '' });
-        
-        // A refresh failure must not tell the user that a successful payment failed.
-        await Promise.all([
-          fetchMembers(), fetchContributions(), fetchLedgerMembers(), fetchDashboardStats(),
-          ...(selectedMemberId === String(contributedMemberId) ? [refreshSelectedMemberLedger(contributedMemberId)] : []),
-        ]);
-
-        await contributionAlert.fire({
-          icon: 'success',
-          title: 'Contribution recorded',
-          text: `${formattedAmount} has been recorded for ${member?.name || member?.memberName || newContribution.member_id}.`,
-          confirmButtonText: 'Done',
-        });
-      }
-    } catch (error) {
-      console.error('Error adding contribution:', error);
-      await contributionAlert.fire({
-        icon: 'error',
-        title: 'Could not record contribution',
-        text: error.response?.data?.message || error.message || 'Error recording contribution. Please try again.',
-      });
-    } finally {
-      contributionInFlight.current = false;
-      setIsSubmittingContribution(false);
-      requestAnimationFrame(() => {
-        document.querySelector('#contribution-amount')?.focus();
-      });
-    }
   };
 
   // Effects
@@ -522,16 +399,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  /* Minsan lang kukunin yung `members` nang mag-mount, kaya kung may
-  idagdag na member ang Super Admin (o iba pa) matapos mag-load ang
-  portal na ito, hindi ito makikita sa Record Contribution modal hangga't
-  walang full page refresh. Kinukuha ulit ito kapag binuksan yung modal
-  para hindi na ito maging stale. */
-  useEffect(() => {
-    if (isAddContributionOpen) {
-      fetchMembers();
-    }
-  }, [isAddContributionOpen, fetchMembers]);
 
   useEffect(() => {
     window.localStorage.setItem('treasurerSidebarCollapsed', String(sidebarCollapsed));
@@ -664,7 +531,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
             setCurrentPage={setCurrentPage}
             itemsPerPage={itemsPerPage}
             pagination={ledgerPagination}
-            onAddDeposit={openAddDepositForMember}
             showToast={showToast}
             refreshData={refreshAllData}
           />
@@ -790,17 +656,6 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         </main>
       </div>
 
-      <RecordContributionModal
-        isOpen={isAddContributionOpen}
-        onClose={closeAddContributionModal}
-        onSubmit={handleAddContribution}
-        members={members}
-        lockedMember={lockedContributionMember}
-        selectedMember={selectedContributionMember}
-        contribution={newContribution}
-        setContribution={setNewContribution}
-        submitting={isSubmittingContribution}
-      />
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
