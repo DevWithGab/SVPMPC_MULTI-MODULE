@@ -1,4 +1,5 @@
 import CsvDateOrder from '../shared/CsvDateOrder';
+import Swal from 'sweetalert2';
 import { Table as DataTable } from '../../ui/table';
 import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
@@ -10,6 +11,7 @@ const labels = { ready: 'Ready', resume: 'Ready to finish', duplicate: 'Duplicat
 
 export default function BulkLedgerUpload({ onClose, onImported, onDownloadTemplate }) {
   const inFlight = useRef(false);
+  const dialog = useRef(null);
   const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState('');
   const [dateOrder, setDateOrder] = useState('auto');
@@ -42,8 +44,26 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
       setResult(response);
       setCompleted(action === 'import');
       if (action === 'import') {
+        let refreshNote = '';
         try { await onImported?.(); }
-        catch { setError('Import results are shown below. Refresh the page to load updated balances.'); }
+        catch {
+          refreshNote = ' Refresh the page to load updated balances.';
+          setError('Import results are shown below.' + refreshNote);
+        }
+        const recorded = response.results.success.length;
+        const failed = response.results.failed.length;
+        const duplicates = response.summary?.duplicates || 0;
+        await Swal.fire({
+          // Keep the alert inside the native modal so it is visible and interactive.
+          target: dialog.current,
+          heightAuto: false,
+          keydownListenerCapture: true,
+          confirmButtonColor: '#245e32',
+          confirmButtonText: failed ? 'Review results' : 'OK',
+          icon: failed ? 'warning' : recorded ? 'success' : 'info',
+          title: failed ? 'Some entries need retry' : recorded ? 'Ledger entries recorded successfully' : 'No new entries recorded',
+          text: `${recorded} recorded. ${duplicates} duplicates skipped (not recorded).${failed ? ` ${failed} need retry. Review the errors below and preview the same file again.` : ''}${refreshNote}`,
+        });
       }
     } catch (failure) {
       setResult(failure.response?.data?.rows ? failure.response.data : null);
@@ -56,7 +76,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
   const canImport = summary && !summary.invalid && summary.ready > 0 && !completed;
 
   return (
-    <BulkUploadDialog title="Bulk Upload Ledger" description="Preview and validate every entry before importing into members' ledgers."
+    <BulkUploadDialog dialogRef={dialog} title="Bulk Upload Ledger" description="Preview and validate every entry before importing into members' ledgers."
       busy={busy} onClose={onClose} footer={<>
         <Button type="button" variant="outline" disabled={busy} onClick={onClose}>{completed ? 'Done' : 'Cancel'}</Button>
         <Button type="button" variant="outline" disabled={!csv || busy} onClick={() => submit('preview')}>{result ? 'Preview Again' : 'Preview Entries'}</Button>

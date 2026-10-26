@@ -3,8 +3,9 @@ import { useEffect, useId, useRef } from 'react';
 import { CheckCircle2, Download, FileSpreadsheet, Loader2, Upload } from 'lucide-react';
 import { Button } from '../../ui/button';
 
-export function BulkUploadDialog({ title, description, busy, onClose, footer, children }) {
-  const dialog = useRef(null);
+export function BulkUploadDialog({ title, description, busy, onClose, footer, children, dialogRef }) {
+  const internalDialog = useRef(null);
+  const dialog = dialogRef || internalDialog;
   const titleId = useId();
   const descriptionId = useId();
   useEffect(() => {
