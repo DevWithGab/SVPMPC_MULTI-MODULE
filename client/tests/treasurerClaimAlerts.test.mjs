@@ -49,18 +49,14 @@ test('batch claim deductions show success and error alerts inside the claim dial
     };
     const button = label => [...container.querySelectorAll('button')].find(el => el.textContent.trim() === label);
     const click = label => act(async () => button(label).click());
-    const fill = (selector, value) => act(async () => {
-      const input = container.querySelector(selector);
-      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value);
-      input.dispatchEvent(new window.Event('input', { bubbles: true }));
-    });
     const submit = selector => act(async () => container.querySelector(selector).dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
     const { default: Pending } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/ClaimsPendingDeduction.jsx');
     await act(async () => root.render(React.createElement(Pending, { user: { name: 'Treasurer' } })));
-    assert.equal(button('Review deduction').disabled, true, 'nothing can be processed until claims are selected');
+    assert.equal(button('Review deduction'), undefined, 'review action stays hidden until claims are selected');
+    assert.equal(container.querySelector('.mc-selection'), null);
     await act(async () => container.querySelector('input[aria-label="Select all claims on this page"]').click());
     await click('Review deduction (2)');
-    await fill('#deduction-jv', 'JV-TEST');
+    assert.equal(container.querySelector('#deduction-jv'), null, 'finance cannot enter a reference');
     await submit('#deduction-details');
     await click('Confirm deduction');
     assert.equal(alerts.at(-1).title, 'Could not process deduction');
@@ -68,11 +64,11 @@ test('batch claim deductions show success and error alerts inside the claim dial
     fail = false;
     await click('Confirm deduction');
     assert.equal(alerts.at(-1).icon, 'success');
-    assert.match(alerts.at(-1).text, /JV-TEST/);
+    assert.match(alerts.at(-1).text, /Claim Officer/);
     assert.match(container.textContent, /Deduction summary/);
     assert.ok(button('Print summary'), 'the batch summary can be printed');
     assert.equal(writes.length, 1);
-    assert.deepEqual(writes[0], { claimIds: ['CLAIM-1', 'CLAIM-2'], jvNumber: 'JV-TEST' }, 'one JV number for every selected claim');
+    assert.deepEqual(writes[0], { claimIds: ['CLAIM-1', 'CLAIM-2'], jvNumber: undefined }, 'finance sends only the selected claims');
     assert.deepEqual(previews[0], ['CLAIM-1', 'CLAIM-2']);
 
   } finally {

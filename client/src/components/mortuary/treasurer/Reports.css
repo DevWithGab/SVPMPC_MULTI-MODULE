@@ -162,5 +162,31 @@
     .treasurer-reports .reports-pagination { align-items: start; flex-direction: column; }
   }
   @media (max-width: 359px) { .treasurer-reports .reports-eyebrow { gap: 12px; font-size: 13px; } .treasurer-reports .reports-period-switch button { min-width: 90px; } }
+  /* Organize report controls without changing the existing typography. */
+  .treasurer-reports .rp-toolbar { grid-template-columns: minmax(240px, 1.1fr) minmax(180px, 1fr) auto; gap: 24px; padding: 24px; margin-bottom: 28px; border: 1px solid #dce3df; border-radius: 8px; background: #f8fbf9; }
+  .treasurer-reports .rp-report-field { max-width: 420px; }
+  .treasurer-reports .rp-selected-scope { margin: 0; padding: 12px 0 12px 24px; }
+  .treasurer-reports .reports-export-actions { align-items: center; justify-content: flex-end; }
+  .treasurer-reports .reports-export-actions .reports-button { white-space: nowrap; }
+  .treasurer-reports .reports-document-heading { padding: 0 0 20px; margin-bottom: 0; }
+  .treasurer-reports .reports-filters { padding: 20px 24px; margin-bottom: 24px; border: 1px solid #e0e7e2; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px #173d2808; }
+  .treasurer-reports .reports-filter-heading { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #edf1ee; }
+  .treasurer-reports .reports-text-button { padding: 8px 12px; border-radius: 6px; text-decoration: none; }
+  .treasurer-reports .reports-text-button:hover:not(:disabled) { background: #f0f6f2; text-decoration: underline; }
+  .treasurer-reports .reports-filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 360px)); gap: 20px 24px; }
+  .treasurer-reports .reports-filter-fields label { min-width: 0; max-width: none; }
+  .treasurer-reports .reports-filters > p { margin-top: 16px; }
+  @media (max-width: 1250px) {
+    .treasurer-reports .rp-toolbar { grid-template-columns: minmax(220px, 1fr) minmax(0, 1fr); gap: 20px; }
+    .treasurer-reports .reports-export-actions { grid-column: 1 / -1; justify-content: flex-start; padding-top: 16px; border-top: 1px solid #e0e7e2; }
+  }
+  @media (max-width: 767px) {
+    .treasurer-reports .rp-toolbar { grid-template-columns: minmax(0, 1fr); padding: 20px 16px; gap: 18px; }
+    .treasurer-reports .rp-report-field { max-width: none; }
+    .treasurer-reports .rp-selected-scope { padding: 12px 14px; border: 0; border-radius: 6px; background: #edf4ef; }
+    .treasurer-reports .reports-filters { padding: 16px; }
+    .treasurer-reports .reports-filter-fields { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .treasurer-reports .reports-export-actions .reports-button { white-space: normal; }
+  }
   @media (prefers-reduced-motion: reduce) { .treasurer-reports * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 }

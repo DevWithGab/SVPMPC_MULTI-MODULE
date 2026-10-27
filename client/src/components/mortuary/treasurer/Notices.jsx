@@ -3,7 +3,7 @@ import { Select } from '../../ui/input';
 import { FormField } from '../../ui/workspace';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Printer, Download, Loader2, FileText, RefreshCw, Info } from 'lucide-react';
+import { Printer, Download, Loader2, FileText, RefreshCw } from 'lucide-react';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 import { treasurerAPI } from '../../../services/api';
@@ -217,13 +217,18 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
       </header>
       <section aria-labelledby="notice-panel-title" className="tn-workspace">
         <h2 id="notice-panel-title" className="sr-only">Member notices</h2>
-        <FormField className="tn-filter">
+        <div className="tn-filter-panel">
+        <div className="tn-filter-copy"><h2>Prepare balance notices</h2><p>Select a barangay, then download or print a notice level below.</p></div>
+        <div className="tn-filter-controls"><FormField className="tn-filter">
           <label htmlFor="notice-barangay">Barangay for notices</label>
           <Select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help">
             {uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}
           </Select>
         </FormField>
         <p id="notice-scope-help" className="tn-scope">Includes all eligible members in {noticeBarangay === 'All' ? 'all barangays' : noticeBarangay}.</p>
+        </div>
+        <div className="tn-eligible-summary"><strong>{totalEligibleMembers.toLocaleString()}</strong><span>eligible {totalEligibleMembers === 1 ? 'member' : 'members'}</span></div>
+        </div>
         <div className="tn-levels">
           <div className="tn-column-head" aria-hidden="true"><span>Notice level</span><span className="tn-range-heading">Current balance</span><span>Members</span><span>Actions</span></div>
           {[1, 2, 3].map(level => {
@@ -245,16 +250,12 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
             );
           })}
         </div>
-        <div className="tn-guidance"><Info size={22} aria-hidden="true" /><p><strong>One PDF per notice level.</strong> Each member&apos;s letter starts on a new page.</p></div>
-        <p className="tn-explanation">Notice levels are based on current balances. Only members within the configured balance range for each level are included.</p>
-        <p className="tn-explanation">Download one PDF per notice level, or print a letter for each member.</p>
         <div role="status" aria-live="polite" aria-atomic="true" className="tn-status">
           {noticeBusy && <p><Loader2 size={18} className="animate-spin" aria-hidden="true" />Preparing {NOTICE_LEVEL_LABELS[batchJob?.level || downloadingLevel || printingLevel]}. {batchJob ? 'Large batches may take a few moments. Keep this page open.' : 'Please wait...'}</p>}
           {!noticeBusy && readyDownload && <p className="sr-only">Your notice PDF is ready. Use the Download ready PDF link.</p>}
         </div>
         {readyDownload && <div className="tn-ready"><p>{NOTICE_LEVEL_LABELS[readyDownload.level]} is ready &middot; {readyDownload.count} members &middot; {readyDownload.barangay || 'All barangays'}</p><a href={readyDownload.url} target="_blank" rel="noopener noreferrer" className="tn-button tn-primary"><Download size={20} aria-hidden="true" />Download ready PDF</a></div>}
       </section>
-      <footer className="tn-footer">Showing <strong>{totalEligibleMembers.toLocaleString()}</strong> eligible {totalEligibleMembers === 1 ? 'member' : 'members'} {noticeBarangay === 'All' ? 'across all barangays' : `in ${noticeBarangay}`}.</footer>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿/* Notices presentation only; PDF generation and print templates keep their existing styling. */
+/* Notices presentation only; PDF generation and print templates keep their existing styling. */
 @media screen {
   .treasurer-notices { --tn-ink: #101820; --tn-muted: #646c78; --tn-green: #174b38; display: flex; flex-direction: column; width: 100%; max-width: 1600px; min-height: calc(100dvh - 56px); margin-inline: auto; padding-bottom: 0; color: var(--tn-ink); }
   .treasurer-notices .tn-eyebrow { display: flex; gap: 16px; margin-bottom: 20px; color: var(--tn-muted); font-size: 14px; font-weight: 400; line-height: 1.5; }
@@ -73,5 +73,22 @@
   }
   @media (max-width: 479px) { .treasurer-notices .tn-header { flex-direction: column; } }
   @media (max-width: 359px) { .treasurer-notices .tn-eyebrow { gap: 12px; font-size: 13px; } .treasurer-notices .tn-notice-row { column-gap: 14px; } }
+  /* Barangay scope panel; notice levels retain their original row layout. */
+  .treasurer-notices .tn-filter-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 1.2fr) auto; align-items: center; gap: 28px; padding: 24px; border: 1px solid #e0e7e2; border-radius: 8px; background: #f8fbf9; }
+  .treasurer-notices .tn-filter-copy h2 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -.025em; }
+  .treasurer-notices .tn-filter-copy p { margin-top: 7px; color: var(--tn-muted); font-size: 13px; line-height: 1.6; }
+  .treasurer-notices .tn-filter { width: 100%; }
+  .treasurer-notices .tn-eligible-summary { display: flex; flex-direction: column; gap: 4px; padding-left: 24px; border-left: 1px solid #dce3df; }
+  .treasurer-notices .tn-eligible-summary strong { font-size: 30px; line-height: 1.2; color: var(--tn-green); font-variant-numeric: tabular-nums; }
+  .treasurer-notices .tn-eligible-summary span { font-size: 12px; color: var(--tn-muted); }
+  .treasurer-notices .tn-guidance { margin-top: 24px; padding: 16px 20px; background: #f0f6f2; }
+  @media (max-width: 1200px) {
+    .treasurer-notices .tn-filter-panel { grid-template-columns: minmax(0, 1fr) auto; gap: 20px; }
+    .treasurer-notices .tn-filter-copy { grid-column: 1 / -1; }
+  }
+  @media (max-width: 600px) {
+    .treasurer-notices .tn-filter-panel { grid-template-columns: 1fr; padding: 18px; }
+    .treasurer-notices .tn-eligible-summary { flex-direction: row; align-items: baseline; gap: 10px; border-left: 0; border-top: 1px solid #dce3df; padding: 14px 0 0; }
+  }
   @media (prefers-reduced-motion: reduce) { .treasurer-notices * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 }

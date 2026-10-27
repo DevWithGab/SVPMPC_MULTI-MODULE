@@ -7,7 +7,7 @@ klaro at distinct sa codebase yung money flow na dulot ng isang claim:
     member. Dati pa itong existing bilang blanket, manually-triggered action
     (processAutomaticDeduction); ang processDeductionBatch sa baba ay parehong
     mekanismo, tumatakbo lang para sa mga piniling claim (hal. lahat ng death claim
-    ng buwan), gamit ang configurable DeductionSetting rate at iisang JV number.
+    ng buwan), gamit ang configurable DeductionSetting rate at reference per death.
 
 Ang deduction na ang huling hakbang ng claim - wala nang release/disbursement step
 sa system, kaya kolekta lang ang tina-track dito. */
@@ -222,7 +222,7 @@ const INVALID_CLAIM_IDS = `Select between 1 and ${MAX_BATCH_CLAIMS} claims to pr
 
 /* Pinagsasama ang computation ng preview at ng totoong batch para siguradong yung
 napreview ay yung talagang sisingilin: bawat active member ay sisingilin ng rate x
-bilang ng claims, isang beses lang (isang ledger row) para sa buong batch. */
+bilang ng claims, isang ledger row bawat claim. */
 const summarizeBatch = (claims, rate, members) => {
   const claimCount = claims.length;
   const amountPerMember = round2(rate * claimCount);
@@ -239,6 +239,7 @@ const summarizeBatch = (claims, rate, members) => {
       claimId: claim.claimId,
       memberName: claim.memberName,
       beneficiaryName: claim.beneficiaryName,
+      referenceNumber: claim.referenceNumber,
     })),
   };
 };
@@ -279,23 +280,16 @@ const previewDeductionBatch = async (req, res) => {
   }
 };
 
-/* Flow A, isang batch (hal. lahat ng death claim ng buwan): isang beses lang
-sisingilin ang bawat active member - rate x bilang ng claims, isang ledger row - at
-iisang JV number ang gamit ng lahat ng claim sa batch. Bawat claim ay may sariling
+/* Flow A, isang batch (hal. lahat ng death claim ng buwan): sisingilin ang bawat
+active member ng rate x bilang ng claims, isang ledger row bawat claim na may
+sariling reference ng Claim Officer. Bawat claim ay may sariling
 deduction record (rate, members charged, kolekta para sa claim na iyon) at batchId
 para makita kung aling claims ang sabay na naproseso. */
 const processDeductionBatch = async (req, res) => {
   try {
     const processedBy = actorName(req.user, 'treasurer');
-    const jvNumber = String(req.body.jvNumber || '').trim();
     const claimIds = parseClaimIds(req.body.claimIds);
 
-    if (!jvNumber) {
-      return res.status(400).json({
-        success: false,
-        message: 'JV (Journal Disbursement) number is required before processing the deduction',
-      });
-    }
     if (!claimIds) {
       return res.status(400).json({ success: false, message: INVALID_CLAIM_IDS });
     }
@@ -330,6 +324,10 @@ const processDeductionBatch = async (req, res) => {
       locked.push(claim);
     }
 
+    if (locked.some(claim => !claim.referenceNumber?.trim())) {
+      await releaseLocks();
+      return res.status(400).json({ success: false, message: `Missing saved reference for: ${locked.filter(claim => !claim.referenceNumber?.trim()).map(claim => claim.memberName || claim.claimId).join(', ')}. Ask the Claim Officer to open each claim, enter the reference, and click Save verification and reference.` });
+    }
     const batchId = uuidv4();
     let summary;
     const befores = new Map();
@@ -341,31 +339,37 @@ const processDeductionBatch = async (req, res) => {
       }
 
       const { members } = await getMemberBalanceSnapshots();
-      const amountPerMember = round2(rate * locked.length);
-      const description = locked.length === 1
-        ? `Death fund assessment for ${locked[0].memberName}`
-        : `Death fund assessment for ${locked.length} death claims`;
 
+      /* Isang ledger row bawat claim para hiwalay ang reference at halaga ng bawat
+      death sa ledger ng member. Kapag pumalya ang isang row, binubura ang mga
+      naisulat na para sa member na iyon para buo o wala ang singil sa kanya. */
       const charged = [];
       for (const member of members) {
+        const savedIds = [];
         try {
-          const ledgerEntry = new Ledger({
-            ledgerId: uuidv4(),
-            memberId: member.memberId,
-            transactionType: 'automatic_deduction',
-            description,
-            debit: amountPerMember,
-            credit: 0,
-            balance: round2((member.balance || 0) - amountPerMember),
-            // Kept exactly as entered (e.g. "JV-1923823"), same as the claim record.
-            referenceId: jvNumber,
-            transactionDate: new Date(),
-            recordedBy: processedBy,
-          });
-          await ledgerEntry.save();
+          let balance = member.balance || 0;
+          for (const claim of locked) {
+            balance = round2(balance - rate);
+            const ledgerEntry = new Ledger({
+              ledgerId: uuidv4(),
+              memberId: member.memberId,
+              transactionType: 'automatic_deduction',
+              description: `Death fund assessment for ${claim.memberName}`,
+              debit: rate,
+              credit: 0,
+              balance,
+              referenceId: claim.referenceNumber,
+              // Petsa ng pag-file ng claim ang ipinapakita sa ledger, hindi ang araw ng deduction.
+              transactionDate: claim.dateFiled || new Date(),
+              recordedBy: processedBy,
+            });
+            await ledgerEntry.save();
+            savedIds.push(ledgerEntry.ledgerId);
+          }
           charged.push(member);
         } catch (memberError) {
           console.error(`Error processing deduction for member ${member.memberId}:`, memberError);
+          if (savedIds.length) await Ledger.deleteMany({ ledgerId: { $in: savedIds } });
         }
       }
 
@@ -376,7 +380,7 @@ const processDeductionBatch = async (req, res) => {
         claim.status = 'deduction_processed';
         claim.deduction = {
           deductionSettingId,
-          jvNumber,
+          jvNumber: claim.referenceNumber,
           batchId,
           claimsInBatch: locked.length,
           amountPerMember: rate,
@@ -389,7 +393,7 @@ const processDeductionBatch = async (req, res) => {
           status: 'deduction_processed',
           changedBy: processedBy,
           changedAt: now,
-          notes: `JV ${jvNumber}: batch of ${locked.length} claims - charged ${summary.membersCharged} active members ₱${rate} for this claim (₱${summary.collectedPerClaim} collected)`,
+          notes: `JV ${claim.referenceNumber}: batch of ${locked.length} claims - charged ${summary.membersCharged} active members ₱${rate} for this claim (₱${summary.collectedPerClaim} collected)`,
         });
         await claim.save();
       }
@@ -414,7 +418,7 @@ const processDeductionBatch = async (req, res) => {
         entityType: 'claim',
         entityId: claim.claimId,
         entityName: claim.memberName,
-        description: `JV ${jvNumber}: batch of ${locked.length} claims - charged ${summary.membersCharged} active members ₱${summary.ratePerClaim} for claim ${claim.claimId} (₱${summary.collectedPerClaim} collected)`,
+        description: `JV ${claim.referenceNumber}: batch of ${locked.length} claims - charged ${summary.membersCharged} active members ₱${summary.ratePerClaim} for claim ${claim.claimId} (₱${summary.collectedPerClaim} collected)`,
         changes: { before: befores.get(claim.claimId), after: claim.toObject() },
         status: 'success',
         ipAddress: req.ip,
@@ -425,7 +429,7 @@ const processDeductionBatch = async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Deduction processed for ${locked.length} claims and ${summary.membersCharged} members`,
-      data: { ...summary, batchId, jvNumber, processedBy, processedAt: locked[0].deduction.processedAt },
+      data: { ...summary, batchId, processedBy, processedAt: locked[0].deduction.processedAt },
     });
   } catch (error) {
     console.error('Error processing deduction batch:', error);

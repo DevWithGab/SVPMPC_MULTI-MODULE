@@ -41,7 +41,7 @@ export default function DeductionMonthDetail({ month, onBack }) {
         : <>
           <AttendanceMetricGrid label={`${monthLabel(month)} totals`} items={[
             ['Total collected', peso(data.totalCollected), 'Member assessments collected', TrendingUp],
-            ['Batches processed', data.batchCount.toLocaleString(), 'One reference number each', Layers],
+            ['Batches processed', data.batchCount.toLocaleString(), 'Claims processed together', Layers],
             ['Claims covered', data.claimCount.toLocaleString(), 'Death claims deducted', FileText],
           ]} />
           <Panel as="div" className="mc-register">

@@ -783,8 +783,8 @@ export const treasurerAPI = {
 
   /* Batch deduction - isang JV number para sa lahat ng piniling claim; isang beses
   lang sisingilin ang bawat member (rate x bilang ng claims). */
-  processDeductionBatch: async (claimIds, jvNumber) => {
-    const response = await api.post('/mortuary/treasurer/claims/deduction-batch', { claimIds, jvNumber });
+  processDeductionBatch: async (claimIds) => {
+    const response = await api.post('/mortuary/treasurer/claims/deduction-batch', { claimIds });
     return response.data;
   },
 

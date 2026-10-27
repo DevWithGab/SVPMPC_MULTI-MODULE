@@ -58,6 +58,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
     verificationDate: "",
     remarks: "",
   });
+  const [verificationSaved, setVerificationSaved] = useState(false);
   const [savingVerification, setSavingVerification] = useState(false);
   const [approveRejectMode, setApproveRejectMode] = useState(null); // 'approve' | 'reject' | null
   const [newRequirement, setNewRequirement] = useState("");
@@ -85,6 +86,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
               .toISOString()
               .split("T")[0]
           : new Date().toISOString().split("T")[0],
+        referenceNumber: payload.claim?.referenceNumber || "",
         remarks: payload.claim?.verification?.remarks || "",
       });
     } catch (err) {
@@ -172,14 +174,23 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
 
   const saveVerification = async () => {
     if (!claim) return;
+    if (!verificationForm.referenceNumber?.trim()) {
+      setVerificationSaved(false);
+      setError('Reference Number is required.');
+      document.getElementById('death-reference')?.focus();
+      return;
+    }
+    setVerificationSaved(false);
     setSavingVerification(true);
     setError("");
     try {
       const res = await claimAPI.updateVerification(
         claim.claimId,
-        verificationForm,
+        { ...verificationForm, referenceNumber: verificationForm.referenceNumber?.trim() || undefined },
       );
       setData((prev) => ({ ...prev, claim: res?.data || prev.claim }));
+      setVerificationSaved(true);
+      onChanged?.();
       // Show the name the server actually recorded.
       const recordedBy = res?.data?.verification?.verifiedBy;
       if (recordedBy) setVerificationForm((f) => ({ ...f, verifiedBy: recordedBy }));
@@ -350,9 +361,12 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   Add the physical documents required for this individual claim,
                   then track their status.
                 </p>
+                <div className="ac-checklist-progress" role="status"><span>{Object.values(claim.requirements || {}).filter(item => item.submitted).length} of {Object.keys(claim.requirements || {}).length} submitted & verified</span><span>{allSubmitted ? 'Complete' : 'In progress'}</span></div>
                 {canDecide && (
-                  <form onSubmit={addRequirement} className="flex gap-2 mt-3">
+                  <form onSubmit={addRequirement} className="ac-add-requirement flex gap-2 mt-3">
+                    <label htmlFor="ac-new-requirement">Add a required document</label>
                     <TextInput
+                      id="ac-new-requirement"
                       aria-label="New requirement"
                       value={newRequirement}
                       onChange={(e) => setNewRequirement(e.target.value)}
@@ -362,6 +376,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                     <Button
                       type="submit"
                       size="sm"
+                      className="ac-primary-button"
                       disabled={addingRequirement || !newRequirement.trim()}
                     >
                       {addingRequirement ? (
@@ -374,7 +389,8 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   </form>
                 )}
                 {canDecide && (
-                  <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  <div className="ac-requirement-suggestions flex flex-wrap gap-1.5 mt-2.5">
+                    <p className="ac-suggestion-label">Quick add common documents</p>
                     {COMMON_REQUIREMENTS.filter(
                       (label) =>
                         !existingRequirementLabels.has(label.toLowerCase()),
@@ -389,29 +405,6 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                         + {label}
                       </button>
                     ))}
-                  </div>
-                )}
-                {canDecide && lastAdded && claim.requirements?.[lastAdded.key] && (
-                  <div
-                    role="status"
-                    className="flex items-center justify-between gap-3 mt-3 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-xs text-emerald-800"
-                  >
-                    <span>
-                      Added <strong>{lastAdded.label}</strong> to this claim.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeRequirement(lastAdded.key)}
-                      disabled={removingRequirement === lastAdded.key}
-                      className="inline-flex items-center gap-1 font-semibold text-emerald-900 hover:underline disabled:opacity-50"
-                    >
-                      {removingRequirement === lastAdded.key ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Undo2 className="w-3.5 h-3.5" />
-                      )}
-                      Undo
-                    </button>
                   </div>
                 )}
               </div>
@@ -502,7 +495,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
 
           {/* Verification info */}
           <div className="ac-detail-panel ac-verification p-5">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="ac-verification-heading flex items-center gap-2 mb-4">
               <FileText className="w-4 h-4 text-coop-green" />
               <p className="text-sm font-bold text-slate-900">
                 Verification Information
@@ -540,9 +533,10 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 />
               </FormField>
             </div>
-            <FormField className="mt-4">
+            <div className="ac-verification-notes">
+            <FormField>
               <label className="text-xs font-semibold text-slate-500 mb-1.5 block">
-                Remarks
+                Remarks <span className="ac-optional-label">(Optional)</span>
               </label>
               <Textarea
                 value={verificationForm.remarks}
@@ -557,10 +551,14 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green disabled:bg-slate-50"
               />
             </FormField>
-            {canDecide && (
-              <div className="mt-4">
+            <FormField required><label htmlFor="death-reference">Reference Number <span className="ac-required-mark" aria-hidden="true">*</span></label><TextInput id="death-reference" maxLength={100} value={verificationForm.referenceNumber || ''} onChange={e => setVerificationForm(f => ({ ...f, referenceNumber: e.target.value }))} disabled={!canDecide && claim.status !== 'pending_deduction'} /></FormField>
+            </div>
+            {verificationSaved && <p role="status" className="mt-2 text-sm text-coop-green">Verification and reference saved.</p>}
+            {(canDecide || claim.status === 'pending_deduction') && (
+              <div className="ac-verification-actions mt-4">
                 <Button
-                  variant="secondary"
+                  variant="default"
+                  className="ac-primary-button"
                   size="sm"
                   onClick={saveVerification}
                   disabled={savingVerification}
@@ -568,7 +566,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                   {savingVerification ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : null}
-                  Save Verification
+                  Save
                 </Button>
               </div>
             )}
@@ -656,7 +654,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
       <ApproveRejectClaimModal
         isOpen={Boolean(approveRejectMode)}
         mode={approveRejectMode}
-        claim={claim}
+        claim={{ ...claim, referenceNumber: verificationForm.referenceNumber }}
         user={user}
         onClose={() => setApproveRejectMode(null)}
         onDone={() => {

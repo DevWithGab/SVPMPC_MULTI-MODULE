@@ -20,6 +20,7 @@ const claimSchema = new mongoose.Schema(
       unique: true,
       required: true,
     },
+    referenceNumber: { type: String, trim: true, maxlength: 100 },
     memberId: {
       type: String,
       required: true,

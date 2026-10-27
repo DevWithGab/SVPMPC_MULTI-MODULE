@@ -221,6 +221,16 @@ const getAdminDashboard = async (req, res) => {
 
     const totalClaims = Object.values(claimCountsByStatus).reduce((sum, n) => sum + n, 0);
 
+    const monthlyDeductions = await Claim.aggregate([
+      { $match: { status: { $in: ['deduction_processed', 'released'] }, 'deduction.processedAt': { $type: 'date' } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m', date: '$deduction.processedAt', timezone: 'Asia/Manila' } },
+        totalCollected: { $sum: { $ifNull: ['$deduction.totalCollected', 0] } },
+        claimCount: { $sum: 1 },
+      } },
+      { $sort: { _id: 1 } },
+    ]);
+
     const { totalDeductionsCollected } = await getClaimFinancialTotals();
 
     /* Recent claim activity - flatten yung last few statusHistory entries
@@ -275,6 +285,7 @@ const getAdminDashboard = async (req, res) => {
         },
         recentClaimActivities,
         claimsNeedingAttention,
+        monthlyDeductions: monthlyDeductions.map(row => ({ month: row._id, totalCollected: row.totalCollected, claimCount: row.claimCount })),
       },
     });
   } catch (error) {

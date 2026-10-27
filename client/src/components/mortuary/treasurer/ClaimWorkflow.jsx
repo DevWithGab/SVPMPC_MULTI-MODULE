@@ -41,7 +41,7 @@ export function ClaimQueue({ queue, selected, onToggle, onToggleAll, footer }) {
             </tr>)}</tbody>
           </DataTable></div></>}
     {footer}
-    <div className="mc-pagination">
+    {total > 0 && <div className="mc-pagination">
       <span aria-live="polite">{loading ? 'Loading…' : error ? 'Claims unavailable' : total ? `${(page - 1) * 100 + 1}–${Math.min(page * 100, total)} of ${total} ${search ? 'matching ' : ''}claims` : '0 claims'}</span>
       <Pagination
         currentPage={page}
@@ -50,7 +50,7 @@ export function ClaimQueue({ queue, selected, onToggle, onToggleAll, footer }) {
         hasNextPage={!loading && !error && page * 100 < total}
         hasPrevPage={!loading && !error && page > 1}
       />
-    </div>
+    </div>}
   </Panel>;
 }
 

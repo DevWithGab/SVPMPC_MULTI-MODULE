@@ -115,32 +115,32 @@ const baseMembers = () => [
   { memberId: '002', memberName: 'Member Two', balance: 1000 },
   { memberId: '003', memberName: 'Member Three', balance: -200 },
 ];
-const pendingClaim = (overrides = {}) => ({ claimId: 'CLM-1', memberName: 'Deceased Member', status: 'pending_deduction', ...overrides });
-const twoClaims = () => [pendingClaim(), pendingClaim({ claimId: 'CLM-2', memberName: 'Second Deceased' })];
+const pendingClaim = (overrides = {}) => ({ claimId: 'CLM-1', memberName: 'Deceased Member', status: 'pending_deduction', referenceNumber: 'REF-1', ...overrides });
+const twoClaims = () => [pendingClaim(), pendingClaim({ claimId: 'CLM-2', referenceNumber: 'REF-2', memberName: 'Second Deceased' })];
 const request = (body, user = { username: 'treasurer.jane' }) => ({ body, user, ip: '', get: () => '' });
 
-test('a batch charges every active member once for all claims, sharing one JV number', async () => {
+test('a batch charges every active member once for all claims, preserving the claim officer references', async () => {
   const db = database(baseMembers(), { claims: twoClaims() });
   const { processDeductionBatch } = controller(db);
 
   const res = response();
-  await processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-001' }), res);
+  await processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), res);
 
   assert.equal(res.code, 200);
   assert.equal(res.data.data.claimCount, 2);
   assert.equal(res.data.data.amountPerMember, 50, '2 claims * ₱25');
   assert.equal(res.data.data.totalCollected, 150, '3 members * ₱50');
-  assert.equal(db.state.ledgers.length, 3, 'one ledger row per member for the whole batch');
+  assert.equal(db.state.ledgers.length, 6, 'one ledger row per member per claim');
 
-  const byMember = Object.fromEntries(db.state.ledgers.map(row => [row.memberId, row]));
-  assert.equal(byMember['001'].balance, 450, '500 - 50');
-  assert.equal(byMember['003'].balance, -250, '-200 - 50');
-  // The ledger reference keeps the number exactly as entered, "JV" prefix included.
-  assert.ok(db.state.ledgers.every(row => row.referenceId === 'JV-001' && row.debit === 50));
+  // Each claim is its own ledger row with its own reference and amount.
+  const rowsFor = memberId => db.state.ledgers.filter(row => row.memberId === memberId);
+  assert.deepEqual(rowsFor('001').map(row => [row.referenceId, row.debit, row.balance]), [['REF-1', 25, 475], ['REF-2', 25, 450]]);
+  assert.deepEqual(rowsFor('003').map(row => [row.referenceId, row.debit, row.balance]), [['REF-1', 25, -225], ['REF-2', 25, -250]]);
+  assert.ok(rowsFor('002').every((row, i) => row.description.includes(twoClaims()[i].memberName)));
 
   for (const claim of db.state.claims) {
     assert.equal(claim.status, 'deduction_processed');
-    assert.equal(claim.deduction.jvNumber, 'JV-001');
+    assert.equal(claim.deduction.jvNumber, claim.referenceNumber);
     assert.equal(claim.deduction.batchId, res.data.data.batchId);
     assert.equal(claim.deduction.claimsInBatch, 2);
     assert.equal(claim.deduction.amountPerMember, 25);
@@ -160,11 +160,11 @@ test('preview reports the same figures without writing anything', async () => {
   assert.ok(db.state.claims.every(c => c.status === 'pending_deduction'));
 });
 
-test('a missing JV number or claim list is rejected before any claim is locked', async () => {
+test('an invalid claim list is rejected before any claim is locked', async () => {
   const db = database(baseMembers(), { claims: twoClaims() });
   const { processDeductionBatch } = controller(db);
 
-  for (const body of [{ claimIds: ['CLM-1'] }, { jvNumber: 'JV-1' }, { jvNumber: 'JV-1', claimIds: [] }, { jvNumber: 'JV-1', claimIds: [{ $ne: null }] }, { jvNumber: 'JV-1', claimIds: ['CLM-1', 'CLM-1'] }]) {
+  for (const body of [{ jvNumber: 'JV-1' }, { jvNumber: 'JV-1', claimIds: [] }, { jvNumber: 'JV-1', claimIds: [{ $ne: null }] }, { jvNumber: 'JV-1', claimIds: ['CLM-1', 'CLM-1'] }]) {
     const res = response();
     await processDeductionBatch(request(body), res);
     assert.equal(res.code, 400);
@@ -185,7 +185,8 @@ test('two concurrent batches over the same claim: exactly one is processed', asy
   ]);
 
   assert.deepEqual([resA.code, resB.code].sort(), [200, 400]);
-  assert.equal(db.state.ledgers.length, 3, 'members are charged by one batch only');
+  const winner = resA.code === 200 ? 2 : 1;
+  assert.equal(db.state.ledgers.length, 3 * winner, 'members are charged by one batch only');
 });
 
 test('a batch containing an already-processed claim is rejected and gives back the claims it locked', async () => {
@@ -251,4 +252,46 @@ test('claim deductions ignore supplied operator names in ledger, claim history a
   assert.ok(db.state.claims[0].statusHistory.every(row => row.changedBy === 'real.operator'));
   assert.equal(audits[0].userName, 'real.operator');
   assert.equal(audits[0].userId, 'STAFF-1');
+});
+
+test('finance cannot substitute a reference for a death missing its claim officer reference', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim({ referenceNumber: undefined })] });
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'], jvNumber: 'FORGED' }), res);
+  assert.equal(res.code, 400);
+  assert.equal(db.state.ledgers.length, 0);
+  assert.equal(db.state.claims[0].status, 'pending_deduction');
+});
+
+test('single-death deduction appends the saved JV to each member ledger without finance entering a reference', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim({ referenceNumber: 'JV-1923823' })] });
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), res);
+  assert.equal(res.code, 200);
+  assert.equal(db.state.ledgers.length, baseMembers().length);
+  for (const entry of db.state.ledgers) {
+    assert.equal(entry.referenceId, 'JV-1923823');
+    assert.equal(entry.debit, 25);
+  }
+});
+
+test('each deduction row is dated by when its claim was filed, not when it was deducted', async () => {
+  const filed = [new Date('2026-10-15T12:00:00Z'), new Date('2026-10-20T08:00:00Z')];
+  const [first, second] = twoClaims();
+  const db = database(baseMembers(), { claims: [{ ...first, dateFiled: filed[0] }, { ...second, dateFiled: filed[1] }] });
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), res);
+  assert.equal(res.code, 200);
+  for (const row of db.state.ledgers) {
+    assert.equal(row.transactionDate, row.referenceId === 'REF-1' ? filed[0] : filed[1]);
+  }
+});
+
+test('finance-supplied references cannot override the claim officer reference in member ledgers', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim({ referenceNumber: 'CLAIM-OFFICER-JV' })] });
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'], jvNumber: 'FINANCE-JV', referenceNumber: 'FINANCE-REF' }), res);
+  assert.equal(res.code, 200);
+  assert.ok(db.state.ledgers.every(entry => entry.referenceId === 'CLAIM-OFFICER-JV'));
+  assert.equal(db.state.claims[0].deduction.jvNumber, 'CLAIM-OFFICER-JV');
 });

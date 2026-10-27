@@ -73,8 +73,6 @@
   .treasurer-member-balances :is(button, input, select):disabled { opacity: .5; cursor: not-allowed; }
   .treasurer-member-balances .mb-metrics { display: grid; grid-template-columns: 1.25fr 1fr 1.08fr 1.2fr; margin-bottom: 32px; }
   .treasurer-member-balances .mb-metrics > div { min-width: 0; padding: 0 26px; border-left: 1px solid #dce3df; }
-  .treasurer-member-balances .mb-metrics > div:first-child { border-left: 0; padding-left: 0; }
-  .treasurer-member-balances .mb-metrics > div:last-child { padding-right: 0; }
   .treasurer-member-balances .mb-metrics :is(dt, p) { font-size: 17px; color: var(--mb-muted); line-height: 1.5; }
   .treasurer-member-balances .mb-metrics dd { margin: 8px 0 3px; font-size: clamp(26px, 3vw, 44px); font-weight: 650; line-height: 1.2; letter-spacing: -.025em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .treasurer-member-balances .mb-metrics dd[data-negative="true"] { color: #9f4747; }
@@ -90,7 +88,10 @@
   .treasurer-member-balances .mb-search { display: flex; align-items: center; gap: 10px; }
   .treasurer-member-balances .mb-search svg { flex-shrink: 0; color: var(--mb-muted); }
   .treasurer-member-balances .mb-search input { width: 100%; min-width: 0; font-size: 15px; color: var(--mb-ink); }
-  .treasurer-member-balances .mb-search:focus-within { outline: 3px solid #528369; outline-offset: 3px; }
+  .treasurer-member-balances .mb-search:focus-within,
+  .treasurer-member-balances .mb-filter-grid select:focus { border-color: #528369; outline: 1px solid #528369; outline-offset: 0; box-shadow: none; }
+  .treasurer-member-balances .mb-search input:focus,
+  .treasurer-member-balances .mb-search input:focus-visible { outline: none; box-shadow: none; }
   .treasurer-member-balances .mb-panel { min-width: 0; margin-bottom: 20px; overflow: visible; border: 0; border-radius: 0; background: #fff; box-shadow: none; }
   .treasurer-member-balances .mb-register-heading { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 0 0 24px; border: 0; }
   .treasurer-member-balances .mb-register-heading h2 { color: var(--mb-ink); font-size: 26px; font-weight: 650; letter-spacing: -.03em; line-height: 1.3; }
@@ -149,5 +150,24 @@
   }
   @media (max-width: 479px) { .treasurer-member-balances .mb-header { flex-direction: column; } }
   @media (max-width: 359px) { .treasurer-member-balances .mb-metrics { grid-template-columns: minmax(0, 1fr); } .treasurer-member-balances .mb-metrics dd { font-size: 30px; } .treasurer-member-balances .mb-eyebrow { gap: 12px; font-size: 13px; } }
+  .treasurer-member-balances .mb-metrics { grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .treasurer-member-balances .mb-metrics > .mb-stat-card { min-width: 0; padding: 20px; border: 1px solid #e0e7e2; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px #173d2810; }
+  .treasurer-member-balances .mb-metrics > .mb-stat-card-0 { background: #f1f7f3; border-color: #cddfd3; }
+  .treasurer-member-balances .mb-metrics dt { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 500; color: #47594e; }
+  .treasurer-member-balances .mb-stat-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px; background: #e7f0e9; color: #286145; }
+  .treasurer-member-balances .mb-stat-card-2 .mb-stat-icon { background: #fbf0dd; color: #9b701d; }
+  .treasurer-member-balances .mb-stat-card-3 .mb-stat-icon { background: #f9eaea; color: #9f4747; }
+  .treasurer-member-balances .mb-metrics dd { margin: 18px 0 8px; font-size: clamp(25px, 2.5vw, 36px); letter-spacing: -.035em; }
+  .treasurer-member-balances .mb-metrics p { font-size: 12px; line-height: 1.6; }
+  @media (max-width: 1100px) { .treasurer-member-balances .mb-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 600px) {
+    .treasurer-member-balances .mb-metrics { gap: 12px; }
+    .treasurer-member-balances .mb-metrics > .mb-stat-card { padding: 14px; }
+    .treasurer-member-balances .mb-metrics dt { font-size: 12px; align-items: start; }
+    .treasurer-member-balances .mb-stat-icon { width: 27px; height: 27px; border-radius: 7px; }
+    .treasurer-member-balances .mb-stat-icon svg { width: 15px; }
+    .treasurer-member-balances .mb-metrics dd { font-size: 25px; }
+  }
+  @media (max-width: 359px) { .treasurer-member-balances .mb-metrics { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) { .treasurer-member-balances * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 }

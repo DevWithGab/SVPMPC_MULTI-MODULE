@@ -50,3 +50,25 @@ test('requirements cannot be removed after a decision, and unknown keys are reje
   assert.equal(missing.code, 404);
   assert.equal(pending.requirements.size, 2);
 });
+
+test('claim officer saves a reference on a claim already pending deduction', async () => {
+  const claim = claimWith('pending_deduction');
+  const res = response();
+  await loadWithClaim(claim).updateVerification({ params: { claimId: 'CLM-1' }, body: { referenceNumber: ' JV-123 ' }, user: { username: 'claims' } }, res);
+  assert.equal(res.code, 200);
+  assert.equal(claim.referenceNumber, 'JV-123');
+  assert.equal(claim.saved, true);
+});
+
+test('approval uses the reference already saved by the claim officer', async () => {
+  const claim = claimWith('pending_requirements');
+  claim.referenceNumber = 'JV-SAVED';
+  claim.requirements = new Map([['deathCertificate', { submitted: true }]]);
+  claim.statusHistory = [];
+  claim.toObject = () => ({ referenceNumber: claim.referenceNumber, status: claim.status });
+  const res = response();
+  await loadWithClaim(claim).approveClaim({ params: { claimId: 'CLM-1' }, body: {}, user: { username: 'claims' }, get: () => '' }, res);
+  assert.equal(res.code, 200);
+  assert.equal(claim.referenceNumber, 'JV-SAVED');
+  assert.equal(claim.status, 'pending_deduction');
+});

@@ -12,6 +12,9 @@ export default function ApproveRejectClaimModal({ isOpen, onClose, mode, claim, 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // The reference is entered in the claim's Verification section, not here.
+  const enteredReference = claim?.referenceNumber ?? '';
+
   const handleClose = () => {
     if (submitting) return;
     setReason('');
@@ -28,10 +31,14 @@ export default function ApproveRejectClaimModal({ isOpen, onClose, mode, claim, 
       return;
     }
 
+    if (mode === 'approve' && !enteredReference.trim()) {
+      setError('Enter the reference number for this death in the Verification section before approving.');
+      return;
+    }
     setSubmitting(true);
     try {
       if (mode === 'approve') {
-        await claimAPI.approveClaim(claim.claimId, { approvedBy: user?.name || user?.username });
+        await claimAPI.approveClaim(claim.claimId, { referenceNumber: enteredReference.trim() });
       } else {
         await claimAPI.rejectClaim(claim.claimId, {
           reason: reason.trim(),

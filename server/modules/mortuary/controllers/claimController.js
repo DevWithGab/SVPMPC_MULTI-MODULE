@@ -335,6 +335,15 @@ const updateVerification = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Claim not found' });
     }
 
+    if (req.body.referenceNumber !== undefined) {
+      if (!['pending_requirements', 'pending_deduction'].includes(claim.status)) {
+        return res.status(400).json({ success: false, message: 'References cannot be changed after deduction begins' });
+      }
+      if (typeof req.body.referenceNumber !== 'string' || !req.body.referenceNumber.trim() || req.body.referenceNumber.trim().length > 100) {
+        return res.status(400).json({ success: false, message: 'A reference number is required (maximum 100 characters)' });
+      }
+      claim.referenceNumber = req.body.referenceNumber.trim();
+    }
     // Record the signed-in staff member's name; username only if no name is set.
     claim.verification = {
       verifiedBy: actorName(req.user, 'admin'),
@@ -395,6 +404,11 @@ const approveClaim = async (req, res) => {
 
     const before = claim.toObject();
     const now = new Date();
+    const referenceNumber = req.body.referenceNumber ?? claim.referenceNumber;
+    if (typeof referenceNumber !== 'string' || !referenceNumber.trim() || referenceNumber.trim().length > 100) {
+      return res.status(400).json({ success: false, message: 'A reference number for this death is required (maximum 100 characters)' });
+    }
+    claim.referenceNumber = referenceNumber.trim();
     claim.status = 'pending_deduction';
     claim.approval = { approvedBy, approvedAt: now };
     claim.statusHistory.push(

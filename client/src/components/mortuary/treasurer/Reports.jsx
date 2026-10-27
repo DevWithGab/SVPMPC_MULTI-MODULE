@@ -2,7 +2,7 @@ import { Select } from '../../ui/input';
 import { Panel } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Loader2 } from 'lucide-react';
+import { Download, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Loader2 } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { treasurerAPI } from '../../../services/api';
@@ -15,8 +15,6 @@ import './Reports.css';
 
 
 const REPORT_TYPES = [
-  { id: 'summary', label: 'Financial Summary', icon: FileText },
-  { id: 'contributions', label: 'Contributions', icon: TrendingUp },
   { id: 'claims', label: 'Deduction Report', icon: ClipboardCheck },
   { id: 'deceasedMembers', label: 'Deceased Members', icon: Heart },
   { id: 'negativeBalances', label: 'Negative Balances', icon: AlertTriangle },
@@ -51,7 +49,7 @@ const formatPeriodLabel = (key, granularity) => {
 
 const Reports = ({ contributions = [], stats = {}, members = [], membersLoading = false, membersError = null }) => {
   const minimumBalance = stats?.minimumBalance ?? 1000;
-  const [reportType, setReportType] = useState('summary');
+  const [reportType, setReportType] = useState('claims');
   const [summaryPeriod, setSummaryPeriod] = useState('monthly'); // 'monthly' | 'annually'
   const [barangayFilter, setBarangayFilter] = useState('all');
   const [claimMonth, setClaimMonth] = useState('all'); // 'YYYY-MM' the claim was filed, Deduction Report only
@@ -639,12 +637,6 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               />
             </div>
           )}
-          <p className="reports-export-note">Exports include the complete selected report, across all pages.</p>
-          <div className="reports-scope-bar flex-wrap items-center">
-            <span>{['memberStanding', 'negativeBalances', 'deceasedMembers'].includes(reportType) ? 'Current member records' : 'All recorded activity'}</span>
-            <span>{reportLoading ? 'Loading records...' : reportError ? 'Data unavailable' : reportType === 'summary' ? periodBreakdown.length + ' reporting periods' : paginatedData.total.toLocaleString() + ' records'}</span>
-          </div>
-          <p className="rp-currency">Reporting currency <strong>PHP</strong></p>
         </Panel>
       </div>
     </div>

@@ -24,7 +24,7 @@ import {
 
 // Import shared components
 import { Toast } from '../../components/ui/toast';
-import api from '../../services/api';
+import api, { treasurerAPI } from '../../services/api';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../utils/balanceNotice';
 
 
@@ -110,6 +110,7 @@ const TreasurerPortal = ({ user, onBack }) => {
   const [reportMembers, setReportMembers] = useState([]);
   const [loadingReportMembers, setLoadingReportMembers] = useState(false);
   const [contributions, setContributions] = useState([]);
+  const [deductionMonths, setDeductionMonths] = useState([]);
   const [stats, setStats] = useState({
     fundBalance: 0,
     activeMembers: 0,
@@ -269,6 +270,18 @@ const TreasurerPortal = ({ user, onBack }) => {
     }
   }, [markLoaded, markFailed]);
 
+  const fetchDeductionSummary = useCallback(async () => {
+    try {
+      const response = await treasurerAPI.getDeductionSummary();
+      if (!response.success) throw new Error(response.message || 'Request failed');
+      setDeductionMonths(response.data || []);
+      markLoaded('deductions');
+    } catch (error) {
+      console.error('Error fetching deduction summary:', error);
+      markFailed('deductions', 'monthly deductions');
+    }
+  }, [markLoaded, markFailed]);
+
   const fetchDashboardStats = useCallback(async () => {
     try {
       const response = await api.get('/mortuary/treasurer/dashboard');
@@ -359,6 +372,7 @@ const TreasurerPortal = ({ user, onBack }) => {
       fetchMembers(),
       fetchLedgerMembers(currentPage, searchQuery, barangayFilter),
       fetchContributions(),
+      fetchDeductionSummary(),
       fetchDashboardStats(),
       fetchClaimsCounts(),
       ...(selectedMemberId ? [refreshSelectedMemberLedger()] : [])
@@ -371,13 +385,14 @@ const TreasurerPortal = ({ user, onBack }) => {
       await Promise.all([
         fetchMembers(),
         fetchContributions(),
+        fetchDeductionSummary(),
         fetchDashboardStats(),
         fetchClaimsCounts(),
         fetchNoticeThresholds()
       ]);
       setInitialLoading(false);
     })();
-  }, [fetchMembers, fetchContributions, fetchDashboardStats, fetchClaimsCounts, fetchNoticeThresholds]);
+  }, [fetchMembers, fetchContributions, fetchDeductionSummary, fetchDashboardStats, fetchClaimsCounts, fetchNoticeThresholds]);
 
   useEffect(() => {
     const refreshClaims = () => {
@@ -429,7 +444,7 @@ const TreasurerPortal = ({ user, onBack }) => {
   }, [searchQuery, barangayFilter, memberFilter, activeTab]);
 
   const relevantKeys = {
-    dashboard: ['stats', 'contributions'], members: ['members'], notices: ['members'],
+    dashboard: ['stats', 'deductions'], members: ['members'], notices: ['members'],
     claims: ['claims'],
     ledger: selectedMemberId ? ['members', 'ledger'] : ['ledgerList'],
     reports: ['reportMembers'],
@@ -448,7 +463,7 @@ const TreasurerPortal = ({ user, onBack }) => {
           <Dashboard
             user={user}
             stats={stats}
-            contributions={contributions}
+            deductions={deductionMonths}
             claimsCounts={loaded.claims ? claimsCounts : null}
             claimsError={loadErrors.claims}
             setActiveTab={setActiveTab}

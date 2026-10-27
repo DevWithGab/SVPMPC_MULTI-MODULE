@@ -4,7 +4,7 @@ import { Input as TextInput, Select } from '../../ui/input';
 import { Panel, PanelHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useState } from 'react';
-import { Search, ArrowUpDown, BookOpen, RefreshCw, ArrowRight } from 'lucide-react';
+import { Search, ArrowUpDown, BookOpen, RefreshCw, ArrowRight, Wallet, Users, TriangleAlert, CircleAlert } from 'lucide-react';
 import './MemberBalances.css';
 import { getBarangay } from '../../../utils/helpers';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
@@ -34,6 +34,7 @@ const MemberBalances = ({
   const totalCapital = members.reduce((s, m) => s + (m.balance || 0), 0);
   const atRiskMembers = members.filter(m => m.balance >= 0 && m.balance < targetBalance);
   const negativeBalanceMembers = members.filter(m => m.balance < 0);
+  const metricIcons = [Wallet, Users, TriangleAlert, CircleAlert];
 
   const peso = (value) => `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 
@@ -73,7 +74,10 @@ const MemberBalances = ({
           ['Low balance', lowBalanceMembers.length.toLocaleString(), 'Members below ' + peso(targetBalance)],
           ['At Risk', atRiskMembers.length.toLocaleString(), 'Balances from ₱0 to below ' + peso(targetBalance)],
           ['Negative Balance', negativeBalanceMembers.length.toLocaleString(), 'Members with a balance below ₱0'],
-        ].map(([label, value, description], index) => <div key={label}><dt>{label}</dt><dd data-negative={index === 0 && totalCapital < 0 ? true : undefined}>{value}</dd><p>{description}</p></div>)}
+        ].map(([label, value, description], index) => {
+          const Icon = metricIcons[index];
+          return <div key={label} className={`mb-stat-card mb-stat-card-${index}`}><dt><span>{label}</span><span className="mb-stat-icon"><Icon size={19} aria-hidden="true" /></span></dt><dd data-negative={index === 0 && totalCapital < 0 ? true : undefined}>{value}</dd><p>{description}</p></div>;
+        })}
       </dl>
       <section className="mb-filters" aria-labelledby="mb-filter-title">
         <div className="mb-filter-heading"><h2 id="mb-filter-title">Find a member</h2><button className="mb-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>

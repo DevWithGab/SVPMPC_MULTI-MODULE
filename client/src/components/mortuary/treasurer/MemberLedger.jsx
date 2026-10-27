@@ -255,18 +255,18 @@ const MemberLedger = ({
             <details className="ml-more-menu"><summary><MoreHorizontal size={19} aria-hidden="true" />More<ChevronDown size={17} aria-hidden="true" /></summary><div className="ml-menu-items"><h2 id="ml-ledger-actions-title">Ledger records</h2><p>Export, download, or print the transactions shown with your current filters.</p><button
               onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
               disabled={loadingMemberLedger || mEntries.length === 0}
-              className="ml-button"
+              className="ml-button ml-primary"
             >
               <Download className="w-4 h-4" /> Export Ledger CSV
             </button><button
               onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters, true)}
               disabled={loadingMemberLedger || preparingLedger !== null}
               aria-busy={preparingLedger === 'print'}
-              className="ml-button"
+              className="ml-button ml-primary"
             >
               {preparingLedger === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
               {preparingLedger === 'print' ? 'Preparing Ledger...' : 'Print Ledger'}
-            </button><div className="ml-more-address"><p>Address</p><strong>{currentMember.address || '—'}</strong></div></div></details>
+            </button></div></details>
           </div></div>
         </header>
         <div className="ml-document-actions ml-screen">          <section className="ml-action-group ml-notice-actions" aria-labelledby="ml-notice-actions-title">
@@ -277,13 +277,7 @@ const MemberLedger = ({
                   onClick={() => printBalanceNotice(currentMember, user?.name, noticeThresholds)}
                   disabled={!noticeLevel}
                   aria-describedby="ml-notice-status"
-                  className={`inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed ${
-                    noticeLevel === 3
-                      ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white focus-visible:ring-red-500'
-                      : noticeLevel
-                        ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white focus-visible:ring-amber-400'
-                        : 'bg-white border-slate-200 text-slate-400'
-                  }`}
+                  className="ml-button ml-primary"
                 >
                   <Printer className="w-4 h-4" />
                   Print {noticeLabel}
@@ -293,7 +287,7 @@ const MemberLedger = ({
                   disabled={!noticeLevel || downloadingNotice}
                   aria-describedby="ml-notice-status"
                   aria-busy={downloadingNotice}
-                  className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="ml-button ml-primary"
                 >
                   {downloadingNotice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                   {downloadingNotice ? 'Preparing Notice PDF...' : `Download ${noticeLabel} PDF`}
@@ -356,7 +350,7 @@ const MemberLedger = ({
               </div>
             </div>
             <div className="ml-member-details mt-3 pt-3 border-t border-slate-100 space-y-3">
-              <div className="ml-member-barangay ml-screen"><p>Barangay</p><p>{getBarangay(currentMember)}</p></div>
+              <div className="ml-member-barangay ml-screen"><p>Address</p><p>{currentMember.address || '—'}</p></div>
               <div className="ml-member-address">
                 <p className="text-xs text-slate-400">Address</p>
                 <p className="text-sm font-medium text-slate-700">{currentMember.address || '—'}</p>

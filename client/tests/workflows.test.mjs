@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { contributionTrend, contributionGrowth, memberBalanceCoverage } from '../src/utils/dashboardMetrics.js';
+import { contributionTrend, deductionTrend, contributionGrowth, memberBalanceCoverage } from '../src/utils/dashboardMetrics.js';
 import { readSession, portalPath, readUrlValue, updateUrlValue } from '../src/utils/navigation.js';
 import { loadAllPages } from '../src/utils/loadAllPages.js';
 
@@ -30,6 +30,17 @@ test('reporting month uses Manila time at the year boundary', () => {
   assert.equal(rows[0].fullKey, '2025-08');
   assert.equal(rows.at(-1).cumulative, 0);
   assert.equal(contributionGrowth([{ contributions: 100 }, { contributions: 0 }]), -100);
+});
+
+test('deduction totals map deduction summary months onto the last six months', () => {
+  const rows = deductionTrend([
+    { month: '2026-10', totalCollected: 13600, claimCount: 2 },
+    { month: '2026-08', totalCollected: 4500, claimCount: 1 },
+    { month: '2026-01', totalCollected: 999, claimCount: 1 },
+  ], new Date('2026-10-27T00:00:00Z'));
+  assert.deepEqual(rows.map(row => row.deductions), [0, 0, 0, 4500, 0, 13600]);
+  assert.equal(rows.reduce((sum, row) => sum + row.count, 0), 3);
+  assert.equal(contributionGrowth(rows, 'deductions'), null);
 });
 
 test('session recovery tolerates malformed storage and rejects a mismatched role', () => {

@@ -34,10 +34,12 @@ test('Deduction Report includes deductions and filters by the month a claim was 
     const { default: Reports } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/Reports.jsx');
     await act(async () => root.render(React.createElement(Reports, { contributions: [], members: [], stats: {} })));
     const button = label => [...container.querySelectorAll('button')].find(el => el.textContent.trim() === label);
+    assert.ok(button('Export CSV'), 'the export icon and button render without crashing');
+    assert.equal(container.querySelector('#mortuary-report-type').value, 'claims');
     assert.equal(button('Claim Deductions'), undefined, 'the separate deductions report is gone');
     await act(async () => {
       const select = container.querySelector('#mortuary-report-type');
-      assert.equal(select.options.length, 6);
+      assert.deepEqual([...select.options].map(option => option.textContent), ['Deduction Report', 'Deceased Members', 'Negative Balances', 'Member Standing']);
       select.value = 'claims';
       select.dispatchEvent(new window.Event('change', { bubbles: true }));
     });

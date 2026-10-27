@@ -104,7 +104,7 @@ function DeductionMonths({ onOpenMonth }) {
       {/* Sakop ng totals lahat ng tumutugma sa search. */}
       <AttendanceMetricGrid label="Deduction summary totals" busy={loading} items={[
         ['Total collected', loading ? '—' : peso(totals?.totalCollected ?? 0), 'Member assessments collected', TrendingUp],
-        ['Batches processed', loading ? '—' : (totals?.batchCount ?? 0).toLocaleString(), 'One reference number each', Layers],
+        ['Batches processed', loading ? '—' : (totals?.batchCount ?? 0).toLocaleString(), 'Claims processed together', Layers],
         ['Claims covered', loading ? '—' : (totals?.claimCount ?? 0).toLocaleString(), 'Death claims deducted', FileText],
       ]} />
 

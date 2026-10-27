@@ -71,6 +71,8 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
     assert.equal(main().querySelector('#notice-panel-title'), null);
     await act(async () => container.querySelector('[aria-label="Notices"]').click());
     assert.equal(main().querySelector('h1').textContent, 'Notices');
+    assert.equal(main().querySelectorAll('.tn-notice-row').length, 3);
+    assert.equal(main().querySelector('.tn-eligible-summary strong').textContent, '102');
     assert.equal(container.querySelector('[aria-label="Notices"]').getAttribute('aria-current'), 'page');
     assert.equal(main().querySelector('table'), null, 'the member balance register stays in its own tab');
     assert.ok(main().querySelector('[aria-label="Download Notice 1 PDF for 100 members"]'));
