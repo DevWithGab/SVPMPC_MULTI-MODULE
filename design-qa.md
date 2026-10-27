@@ -554,3 +554,21 @@ final result: passed
 - About disclosure and original descriptive content intentionally add minor differences from the image to preserve existing content.
 - Successful account login was not tested; navigation to existing forms and existing session tests were verified.
 
+
+---
+
+# Branding panel visual check
+
+- Source: `C:/Users/gabri/Downloads/KONEKTA cooperative module selector.png` (1536 Ã— 1024).
+- Requested replacement photo: `C:/Users/gabri/Downloads/building-coop.png` (1448 Ã— 1086), copied into the client's public backgrounds.
+- Scope: existing branding panel only. Existing selector width and module interactions are retained.
+- Typography: large, bold, tightly spaced headline; requested copy is split over three lines: Connect, Collaborate, Thrive.
+- Layout: cooperative identity above the photo, caption below, short green divider and community subtitle. Existing About disclosure and copyright are retained.
+- Colors: white foreground over a dark green photo tint, with a bright green divider.
+- Assets: supplied building photo and existing cooperative logo; no generated replacements.
+- Content: requested tagline and building alt text are updated.
+- Production build passed with existing print CSS and bundle size warnings.
+- Browser capture blocked: no connected browser surface was available; the native Chrome access request timed out. No implementation screenshot, viewport normalization, full-view comparison, focused comparison, or browser interaction verification could be completed.
+- Follow-up: inspect desktop and mobile rendering in the running local preview, including photo crop and caption contrast.
+
+final result: blocked

@@ -29,15 +29,16 @@ export default function BrandingPanel() {
 
   return (
     <aside className="selector-branding" aria-label="About Saint Vincent Parish Multi-Purpose Cooperative">
-      <img className="selector-branding-photo" src="/images/backgrounds/right-panel-hero.png" alt="Cooperative members at the community registration table" />
+      <img className="selector-branding-photo" src="/images/backgrounds/building-coop.png" alt="Saint Vincent Parish Multi-Purpose Cooperative building" />
       <div className="selector-branding-tint" aria-hidden="true" />
       <div className="selector-branding-identity">
         <span className="selector-branding-logo"><img src="/SVPMPC-LOGO(MAIN).png" alt="SVPMPC" /></span>
         <div><p>SVPMPC</p><span>Saint Vincent Parish<br />Multi-Purpose Cooperative</span></div>
       </div>
       <div className="selector-branding-caption">
-        <h2>KONEKTA</h2>
-        <p className="selector-branding-tagline">Connected in service.</p>
+        <h2><span>Connect,</span> <span>Collaborate,</span> <span>Thrive</span></h2>
+        <hr className="selector-branding-divider" aria-hidden="true" />
+        <p className="selector-branding-tagline">One community. One connected workspace.</p>
         <details className="selector-branding-about">
           <summary>About KONEKTA</summary>
           <div className="selector-branding-details">
