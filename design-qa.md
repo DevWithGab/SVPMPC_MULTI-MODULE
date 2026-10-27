@@ -581,3 +581,13 @@ final result: blocked
 - Browser visual comparison remains blocked by the previously timed-out native browser access. Screenshot and mobile visual QA remain outstanding.
 
 final result: blocked
+
+## Module selection reference revision
+
+- Source: C:/Users/gabri/Downloads/KONEKTA module selection screen.png (1800 x 873). Source image inspected directly.
+- Scope: right-side module selector. Centered Choose a module heading and subtitle, two independently outlined white buttons with small corner radii and chevrons, quiet SVPMPC/KONEKTA label, copyright-only module footer.
+- Mortuary button description: Members, Claims and Notices. Attendance description follows the new reference.
+- Typography: reduced heading and button text to the reference scale. Layout: centered button group inset from the header/footer, 20px row gap. Colors: white buttons with gray outlines, green icons, dark chevrons. Assets: existing Lucide wallet/QR icons retained.
+- Build and focused ESLint passed. Browser-rendered screenshot comparison and mobile visual verification remain unavailable following the native browser access timeout; no visual fidelity pass is claimed.
+
+final result: blocked

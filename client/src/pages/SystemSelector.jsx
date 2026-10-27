@@ -46,7 +46,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
     {
       id: "mortuary",
       title: "Mortuary Services",
-      description: "Member records, contributions, and benefits",
+      description: "Members, Claims and Notices",
       icon: Wallet,
       color: "bg-coop-green",
       hoverColor: "hover:bg-coop-green",
@@ -60,7 +60,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
     {
       id: "attendance",
       title: "Attendance System",
-      description: "Event registration and attendance records",
+      description: "Events, QR codes, and attendance",
       icon: QrCode,
       color: "bg-coop-green",
       hoverColor: "hover:bg-coop-green",
@@ -426,7 +426,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
           )}
 
           {/* Terminal Footer Info */}
-          <TerminalFooter />
+          <TerminalFooter compact={step === 'MODULE_SELECTION'} />
         </div>
       </div>
     </div>

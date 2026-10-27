@@ -37,7 +37,7 @@ test('login and portal screens follow browser Back/Forward, including direct log
     const shows = text => assert.ok(container.textContent.includes(text), `Expected screen: ${text}`);
 
     await mount('/');
-    shows('Select a module');
+    shows('Choose a module');
     await click('Attendance System');
     shows('Select Your Role');
     assert.equal(location.search, '?module=attendance');
@@ -47,7 +47,7 @@ test('login and portal screens follow browser Back/Forward, including direct log
     await travel(-1);
     shows('Select Your Role');
     await travel(-1);
-    shows('Select a module');
+    shows('Choose a module');
     await travel(1);
     shows('Select Your Role');
     await travel(1);
@@ -55,20 +55,20 @@ test('login and portal screens follow browser Back/Forward, including direct log
     await click('Back to Role Selection');
     shows('Select Your Role');
     await travel(-1);
-    shows('Select a module');
+    shows('Choose a module');
     await travel(1);
     shows('Select Your Role');
     await click('Back to Modules');
-    shows('Select a module');
+    shows('Choose a module');
 
     await mount('/?module=mortuary&role=treasurer');
     shows('Sign in to your account to continue.');
     await click('Back to System Selection');
-    shows('Select a module');
+    shows('Choose a module');
     await mount('/?module=mortuary&role=scanner_operator');
     shows('Sign in to your account to continue.');
     await mount('/?module=unknown&role=admin');
-    shows('Select a module');
+    shows('Choose a module');
 
     await mount('/mortuary/treasurer', true);
     await act(async () => setTab('members'));
