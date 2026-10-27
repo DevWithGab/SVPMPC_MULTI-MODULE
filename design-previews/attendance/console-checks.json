@@ -1,0 +1,73 @@
+{
+  "fixtureData": true,
+  "checks": [
+    {
+      "role": "admin",
+      "tab": "dashboard",
+      "width": 1440,
+      "height": 1000,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Attendance dashboard",
+      "mainBottom": 1000,
+      "scrollable": true
+    },
+    {
+      "role": "admin",
+      "interaction": "mobile navigation",
+      "passed": true
+    },
+    {
+      "role": "admin",
+      "interaction": "Escape closes menu",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "tab": "home",
+      "width": 1440,
+      "height": 1000,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Attendance dashboard",
+      "mainBottom": 1000,
+      "scrollable": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "mobile navigation",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "Escape closes menu",
+      "passed": true
+    },
+    {
+      "role": "scanner_operator",
+      "tab": "home",
+      "width": 1440,
+      "height": 1000,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Scanner dashboard",
+      "mainBottom": 1000,
+      "scrollable": true
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "mobile navigation",
+      "passed": true
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "Escape closes menu",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "mutations": []
+}

@@ -1,5 +1,5 @@
 import '../../components/mortuary/treasurer/Claims.css';
-import './TreasurerPortal.css';
+import '../../components/shared/layout/PortalShell.css';
 import { loadAllPages } from '../../utils/loadAllPages';
 import LoadError from '../../components/shared/common/LoadError';
 import useUrlState from '../../hooks/useUrlState';
@@ -540,7 +540,7 @@ const TreasurerPortal = ({ user, onBack }) => {
   };
 
   return (
-    <div className="mortuary-treasurer-portal h-dvh flex font-sans relative overflow-hidden">
+    <div className="portal-shell mortuary-treasurer-portal h-dvh flex font-sans relative overflow-hidden">
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"

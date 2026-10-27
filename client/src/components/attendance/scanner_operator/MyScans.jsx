@@ -66,7 +66,7 @@ export default function MyScans({ user }) {
     <div className="secretary-dashboard operator-my-scans">
       <PageHeader className="sd-header">
         <div>
-          <p className="sd-eyebrow">Attendance management / Scanner operator</p>
+          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>My scans</strong></p>
           <h1>My scans</h1>
           <p className="sd-description">
             Review attendance records you personally scanned across all events.

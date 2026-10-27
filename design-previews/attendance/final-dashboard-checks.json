@@ -1,0 +1,41 @@
+{
+  "fixtureData": true,
+  "checks": [
+    {
+      "role": "admin",
+      "tab": "dashboard",
+      "width": 1440,
+      "height": 1000,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Attendance dashboard",
+      "mainBottom": 1000,
+      "scrollable": true
+    },
+    {
+      "role": "admin",
+      "tab": "dashboard",
+      "width": 390,
+      "height": 844,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Attendance dashboard",
+      "mainBottom": 844,
+      "scrollable": true
+    },
+    {
+      "role": "admin",
+      "interaction": "mobile navigation",
+      "passed": true
+    },
+    {
+      "role": "admin",
+      "interaction": "Escape closes menu",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "mutations": []
+}

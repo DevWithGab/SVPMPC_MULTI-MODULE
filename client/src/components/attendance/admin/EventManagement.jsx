@@ -329,7 +329,7 @@ const EventManagement = ({ events = [], setEvents }) => {
     <div className="secretary-dashboard attendance-admin-events">
       <PageHeader className="sd-header">
         <div>
-          <p className="sd-eyebrow">Attendance management / Events</p>
+          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Events</strong></p>
           <h1>Event approvals</h1>
           <p className="sd-description">Review submissions and manage attendance schedules.</p>
         </div>

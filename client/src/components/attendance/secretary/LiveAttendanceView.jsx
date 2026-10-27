@@ -20,7 +20,7 @@ export default function LiveAttendanceView({
     <div className="secretary-live-attendance">
       <PageHeader className="sla-header">
         <div>
-          <p className="sla-eyebrow">Attendance management / {operatorView ? 'Scanner operator' : 'Live attendance'}</p>
+          <p className="sla-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Live attendance</strong></p>
           <h1>Live attendance</h1>
           <p className="sla-description">Track member check-ins for the active event.</p>
         </div>

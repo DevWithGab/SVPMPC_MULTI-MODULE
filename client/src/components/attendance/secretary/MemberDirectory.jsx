@@ -138,7 +138,7 @@ export default function MemberDirectory() {
   const badge = member => <span className={`md-status ${member.status === 'active' ? 'md-status-active' : ''}`}>{member.status}</span>;
 
   return <div className="member-directory">
-    <PageHeader className="md-header"><div><p className="md-eyebrow">Attendance management / Members</p><h1>Member directory</h1><p className="md-description">Find member details, check attendance history, and access issued QR codes.</p></div>
+    <PageHeader className="md-header"><div><p className="md-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Members</strong></p><h1>Member directory</h1><p className="md-description">Find member details, check attendance history, and access issued QR codes.</p></div>
       <div className="md-header-actions"><button className="md-button" onClick={() => setReload(value => value + 1)} disabled={loading || printing}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh</button><button className="md-button md-primary" onClick={exportDirectory} disabled={!ready || !filtered.length}><Download size={15} /> Export CSV</button></div>
     </PageHeader>
     {feedback && <div role={feedback.error ? 'alert' : 'status'} className={`md-notice ${feedback.error ? 'md-error' : ''}`}>{feedback.message}</div>}

@@ -1,0 +1,54 @@
+[
+  {
+    "file": "src/pages/attendance/AdminPortal.jsx",
+    "current": [],
+    "previous": [],
+    "newIssues": []
+  },
+  {
+    "file": "src/pages/attendance/SecretaryPortal.jsx",
+    "current": [
+      {
+        "ruleId": "no-unused-vars",
+        "severity": 2,
+        "message": "'Icon' is defined but never used."
+      },
+      {
+        "ruleId": "react-hooks/set-state-in-effect",
+        "severity": 2,
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders"
+      }
+    ],
+    "previous": [
+      {
+        "ruleId": "no-unused-vars",
+        "severity": 2,
+        "message": "'Icon' is defined but never used."
+      },
+      {
+        "ruleId": "react-hooks/set-state-in-effect",
+        "severity": 2,
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders"
+      }
+    ],
+    "newIssues": []
+  },
+  {
+    "file": "src/pages/attendance/OperatorPortal.jsx",
+    "current": [],
+    "previous": [],
+    "newIssues": []
+  },
+  {
+    "file": "src/components/attendance/admin/Dashboard.jsx",
+    "current": [],
+    "previous": [],
+    "newIssues": []
+  },
+  {
+    "file": "src/components/attendance/shared/AttendanceWorkspaceHeader.jsx",
+    "current": [],
+    "previous": [],
+    "newIssues": []
+  }
+]

@@ -201,7 +201,7 @@ const AuditLogs = () => {
       {/* Header */}
       <PageHeader className="sd-header">
         <div>
-          <p className="sd-eyebrow">Attendance management / Activity history</p>
+          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Activity history</strong></p>
           <h1>Audit logs</h1>
           <p className="sd-description">
             Review attendance activity, record changes, and action outcomes.

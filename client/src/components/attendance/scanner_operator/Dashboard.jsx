@@ -24,7 +24,7 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
     <div className="secretary-dashboard scanner-operator-dashboard">
       <PageHeader className="sd-header">
         <div>
-          <p className="sd-eyebrow">Attendance management / Scanner operator</p>
+          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p>
           <h1>Scanner dashboard</h1>
           <p className="sd-description">{greeting}, {user?.name || "Operator"}. Scan member QR codes and monitor event attendance.</p>
           <p className="sod-date">{formatLongDate()} &middot; Philippine time (PHT)</p>

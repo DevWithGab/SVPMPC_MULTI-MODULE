@@ -446,7 +446,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
           <ArrowLeft className="w-4 h-4" /> Back to Reports
         </button>
         <PageHeader>
-          <p className="ar-eyebrow">Attendance reports / Event details</p>
+          <p className="ar-eyebrow attendance-breadcrumb"><span>Attendance reports</span><span aria-hidden="true">/</span><strong>Event details</strong></p>
           <h1 ref={attendeesHeadingRef} tabIndex={-1}>Event attendees</h1>
           <p className="text-sm text-slate-500 mt-1">Search members or filter by attendance status. Showing up to 75 members per page.</p>
         </PageHeader>
@@ -470,8 +470,8 @@ export default function AttendanceReports({ attendanceLogs, events }) {
       {/* Header */}
       <PageHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <p className="ar-eyebrow">Attendance management / Reports</p>
-          <h1 ref={reportHeadingRef} tabIndex={-1} className="text-2xl font-bold text-slate-900 tracking-tight">
+          <p className="ar-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Reports</strong></p>
+          <h1 ref={reportHeadingRef} tabIndex={-1}>
             Attendance Reports
           </h1>
           <p className="text-slate-500 text-sm mt-1">

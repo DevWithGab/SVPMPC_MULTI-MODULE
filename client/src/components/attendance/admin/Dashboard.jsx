@@ -16,6 +16,8 @@ import {
   ScanLine,
   TrendingUp,
   TrendingDown,
+  XCircle,
+  ChevronDown,
 } from "lucide-react";
 import {
   Bar,
@@ -28,7 +30,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatDate, formatTime } from "../../../utils/date";
+import { formatDate, formatLongDate, formatTime } from "../../../utils/date";
 import AttendanceMetricGrid from "../shared/AttendanceMetricGrid";
 import "../secretary/Dashboard.css";
 import "./Dashboard.css";
@@ -217,34 +219,80 @@ const Dashboard = ({
     },
   ];
 
+  const eventStatusCount = (...statuses) =>
+    (Array.isArray(events) ? events : []).filter((event) => statuses.includes(event?.status)).length;
+  const needsAttention = [
+    ["Pending approvals", eventStatusCount("draft", "pending_approval"), Clock, "events"],
+    ["Active events", activeEvents.length, Activity, "live"],
+    ["Upcoming events", eventStatusCount("approved", "upcoming", "scheduled"), Calendar, "events"],
+    ["Rejected events", eventStatusCount("rejected"), XCircle, "events"],
+  ];
+
   return (
     <div className="secretary-dashboard attendance-admin-dashboard">
       <PageHeader className="sd-header">
         <div>
-          <p className="sd-eyebrow">Attendance management / Overview</p>
+          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p>
           <h1>Attendance dashboard</h1>
-          <p className="sd-description">
-            Review event participation, attendance trends, and administrative
-            tasks.
-          </p>
-          <p role="status" className={refreshError ? 'text-sm text-amber-800' : 'text-sm text-slate-500'}>
+          <p className="sd-description">{formatLongDate(new Date())} <span>· Philippine time</span></p>
+          <p role="status" className={refreshError ? 'aad-refresh text-amber-800' : 'aad-refresh'}>
             {refreshError ? 'Unable to refresh attendance totals. Retrying automatically.' : 'Attendance totals update every 10 seconds.'}
           </p>
         </div>
-        <ActionButton variant="default"
-          className="sd-button sd-primary"
-          onClick={() => setActiveSection?.("live")}
-        >
-          Live attendance <ArrowRight size={15} aria-hidden="true" />
-        </ActionButton>
+        <div className="sd-header-actions">
+          <ActionButton variant="outline" className="sd-button" onClick={() => setActiveSection?.("events")}>
+            <Calendar size={15} aria-hidden="true" /> Event approvals
+          </ActionButton>
+          <ActionButton variant="default" className="sd-button sd-primary" onClick={() => setActiveSection?.("live")}>
+            Live attendance <ArrowRight size={15} aria-hidden="true" />
+          </ActionButton>
+        </div>
       </PageHeader>
+
+      <AttendanceMetricGrid
+        label="Attendance overview"
+        items={[
+          [
+            "Registered members",
+            totalMembers.toLocaleString(),
+            newMembersThisWeek > 0
+              ? `+${newMembersThisWeek} new this week`
+              : "No new members this week",
+            Users,
+          ],
+          [
+            "Present",
+            currentEvent ? presentMembers.toLocaleString() : "—",
+            !currentEvent
+              ? "No active event"
+              : lastScanTime
+                ? `Last scan: ${formatTime(lastScanTime)}`
+                : "No scans recorded yet",
+            CheckCircle2,
+          ],
+          [
+            "Absent",
+            currentEvent ? absentMembers.toLocaleString() : "—",
+            currentEvent
+              ? `For ${getEventName(currentEvent)}`
+              : "No active event",
+            History,
+          ],
+          [
+            "Attendance rate",
+            `${attendancePercentage}%`,
+            "Share of registered members present",
+            Target,
+          ],
+        ]}
+      />
 
       <Panel as="section" className="sd-panel aad-event" aria-labelledby="aad-event-title">
         <div>
           <h2 id="aad-event-title">Active event session</h2>
           <p>
             {currentEvent
-              ? `${getEventName(currentEvent)} ? ${getEventDate(currentEvent)}`
+              ? `${getEventName(currentEvent)} · ${getEventDate(currentEvent)}`
               : "No active event. Attendance counts will appear when an event is active."}
           </p>
         </div>
@@ -272,53 +320,14 @@ const Dashboard = ({
                 key={getEventKey(event)}
                 value={String(getEventKey(event))}
               >
-                {getEventName(event)} ? {getEventDate(event)}
+                {getEventName(event)} · {getEventDate(event)}
               </option>
             ))}
           </Select>
         </label>
       </Panel>
 
-      <AttendanceMetricGrid
-        label="Attendance overview"
-        items={[
-          [
-            "Registered members",
-            totalMembers.toLocaleString(),
-            newMembersThisWeek > 0
-              ? `+${newMembersThisWeek} new this week`
-              : "No new members this week",
-            Users,
-          ],
-          [
-            "Present",
-            currentEvent ? presentMembers.toLocaleString() : "?",
-            !currentEvent
-              ? "No active event"
-              : lastScanTime
-                ? `Last scan: ${formatTime(lastScanTime)}`
-                : "No scans recorded yet",
-            CheckCircle2,
-          ],
-          [
-            "Absent",
-            currentEvent ? absentMembers.toLocaleString() : "?",
-            currentEvent
-              ? `For ${getEventName(currentEvent)}`
-              : "No active event",
-            History,
-          ],
-          [
-            "Attendance rate",
-            `${attendancePercentage}%`,
-            "Share of registered members present",
-            Target,
-          ],
-        ]}
-      />
-
-      {/* Attendance Overview */}
-      <div className="aad-charts">
+      <div className="aad-workspace-grid">
         <Panel as="div" className="sd-panel aad-chart-panel">
           <div className="aad-chart-heading">
             <div>
@@ -327,7 +336,6 @@ const Dashboard = ({
                 Present and absent members by event
               </p>
             </div>
-            <Users className="w-5 h-5 text-slate-300" />
           </div>
           <div className="h-64">
             {attendanceChartData.length ? (
@@ -346,17 +354,17 @@ const Dashboard = ({
                     axisLine={false}
                     tick={{ fontSize: 11 }}
                   />
-                  <Tooltip cursor={{ fill: "#f0fdf4" }} />
+                  <Tooltip cursor={{ fill: "#F8FBF8" }} />
                   <Bar
                     dataKey="present"
                     name="Present"
-                    fill="#2D7A3E"
+                    fill="#3E7055"
                     radius={[4, 4, 0, 0]}
                   />
                   <Bar
                     dataKey="absent"
                     name="Absent"
-                    fill="#e8f871"
+                    fill="#A8C3AF"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
@@ -369,6 +377,24 @@ const Dashboard = ({
           </div>
         </Panel>
 
+
+        <aside className="aad-attention" aria-labelledby="aad-attention-title">
+          <h2 id="aad-attention-title">Needs attention</h2>
+          <p>Review event submissions and track active sessions.</p>
+          <div className="aad-attention-list">
+            {needsAttention.map(([label, count, Icon, section]) => (
+              <button key={label} type="button" onClick={() => setActiveSection?.(section)}>
+                <span className="aad-attention-icon">{React.createElement(Icon, { size: 16, "aria-hidden": true })}</span>
+                <span>{label}</span>
+                <strong>{count.toLocaleString()}</strong>
+                <ArrowRight size={14} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </aside>
+      </div>
+
+      <div className="aad-charts">
         <Panel as="div" className="sd-panel aad-chart-panel">
           <div className="aad-chart-heading">
             <div>
@@ -411,12 +437,12 @@ const Dashboard = ({
                     type="monotone"
                     dataKey="rate"
                     name="Attendance rate"
-                    stroke="#2D7A3E"
+                    stroke="#3E7055"
                     strokeWidth={3}
                     dot={{
                       r: 4,
-                      fill: "#F2E416",
-                      stroke: "#2D7A3E",
+                      fill: "#A8C3AF",
+                      stroke: "#3E7055",
                       strokeWidth: 2,
                     }}
                   />
@@ -431,11 +457,8 @@ const Dashboard = ({
         </Panel>
       </div>
 
-      <nav className="aad-workspace" aria-label="Attendance workspace">
-        <div className="aad-workspace-heading">
-          <h2>Workspace</h2>
-          <p>Open common attendance tasks.</p>
-        </div>
+      <details className="aad-workspace">
+        <summary>Attendance workspace <ChevronDown size={16} aria-hidden="true" /></summary>
         <div className="aad-shortcuts">
           {quickActions.map((action) => (
             <button
@@ -454,7 +477,7 @@ const Dashboard = ({
             </button>
           ))}
         </div>
-      </nav>
+      </details>
     </div>
   );
 };

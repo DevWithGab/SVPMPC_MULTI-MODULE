@@ -1,0 +1,173 @@
+{
+  "fixtureData": true,
+  "checks": [
+    {
+      "role": "admin",
+      "tab": "dashboard",
+      "width": 390,
+      "height": 844,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Attendance dashboard",
+      "mainBottom": 844,
+      "scrollable": true
+    },
+    {
+      "role": "admin",
+      "interaction": "mobile navigation",
+      "passed": true
+    },
+    {
+      "role": "admin",
+      "interaction": "Escape closes menu",
+      "passed": true
+    },
+    {
+      "role": "admin",
+      "interaction": "Close menu button",
+      "passed": true
+    },
+    {
+      "role": "admin",
+      "interaction": "phone menu retains labels after desktop collapse",
+      "passed": true
+    },
+    {
+      "role": "admin",
+      "interaction": "empty state",
+      "passed": true,
+      "text": "ATTENDANCE MANAGEMENT / OVERVIEW\n\nAttendance dashboard\n\nReview event participation, attendance trends, and administrative tasks.\n\nAttendance totals up"
+    },
+    {
+      "role": "admin",
+      "interaction": "error state",
+      "passed": true,
+      "text": "Unable to load attendance records and events.\n\nPreviously loaded records are kept, but may be out of date.\n\nRetry"
+    },
+    {
+      "role": "secretary",
+      "tab": "home",
+      "width": 390,
+      "height": 844,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Attendance dashboard",
+      "mainBottom": 844,
+      "scrollable": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "mobile navigation",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "Escape closes menu",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "Close menu button",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "phone menu retains labels after desktop collapse",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "width": 320,
+      "interaction": "event dialog fits viewport",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "width": 390,
+      "interaction": "event dialog fits viewport",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "width": 834,
+      "interaction": "event dialog fits viewport",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "width": 1440,
+      "interaction": "event dialog fits viewport",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "event dialog Escape closes without submission",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "report attendees and back",
+      "passed": true
+    },
+    {
+      "role": "secretary",
+      "interaction": "empty state",
+      "passed": true,
+      "text": "ATTENDANCE MANAGEMENT / OVERVIEW\n\nAttendance dashboard\n\nTuesday, October 27, 2026 · Philippine time\n\nRefresh\nManage events\n\nToday's attendance\n\n0\nReco"
+    },
+    {
+      "role": "secretary",
+      "interaction": "error state",
+      "passed": true,
+      "text": "Unable to refresh attendance and events.\n\nPreviously loaded records are kept, but may be out of date.\n\nRetry"
+    },
+    {
+      "role": "scanner_operator",
+      "tab": "home",
+      "width": 390,
+      "height": 844,
+      "pageOverflow": false,
+      "mainOverflow": false,
+      "overflow": [],
+      "heading": "Scanner dashboard",
+      "mainBottom": 844,
+      "scrollable": true
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "mobile navigation",
+      "passed": true
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "Escape closes menu",
+      "passed": true
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "Close menu button",
+      "passed": true
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "phone menu retains labels after desktop collapse",
+      "passed": true
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "empty state",
+      "passed": true,
+      "text": "ATTENDANCE MANAGEMENT / SCANNER OPERATOR\n\nScanner dashboard\n\nGood afternoon, Preview Staff. Scan member QR codes and monitor event attendance.\n\nTuesda"
+    },
+    {
+      "role": "scanner_operator",
+      "interaction": "error state",
+      "passed": true,
+      "text": "Unable to refresh attendance and events.\n\nPreviously loaded records are kept, but may be out of date.\n\nRetry"
+    }
+  ],
+  "errors": [],
+  "mutations": []
+}

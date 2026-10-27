@@ -465,7 +465,7 @@ export default function EventManagement({ user, events, onRefreshEvents }) {
     <div className="event-management space-y-6 pb-12">
       <PageHeader className="em-header">
         <div>
-          <p className="em-eyebrow">Attendance management / Events</p>
+          <p className="em-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Events</strong></p>
           <h1>Event management</h1>
           <p className="em-description">
             Plan General Assemblies and track each event from approval to

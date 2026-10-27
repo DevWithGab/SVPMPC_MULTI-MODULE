@@ -470,9 +470,7 @@ const MemberManagement = () => {
     <div className="secretary-dashboard admin-member-qr">
       <PageHeader className="sd-header">
         <div>
-          <p className="sd-eyebrow">
-            Attendance management / Member QR management
-          </p>
+          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Member QR management</strong></p>
           <h1>Member QR management</h1>
           <p className="sd-description">
             Generate, print, and manage QR codes used for attendance scanning.

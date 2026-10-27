@@ -1,7 +1,7 @@
 import LoadError from '../../components/shared/common/LoadError';
 import { loadAllPages } from '../../utils/loadAllPages';
 import useUrlState from '../../hooks/useUrlState';
-import './TreasurerPortal.css';
+import '../../components/shared/layout/PortalShell.css';
 import React, { useState, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
@@ -228,7 +228,7 @@ const AdminPortal = ({ onBack, user }) => {
   const navigationCollapsed = isDesktop && isSidebarCollapsed;
 
   return (
-    <div className="mortuary-treasurer-portal mortuary-admin-portal h-full flex font-sans relative overflow-hidden">
+    <div className="portal-shell mortuary-treasurer-portal mortuary-admin-portal h-full flex font-sans relative overflow-hidden">
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
