@@ -17,7 +17,6 @@ import {
   TrendingUp,
   TrendingDown,
   XCircle,
-  ChevronDown,
 } from "lucide-react";
 import {
   Bar,
@@ -395,6 +394,27 @@ const Dashboard = ({
       </div>
 
       <div className="aad-charts">
+      <Panel as="section" className="aad-workspace" aria-labelledby="aad-workspace-title">
+        <h2 id="aad-workspace-title">Attendance workspace</h2>
+        <div className="aad-shortcuts">
+          {quickActions.map((action) => (
+            <button
+              key={action.section}
+              type="button"
+              onClick={() => setActiveSection?.(action.section)}
+            >
+              <span className="aad-shortcut-icon">
+                <action.icon size={17} aria-hidden="true" />
+              </span>
+              <span>
+                <strong>{action.label}</strong>
+                <small>{action.desc}</small>
+              </span>
+              <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </Panel>
         <Panel as="div" className="sd-panel aad-chart-panel">
           <div className="aad-chart-heading">
             <div>
@@ -457,27 +477,7 @@ const Dashboard = ({
         </Panel>
       </div>
 
-      <details className="aad-workspace">
-        <summary>Attendance workspace <ChevronDown size={16} aria-hidden="true" /></summary>
-        <div className="aad-shortcuts">
-          {quickActions.map((action) => (
-            <button
-              key={action.section}
-              type="button"
-              onClick={() => setActiveSection?.(action.section)}
-            >
-              <span className="aad-shortcut-icon">
-                <action.icon size={17} aria-hidden="true" />
-              </span>
-              <span>
-                <strong>{action.label}</strong>
-                <small>{action.desc}</small>
-              </span>
-              <ArrowRight size={15} aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      </details>
+
     </div>
   );
 };
