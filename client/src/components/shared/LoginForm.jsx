@@ -1,185 +1,65 @@
-import { motion } from "framer-motion";
-import {
-  User,
-  Lock,
-  UserCheck,
-  Shield,
-  ClipboardList,
-  Calculator,
-  LogIn,
-} from "lucide-react";
-import CooperativeLogo from "./CooperativeLogo";
-import { Input, Button, BackButton, Alert } from "./ui";
+﻿import { useId } from 'react';
+import { motion as Motion } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Lock, LoaderCircle, ShieldCheck, User, Wallet, QrCode } from 'lucide-react';
+
+const roles = { admin: 'Administrator', secretary: 'Secretary', scanner_operator: 'Scanner Operator' };
 
 export default function LoginForm({
-  type = "admin", // 'admin', 'secretary', 'treasurer', or 'scanner_operator'
-  selectedSystem,
-  systems,
-  loginData,
-  setLoginData,
-  showPassword,
-  setShowPassword,
-  loginLoading,
-  loginError,
-  onSubmit,
-  onBack,
+  type = 'admin', selectedSystem, systems, loginData, setLoginData,
+  showPassword, setShowPassword, loginLoading, loginError, onSubmit, onBack,
 }) {
-  const selectedSystemData = systems.find((s) => s.id === selectedSystem);
-
-  const config = {
-    admin: {
-      icon: Shield,
-      title: "Administrator Access",
-      subtitle: `Sign in to manage ${selectedSystemData?.title}`,
-      usernameLabel: "Username",
-      passwordLabel: "Password",
-      usernamePlaceholder: "Enter your username",
-      passwordPlaceholder: "Enter admin password",
-      buttonText: "Sign In",
-      buttonIcon: LogIn,
-      helpText: "Authorized personnel only • Contact IT support for assistance",
-    },
-    secretary: {
-      icon: ClipboardList,
-      title: "Secretary Access",
-      subtitle: `Sign in to manage ${selectedSystemData?.title}`,
-      usernameLabel: "Username",
-      passwordLabel: "Password",
-      usernamePlaceholder: "Enter your username",
-      passwordPlaceholder: "Enter secretary password",
-      buttonText: "Sign In",
-      buttonIcon: LogIn,
-      helpText: "Secretary access • Contact administrator for assistance",
-    },
-    scanner_operator: {
-      icon: UserCheck,
-      title: "Scanner Operator Access",
-      subtitle: `Sign in to use the QR scanner for ${selectedSystemData?.title}`,
-      usernameLabel: "Username",
-      passwordLabel: "Password",
-      usernamePlaceholder: "Enter your username",
-      passwordPlaceholder: "Enter operator password",
-      buttonText: "Sign In",
-      buttonIcon: LogIn,
-      helpText:
-        "Scanner operator access • Contact your administrator for assistance",
-    },
-    mortuary: {
-      icon: Calculator,
-      title: "Mortuary sign in",
-      subtitle: `Sign in to manage ${selectedSystemData?.title}`,
-      usernameLabel: "Username",
-      passwordLabel: "Password",
-      usernamePlaceholder: "Enter your username",
-      passwordPlaceholder: "Enter your password",
-      buttonText: "Sign In",
-      buttonIcon: LogIn,
-      helpText: "Use your staff account. Your assigned role determines your workspace.",
-    },
-  };
-
-  const currentConfig = config[type];
+  const id = useId();
+  const system = systems.find((item) => item.id === selectedSystem);
+  const isMortuary = type === 'mortuary';
+  const ModuleIcon = isMortuary ? Wallet : QrCode;
 
   return (
-    <motion.div
-      className="w-full"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      {/* Back Button */}
-      <BackButton onClick={onBack}>{type === 'mortuary' ? 'Back to System Selection' : 'Back to Role Selection'}</BackButton>
-
-      {/* Professional Logo Branding */}
-      <CooperativeLogo icon={currentConfig.icon} />
-
-      {/* Login Subtitle */}
-      <motion.div
-        className="text-center mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.4 }}
-      >
-        <h2 className="text-xl font-bold text-slate-900 mb-2">
-          {currentConfig.title}
-        </h2>
-        <p className="text-slate-500 text-sm">{currentConfig.subtitle}</p>
-      </motion.div>
-
-      {/* Login Form */}
-      <motion.div
-        className="space-y-5"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.5 }}
-      >
-        <form onSubmit={onSubmit} className="space-y-4">
-          {/* Username Input */}
-          <Input
-            label={currentConfig.usernameLabel}
-            type="text"
-            value={loginData.username}
-            onChange={(e) =>
-              setLoginData({ ...loginData, username: e.target.value })
-            }
-            placeholder={currentConfig.usernamePlaceholder}
-            icon={User}
-            required
-            disabled={loginLoading}
-            autoComplete="username"
-          />
-
-          {/* Password Input */}
-          <Input
-            label={currentConfig.passwordLabel}
-            type="password"
-            value={loginData.password}
-            onChange={(e) =>
-              setLoginData({ ...loginData, password: e.target.value })
-            }
-            placeholder={currentConfig.passwordPlaceholder}
-            icon={Lock}
-            showPasswordToggle
-            required
-            disabled={loginLoading}
-            autoComplete="current-password"
-          />
-
-          {/* Error Alert */}
-          {loginError && <Alert type="error" message={loginError} />}
-
-          {/* Sign In Button */}
-          <Button
-            type="submit"
-            disabled={loginLoading}
-            loading={loginLoading}
-            icon={currentConfig.buttonIcon}
-            className="w-full mt-6"
-          >
-            {currentConfig.buttonText}
-          </Button>
-        </form>
-
-        {/* Help Text */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-slate-500">{currentConfig.helpText}</p>
+    <Motion.div className="entry-login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+      <button className="entry-login-back" type="button" onClick={onBack} disabled={loginLoading}>
+        <ArrowLeft size={18} aria-hidden="true" />
+        {isMortuary ? 'Back to System Selection' : 'Back to Role Selection'}
+      </button>
+      <header className="entry-login-heading">
+        <span className="entry-login-module-icon"><ModuleIcon size={32} aria-hidden="true" /></span>
+        <p className="entry-login-eyebrow">{system?.title || 'Staff access'}</p>
+        <h1>Welcome back.</h1>
+        <p className="entry-login-subtitle">{isMortuary ? 'Sign in to your account to continue.' : `Sign in as ${roles[type] || 'staff'} to continue.`}</p>
+      </header>
+      <form className="entry-login-form" onSubmit={onSubmit} aria-label={`${system?.title || 'Staff'} sign in`} aria-busy={loginLoading}>
+        <div className="entry-login-field">
+          <label htmlFor={`${id}-username`}>Username</label>
+          <div className="entry-login-input">
+            <User size={19} aria-hidden="true" />
+            <input id={`${id}-username`} name="username" type="text" value={loginData.username}
+              onChange={(event) => setLoginData({ ...loginData, username: event.target.value })}
+              placeholder="Enter your username" autoComplete="username" autoCapitalize="none" spellCheck={false}
+              required disabled={loginLoading} />
+          </div>
         </div>
-
-        {/* Super Admin Link - Subtle Footer */}
-        <div className="mt-8 pt-6 border-t border-slate-100">
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-            <Shield className="w-3 h-3" />
-            <button
-              type="button"
-              onClick={() => (window.location.href = "/super-admin")}
-              className="py-1 hover:text-emerald-600 transition-colors font-medium"
-            >
-              Super Admin Access
+        <div className="entry-login-field">
+          <label htmlFor={`${id}-password`}>Password</label>
+          <div className="entry-login-input">
+            <Lock size={19} aria-hidden="true" />
+            <input id={`${id}-password`} name="password" type={showPassword ? 'text' : 'password'} value={loginData.password}
+              onChange={(event) => setLoginData({ ...loginData, password: event.target.value })}
+              placeholder="Enter your password" autoComplete="current-password" required disabled={loginLoading} />
+            <button className="entry-login-password-toggle" type="button" onClick={() => setShowPassword(!showPassword)}
+              disabled={loginLoading} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} aria-controls={`${id}-password`}>
+              {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
             </button>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+        {loginError && <p className="entry-login-error" role="alert">{loginError}</p>}
+        <button className="entry-login-submit" type="submit" disabled={loginLoading}>
+          {loginLoading ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" /> Signing in…</> : <>Sign in <ArrowRight size={20} aria-hidden="true" /></>}
+        </button>
+      </form>
+      <p className="entry-login-help">{isMortuary
+        ? 'Use your staff account. Your assigned role determines your workspace.'
+        : 'Need help signing in? Contact your administrator.'}</p>
+      <div className="entry-login-admin">
+        <a href="/super-admin"><ShieldCheck size={16} aria-hidden="true" /> Super Admin Access <ArrowRight size={15} aria-hidden="true" /></a>
+      </div>
+    </Motion.div>
   );
 }

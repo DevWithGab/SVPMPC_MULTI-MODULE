@@ -41,8 +41,8 @@ export default function NoticeContentSettings() {
   };
   return (
     <div className="fs-section">
-      <p className="fs-section-description">Edit the messages used in printed and downloaded notices. The official cooperative layout and automatic member details are preserved. First and second notices share the same message.</p>
-      {!loading && !error && current && <form onSubmit={saveManager} className="fs-panel mb-5 space-y-3">
+      <div className="fs-section-heading"><h2>Notice content</h2><p className="fs-section-description">Edit the messages used in printed and downloaded notices. The official cooperative layout and automatic member details are preserved. First and second notices share the same message.</p></div>
+      {!loading && !error && current && <form onSubmit={saveManager} className="fs-panel fs-manager mb-5 space-y-3">
         <div><p className="text-sm font-bold text-slate-900">Notice manager</p><p className="text-xs text-slate-500 mt-1">Used in the manager block and the {'{managerName}'} field on all three notices. Update this when the manager changes.</p></div>
         <div className="flex flex-wrap items-end gap-3"><label className="text-sm font-medium flex-1 min-w-48">Manager name<TextInput value={managerName} onChange={event => { setManagerName(event.target.value); setManagerSaved(false); setManagerError(''); }} required maxLength={100} disabled={savingManager} className="block mt-2 w-full border border-slate-300 rounded px-3 py-2" /></label><ActionButton variant="default" type="submit" disabled={savingManager || managerName.trim() === getNoticeManagerName(current)} className="td-button td-primary">{savingManager ? 'Saving...' : 'Save Manager Name'}</ActionButton></div>
         {managerError && <p role="alert" className="text-sm text-red-600">{managerError}</p>}

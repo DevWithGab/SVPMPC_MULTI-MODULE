@@ -1,5 +1,5 @@
 import { Select } from '../../ui/input';
-import { PageHeader, Panel } from '../../ui/workspace';
+import { Panel } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Download, TrendingUp, Users, FileText, ClipboardCheck, Heart, AlertTriangle, Loader2 } from 'lucide-react';
@@ -10,7 +10,7 @@ import { createMortuaryReportPdf, loadReportLogo, negativeBalanceMembers, report
 import { reportCsvHeader } from '../../../utils/reportCsvHeader';
 import { loadAllPages } from '../../../utils/loadAllPages';
 import { getStandingLabel } from '../../../utils/memberStanding';
-import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
+import { formatDate } from '../../../utils/date';
 import './Reports.css';
 
 
@@ -401,64 +401,42 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
     memberStanding: 'Active members only. Lowest posted balance first.',
   }[reportType];
   return (
-    <div className="financial-reports pb-12">
-      <PageHeader className="reports-page-heading">
-        <div><p className="reports-eyebrow">Mortuary management / Reports</p><h1>Reports</h1>
-          <p className="reports-description">Review fund activity, member balances and claim deductions.</p></div>
-        <p className="text-xs text-slate-500">Reporting currency <strong className="ml-1 text-slate-700">PHP</strong></p>
-      </PageHeader>
+    <div className="financial-reports treasurer-reports">
+      <header className="reports-page-heading"><p className="reports-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Reports</strong></p><h1>Reports</h1><p className="reports-description">Review mortuary fund activity and export complete reports.</p></header>
       <div className="reports-workspace">
-        <nav className="reports-navigation" aria-label="Financial report selection">
-          {[
-            { label: 'Fund activity', ids: ['summary', 'contributions', 'claims'] },
-            { label: 'Member records', ids: ['memberStanding', 'negativeBalances', 'deceasedMembers'] },
-          ].map(group => <div key={group.label} className="reports-nav-group">
-            <p className="reports-eyebrow">{group.label}</p>
-            {group.ids.map(id => {
-              const type = REPORT_TYPES.find(item => item.id === id);
-              return <button key={id} type="button" aria-current={reportType === id ? 'page' : undefined}
-                onClick={() => { setReportType(id); setPage(1); setExportError(''); }}>
-                <type.icon size={16} aria-hidden="true" /><span>{type.label}</span>
-              </button>;
-            })}
-          </div>)}
-          <p className="reports-nav-note">Exports include the complete selected report, across all pages.</p>
-        </nav>
+        <section className="rp-toolbar" aria-label="Choose and export a report">
+          <div className="rp-report-field"><label htmlFor="mortuary-report-type">Report type</label><Select id="mortuary-report-type" value={reportType} onChange={event => { setReportType(event.target.value); setPage(1); setExportError(''); }}>{REPORT_TYPES.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select><p>{REPORT_TYPES.length} report types available.</p></div>
+          <p className="rp-selected-scope">{['memberStanding', 'negativeBalances', 'deceasedMembers'].includes(reportType) ? 'Current member records' : 'All recorded activity'}<span>{reportType === 'summary' ? 'Fund-wide' : barangayFilter === 'all' ? 'All barangays' : barangayFilter}</span></p>
+          <div className="reports-export-actions">
+            <button type="button" onClick={exportToCSV} disabled={exportDisabled} className="reports-button"><FileText size={20} aria-hidden="true" />Export CSV</button>
+            <button type="button" onClick={generatePDF} disabled={exportDisabled} className="reports-button reports-button-primary">{exporting ? <Loader2 size={20} className="animate-spin" aria-hidden="true" /> : <Download size={20} aria-hidden="true" />}{exporting ? 'Preparing PDF...' : 'Export PDF'}</button>
+          </div>
+        </section>
         <Panel as="section" className="reports-document" aria-labelledby="report-title" aria-busy={reportLoading}>
-          <div className="reports-document-heading">
-            <div><h2 id="report-title">{REPORT_TYPES.find(type => type.id === reportType).label}</h2>
-              <p className="mt-1 text-sm text-slate-600">{scope}</p></div>
-            <div className="reports-export-actions">
-              <button type="button" onClick={exportToCSV} disabled={exportDisabled} className="reports-button">Export CSV</button>
-              <button type="button" onClick={generatePDF} disabled={exportDisabled} className="reports-button reports-button-primary">
-                {exporting ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Download size={15} aria-hidden="true" />}{exporting ? 'Preparing PDF...' : 'Export PDF'}</button>
-            </div>
-          </div>
-          <div className="reports-scope-bar flex-wrap items-center">
-            <span>{['memberStanding', 'negativeBalances', 'deceasedMembers'].includes(reportType) ? 'Current member records' : 'All recorded activity'}</span>
-            <span>{reportLoading ? 'Loading records...' : reportError ? 'Data unavailable' : reportType === 'summary' ? periodBreakdown.length + ' reporting periods' : paginatedData.total.toLocaleString() + ' records'}</span>
-          </div>
+          <div className="reports-document-heading"><div><h2 id="report-title">{REPORT_TYPES.find(type => type.id === reportType).label}</h2><p>{scope}</p>{reportType === 'summary' && <p className="rp-asof">As of {formatDate(new Date())}.</p>}</div></div>
           {reportType !== 'summary' && <section className="reports-filters" aria-labelledby="reports-filter-title">
             <div className="reports-filter-heading"><h3 id="reports-filter-title">Filter report</h3><button type="button" className="reports-text-button" disabled={barangayFilter === 'all' && (reportType !== 'claims' || claimMonth === 'all')} onClick={() => { setBarangayFilter('all'); setClaimMonth('all'); setPage(1); }}>Reset filter</button></div>
             <div className="reports-filter-fields">
-            <label>Barangay<Select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setPage(1); }}><option value="all">All barangays</option>{barangayOptions.map(b => <option key={b} value={b}>{b}</option>)}</Select></label>
-            {reportType === 'claims' && <label>Month filed<Select value={claimMonth} onChange={e => { setClaimMonth(e.target.value); setPage(1); }}><option value="all">All months</option>{claimMonthOptions.map(m => <option key={m} value={m}>{formatPeriodLabel(m, 'monthly')}</option>)}</Select></label>}
+            <label>Barangay<Select aria-label="Barangay" value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setPage(1); }}><option value="all">All barangays</option>{barangayOptions.map(b => <option key={b} value={b}>{b}</option>)}</Select></label>
+            {reportType === 'claims' && <label>Month filed<Select aria-label="Month filed" value={claimMonth} onChange={e => { setClaimMonth(e.target.value); setPage(1); }}><option value="all">All months</option>{claimMonthOptions.map(m => <option key={m} value={m}>{formatPeriodLabel(m, 'monthly')}</option>)}</Select></label>}
             </div>
             <p>Applies to the displayed records and both exports.</p>
           </section>}
           {(reportError || exportError) && <p role="alert" className="m-5 rounded border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{reportError || exportError}</p>}
           {reportLoading ? <div role="status" className="p-12 text-center text-sm text-slate-600">Loading complete report data...</div> : reportError ? <div className="p-10 text-center text-sm text-slate-600">Reload this page to retrieve the complete report.</div> : <div className="reports-content" data-report={reportType} role="region" aria-label={REPORT_TYPES.find(type => type.id === reportType).label + ' data'} tabIndex={0}>
             {reportType === 'summary' && (
-              <div className="reports-metrics"><AttendanceMetricGrid label="Financial summary" items={[
-                ['Total fund balance', '₱' + reportAmount(stats?.fundBalance), 'Current fund position', FileText],
-                ['Contributions collected', '₱' + reportAmount(metrics.totalContributions), 'All recorded contributions', TrendingUp],
-                ['Deductions collected', '₱' + reportAmount(metrics.totalDeductionsCollected), 'Member assessments collected', ClipboardCheck],
-              ]} /></div>
+              <dl className="rp-summary-metrics" aria-label="Financial summary">
+                {[
+                  ['Total fund balance', stats?.fundBalance, 'Current fund position'],
+                  ['Contributions collected', metrics.totalContributions, 'All recorded contributions'],
+                  ['Deductions collected', metrics.totalDeductionsCollected, 'Member assessments collected'],
+                ].map(([label, amount, description]) => <div key={label}><dt>{label}</dt><dd data-negative={Number(amount) < 0 ? true : undefined}>&#8369;{reportAmount(amount)}</dd><p>{description}</p></div>)}
+              </dl>
             )}
             {reportType === 'summary' && (
-              <div className="px-5 pb-5">
-                <div className="flex items-center justify-between gap-3 mb-3 pt-2 border-t border-slate-100">
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Activity by period</p>
+              <section className="rp-period-section" aria-labelledby="rp-period-title">
+                <div className="rp-period-heading">
+                  <h3 id="rp-period-title">Activity by period</h3>
                   <div className="reports-period-switch" role="group" aria-label="Reporting period">
                     {['monthly', 'annually'].map((period) => (
                       <button
@@ -476,7 +454,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                   </div>
                 </div>
 
-                <div className="border border-slate-200 rounded overflow-x-auto">
+                <div className="rp-table-scroll">
                   <DataTable className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50">
@@ -503,9 +481,10 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                         </tr>
                       )}
                     </tbody>
+                    {periodBreakdown.length > 0 && <tfoot><tr><th scope="row">Total shown periods</th><td className="text-right">&#8369;{reportAmount(periodBreakdown.reduce((sum, row) => sum + row.contributions, 0))}</td><td className="text-right">&#8369;{reportAmount(periodBreakdown.reduce((sum, row) => sum + row.deductionsCollected, 0))}</td></tr></tfoot>}
                   </DataTable>
                 </div>
-              </div>
+              </section>
             )}
 
             {reportType === 'contributions' && (
@@ -634,7 +613,7 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
                       <td className="px-5 py-2.5 text-xs text-slate-500">{m.barangay}</td>
                       <td className="px-5 py-2.5 text-xs font-semibold text-slate-900">₱{reportAmount(m.balance)}</td>
                       <td className="px-5 py-2.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border ${STANDING_BADGE_STYLES[m.standing]}`}>
+                        <span data-standing={m.standing} className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border ${STANDING_BADGE_STYLES[m.standing]}`}>
                           {m.standing}
                         </span>
                       </td>
@@ -660,6 +639,12 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
               />
             </div>
           )}
+          <p className="reports-export-note">Exports include the complete selected report, across all pages.</p>
+          <div className="reports-scope-bar flex-wrap items-center">
+            <span>{['memberStanding', 'negativeBalances', 'deceasedMembers'].includes(reportType) ? 'Current member records' : 'All recorded activity'}</span>
+            <span>{reportLoading ? 'Loading records...' : reportError ? 'Data unavailable' : reportType === 'summary' ? periodBreakdown.length + ' reporting periods' : paginatedData.total.toLocaleString() + ' records'}</span>
+          </div>
+          <p className="rp-currency">Reporting currency <strong>PHP</strong></p>
         </Panel>
       </div>
     </div>

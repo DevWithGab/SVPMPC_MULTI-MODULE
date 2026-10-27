@@ -1,12 +1,19 @@
 import { Button as ActionButton } from '../../ui/button';
 import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Banknote, Pencil, History, Loader2 } from 'lucide-react';
+import { Pencil, Loader2 } from 'lucide-react';
 import { deductionSettingAPI } from '../../../services/api';
 import UpdateDeductionRateModal from './modals/UpdateDeductionRateModal';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { displaySettingAmount } from '../../../utils/settingAmount';
+
+const formatRate = value => {
+  const amount = Number(String(value ?? '').replaceAll(',', ''));
+  return value == null || value === '' || !Number.isFinite(amount)
+    ? displaySettingAmount(value)
+    : amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 export default function DeductionSettings({ user }) {
   const [current, setCurrent] = useState(null);
@@ -43,9 +50,12 @@ export default function DeductionSettings({ user }) {
 
   return (
     <div className="fs-section">
+      <div className="fs-section-heading">
+      <h2>Deduction rate</h2>
       <p className="fs-section-description">
         The standard deduction amount charged to active members when a death claim is processed.
       </p>
+      </div>
 
       {loading ? (
         <div className="fs-loading" role="status" aria-label="Loading settings">
@@ -54,17 +64,15 @@ export default function DeductionSettings({ user }) {
       ) : (
         <>
           {/* Current rate */}
-          <div className="fs-panel fs-current">
+          <div className="fs-panel fs-current fs-deduction-current">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4">
-                <div className="fs-current-icon">
-                  <Banknote className="w-6 h-6 text-coop-green" />
-                </div>
                 <div>
                   <p className="fs-value-label">Current Rate</p>
-                  <p className="fs-value">₱{displaySettingAmount(current?.amount)}</p>
+                  <p className="fs-value">₱{formatRate(current?.amount)}</p>
+                  <p className="fs-value-context">per active member, per claim</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Effective {current?.effectiveDate ? new Date(current.effectiveDate).toLocaleDateString() : '—'}
+                    Effective {current?.effectiveDate ? new Date(current.effectiveDate).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}
                     {current?.description ? ` • ${current.description}` : ''}
                   </p>
                 </div>
@@ -78,11 +86,15 @@ export default function DeductionSettings({ user }) {
             </div>
           </div>
 
+          {current?.amount != null && Number.isFinite(Number(current.amount)) && (
+            <p className="fs-example">Example: 2 claims at &#8369;{formatRate(current.amount)} deduct &#8369;{formatRate(Number(current.amount) * 2)} from each active member.</p>
+          )}
+
           {/* History */}
           <div className="fs-panel fs-history">
             <div className="fs-panel-heading">
-              <History className="w-4 h-4 text-coop-green" />
-              <p className="text-sm font-bold text-slate-900">Rate History</p>
+              <h3>Rate history</h3>
+              <p>Review previous rates and who set them.</p>
             </div>
             <div className="fs-table-scroll" role="region" aria-label="Settings history" tabIndex={0}>
               <DataTable className="w-full">
@@ -98,9 +110,9 @@ export default function DeductionSettings({ user }) {
                   {history.length > 0 ? (
                     history.map((setting) => (
                       <tr key={setting.settingId} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-3 text-sm font-semibold text-slate-900">₱{displaySettingAmount(setting.amount)}</td>
+                        <td className="px-6 py-3 text-sm font-semibold text-slate-900">₱{formatRate(setting.amount)}</td>
                         <td className="px-6 py-3 text-sm text-slate-600">
-                          {new Date(setting.effectiveDate).toLocaleDateString()}
+                          {new Date(setting.effectiveDate).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>
                         <td className="px-6 py-3">
                           <span

@@ -16,8 +16,16 @@ test('ledger upload rejects non-CSV files and requires a valid preview before im
   const originalClose = dialog.close;
   dialog.showModal = function () {};
   dialog.close = function () {};
-  let api, original;
+  let api, original, Swal, originalFire;
+  const alerts = [];
   try {
+    ({ default: Swal } = await import('sweetalert2'));
+    originalFire = Swal.fire;
+    Swal.fire = async options => {
+      assert.equal(options.target, container.querySelector('dialog'));
+      alerts.push(options);
+      return { isConfirmed: true };
+    };
     const { default: BulkLedgerUpload } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/BulkLedgerUpload.jsx');
     ({ treasurerAPI: api } = await vite.ssrLoadModule('/src/services/api.js'));
     original = api.bulkUploadLedger;
@@ -56,6 +64,7 @@ test('ledger upload rejects non-CSV files and requires a valid preview before im
     assert.ok(button('Import 1 Entries'));
     assert.match(container.textContent, /1 duplicates will not be recorded/);
     await act(async () => button('Import 1 Entries').click());
+    assert.equal(alerts.at(-1).title, 'Ledger entries recorded successfully');
     assert.match(container.textContent, /1 recorded · 1 duplicates not recorded · 0 need retry/);
     assert.match(container.querySelector('tbody').textContent, /Duplicate — not recorded/);
     assert.equal(button('Import 1 Entries'), undefined);
@@ -68,6 +77,7 @@ test('ledger upload rejects non-CSV files and requires a valid preview before im
   } finally {
     await act(async () => root.unmount());
     if (original) api.bulkUploadLedger = original;
+    if (originalFire) Swal.fire = originalFire;
     dialog.showModal = originalShow;
     dialog.close = originalClose;
     globalThis.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;

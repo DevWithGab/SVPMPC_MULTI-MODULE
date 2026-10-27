@@ -1,0 +1,41 @@
+/* Shared treasurer navigation; screen styles do not affect printed records. */
+@media screen {
+  .mortuary-treasurer-portal { background: #fff; color: #101820; }
+  .mortuary-treasurer-portal .mt-sidebar { background: #eff8ee; color: #101820; flex-shrink: 0; }
+  .mortuary-treasurer-portal .mt-brand { display: flex; align-items: start; gap: 16px; padding: 36px 30px 24px; flex-shrink: 0; }
+  .mortuary-treasurer-portal .mt-brand-logo { width: 64px; height: 72px; object-fit: contain; flex-shrink: 0; }
+  .mortuary-treasurer-portal .mt-brand-name { font-size: 21px; line-height: 1.3; font-weight: 700; letter-spacing: -.025em; }
+  .mortuary-treasurer-portal .mt-brand-description { margin-top: 3px; font-size: 15px; line-height: 1.4; color: #646c78; }
+  .mortuary-treasurer-portal .mt-brand-collapsed { justify-content: center; padding: 28px 12px; }
+  .mortuary-treasurer-portal .mt-brand-collapsed .mt-brand-logo { width: 44px; height: 52px; }
+  .mortuary-treasurer-portal .mt-nav-label { padding: 0 34px 16px; font-size: 16px; line-height: 1.5; color: #646c78; }
+  .mortuary-treasurer-portal .mt-nav { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; padding: 0 16px 20px; overflow-y: auto; }
+  .mortuary-treasurer-portal .mt-nav-item { position: relative; display: flex; align-items: center; gap: 22px; width: 100%; min-height: 54px; padding: 12px 20px; border-radius: 6px; color: #101820; text-align: left; cursor: pointer; transition: background-color .15s, color .15s; }
+  .mortuary-treasurer-portal .mt-nav-item > svg { width: 26px; height: 26px; flex-shrink: 0; stroke-width: 1.7; }
+  .mortuary-treasurer-portal .mt-nav-item > span:not(.mt-nav-badge) { font-size: 19px; font-weight: 400; letter-spacing: -.02em; }
+  .mortuary-treasurer-portal .mt-nav-item:hover { background: #e1ecdf; }
+  .mortuary-treasurer-portal .mt-nav-item[aria-current="page"] { background: #174b38; color: #fff; }
+  .mortuary-treasurer-portal .mt-nav-item-collapsed { justify-content: center; gap: 0; padding-inline: 0; }
+  .mortuary-treasurer-portal .mt-nav-badge { margin-left: auto; display: inline-flex; min-width: 20px; height: 20px; padding-inline: 5px; align-items: center; justify-content: center; border-radius: 5px; background: #e5f1e9; color: #174b38; font-size: 11px; font-weight: 600; }
+  .mortuary-treasurer-portal .mt-nav-badge-collapsed { position: absolute; top: 1px; right: -5px; }
+  .mortuary-treasurer-portal .mt-account { margin: 12px 28px 0; padding-block: 20px 8px; border-top: 1px solid #cddbd0; flex-shrink: 0; }
+  .mortuary-treasurer-portal .mt-account summary { display: flex; align-items: center; gap: 20px; min-height: 48px; list-style: none; cursor: pointer; font-size: 17px; }
+  .mortuary-treasurer-portal .mt-account summary::-webkit-details-marker { display: none; }
+  .mortuary-treasurer-portal .mt-account summary > span { flex: 1; }
+  .mortuary-treasurer-portal .mt-account details[open] summary > svg:last-child { transform: rotate(180deg); }
+  .mortuary-treasurer-portal .mt-account-details { padding-block: 12px 4px; }
+  .mortuary-treasurer-portal .mt-account-details p { overflow-wrap: anywhere; color: #646c78; font-size: 14px; padding-bottom: 6px; }
+  .mortuary-treasurer-portal .mt-account button { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 44px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .mortuary-treasurer-portal .mt-account button:hover { background: #e1ecdf; }
+  .mortuary-treasurer-portal .mt-collapse { display: flex; align-items: center; justify-content: center; min-height: 44px; color: #646c78; cursor: pointer; flex-shrink: 0; }
+  .mortuary-treasurer-portal .mt-collapse:hover { color: #174b38; background: #e1ecdf; }
+  .mortuary-treasurer-portal .mt-main { padding: 32px 28px 24px 36px; min-height: 0; }
+  .mortuary-treasurer-portal :is(button, summary):focus-visible { outline: 3px solid #528369; outline-offset: 3px; }
+  .mortuary-treasurer-portal .mt-mobile-bar { padding: 12px 20px; background: #eff8ee; border-bottom: 1px solid #dce3df; }
+  .mortuary-treasurer-portal .mt-menu-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; }
+  .mortuary-treasurer-portal .mt-close-menu { position: absolute; top: 4px; right: 4px; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer; border-radius: 6px; }
+  @media (max-width: 1023px) { .mortuary-treasurer-portal .mt-main { padding: 28px 24px; } .mortuary-treasurer-portal .mt-sidebar { max-width: calc(100vw - 16px); } }
+  @media (max-width: 639px) { .mortuary-treasurer-portal .mt-main { padding: 24px 20px; } }
+  @media (max-width: 359px) { .mortuary-treasurer-portal .mt-main { padding-inline: 16px; } }
+  @media (prefers-reduced-motion: reduce) { .mortuary-treasurer-portal .mt-sidebar { transition: none !important; } .mortuary-treasurer-portal .mt-nav-item { transition: none; } }
+}

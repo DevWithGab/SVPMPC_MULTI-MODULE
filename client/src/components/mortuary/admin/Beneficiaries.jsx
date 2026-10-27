@@ -1,7 +1,7 @@
 import { SearchField } from '../../ui/workspace';
 import { Button as ActionButton } from '../../ui/button';
 import { Input as TextInput } from '../../ui/input';
-import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Panel, PanelHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Users, History, Pencil, RefreshCw, Upload } from 'lucide-react';
@@ -12,6 +12,7 @@ import BulkBeneficiaryUpload from './modals/BulkBeneficiaryUpload';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import '../treasurer/MemberBalances.css';
 import './Beneficiaries.css';
+import './MemberManagement.css';
 
 const PAGE_SIZE = 100;
 
@@ -51,26 +52,26 @@ export default function Beneficiaries({ user }) {
   const updateSearch = (value) => { setSearch(value); setPage(1); };
 
   if (historyMember) {
-    return <BeneficiaryHistory memberId={historyMember.memberId} memberName={historyMember.memberName} onBack={() => setHistoryMember(null)} />;
+    return <BeneficiaryHistory className="treasurer-member-balances admin-member-history" memberId={historyMember.memberId} memberName={historyMember.memberName} onBack={() => setHistoryMember(null)} />;
   }
 
   return (
-    <div className="member-balances admin-beneficiaries">
-      <PageHeader className="mb-header">
+    <div className="member-balances treasurer-member-balances admin-beneficiaries admin-beneficiary-directory">
+      <p className="mb-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><strong>Beneficiaries</strong></p>
+      <header className="mb-header">
         <div>
-          <p className="mb-eyebrow">Mortuary management / Beneficiaries</p>
           <h1>Beneficiaries</h1>
           <p className="mb-description">Review the beneficiary on file for each member, update details, and track changes.</p>
         </div>
         <div className="mb-header-actions">
-          <ActionButton variant="outline" className="mb-button" onClick={() => setBulkUploadOpen(true)}>
+          <ActionButton variant="outline" className="mb-button beneficiary-bulk-button" onClick={() => setBulkUploadOpen(true)}>
             <Upload size={15} aria-hidden="true" />Bulk register
           </ActionButton>
           <ActionButton variant="outline" className="mb-button" onClick={load} disabled={loading}>
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
           </ActionButton>
         </div>
-      </PageHeader>
+      </header>
 
       <section className="mb-filters" aria-labelledby="beneficiary-filter-title">
         <div className="mb-filter-heading">
@@ -78,13 +79,13 @@ export default function Beneficiaries({ user }) {
           <button className="mb-text-button" onClick={() => updateSearch('')} disabled={!search}>Reset search</button>
         </div>
         <div className="mb-filter-grid beneficiary-filter-grid">
-          <label>
-            Search members or beneficiaries
+          <div>
+            <label htmlFor="beneficiary-search">Search members or beneficiaries</label>
             <SearchField as="span" className="mb-search">
               <Search size={16} aria-hidden="true" />
-              <TextInput unstyled type="search" placeholder="Member or beneficiary name" value={search} onChange={e => updateSearch(e.target.value)} />
+              <TextInput id="beneficiary-search" unstyled type="search" placeholder="Member or beneficiary name" value={search} onChange={e => updateSearch(e.target.value)} />
             </SearchField>
-          </label>
+          </div>
         </div>
       </section>
 
@@ -96,6 +97,7 @@ export default function Beneficiaries({ user }) {
           <span role="status">{loading ? 'Loading beneficiary records…' : error ? 'Beneficiary records unavailable' : `${pagination.total.toLocaleString()} ${search.trim() ? 'matching' : 'member'} records`}</span>
           <span>Current beneficiary on file</span>
         </div>
+        <p className="mb-scroll-hint">Scroll horizontally to view contact details, status, and beneficiary actions.</p>
         <div className="mb-table-scroll" role="region" aria-label="Beneficiary directory" tabIndex={0}>
           <DataTable>
             <thead><tr>

@@ -1,4 +1,3 @@
-import { PageHeader } from '../../ui/workspace';
 import React, { useState } from 'react';
 import { Banknote, Bell, FileText } from 'lucide-react';
 import DeductionSettings from './DeductionSettings';
@@ -20,13 +19,13 @@ export default function FundSettings({ user }) {
 
   return (
     <div className="treasurer-dashboard fund-settings">
-      <PageHeader className="td-header">
+      <header className="fs-page-heading">
         <div>
-          <p className="td-eyebrow">Mortuary management / Settings</p>
+          <p className="fs-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><strong>Settings</strong></p>
           <h1>Settings</h1>
-          <p className="td-description">Manage claim deductions and member notice thresholds and content.</p>
+          <p className="fs-description">Manage claim deductions and member notice rules.</p>
         </div>
-      </PageHeader>
+      </header>
       <div className="fs-navigation" role="group" aria-label="Settings sections">
         {sections.map(section => (
           <button key={section.id} id={`fs-section-${section.id}`} aria-pressed={tab === section.id} aria-controls="fs-content" onClick={() => setTab(section.id)}>

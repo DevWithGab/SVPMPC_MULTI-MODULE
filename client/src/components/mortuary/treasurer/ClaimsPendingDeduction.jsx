@@ -90,17 +90,20 @@ export default function ClaimsPendingDeduction({ onProcessed }) {
   const shown = result || preview;
   return <div className="mc-view space-y-5">
     <header className="mc-view-heading">
-      <div><h2 className="text-2xl font-bold text-slate-900 tracking-tight">Pending deduction</h2><p className="mt-1.5 text-sm text-slate-500">Select the claims to deduct together (for example, all of this month’s death claims), then record one JV number for the batch.</p></div>
-      <div className="mc-rate"><p className="text-xs text-slate-500">Current deduction / claim</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{rateLoading ? 'Loading…' : rate ? peso(rate.amount) : 'Unavailable'}</p><p className="mt-0.5 text-xs text-slate-500">Set in Settings{rate?.effectiveDate ? ` · ${shortDate(rate.effectiveDate)}` : ''}</p></div>
+      <div><h2 className="text-2xl font-bold text-slate-900 tracking-tight">Approved claims</h2></div>
+      <div className="mc-rate"><p>Deduction rate: <strong>{rateLoading ? 'Loading…' : rate ? peso(rate.amount) : 'Unavailable'}</strong>{rate && <span> per active member / per claim</span>}</p><p>Set in Settings{rate?.effectiveDate ? ` · ${shortDate(rate.effectiveDate)}` : ''}</p></div>
     </header>
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3" role="status" aria-live="polite">
-      <p className="text-sm text-slate-700">{selected.size ? <><strong>{selected.size}</strong> {selected.size === 1 ? 'claim' : 'claims'} selected{rate ? <> · <span className="tabular-nums">{peso(rate.amount * selected.size)}</span> per member</> : null}</> : 'No claims selected'}</p>
-      <div className="flex gap-2">
+    <ClaimQueue queue={queue} selected={selected} onToggle={toggle} onToggleAll={toggleAll} footer={<>
+    <div className="mc-selection" role="status" aria-live="polite">
+      <p className="text-sm text-slate-700">{selected.size ? <><strong>{selected.size}</strong> {selected.size === 1 ? 'claim' : 'claims'} selected{rate ? <> · <span className="tabular-nums">{peso(rate.amount * selected.size)}</span> per active member</> : null}</> : 'No claims selected'}</p>
+      <div className="mc-selection-actions">
         {selected.size > 0 && <Action onClick={() => setSelected(new Map())}>Clear selection</Action>}
-        <Action primary disabled={!selected.size} onClick={start}>Process deduction{selected.size ? ` (${selected.size})` : ''}</Action>
+        <Action primary disabled={!selected.size} onClick={start}>Review deduction{selected.size ? ` (${selected.size})` : ''}</Action>
       </div>
     </div>
-    <ClaimQueue queue={queue} selected={selected} onToggle={toggle} onToggleAll={toggleAll} />
+    <p className="mc-selection-help">You&apos;ll enter a reference number and review the impact before confirming.</p>
+    <details className="mc-batch-help"><summary>About batch deductions</summary><p>Select the claims to deduct together (for example, all of this month&apos;s death claims), then record one JV number for the batch.</p></details>
+    </>} />
     {open && <ClaimDialog title={result ? 'Deduction summary' : preview ? 'Confirm deduction' : 'Batch deduction'} step={result ? 'Completed' : preview ? 'Step 2 of 2 · Confirm assessment' : 'Step 1 of 2 · JV number'} busy={busy} onClose={close} footer={result ? <>
       <Action onClick={() => printDeductionSummary(result)}><Printer className="h-4 w-4" />Print summary</Action><Action primary onClick={close}>Done</Action>
     </> : <>

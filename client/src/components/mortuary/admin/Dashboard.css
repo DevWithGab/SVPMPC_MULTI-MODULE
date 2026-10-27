@@ -30,3 +30,76 @@
   .mortuary-admin-dashboard .mad-activity-panel > div:first-child { padding-inline: 16px; }
   .mad-claim-list { padding-inline: 16px; }
 }
+
+/* Admin overview follows the established mortuary dashboard presentation. */
+@media screen {
+  .mortuary-admin-dashboard .mad-metrics { grid-template-columns: 1.2fr .9fr 1.2fr; }
+  .mortuary-admin-dashboard .td-main { min-width: 0; }
+  .mortuary-admin-dashboard .td-header-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .mortuary-admin-dashboard .mad-notification-button { min-width: 46px; padding: 10px; }
+  .mortuary-admin-dashboard .mad-notification-button > svg { width: 20px; height: 20px; }
+  .mortuary-admin-dashboard .mad-notification-button > span { background: #174b38; border: 2px solid white; min-width: 22px; height: 22px; font-size: 11px; }
+  .mortuary-admin-dashboard .mad-notification-menu { width: 340px; max-width: calc(100vw - 40px); border-color: #ccd2db; border-radius: 8px; box-shadow: 0 8px 28px rgb(17 32 23 / 12%); }
+  .mortuary-admin-dashboard .mad-notification-menu :is(p, button) { font-size: 14px; line-height: 1.5; }
+  .mortuary-admin-dashboard .mad-notification-menu button { min-height: 48px; color: #174b38; }
+  .mortuary-admin-dashboard .td-workspace { align-items: start; }
+  .mortuary-admin-dashboard .mad-fund-panel[data-ui-panel] { padding: 24px 22px 18px; border: 1px solid #dce3df; border-radius: 12px; }
+  .mortuary-admin-dashboard .mad-fund-panel > div:first-child { padding: 0 0 12px; border: 0; }
+  .mortuary-admin-dashboard .mad-fund-panel > div:last-child { padding: 0; }
+  .mortuary-admin-dashboard .mad-fund-panel h3 { color: #101820; font-size: clamp(22px, 2.2vw, 32px); font-weight: 650; line-height: 1.3; letter-spacing: -.03em; }
+  .mortuary-admin-dashboard .mad-fund-panel > div:first-child > div { align-items: start; flex-wrap: wrap; gap: 8px; }
+  .mortuary-admin-dashboard .mad-fund-panel > div:first-child > div > span { color: #646c78; font-size: 14px; line-height: 1.5; }
+  .mortuary-admin-dashboard .mad-chart-legend { color: #646c78; font-size: 14px; }
+  .mortuary-admin-dashboard .mad-chart-legend .bg-coop-green { background: #a8c3af; }
+  .mortuary-admin-dashboard .td-contribution-chart { margin-top: 8px; height: 300px; }
+  .mortuary-admin-dashboard .mad-fund-summary { margin-top: 22px; padding-top: 16px; border-color: #dce3df; }
+  .mortuary-admin-dashboard .mad-fund-summary > p { color: #646c78; font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: normal; }
+  .mortuary-admin-dashboard .mad-fund-summary > div { gap: 16px; font-size: 14px; }
+  .mortuary-admin-dashboard .mad-fund-summary > div > span:last-child { color: #101820; font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: right; }
+  .mortuary-admin-dashboard .mad-fund-summary .bg-green-50 { margin-inline: 0; padding: 0; background: transparent; }
+  .mortuary-admin-dashboard .mad-fund-summary .text-coop-green { color: #646c78; font-weight: 400; }
+  .mortuary-admin-dashboard .td-sidebar { display: grid; gap: 28px; }
+  .mortuary-admin-dashboard .td-sidebar .td-panel[data-ui-panel] { border: 0; border-radius: 0; background: transparent; }
+  .mortuary-admin-dashboard .td-sidebar .td-panel-heading { display: block; padding: 0 0 12px; border: 0; }
+  .mortuary-admin-dashboard .td-sidebar .td-panel-heading h2 { color: #101820; font-size: clamp(22px, 2.2vw, 32px); font-weight: 650; line-height: 1.3; letter-spacing: -.03em; }
+  .mortuary-admin-dashboard .td-sidebar .td-panel-heading p { margin-top: 6px; color: #646c78; font-size: 14px; line-height: 1.6; }
+  .mortuary-admin-dashboard .mad-claim-list { padding: 0; }
+  .mortuary-admin-dashboard .mad-claim-list button { gap: 12px; min-height: 64px; padding-block: 16px; color: #101820; font-size: 14px; line-height: 1.5; }
+  .mortuary-admin-dashboard .mad-claim-list button:hover { color: #174b38; background: #f8fbf8; }
+  .mortuary-admin-dashboard .mad-claim-list strong { color: #101820; font-size: 24px; }
+  .mortuary-admin-dashboard .mad-claim-icon { width: 32px; height: 32px; border-radius: 6px; background: #e5f1e9; color: #174b38; }
+  .mortuary-admin-dashboard .td-fund-totals { padding: 0; }
+  .mortuary-admin-dashboard .td-fund-totals dt { display: flex; align-items: center; gap: 8px; color: #646c78; font-size: 14px; line-height: 1.5; }
+  .mortuary-admin-dashboard .td-fund-totals dd { margin-top: 8px; color: #101820; font-size: 30px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .mortuary-admin-dashboard .mad-panel-link { margin-top: 16px; padding: 12px 0; border-color: #dce3df; color: #174b38; font-size: 14px; min-height: 48px; }
+  .mortuary-admin-dashboard .mad-standing-overview { margin-bottom: 28px; }
+  .mortuary-admin-dashboard .mad-standing-overview dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mortuary-admin-dashboard .mad-standing-overview dl p { margin-top: 8px; color: #646c78; font-size: 14px; line-height: 1.5; }
+  .mortuary-admin-dashboard .mad-activity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+  .mortuary-admin-dashboard .mad-activity-panel[data-ui-panel] { border: 0; border-top: 1px solid #dce3df; border-radius: 0; }
+  .mortuary-admin-dashboard .mad-activity-panel > div:first-child { padding: 24px 0 16px; border: 0; }
+  .mortuary-admin-dashboard .mad-activity-panel > div:last-child { padding: 0; }
+  .mortuary-admin-dashboard .mad-activity-panel h3 { color: #101820; font-size: 22px; font-weight: 650; line-height: 1.4; letter-spacing: -.02em; }
+  .mortuary-admin-dashboard .mad-activity-panel button { min-height: 44px; color: #174b38; font-size: 14px; }
+  .mortuary-admin-dashboard .mad-activity-panel > div:last-child > .flex > div:first-child { border-radius: 6px; background: #e5f1e9; color: #174b38; }
+  .mortuary-admin-dashboard .mad-activity-panel > div:last-child > .flex > div:first-child svg { color: #174b38; }
+  .mortuary-admin-dashboard .mad-activity-panel .rounded-full { border-radius: 5px; background: #e5f1e9; color: #174b38; font-size: 12px; font-weight: 500; white-space: normal; text-align: right; }
+  .mortuary-admin-dashboard .mad-activity-panel .truncate { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .mortuary-admin-dashboard .mad-activity-panel :is(.text-xs, .text-\[11px\]) { font-size: 13px; line-height: 1.5; }
+  @media (max-width: 1250px) { .mortuary-admin-dashboard .td-header-actions { justify-content: flex-start; } }
+  @media (max-width: 1023px) { .mortuary-admin-dashboard .mad-activity-grid { gap: 24px; } }
+  @media (max-width: 767px) {
+    .mortuary-admin-dashboard .mad-metrics { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    .mortuary-admin-dashboard .mad-metrics :is(dt, p) { font-size: 14px; }
+    .mortuary-admin-dashboard .mad-metrics dd { font-size: 36px; }
+    .mortuary-admin-dashboard .td-header-actions .td-button { font-size: 14px; }
+    .mortuary-admin-dashboard .td-header-actions > .relative { flex: 0 0 46px; }
+    .mortuary-admin-dashboard .mad-fund-panel[data-ui-panel] { padding: 20px 14px 16px; }
+    .mortuary-admin-dashboard .mad-fund-panel > div:first-child > div { flex-direction: column; }
+    .mortuary-admin-dashboard .td-contribution-chart { height: 260px; }
+    .mortuary-admin-dashboard .mad-activity-grid { grid-template-columns: minmax(0, 1fr); }
+    .mortuary-admin-dashboard .mad-standing-overview dl { grid-template-columns: minmax(0, 1fr); }
+    .mortuary-admin-dashboard .mad-standing-overview dl > div { padding: 0; border: 0; }
+    .mortuary-admin-dashboard .mad-notification-menu { position: fixed; top: 120px; right: 20px; }
+  }
+}

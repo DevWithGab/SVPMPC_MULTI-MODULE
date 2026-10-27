@@ -1,4 +1,3 @@
-import { PageHeader } from '../../ui/workspace';
 import { Button as ActionButton } from '../../ui/button';
 import { Input as TextInput, Textarea } from '../../ui/input';
 import { FormField } from '../../ui/workspace';
@@ -222,27 +221,27 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
 
   return (
     <div className="treasurer-dashboard admin-claim-details space-y-6">
-      <PageHeader className="td-header">
+      <p className="td-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><span>Claims</span><span aria-hidden="true">/</span><strong>Details</strong></p>
+      <header className="td-header">
         <div>
-          <ActionButton variant="outline" onClick={onBack} className="td-button mb-3">
-            <ArrowLeft className="w-4 h-4" /> Back to Claims
-          </ActionButton>
-          <p className="td-eyebrow">Mortuary management / Claims / Details</p>
           <h1>{claim.memberName}</h1>
           <p className="td-description ac-claim-id">
             Claim ID: {claim.claimId}
           </p>
         </div>
-        <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}
+        <div className="td-header-actions">
+        <span data-status={claim.status}
+          className={`ac-status inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border shrink-0 ${meta.bg} ${meta.text} ${meta.border}`}
         >
           <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
           {meta.label}
         </span>
-      </PageHeader>
+        <ActionButton variant="outline" onClick={onBack} className="td-button"><ArrowLeft size={18} aria-hidden="true" /> Back to Claims</ActionButton>
+        </div>
+      </header>
 
       {canDecide && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ac-detail-panel p-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ac-detail-panel ac-decision p-4">
           <p className="text-sm text-slate-500">
             {allSubmitted
               ? "All requirements are submitted — this claim is ready for a decision."
@@ -270,10 +269,10 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="ac-detail-grid grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Member & Beneficiary info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="ac-identity-grid grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="ac-detail-panel p-5">
               <div className="flex items-center gap-2 mb-3">
                 <User className="w-4 h-4 text-coop-green" />
@@ -340,8 +339,8 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
           </div>
 
           {/* Requirements checklist */}
-          <div className="ac-detail-panel overflow-hidden">
-            <div className="border-b border-slate-100 p-5 flex items-center gap-2">
+          <div className="ac-detail-panel ac-requirements overflow-hidden">
+            <div className="ac-requirements-heading border-b border-slate-100 p-5 flex items-center gap-2">
               <ClipboardCheck className="w-4 h-4 text-coop-green" />
               <div>
                 <p className="text-sm font-bold text-slate-900">
@@ -354,6 +353,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 {canDecide && (
                   <form onSubmit={addRequirement} className="flex gap-2 mt-3">
                     <TextInput
+                      aria-label="New requirement"
                       value={newRequirement}
                       onChange={(e) => setNewRequirement(e.target.value)}
                       placeholder="e.g. Barangay Certificate"
@@ -416,7 +416,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                 )}
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="ac-requirement-scroll overflow-x-auto" role="region" aria-label="Claim requirements" tabIndex={0}>
               <DataTable className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
@@ -452,7 +452,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                             fallbackLabel(reqKey)}
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <input
+                          <label className="ac-check-target"><span className="sr-only">Mark {claim.requirements?.[reqKey]?.label || fallbackLabel(reqKey)} submitted and verified</span><input
                             type="checkbox"
                             checked={checked}
                             disabled={isSaving || !canDecide}
@@ -460,7 +460,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                               toggleRequirement(reqKey, e.target.checked)
                             }
                             className="w-4 h-4 accent-coop-green disabled:opacity-50"
-                          />
+                          /></label>
                         </td>
                         {canDecide && (
                           <td className="px-3 py-3 text-right">
@@ -501,7 +501,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
           </div>
 
           {/* Verification info */}
-          <div className="ac-detail-panel p-5">
+          <div className="ac-detail-panel ac-verification p-5">
             <div className="flex items-center gap-2 mb-4">
               <FileText className="w-4 h-4 text-coop-green" />
               <p className="text-sm font-bold text-slate-900">
@@ -576,7 +576,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
         </div>
 
         {/* Status history */}
-        <div className="ac-detail-panel p-5 h-fit">
+        <div className="ac-detail-panel ac-history p-5 h-fit">
           <div className="flex items-center gap-2 mb-4">
             <History className="w-4 h-4 text-coop-green" />
             <p className="text-sm font-bold text-slate-900">Status History</p>

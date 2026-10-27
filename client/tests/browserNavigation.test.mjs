@@ -37,38 +37,38 @@ test('login and portal screens follow browser Back/Forward, including direct log
     const shows = text => assert.ok(container.textContent.includes(text), `Expected screen: ${text}`);
 
     await mount('/');
-    shows('Select Module');
+    shows('Where would you like to work?');
     await click('Attendance System');
     shows('Select Your Role');
     assert.equal(location.search, '?module=attendance');
     await click('Scanner Operator');
-    shows('Scanner Operator Access');
+    shows('Sign in as Scanner Operator to continue.');
     assert.equal(location.search, '?module=attendance&role=scanner_operator');
     await travel(-1);
     shows('Select Your Role');
     await travel(-1);
-    shows('Select Module');
+    shows('Where would you like to work?');
     await travel(1);
     shows('Select Your Role');
     await travel(1);
-    shows('Scanner Operator Access');
+    shows('Sign in as Scanner Operator to continue.');
     await click('Back to Role Selection');
     shows('Select Your Role');
     await travel(-1);
-    shows('Select Module');
+    shows('Where would you like to work?');
     await travel(1);
     shows('Select Your Role');
     await click('Back to Modules');
-    shows('Select Module');
+    shows('Where would you like to work?');
 
     await mount('/?module=mortuary&role=treasurer');
-    shows('Mortuary sign in');
+    shows('Sign in to your account to continue.');
     await click('Back to System Selection');
-    shows('Select Module');
+    shows('Where would you like to work?');
     await mount('/?module=mortuary&role=scanner_operator');
-    shows('Mortuary sign in');
+    shows('Sign in to your account to continue.');
     await mount('/?module=unknown&role=admin');
-    shows('Select Module');
+    shows('Where would you like to work?');
 
     await mount('/mortuary/treasurer', true);
     await act(async () => setTab('members'));

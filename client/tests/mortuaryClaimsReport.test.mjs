@@ -35,7 +35,12 @@ test('Deduction Report includes deductions and filters by the month a claim was 
     await act(async () => root.render(React.createElement(Reports, { contributions: [], members: [], stats: {} })));
     const button = label => [...container.querySelectorAll('button')].find(el => el.textContent.trim() === label);
     assert.equal(button('Claim Deductions'), undefined, 'the separate deductions report is gone');
-    await act(async () => button('Deduction Report').click());
+    await act(async () => {
+      const select = container.querySelector('#mortuary-report-type');
+      assert.equal(select.options.length, 6);
+      select.value = 'claims';
+      select.dispatchEvent(new window.Event('change', { bubbles: true }));
+    });
 
     const text = () => container.querySelector('.reports-content').textContent;
     const headers = [...container.querySelectorAll('.reports-content thead th')].map(th => th.textContent.trim());

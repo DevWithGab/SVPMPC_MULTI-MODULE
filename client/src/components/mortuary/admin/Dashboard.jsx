@@ -1,10 +1,8 @@
 import { Button as ActionButton } from '../../ui/button';
-import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Panel, PanelHeader } from '../../ui/workspace';
 import React, { useState, useEffect, useRef } from "react";
 import {
   Wallet,
-  Users,
-  CreditCard,
   Download,
   Bell,
   FilePlus2,
@@ -15,10 +13,9 @@ import {
   CheckCircle2,
   ArrowRight,
   HeartHandshake,
-  Leaf,
   CreditCard as PaymentIcon,
   TrendingUp,
-  TrendingDown,
+  ChevronDown,
 } from "lucide-react";
 import {
   BarChart,
@@ -26,14 +23,13 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
+  Cell,
 } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { reportCsvHeader } from "../../../utils/reportCsvHeader";
 import { mortuaryDashboardAPI } from "../../../services/api";
 import { getClaimStatusMeta } from "../shared/claimMeta";
-import AttendanceMetricGrid from "../../attendance/shared/AttendanceMetricGrid";
 import { formatLongDate } from "../../../utils/date";
 import "../treasurer/Dashboard.css";
 import "./Dashboard.css";
@@ -79,7 +75,9 @@ const NotificationBell = ({ items, count, onViewAll }) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    const handleKey = event => { if (event.key === 'Escape' && ref.current?.querySelector('.mad-notification-menu')) { setOpen(false); ref.current?.querySelector('button')?.focus(); } };
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener("mousedown", handleClick); document.removeEventListener('keydown', handleKey); };
   }, []);
 
   return (
@@ -99,7 +97,7 @@ const NotificationBell = ({ items, count, onViewAll }) => {
       </ActionButton>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
+        <div className="mad-notification-menu absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden">
           <div className="p-4 border-b border-slate-100">
             <p className="text-sm font-bold text-slate-900">Needs Attention</p>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -417,9 +415,9 @@ const Dashboard = ({
 
   return (
     <div className="treasurer-dashboard mortuary-admin-dashboard">
-      <PageHeader className="td-header">
+      <p className="td-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p>
+      <header className="td-header">
         <div>
-          <p className="td-eyebrow">Mortuary management / Overview</p>
           <h1>Mortuary dashboard</h1>
           <p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p>
         </div>
@@ -432,38 +430,33 @@ const Dashboard = ({
           </ActionButton>
           <NotificationBell items={needsAttention} count={needsAttentionCount} onViewAll={() => setActiveTab("claims")} />
         </div>
-      </PageHeader>
+      </header>
 
-      <AttendanceMetricGrid label="Mortuary fund overview" items={[
-        ["Total fund balance", `₱${currentBalance.toLocaleString()}`, "Available balance", Wallet],
-        ["Active members", formatAmount(stats?.activeMembers), "Currently contributing", Users],
-        ["Total collected", `₱${totalCollected.toLocaleString()}`, "All-time member contributions", CreditCard],
-        ["At Risk", atRiskCount.toLocaleString(), `Active members with PHP 0 to below PHP ${minimumBalance.toLocaleString()}`, Clock],
-        ["Negative Balance", negativeBalanceCount.toLocaleString(), "Active members with a balance below PHP 0", XCircle],
-      ]} />
-      <p className="td-overview">Welcome back, {firstName}. Review the fund's financial overview and manage member claims.</p>
+      <dl className="td-metrics mad-metrics" aria-label="Mortuary fund overview">
+        {[
+          ["Total fund balance", `₱${currentBalance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Available balance"],
+          ["Active members", formatAmount(stats?.activeMembers), "Currently contributing"],
+          ["Total collected", `₱${totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "All-time member contributions"],
+        ].map(([label, value, detail], index) => <div key={label}><dt>{label}</dt><dd data-negative={index === 0 && currentBalance < 0 ? true : undefined}>{value}</dd><p>{detail}</p></div>)}
+      </dl>
 
       <div className="td-workspace">
         <div className="td-main">
-        <Card className="td-panel mad-fund-panel shadow-none">
+        <Card className="td-panel td-chart-panel mad-fund-panel shadow-none">
           <CardHeader className="p-5 pb-4 space-y-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Leaf className="w-4 h-4 text-coop-green" />
                 <CardTitle className="text-sm font-bold text-slate-900">
-                  Fund Overview
+                  Monthly collections
                 </CardTitle>
               </div>
               <span className="text-xs font-medium text-slate-400">
-                This Year
+                {new Date().getFullYear()} to date
               </span>
             </div>
           </CardHeader>
           <CardContent className="p-5 pt-0">
-            <p className="text-xs font-semibold text-slate-500 mb-3">
-              Monthly Collections
-            </p>
-            <div className="flex items-center gap-4 text-xs text-slate-500 mb-3">
+            <div className="mad-chart-legend flex items-center gap-4 text-xs text-slate-500 mb-3">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-coop-green inline-block" />{" "}
                 Collected
@@ -471,62 +464,51 @@ const Dashboard = ({
             </div>
 
             {fundOverviewData.length > 0 ? (
-              <div className="h-[260px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={fundOverviewData} barGap={3}>
+              <ChartContainer config={{ collected: { label: 'Collected', color: '#3E7055' } }} className="td-contribution-chart" aria-label="Fund overview, monthly collections this year">
+                  <BarChart accessibilityLayer data={fundOverviewData} barGap={3} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid
-                      strokeDasharray="3 3"
                       vertical={false}
-                      stroke="#e2e8f0"
+                      stroke="#e3e8e5"
                     />
                     <XAxis
                       dataKey="month"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      tick={{ fontSize: 12, fill: "#646c78" }}
                       dy={8}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      tick={{ fontSize: 12, fill: "#646c78" }}
                       tickFormatter={(v) => (v >= 1000 ? `${v / 1000}K` : v)}
-                      width={32}
+                      width={42}
                     />
-                    <RechartsTooltip
-                      contentStyle={{
-                        borderRadius: "6px",
-                        border: "1px solid #e2e8f0",
-                        fontSize: 12,
-                      }}
-                      formatter={(value) => [
-                        `₱${value.toLocaleString()}`,
-                        "Collected",
-                      ]}
-                    />
+                    <ChartTooltip cursor={{ fill: '#F8FBF8' }} content={<ChartTooltipContent formatter={value => `₱${value.toLocaleString()}`} />} />
                     <Bar
                       dataKey="collected"
-                      fill="#2D7A3E"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={24}
-                    />
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={48}
+                      isAnimationActive={false}
+                    >
+                      {fundOverviewData.map((row, index) => <Cell key={row.month} fill={index === fundOverviewData.length - 1 ? '#3E7055' : '#A8C3AF'} />)}
+                    </Bar>
                   </BarChart>
-                </ResponsiveContainer>
-              </div>
+              </ChartContainer>
             ) : (
               <div className="h-[260px] flex items-center justify-center">
                 <p className="text-sm text-slate-400">No fund data available</p>
               </div>
             )}
 
-            <div className="mt-5 pt-5 border-t border-slate-100 space-y-3">
+            <div className="mad-fund-summary mt-5 pt-5 border-t border-slate-100 space-y-3">
               <p className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                Fund Summary
+                Fund summary · all time
               </p>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500">Total Collected</span>
                 <span className="font-semibold text-slate-900">
-                  ₱{totalCollected.toLocaleString()}
+                  ₱{totalCollected.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm bg-green-50 -mx-2 px-2 py-2.5 rounded-lg">
@@ -534,22 +516,18 @@ const Dashboard = ({
                   Current Balance
                 </span>
                 <span className="font-bold text-coop-green">
-                  ₱{currentBalance.toLocaleString()}
+                  ₱{currentBalance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
           </CardContent>
         </Card>
-          <div className="mad-activity-grid">
-            <RecentActivities contributions={contributions} />
-            <RecentClaimActivities activities={recentClaimActivities} onViewAll={() => setActiveTab("claims")} />
-          </div>
         </div>
 
-        <aside className="td-sidebar" aria-label="Claims overview">
+        <aside className="td-sidebar td-attention" aria-label="Claims overview">
           <Panel as="section" className="td-panel" aria-labelledby="mad-claims-title">
             <PanelHeader as="div" className="td-panel-heading">
-              <h2 id="mad-claims-title">Claims overview</h2>
+              <h2 id="mad-claims-title">Needs attention</h2>
               <p>Review pending requirements and track claim outcomes.</p>
             </PanelHeader>
             <div className="mad-claim-list">
@@ -572,22 +550,32 @@ const Dashboard = ({
           <Panel as="section" className="td-panel" aria-labelledby="mad-fund-title">
             <PanelHeader as="div" className="td-panel-heading"><h2 id="mad-fund-title">Fund activity</h2><p>All-time claim assessments.</p></PanelHeader>
             <dl className="td-fund-totals">
-              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{totalDeductionsCollected.toLocaleString()}</dd><small>One time assessment collected</small></div>
+              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{totalDeductionsCollected.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd><small>One time assessment collected</small></div>
             </dl>
             <button className="mad-panel-link" onClick={() => setActiveTab("claims")}>View claims <ArrowRight size={15} aria-hidden="true" /></button>
           </Panel>
 
-          <nav className="td-tools" aria-label="Claims workspace">
-            <h2>Workspace</h2>
-            {quickActions.map((action) => (
-              <button key={action.label} onClick={() => setActiveTab(action.tab)}>
-                <span><strong>{action.label}</strong><small>{action.desc}</small></span>
-                <ArrowRight size={15} aria-hidden="true" />
-              </button>
-            ))}
-          </nav>
         </aside>
       </div>
+
+      <section className="td-member-overview mad-standing-overview" aria-labelledby="mad-standing-title">
+        <h2 id="mad-standing-title">Member standing</h2>
+        <dl>
+          <div><dt>At Risk</dt><dd>{atRiskCount.toLocaleString()}</dd><p>Active members with PHP 0 to below PHP {minimumBalance.toLocaleString()}</p></div>
+          <div><dt>Negative Balance</dt><dd>{negativeBalanceCount.toLocaleString()}</dd><p>Active members with a balance below PHP 0</p></div>
+        </dl>
+      </section>
+      <div className="mad-activity-grid">
+        <RecentActivities contributions={contributions} />
+        <RecentClaimActivities activities={recentClaimActivities} onViewAll={() => setActiveTab("claims")} />
+      </div>
+      <details className="td-details">
+        <summary>Claims workspace <ChevronDown size={16} aria-hidden="true" /></summary>
+        <p className="td-welcome">Welcome back, {firstName}. Review the fund's financial overview and manage member claims.</p>
+        <nav className="td-tools" aria-label="Additional claims workspace">
+          {quickActions.map(action => <button key={action.label} onClick={() => setActiveTab(action.tab)}><span><strong>{action.label}</strong><small>{action.desc}</small></span><ArrowRight size={15} aria-hidden="true" /></button>)}
+        </nav>
+      </details>
     </div>
   );
 };

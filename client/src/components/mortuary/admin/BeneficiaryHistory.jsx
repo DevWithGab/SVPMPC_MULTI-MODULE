@@ -6,7 +6,7 @@ import { beneficiaryAPI } from '../../../services/api';
 import '../treasurer/MemberBalances.css';
 import './Beneficiaries.css';
 
-export default function BeneficiaryHistory({ memberId, memberName, onBack, backLabel = 'Back to beneficiaries', parentSection = 'Beneficiaries', registrationBeneficiary }) {
+export default function BeneficiaryHistory({ memberId, memberName, onBack, backLabel = 'Back to beneficiaries', parentSection = 'Beneficiaries', registrationBeneficiary, className = '' }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,7 +29,7 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack, backL
   }, [load]);
 
   return (
-    <div className="member-balances admin-beneficiaries">
+    <div className={`member-balances admin-beneficiaries ${className}`}>
       <PageHeader className="mb-header">
         <div>
           <p className="mb-eyebrow">Mortuary management / {parentSection} / Beneficiary history</p>
@@ -40,9 +40,9 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack, backL
       </PageHeader>
       <Panel as="section" className="mb-panel" aria-labelledby="beneficiary-history-title" aria-busy={loading}>
         <PanelHeader as="div" className="mb-register-heading"><div><h2 id="beneficiary-history-title">Record history</h2><p>{memberName}</p></div></PanelHeader>
-        <div className="mb-scope"><span>{loading ? 'Loading records?' : error ? 'History unavailable' : `${history.length} beneficiary records`}</span><span>Current and previous designations</span></div>
+        <div className="mb-scope"><span>{loading ? 'Loading records…' : error ? 'History unavailable' : `${history.length} beneficiary records`}</span><span>Current and previous designations</span></div>
         {loading ? (
-          <div className="mb-empty" role="status"><Loader2 size={22} className="animate-spin" aria-hidden="true" /><p>Loading beneficiary history?</p></div>
+          <div className="mb-empty" role="status"><Loader2 size={22} className="animate-spin" aria-hidden="true" /><p>Loading beneficiary history…</p></div>
         ) : error ? (
           <div className="mb-empty"><p role="alert">{error}</p><ActionButton variant="outline" className="mb-button" onClick={load}>Try again</ActionButton></div>
         ) : history.length > 0 ? (
@@ -51,11 +51,11 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack, backL
               <li key={record.beneficiaryId}>
                 <span className={`beneficiary-history-dot${record.isActive ? ' is-current' : ''}`} aria-hidden="true" />
                 <div className="beneficiary-history-name"><strong>{record.beneficiaryName}</strong>{record.isActive && <span className="mb-status mb-status-active">Current</span>}</div>
-                <p>{record.relationship || '?'} ? {record.contactNumber || '?'}</p>
+                <p>{record.relationship || '—'} · {record.contactNumber || '—'}</p>
                 {record.address && <p>{record.address}</p>}
                 <p>Effective {new Date(record.effectiveFrom).toLocaleDateString()}
-                  {record.effectiveTo ? ` ? ${new Date(record.effectiveTo).toLocaleDateString()}` : ' ? present'}
-                  {record.updatedBy ? ` ? by ${record.updatedBy}` : ''}
+                  {record.effectiveTo ? ` – ${new Date(record.effectiveTo).toLocaleDateString()}` : ' – present'}
+                  {record.updatedBy ? ` · by ${record.updatedBy}` : ''}
                 </p>
               </li>
             ))}

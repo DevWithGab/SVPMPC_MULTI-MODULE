@@ -1,0 +1,77 @@
+﻿/* Notices presentation only; PDF generation and print templates keep their existing styling. */
+@media screen {
+  .treasurer-notices { --tn-ink: #101820; --tn-muted: #646c78; --tn-green: #174b38; display: flex; flex-direction: column; width: 100%; max-width: 1600px; min-height: calc(100dvh - 56px); margin-inline: auto; padding-bottom: 0; color: var(--tn-ink); }
+  .treasurer-notices .tn-eyebrow { display: flex; gap: 16px; margin-bottom: 20px; color: var(--tn-muted); font-size: 14px; font-weight: 400; line-height: 1.5; }
+  .treasurer-notices .tn-eyebrow strong { font-weight: 600; }
+  .treasurer-notices .tn-header { display: flex; align-items: start; justify-content: space-between; gap: 24px; margin-bottom: 36px; }
+  .treasurer-notices .tn-header h1 { margin: 0; color: var(--tn-ink); font-size: clamp(28px, 3vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -.04em; }
+  .treasurer-notices .tn-header p { margin-top: 8px; color: var(--tn-muted); font-size: clamp(14px, 1.5vw, 19px); line-height: 1.5; }
+  .treasurer-notices .tn-button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; height: auto; min-height: 48px; padding: 11px 20px; border: 1px solid #87918d; border-radius: 6px; background: #fff; color: var(--tn-ink); font-size: 16px; font-weight: 500; line-height: 1.4; text-align: center; text-decoration: none; white-space: nowrap; box-shadow: none; cursor: pointer; }
+  .treasurer-notices .tn-button svg { flex-shrink: 0; }
+  .treasurer-notices .tn-button:hover:not(:disabled) { border-color: var(--tn-green); background: #f8fbf8; }
+  .treasurer-notices .tn-primary { background: var(--tn-green); border-color: var(--tn-green); color: #fff; }
+  .treasurer-notices .tn-primary:hover:not(:disabled) { background: #103d2c; color: #fff; }
+  .treasurer-notices .tn-button:disabled { cursor: not-allowed; opacity: .45; }
+  .treasurer-notices :is(button, select, a):focus-visible { outline: 3px solid #528369; outline-offset: 4px; }
+  .treasurer-notices .tn-workspace { min-width: 0; }
+  .treasurer-notices .tn-filter { width: min(100%, 552px); }
+  .treasurer-notices .tn-filter label { display: block; margin: 0 0 8px; color: var(--tn-ink); font-size: 16px; font-weight: 500; line-height: 1.5; }
+  .treasurer-notices .tn-filter select.ui-input[data-ui-input] { width: 100%; min-width: 0; height: 48px; min-height: 48px; padding: 10px 14px; border: 1px solid #ccd2db; border-radius: 6px; background: #fff; color: var(--tn-ink); font-size: 16px; font-weight: 400; line-height: 1.5; }
+  .treasurer-notices .tn-filter select:disabled { opacity: .6; cursor: wait; }
+  .treasurer-notices .tn-scope { margin-top: 8px; color: var(--tn-muted); font-size: 14px; line-height: 1.6; }
+  .treasurer-notices .tn-levels { margin-top: 34px; }
+  .treasurer-notices .tn-column-head, .treasurer-notices .tn-notice-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, .9fr) minmax(0, .65fr) minmax(290px, 1.55fr); gap: 24px; align-items: center; padding-inline: 20px; }
+  .treasurer-notices .tn-column-head { min-height: 52px; padding-block: 14px; border-radius: 6px; background: #f0f4f1; color: var(--tn-ink); font-size: 14px; font-weight: 600; line-height: 1.5; }
+  .treasurer-notices .tn-range-heading { text-align: right; }
+  .treasurer-notices .tn-notice-row { min-height: 116px; padding-block: 24px; border-bottom: 1px solid #dce3df; }
+  .treasurer-notices .tn-notice-row > div { min-width: 0; }
+  .treasurer-notices .tn-level { display: flex; align-items: start; gap: 16px; }
+  .treasurer-notices .tn-level-icon { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; border-radius: 8px; background: #e5f1e9; color: var(--tn-green); }
+  .treasurer-notices .tn-level h3 { margin: 0; color: var(--tn-ink); font-size: 21px; font-weight: 650; line-height: 1.4; letter-spacing: -.02em; }
+  .treasurer-notices .tn-level p, .treasurer-notices .tn-count p { margin-top: 3px; color: var(--tn-muted); font-size: 14px; line-height: 1.5; }
+  .treasurer-notices .tn-range { text-align: right; font-variant-numeric: tabular-nums; }
+  .treasurer-notices .tn-range strong { font-size: 19px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+  .treasurer-notices .tn-count strong { display: block; font-size: 24px; font-weight: 650; line-height: 1.25; font-variant-numeric: tabular-nums; }
+  .treasurer-notices .tn-cell-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .treasurer-notices .tn-actions { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 12px; }
+  .treasurer-notices .tn-actions .tn-button { width: 100%; padding-inline: 12px; min-height: 52px; }
+  .treasurer-notices .tn-guidance { display: flex; align-items: center; gap: 16px; margin-top: 30px; padding: 20px 24px; border-radius: 8px; background: #e5f1e9; color: var(--tn-ink); }
+  .treasurer-notices .tn-guidance svg { flex-shrink: 0; color: var(--tn-green); }
+  .treasurer-notices .tn-guidance p { font-size: 16px; line-height: 1.6; }
+  .treasurer-notices .tn-guidance strong { font-weight: 600; }
+  .treasurer-notices .tn-explanation { margin-top: 16px; color: var(--tn-muted); font-size: 14px; line-height: 1.6; }
+  .treasurer-notices .tn-explanation + .tn-explanation { margin-top: 5px; }
+  .treasurer-notices .tn-status > p:not(.sr-only) { display: flex; align-items: center; gap: 10px; margin-top: 20px; color: var(--tn-green); font-size: 14px; line-height: 1.6; }
+  .treasurer-notices .tn-status svg { flex-shrink: 0; }
+  .treasurer-notices .tn-ready { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 20px; padding: 16px; border: 1px solid #cddbd0; border-radius: 8px; background: #f8fbf8; }
+  .treasurer-notices .tn-ready p { color: var(--tn-green); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+  .treasurer-notices .tn-footer { margin-top: auto; padding-top: 44px; color: var(--tn-muted); font-size: 13px; line-height: 1.6; }
+  .treasurer-notices .tn-footer::before { display: block; content: ''; border-top: 1px solid #dce3df; padding-top: 14px; }
+  .treasurer-notices .tn-footer strong { font-weight: 600; }
+  @media (max-width: 1250px) {
+    .treasurer-notices .tn-column-head { display: none; }
+    .treasurer-notices .tn-notice-row { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 24px 0; gap: 20px 24px; }
+    .treasurer-notices .tn-level, .treasurer-notices .tn-actions { grid-column: 1 / -1; }
+    .treasurer-notices .tn-actions { max-width: 390px; }
+    .treasurer-notices .tn-range { text-align: left; }
+    .treasurer-notices .tn-cell-label { display: block; position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; margin-bottom: 5px; color: var(--tn-muted); font-size: 13px; line-height: 1.5; }
+    .treasurer-notices .tn-count strong { font-size: 22px; }
+    .treasurer-notices .tn-levels { margin-top: 24px; border-top: 1px solid #dce3df; }
+  }
+  @media (max-width: 767px) {
+    .treasurer-notices { min-height: 0; }
+    .treasurer-notices .tn-header { margin-bottom: 28px; gap: 16px; }
+    .treasurer-notices .tn-header p { font-size: 16px; }
+    .treasurer-notices .tn-guidance { align-items: start; padding: 18px 16px; gap: 12px; }
+    .treasurer-notices .tn-guidance p { font-size: 14px; }
+    .treasurer-notices .tn-actions { max-width: none; }
+    .treasurer-notices .tn-actions .tn-button { gap: 8px; padding-inline: 10px; font-size: 14px; min-height: 48px; }
+    .treasurer-notices .tn-range strong { font-size: 17px; }
+    .treasurer-notices .tn-notice-row { gap: 18px; }
+    .treasurer-notices .tn-footer { padding-top: 28px; }
+    .treasurer-notices .tn-ready .tn-button { max-width: 100%; white-space: normal; }
+  }
+  @media (max-width: 479px) { .treasurer-notices .tn-header { flex-direction: column; } }
+  @media (max-width: 359px) { .treasurer-notices .tn-eyebrow { gap: 12px; font-size: 13px; } .treasurer-notices .tn-notice-row { column-gap: 14px; } }
+  @media (prefers-reduced-motion: reduce) { .treasurer-notices * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+}

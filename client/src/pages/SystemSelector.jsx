@@ -1,7 +1,7 @@
 import { useState } from "react";
 import useLoginNavigation from '../hooks/useLoginNavigation';
 import {
-  Database,
+  Wallet,
   QrCode,
   UserCheck,
   Shield,
@@ -14,6 +14,7 @@ import ModuleSelection from "../components/shared/ModuleSelection";
 import RoleSelection from "../components/shared/RoleSelection";
 import LoginForm from "../components/shared/LoginForm";
 import TerminalFooter from "../components/shared/TerminalFooter";
+import './SystemSelector.css';
 
 // API Base URL
 const API_BASE_URL =
@@ -46,7 +47,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       id: "mortuary",
       title: "Mortuary Services",
       description: "Manage funds & contribution",
-      icon: Database,
+      icon: Wallet,
       color: "bg-coop-green",
       hoverColor: "hover:bg-coop-green",
       features: [
@@ -329,13 +330,13 @@ export default function SystemSelector({ onModuleSelect, notice }) {
   };
 
   return (
-    <div className="min-h-screen w-full flex relative overflow-hidden font-sans transition-colors duration-300 bg-coop-light">
+    <div className="system-selector min-h-screen w-full flex relative overflow-hidden font-sans transition-colors duration-300 bg-coop-light" data-step={step}>
       {/* Left Panel - Branding */}
       <BrandingPanel />
 
       {/* Right Panel - System/Role Selection */}
-      <div className="w-full lg:w-[45%] bg-slate-50 p-6 md:p-12 lg:p-20 flex flex-col h-full overflow-y-auto">
-        <div className="flex-1 flex flex-col justify-center max-w-md w-full mx-auto">
+      <div className="selector-workspace">
+        <div className="selector-content">
           {notice && <p role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
           {/* Module Selection Step */}
           {step === "MODULE_SELECTION" && (

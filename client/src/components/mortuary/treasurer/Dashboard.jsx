@@ -1,292 +1,130 @@
 import { Button as ActionButton } from '../../ui/button';
-import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import { contributionTrend, memberBalanceCoverage, contributionGrowth } from '../../../utils/dashboardMetrics';
-import React from 'react';
-import { ArrowUpRight, ArrowDownRight, Wallet, Users, AlertTriangle, ShieldCheck, TrendingUp, ArrowRight, RefreshCw } from 'lucide-react';
-import { AreaChart, Area, Bar, BarChart, Pie, PieChart, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ArrowRight, RefreshCw, ChevronDown } from 'lucide-react';
+import { Bar, BarChart, Cell, LabelList, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../../ui/chart';
-import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
 import { formatLongDate } from '../../../utils/date';
-import './Dashboard.css';
 import { MEMBER_STANDING_LABELS } from '../../../utils/memberStanding';
+import './Dashboard.css';
+
+const money = (value = 0) => `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const compactMoney = (value) => `₱${Number(value).toLocaleString('en-PH', { notation: 'compact', maximumFractionDigits: 1 })}`;
 
 const Dashboard = ({ user, stats, contributions = [], claimsCounts, claimsError, setActiveTab, onRefresh, refreshing = false }) => {
   const firstName = user?.name?.split(' ')[0] || 'Finance Officer';
   const healthyRatio = memberBalanceCoverage(stats);
   const minimumBalance = stats?.minimumBalance ?? 1000;
-
-  const memberStandingData = [
-    { standing: "excellent", members: stats?.memberStanding?.excellent || 0, fill: "#10b981" },
-    { standing: "good", members: stats?.memberStanding?.good || 0, fill: "#3b82f6" },
-    { standing: "fair", members: stats?.memberStanding?.fair || 0, fill: "#f59e0b" },
-    { standing: "atRisk", members: stats?.memberStanding?.atRisk || 0, fill: "#f97316" },
-    { standing: "negativeBalance", members: stats?.memberStanding?.negativeBalance || 0, fill: "#dc2626" },
-  ].filter(item => item.members > 0);
+  const standingDescriptions = {
+    excellent: '₱10,000 and above', good: '₱5,000 to below ₱10,000',
+    fair: `₱${minimumBalance.toLocaleString()} to below ₱5,000`,
+    atRisk: `₱0 to below ₱${minimumBalance.toLocaleString()}`, negativeBalance: 'Below ₱0',
+  };
+  const memberStandingData = ['excellent', 'good', 'fair', 'atRisk', 'negativeBalance']
+    .map(standing => ({ standing, members: stats?.memberStanding?.[standing] || 0 }))
+    .filter(item => item.members > 0);
   const memberStandingTotal = memberStandingData.reduce((sum, item) => sum + item.members, 0);
-
   const statusCompositionData = [
-    { status: "active", members: stats?.statusComposition?.active || stats?.activeMembers || 0, fill: "#2D7A3E" },
-    { status: "inactive", members: stats?.statusComposition?.inactive || stats?.inactiveMembers || 0, fill: "#64748b" },
-    { status: "deceased", members: stats?.statusComposition?.deceased || stats?.deceasedMembers || 0, fill: "#1e293b" },
-  ].filter(item => item.members > 0);
-
-  const memberStandingConfig = {
-    members: { label: "Members" },
-    excellent: { label: "Excellent (₱10k+)", color: "#10b981" },
-    good: { label: "Good (₱5k-10k)", color: "#3b82f6" },
-    fair: { label: `Fair (PHP ${minimumBalance.toLocaleString()} to <5k)`, color: "#f59e0b" },
-    atRisk: { label: `At Risk (PHP 0 to <${minimumBalance.toLocaleString()})`, color: "#f97316" },
-    negativeBalance: { label: "Negative Balance (<₱0)", color: "#dc2626" },
-  };
-
-  const statusCompositionConfig = {
-    members: { label: "Members" },
-    active: { label: "Active", color: "#2D7A3E" },
-    inactive: { label: "Inactive", color: "#64748b" },
-    deceased: { label: "Deceased", color: "#1e293b" },
-  };
-
+    { status: 'Active', members: stats?.statusComposition?.active || stats?.activeMembers || 0 },
+    { status: 'Inactive', members: stats?.statusComposition?.inactive || stats?.inactiveMembers || 0 },
+    { status: 'Deceased', members: stats?.statusComposition?.deceased || stats?.deceasedMembers || 0 },
+  ];
   const chartData = contributionTrend(contributions);
   const growthRate = contributionGrowth(chartData);
-  const isPositiveGrowth = growthRate >= 0;
-  const hasEnoughDataToCompare = growthRate !== null;
-
-  // "January - June 2024" style range, matching shadcn's chart caption convention.
-  const dateRangeLabel = (() => {
-    if (!chartData.length || chartData[0].month === 'No Data') return 'No contributions recorded yet';
-    const first = chartData[0];
-    const last = chartData[chartData.length - 1];
-    const firstYear = first.fullKey?.slice(0, 4);
-    const lastYear = last.fullKey?.slice(0, 4);
-    if (first === last) return `${first.month} ${firstYear}`;
-    return firstYear === lastYear
-      ? `${first.month} - ${last.month} ${lastYear}`
-      : `${first.month} ${firstYear} - ${last.month} ${lastYear}`;
-  })();
-
-  const trendCaption = hasEnoughDataToCompare
-    ? `Month to date vs full previous month · ${dateRangeLabel}`
-    : dateRangeLabel;
-
-  const chartConfig = {
-    contributions: { label: "Contributions", color: "#2D7A3E" },
-  };
-
-  const claimsConfig = {
-    claims: { label: "Claims" },
-    pendingDeduction: { label: "Pending deduction", color: "#f59e0b" },
-  };
-  const claimsData = [
-    { stage: 'pendingDeduction', claims: claimsCounts?.pendingDeduction ?? 0, fill: 'var(--color-pendingDeduction)' },
-  ];
-  const outstandingClaims = claimsData.reduce((total, row) => total + row.claims, 0);
+  const first = chartData[0];
+  const last = chartData.at(-1);
+  const dateRangeLabel = first.fullKey.slice(0, 4) === last.fullKey.slice(0, 4)
+    ? `${first.month} – ${last.month} ${last.fullKey.slice(0, 4)}`
+    : `${first.month} ${first.fullKey.slice(0, 4)} – ${last.month} ${last.fullKey.slice(0, 4)}`;
+  const collected = chartData.reduce((sum, row) => sum + row.contributions, 0);
+  const outstandingClaims = claimsCounts?.pendingDeduction ?? 0;
+  const activeMembers = stats?.activeMembers || 0;
+  const lowBalanceMembers = stats?.lowBalanceMembers || 0;
+  const coveredMembers = activeMembers - Math.min(activeMembers, Math.max(0, lowBalanceMembers));
+  const chartConfig = { contributions: { label: 'Contributions', color: '#3E7055' } };
 
   return (
-    <div className="treasurer-dashboard">
-      <PageHeader className="td-header">
-        <div><p className="td-eyebrow">Mortuary management / Overview</p><h1>Mortuary dashboard</h1><p className="td-description">{formatLongDate(new Date())} <span>· Philippine time</span></p></div>
+    <div className="treasurer-dashboard" aria-busy={refreshing}>
+      <p className="td-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Dashboard</strong></p>
+      <header className="td-header">
+        <div><h1>Mortuary dashboard</h1><p className="td-description">{formatLongDate(new Date())} · Philippine time</p></div>
         <div className="td-header-actions">
-          <ActionButton variant="outline" className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
-          <ActionButton variant="default" className="td-button td-primary" onClick={() => setActiveTab('ledger')}>Open member ledger <ArrowRight size={15} aria-hidden="true" /></ActionButton>
+          <ActionButton variant="outline" className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
+          <ActionButton className="td-button td-primary" onClick={() => setActiveTab('ledger')}>Open member ledger <ArrowRight size={19} aria-hidden="true" /></ActionButton>
         </div>
-      </PageHeader>
-      <AttendanceMetricGrid label="Mortuary fund overview" busy={refreshing} items={[
-        ['Active member balances', '₱' + (stats?.fundBalance?.toLocaleString() || '0'), 'Sum of active member ledger balances', Wallet],
-        ['Active members', stats?.activeMembers?.toLocaleString() || '0', 'Currently contributing', Users],
-        ['Low balance', (stats?.lowBalanceMembers || 0).toLocaleString(), `Members with balances below PHP ${minimumBalance.toLocaleString()}`, AlertTriangle],
-        ['Above minimum balance', healthyRatio === null ? 'N/A' : healthyRatio + '%', `Active members with at least PHP ${minimumBalance.toLocaleString()}`, ShieldCheck],
-      ]} />
-      <p className="td-overview">Welcome back, {firstName}. Review the fund's financial overview and member insights.</p>
-      <div className="td-workspace"><div className="td-main">
-        {/* Fund Growth Line Chart */}
-        <Panel as="div" className="td-panel td-chart-panel">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-slate-900">Monthly Contributions</p>
-                {hasEnoughDataToCompare && (
-                  <span className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded ${isPositiveGrowth ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                    {isPositiveGrowth ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {Math.abs(growthRate).toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">{trendCaption}</p>
-            </div>
-          </div>
+      </header>
 
-          <ChartContainer config={chartConfig} className="h-[240px] w-full">
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="fillContributions" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-contributions)" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="var(--color-contributions)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₱${(v / 1000).toFixed(0)}k`} />
-              <ChartTooltip content={<ChartTooltipContent formatter={(v) => `₱${v.toLocaleString()}`} />} />
-              <Area type="monotone" dataKey="contributions" stroke="var(--color-contributions)" strokeWidth={2} fill="url(#fillContributions)" dot={false} activeDot={{ r: 5 }} />
-            </AreaChart>
+      <dl className="td-metrics" aria-label="Mortuary fund overview">
+        {[
+          ['Active member balances', money(stats?.fundBalance || 0), 'Sum of active member ledgers'],
+          ['Active members', activeMembers.toLocaleString(), 'Currently contributing'],
+          ['Below minimum', lowBalanceMembers.toLocaleString(), `Balances below ₱${minimumBalance.toLocaleString()}`],
+          ['At or above minimum', healthyRatio === null ? 'N/A' : `${healthyRatio}%`, `${coveredMembers.toLocaleString()} of ${activeMembers.toLocaleString()} active members`],
+        ].map(([label, value, description], index) => <div key={label}><dt>{label}</dt><dd data-negative={index === 0 && Number(stats?.fundBalance) < 0 ? true : undefined}>{value}</dd><p>{description}</p></div>)}
+      </dl>
+
+      <div className="td-workspace">
+        <section className="td-chart-panel" aria-labelledby="td-contributions-title">
+          <header><h2 id="td-contributions-title">Monthly contributions</h2><p>{dateRangeLabel} · {last.month} to date.</p></header>
+          <ChartContainer config={chartConfig} className="td-contribution-chart" aria-label={`Monthly contributions, ${dateRangeLabel}`}>
+            <BarChart accessibilityLayer data={chartData} margin={{ top: 30, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="#e3e8e5" />
+              <XAxis dataKey="month" tickFormatter={month => month.slice(0, 3)} tickLine={false} axisLine={false} tickMargin={12} stroke="#646C78" fontSize={13} interval={0} />
+              <YAxis tickFormatter={compactMoney} tickLine={false} axisLine={false} tickMargin={8} width={57} stroke="#646C78" fontSize={12} />
+              <ChartTooltip cursor={{ fill: '#F8FBF8' }} content={<ChartTooltipContent formatter={value => money(value)} />} />
+              <Bar dataKey="contributions" radius={[6, 6, 0, 0]} maxBarSize={72} isAnimationActive={false}>
+                {chartData.map((row, index) => <Cell key={row.fullKey} fill={index === chartData.length - 1 ? '#3E7055' : '#A8C3AF'} />)}
+                <LabelList dataKey="contributions" position="top" formatter={compactMoney} fill="#101820" fontSize={12} offset={10} />
+              </Bar>
+            </BarChart>
           </ChartContainer>
+          {!contributions.length && <p className="td-empty" role="status">No contributions recorded yet.</p>}
+          <footer className="td-chart-footer"><div><p>Collected in shown period</p><strong>{money(collected)}</strong></div><p>{last.month} is month to date.</p></footer>
+        </section>
 
-          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100">
-            <div>
-              <p className="text-xs text-slate-400">Collected in Shown Period</p>
-              <p className="text-sm font-bold text-slate-900">₱{chartData.reduce((s, d) => s + d.contributions, 0).toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Avg/Month</p>
-              <p className="text-sm font-bold text-slate-900">₱{(chartData.reduce((s, d) => s + d.contributions, 0) / Math.max(chartData.length, 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Transactions</p>
-              <p className="text-sm font-bold text-slate-900">{chartData.reduce((s, d) => s + (d.count || 0), 0).toLocaleString()}</p>
-            </div>
-          </div>
-        </Panel>
-
-      {/* Pie Charts Section */}
-      <div className="td-pies">
-        {/* Member Standing */}
-        <Panel as="div" className="td-panel td-chart-panel">
-          <p className="text-sm font-semibold text-slate-900 mb-1">Member Standing</p>
-          <p className="text-xs text-slate-400 mb-4">Balance-based categories</p>
-
-          <div className="h-[220px]">
-            <ChartContainer config={memberStandingConfig} className="w-full h-full">
-              <PieChart>
-                <ChartTooltip
-                  content={<ChartTooltipContent
-                    hideLabel
-                    formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
-                  />}
-                />
-                <Pie
-                  data={memberStandingData}
-                  dataKey="members"
-                  nameKey="standing"
-                />
-              </PieChart>
-            </ChartContainer>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-slate-100">
-            {memberStandingData.map((item) => (
-              <div key={item.standing} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.fill }} />
-                  <span className="text-slate-600">{MEMBER_STANDING_LABELS[item.standing]}</span>
-                </span>
-                <span className="font-bold text-slate-900">{item.members} <span className="font-normal text-slate-400">({memberStandingTotal ? Math.round((item.members / memberStandingTotal) * 100) : 0}%)</span></span>
+        <aside className="td-attention" aria-labelledby="td-attention-title">
+          <h2 id="td-attention-title">Needs attention</h2>
+          <section className="td-attention-item" aria-label="Claims awaiting deduction">
+            {claimsError || !claimsCounts ? <p role="status" className="td-status">{claimsError ? 'Unable to load claim counts. Retry using the notice above.' : 'Loading claim counts…'}</p> : <>
+              <strong className="td-attention-number">{outstandingClaims.toLocaleString()}</strong>
+              <div><h3>Claims awaiting deduction</h3><p>{outstandingClaims ? 'Approved claims ready for member assessment.' : 'No claims pending deduction.'}</p>
+                <ActionButton variant="outline" className="td-button" onClick={() => setActiveTab('claims')}>Review claims <ArrowRight size={18} aria-hidden="true" /></ActionButton>
               </div>
-            ))}
-          </div>
-        </Panel>
-
-        {/* Status Composition */}
-        <Panel as="div" className="td-panel td-chart-panel">
-          <p className="text-sm font-semibold text-slate-900 mb-1">Status Composition</p>
-          <p className="text-xs text-slate-400 mb-4">Member status breakdown</p>
-
-          <div className="td-composition">
-            <div className="h-[180px] w-[180px] shrink-0">
-              <ChartContainer config={statusCompositionConfig} className="w-full h-full">
-                <PieChart>
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent
-                      hideLabel
-                      formatter={(v) => <span className="font-semibold">{v.toLocaleString()} members</span>}
-                    />}
-                  />
-                  <Pie data={statusCompositionData} dataKey="members" nameKey="status" stroke="0" />
-                </PieChart>
-              </ChartContainer>
+            </>}
+          </section>
+          <section className="td-attention-item" aria-label="Members below minimum">
+            <strong className="td-attention-number">{lowBalanceMembers.toLocaleString()}</strong>
+            <div><h3>Members below minimum</h3><p>Includes {(stats?.memberStanding?.atRisk || 0).toLocaleString()} at risk and {(stats?.memberStanding?.negativeBalance || 0).toLocaleString()} with negative balances.</p>
+              <ActionButton variant="outline" className="td-button" onClick={() => setActiveTab('members')}>View balances <ArrowRight size={18} aria-hidden="true" /></ActionButton>
             </div>
-            <div className="space-y-3 flex-1">
-              {statusCompositionData.map((item) => (
-                <div key={item.status} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">{item.status.charAt(0).toUpperCase() + item.status.slice(1)}</span>
-                  <span className="font-bold text-slate-900">{item.members}</span>
-                </div>
-              ))}
-              <div className="pt-3 border-t border-slate-100">
-                <p className="text-xs text-slate-400">Total members</p>
-                <p className="text-lg font-bold text-slate-900">{stats?.totalMembers?.toLocaleString() || '0'}</p>
-              </div>
-            </div>
-          </div>
-        </Panel>
-      </div>
-</div><aside className="td-sidebar" aria-label="Claims and fund activity">        {/* Claims awaiting treasurer action */}
-        <Panel as="div" className="td-panel td-chart-panel">
-          <div className="mb-4">
-            <p className="text-sm font-semibold text-slate-900">Claims Awaiting Action</p>
-            <p className="text-xs text-slate-400 mt-0.5">Current claims pending deduction</p>
-          </div>
-
-          {claimsError || !claimsCounts || outstandingClaims === 0 ? (
-            <div role="status" className="flex h-[240px] items-center justify-center text-center text-sm text-slate-500">
-              {claimsError ? 'Unable to load claim counts. Retry using the notice above.'
-                : !claimsCounts ? 'Loading claim counts...'
-                : 'No claims pending deduction.'}
-            </div>
-          ) : (
-            <ChartContainer config={claimsConfig} className="h-[240px] w-full">
-              <BarChart accessibilityLayer data={claimsData} layout="vertical" margin={{ left: 0, right: 12 }}>
-                <CartesianGrid horizontal={false} stroke="#e2e8f0" />
-                <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis
-                  dataKey="stage"
-                  type="category"
-                  width={115}
-                  tickLine={false}
-                  axisLine={false}
-                  fontSize={11}
-                  tickFormatter={(stage) => claimsConfig[stage].label}
-                />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent
-                  labelKey="stage"
-                  formatter={(value) => `${value.toLocaleString()} ${value === 1 ? 'claim' : 'claims'}`}
-                />} />
-                <Bar dataKey="claims" radius={4} barSize={32} />
-              </BarChart>
-            </ChartContainer>
-          )}
-
-          {claimsCounts && !claimsError && (
-            <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-              {claimsData.map((item) => (
-                <div key={item.stage} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="flex items-center gap-1.5 text-slate-600">
-                    <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: claimsConfig[item.stage].color }} />
-                    {claimsConfig[item.stage].label}
-                  </span>
-                  <span className="font-bold tabular-nums text-slate-900">{item.claims.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
-
-          <Panel as="section" className="td-panel" aria-labelledby="td-fund-title">
-            <PanelHeader as="div" className="td-panel-heading"><h2 id="td-fund-title">Fund activity</h2><p>All-time claim assessments.</p></PanelHeader>
-            <dl className="td-fund-totals">
-              <div><dt><TrendingUp size={15} aria-hidden="true" />Total deductions collected</dt><dd>₱{(stats?.totalDeductionsCollected || 0).toLocaleString()}</dd><small>One time assessment collected</small></div>
-            </dl>
-          </Panel>
-          <nav className="td-tools" aria-label="Mortuary workspace">
-            <h2>Workspace</h2>
-            {[
-              ['claims', 'Claims', 'Process claim deductions.'],
-              ['members', 'Member balances', 'Review balances and member standing.'],
-              ['reports', 'Mortuary reports', 'Review fund activity and export records.'],
-            ].map(([tab, label, description]) => <button key={tab} onClick={() => setActiveTab(tab)}><span><strong>{label}</strong><small>{description}</small></span><ArrowRight size={15} aria-hidden="true" /></button>)}
-          </nav>
+          </section>
         </aside>
       </div>
+
+      <section className="td-member-overview" aria-labelledby="td-members-title">
+        <h2 id="td-members-title">Member overview</h2>
+        <dl>{[...statusCompositionData.map(item => [`${item.status} members`, item.members]), ['Total members', stats?.totalMembers || 0]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value.toLocaleString()}</dd></div>)}</dl>
+      </section>
+
+      <details className="td-details">
+        <summary>More fund insights <ChevronDown size={17} aria-hidden="true" /></summary>
+        <p className="td-welcome">Welcome back, {firstName}. Review the fund's financial overview and member insights.</p>
+        <div className="td-details-grid">
+          <section><h2>Member standing</h2><p>Balance-based categories</p>
+            <dl className="td-standing-list">{memberStandingData.map(item => <div key={item.standing}><dt>{MEMBER_STANDING_LABELS[item.standing]}<small>{standingDescriptions[item.standing]}</small></dt><dd>{item.members.toLocaleString()} <span>({memberStandingTotal ? Math.round(item.members / memberStandingTotal * 100) : 0}%)</span></dd></div>)}</dl>
+            {!memberStandingData.length && <p>No member standing data available.</p>}
+          </section>
+          <section><h2 id="td-fund-title">Fund activity</h2><p>All-time claim assessments.</p>
+            <dl className="td-standing-list"><div><dt>Total deductions collected<small>One time assessment collected</small></dt><dd>{money(stats?.totalDeductionsCollected || 0)}</dd></div><div><dt>Avg/month</dt><dd>₱{(collected / Math.max(chartData.length, 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</dd></div><div><dt>Transactions</dt><dd>{chartData.reduce((sum, row) => sum + (row.count || 0), 0).toLocaleString()}</dd></div></dl>
+            {growthRate !== null && <p className="td-growth">{growthRate >= 0 ? 'Increase' : 'Decrease'} of {Math.abs(growthRate).toFixed(1)}% · Month to date vs full previous month.</p>}
+          </section>
+          <nav className="td-tools" aria-label="Mortuary workspace"><h2>Workspace</h2>{[
+            ['claims', 'Claims', 'Process claim deductions.'],
+            ['members', 'Member balances', 'Review balances and member standing.'],
+            ['reports', 'Mortuary reports', 'Review fund activity and export records.'],
+          ].map(([tab, label, description]) => <button key={tab} onClick={() => setActiveTab(tab)}><span><strong>{label}</strong><small>{description}</small></span><ArrowRight size={18} aria-hidden="true" /></button>)}</nav>
+        </div>
+        <details className="td-chart-data"><summary>View monthly contribution data</summary><div className="td-table-scroll"><table><caption>{dateRangeLabel} · {last.month} to date</caption><thead><tr><th scope="col">Month</th><th scope="col">Contributions</th><th scope="col">Transactions</th></tr></thead><tbody>{chartData.map(row => <tr key={row.fullKey}><th scope="row">{row.month} {row.fullKey.slice(0, 4)}</th><td>{money(row.contributions)}</td><td>{row.count}</td></tr>)}</tbody></table></div></details>
+      </details>
     </div>
   );
 };

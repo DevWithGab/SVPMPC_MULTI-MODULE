@@ -1,13 +1,13 @@
 import { Button as ActionButton } from '../../ui/button';
 import { Select } from '../../ui/input';
-import { PageHeader, Panel, FormField } from '../../ui/workspace';
+import { FormField } from '../../ui/workspace';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Printer, Download, Loader2, FileText, RefreshCw } from 'lucide-react';
+import { Printer, Download, Loader2, FileText, RefreshCw, Info } from 'lucide-react';
 import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNoticesBulk, downloadBalanceNoticesBulkPDF, DEFAULT_NOTICE_THRESHOLDS } from '../../../utils/balanceNotice';
 import { treasurerAPI } from '../../../services/api';
-import './MemberBalances.css';
+import './Notices.css';
 
 /* Pag lagpas dito, server background job na ang gagawa ng batch PDF
 imbes na sa browser agad - mabilis naman kasi yung text rendering kaya
@@ -201,68 +201,60 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
 
   const uniqueBarangays = ['All', ...Array.from(new Set(members.map(getBarangay)))].sort();
 
+  const totalEligibleMembers = Object.values(noticeLevelCounts).reduce((sum, count) => sum + count, 0);
+  const noticeDescriptions = {
+    1: 'Higher balance, early reminder.',
+    2: 'Medium balance, follow up.',
+    3: 'Lowest balance, final reminder.',
+  };
+
   return (
-    <div className="member-balances member-notices">
-      <PageHeader className="mb-header">
-        <div><p className="mb-eyebrow">Mortuary management / Notices</p><h1>Notices</h1><p className="mb-description">Prepare and download member balance notices by level and barangay.</p></div>
-        <ActionButton variant="outline" className="mb-button" onClick={onRefresh} disabled={refreshing || noticeBusy}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing...' : 'Refresh'}</ActionButton>
-      </PageHeader>
-      <Panel as="section" aria-labelledby="notice-panel-title" className="mb-panel mb-notices">
-        <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-md bg-emerald-50 text-emerald-700"><FileText className="w-5 h-5" aria-hidden="true" /></div>
-            <div>
-              <h3 id="notice-panel-title" className="text-base font-semibold text-slate-900">Member notices</h3>
-              <p className="text-sm text-slate-500 mt-1">Download one PDF per notice level, or print a letter for each member.</p>
-            </div>
-          </div>
-          <FormField className="w-full lg:w-56 shrink-0">
-            <label htmlFor="notice-barangay" className="block text-xs font-semibold text-slate-600 mb-1.5">Barangay for notices</label>
-            <Select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help" className="w-full h-11 px-3 text-sm rounded-md border border-slate-200 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60">
-              {uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}
-            </Select>
-          </FormField>
-        </div>
-        <div className="p-5">
-          <p id="notice-scope-help" className="text-xs text-slate-500 mb-4">Includes all eligible members in {noticeBarangay === 'All' ? 'all barangays' : noticeBarangay}.</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[1, 2, 3].map(level => {
-              const count = noticeLevelCounts[level];
-              const preparing = downloadingLevel === level || batchJob?.level === level;
-              const tone = level === 3 ? 'bg-red-50 text-red-700 border-red-100' : level === 2 ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-amber-50 text-amber-700 border-amber-100';
-              return (
-                <div key={level} role="group" aria-labelledby={'notice-level-' + level} className="rounded-md border border-slate-200 p-4 flex flex-col">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h4 id={'notice-level-' + level} className={'rounded-md border px-2 py-1 text-xs font-bold ' + tone}>{NOTICE_LEVEL_LABELS[level]}</h4>
-                    <span className="text-xs font-medium text-slate-500 tabular-nums">{count} {count === 1 ? 'member' : 'members'}</span>
-                  </div>
-                  <p className="text-lg font-semibold text-slate-900 mt-4 tabular-nums">{noticeRanges[level]}</p>
-                  <p className="text-xs text-slate-500 mt-1 mb-4">{count === 0 ? 'No members need this notice.' : 'Current member balance'}</p>
-                  <div className="flex flex-wrap gap-2 mt-auto">
-                    <button onClick={() => handleBulkDownload(level)} disabled={count === 0 || noticeBusy} aria-label={'Download ' + NOTICE_LEVEL_LABELS[level] + ' PDF for ' + count + ' members'} className="flex-1 inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-md bg-[#245e32] text-white text-sm font-semibold hover:bg-[#163a1e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                      {preparing ? <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" /> : <Download className="w-4 h-4 shrink-0" aria-hidden="true" />}
-                      {preparing ? 'Preparing...' : 'Download PDF'}
-                    </button>
-                    <button onClick={() => handleBulkPrint(level)} disabled={count === 0 || noticeBusy} aria-label={'Print ' + NOTICE_LEVEL_LABELS[level] + ' for ' + count + ' members'} className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-md border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
-                      <Printer className="w-4 h-4" aria-hidden="true" /> Print
-                    </button>
-                  </div>
+    <div className="member-balances member-notices treasurer-notices" aria-busy={refreshing}>
+      <p className="tn-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Notices</strong></p>
+      <header className="tn-header">
+        <div><h1>Notices</h1><p>Prepare member balance letters by barangay and notice level.</p></div>
+        <ActionButton variant="outline" className="tn-button" onClick={onRefresh} disabled={refreshing || noticeBusy}><RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing...' : 'Refresh'}</ActionButton>
+      </header>
+      <section aria-labelledby="notice-panel-title" className="tn-workspace">
+        <h2 id="notice-panel-title" className="sr-only">Member notices</h2>
+        <FormField className="tn-filter">
+          <label htmlFor="notice-barangay">Barangay for notices</label>
+          <Select id="notice-barangay" value={noticeBarangay} onChange={e => setNoticeBarangay(e.target.value)} disabled={noticeBusy} aria-describedby="notice-scope-help">
+            {uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}
+          </Select>
+        </FormField>
+        <p id="notice-scope-help" className="tn-scope">Includes all eligible members in {noticeBarangay === 'All' ? 'all barangays' : noticeBarangay}.</p>
+        <div className="tn-levels">
+          <div className="tn-column-head" aria-hidden="true"><span>Notice level</span><span className="tn-range-heading">Current balance</span><span>Members</span><span>Actions</span></div>
+          {[1, 2, 3].map(level => {
+            const count = noticeLevelCounts[level];
+            const preparing = downloadingLevel === level || batchJob?.level === level;
+            return (
+              <section key={level} role="group" aria-labelledby={'notice-level-' + level} className="tn-notice-row">
+                <div className="tn-level"><span className="tn-level-icon"><FileText size={22} aria-hidden="true" /></span><div><h3 id={'notice-level-' + level}>{NOTICE_LEVEL_LABELS[level]}</h3><p>{noticeDescriptions[level]}</p></div></div>
+                <div className="tn-range"><span className="tn-cell-label">Current balance</span><strong>{noticeRanges[level]}</strong></div>
+                <div className="tn-count"><span className="tn-cell-label">Members</span><strong>{count.toLocaleString()}</strong><p>{count === 0 ? 'No members need this notice.' : `eligible ${count === 1 ? 'member' : 'members'}`}</p></div>
+                <div className="tn-actions">
+                  <button onClick={() => handleBulkDownload(level)} disabled={count === 0 || noticeBusy} aria-label={'Download ' + NOTICE_LEVEL_LABELS[level] + ' PDF for ' + count + ' members'} className="tn-button tn-primary">
+                    {preparing ? <Loader2 size={20} className="animate-spin" aria-hidden="true" /> : <Download size={20} aria-hidden="true" />}
+                    {preparing ? 'Preparing...' : 'Download PDF'}
+                  </button>
+                  <button onClick={() => handleBulkPrint(level)} disabled={count === 0 || noticeBusy} aria-label={'Print ' + NOTICE_LEVEL_LABELS[level] + ' for ' + count + ' members'} className="tn-button tn-print"><Printer size={20} aria-hidden="true" />Print</button>
                 </div>
-              );
-            })}
-          </div>
-          <div role="status" aria-live="polite" aria-atomic="true">
-            {noticeBusy && <p className="flex items-center gap-2 mt-4 text-sm text-emerald-700"><Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden="true" />Preparing {NOTICE_LEVEL_LABELS[batchJob?.level || downloadingLevel || printingLevel]}. {batchJob ? 'Large batches may take a few moments. Keep this page open.' : 'Please wait...'}</p>}
-            {!noticeBusy && readyDownload && <p className="sr-only">Your notice PDF is ready. Use the Download ready PDF link.</p>}
-          </div>
-          {readyDownload && (
-            <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3">
-              <p className="text-sm text-emerald-900">{NOTICE_LEVEL_LABELS[readyDownload.level]} is ready &middot; {readyDownload.count} members &middot; {readyDownload.barangay || 'All barangays'}</p>
-              <a href={readyDownload.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 min-h-11 px-3 rounded-md bg-[#245e32] text-white text-sm font-semibold hover:bg-[#163a1e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 shrink-0"><Download className="w-4 h-4" aria-hidden="true" />Download ready PDF</a>
-            </div>
-          )}
+              </section>
+            );
+          })}
         </div>
-      </Panel>
+        <div className="tn-guidance"><Info size={22} aria-hidden="true" /><p><strong>One PDF per notice level.</strong> Each member&apos;s letter starts on a new page.</p></div>
+        <p className="tn-explanation">Notice levels are based on current balances. Only members within the configured balance range for each level are included.</p>
+        <p className="tn-explanation">Download one PDF per notice level, or print a letter for each member.</p>
+        <div role="status" aria-live="polite" aria-atomic="true" className="tn-status">
+          {noticeBusy && <p><Loader2 size={18} className="animate-spin" aria-hidden="true" />Preparing {NOTICE_LEVEL_LABELS[batchJob?.level || downloadingLevel || printingLevel]}. {batchJob ? 'Large batches may take a few moments. Keep this page open.' : 'Please wait...'}</p>}
+          {!noticeBusy && readyDownload && <p className="sr-only">Your notice PDF is ready. Use the Download ready PDF link.</p>}
+        </div>
+        {readyDownload && <div className="tn-ready"><p>{NOTICE_LEVEL_LABELS[readyDownload.level]} is ready &middot; {readyDownload.count} members &middot; {readyDownload.barangay || 'All barangays'}</p><a href={readyDownload.url} target="_blank" rel="noopener noreferrer" className="tn-button tn-primary"><Download size={20} aria-hidden="true" />Download ready PDF</a></div>}
+      </section>
+      <footer className="tn-footer">Showing <strong>{totalEligibleMembers.toLocaleString()}</strong> eligible {totalEligibleMembers === 1 ? 'member' : 'members'} {noticeBarangay === 'All' ? 'across all barangays' : `in ${noticeBarangay}`}.</footer>
     </div>
   );
 }

@@ -7,3 +7,50 @@
 @media (max-width: 640px) {
   .admin-member-management .admin-member-filters { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Admin Members uses the established register styling with its own actions. */
+@media screen {
+  .admin-member-management .mb-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .admin-member-management .mb-header .admin-member-add { flex-shrink: 0; background: #174b38; border-color: #174b38; color: #fff; }
+  .admin-member-management .mb-header .admin-member-add:hover { background: #103d2c; color: #fff; }
+  .admin-member-management .mb-filter-grid.admin-member-filters { grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr); }
+  .admin-member-management .mb-panel[data-ui-panel] { border: 0; border-radius: 0; background: #fff; }
+  .admin-member-management .mb-register-heading h2 { font-size: 26px; line-height: 1.3; }
+  .admin-member-management table.ui-table { min-width: 1060px; }
+  .admin-member-management table.ui-table > tbody > tr { cursor: default; }
+  .admin-member-management table.ui-table :is(th, td) { text-align: left; }
+  .admin-member-management table.ui-table :is(th, td).mb-number { text-align: right; }
+  .admin-member-management table.ui-table td:first-child { min-width: 220px; }
+  .admin-member-management table.ui-table td:nth-child(2) { white-space: nowrap; }
+  .admin-member-management .admin-member-actions { display: flex; align-items: center; gap: 8px; }
+  .admin-member-management .admin-member-actions .mb-button { gap: 8px; }
+  .admin-member-management .admin-member-actions .mb-button svg { width: 17px; height: 17px; }
+  .admin-member-management .admin-member-deceased { background: #f1f3f2; border-color: #dce3df; color: #646c78; }
+  .admin-member-management .mb-secondary[data-standing="atRisk"] { color: #646c78; }
+  .admin-member-management .ui-dialog { --ui-primary: #174b38; --ui-ink: #101820; --ui-heading: #101820; --ui-muted: #646c78; --ui-border: #ccd2db; --ui-divider: #dce3df; }
+  .admin-member-management .ui-dialog .ui-dialog-close { width: 44px; height: 44px; }
+  .admin-member-management .ui-dialog :is(input, select, button) { min-height: 44px; }
+  .admin-member-management .ui-dialog :is(input, select) { font-size: 16px; }
+  .admin-member-management .ui-dialog form > p { color: #646c78; font-size: 14px; line-height: 1.6; }
+  .admin-member-management .ui-dialog :is(.bg-coop-green, .bg-emerald-600) { background: #174b38; }
+  .admin-member-history .mb-header { align-items: start; }
+  .admin-member-history .mb-eyebrow { flex-wrap: wrap; }
+  .admin-member-history header.mb-header[data-ui-page-header] .mb-eyebrow { margin-bottom: 20px; color: #646c78; font-size: 14px; font-weight: 400; line-height: 1.5; text-transform: none; letter-spacing: normal; }
+  .admin-member-history header.mb-header[data-ui-page-header] .mb-description { margin-top: 8px; color: #646c78; font-size: clamp(14px, 1.5vw, 19px); line-height: 1.5; }
+  .admin-member-history .mb-panel[data-ui-panel] { border: 0; border-radius: 0; }
+  .admin-member-history .mb-register-heading h2 { font-size: 26px; }
+  .admin-member-history .beneficiary-history-list { padding: 24px 0; }
+  .admin-member-history .beneficiary-history-name { color: #101820; font-size: 18px; line-height: 1.5; }
+  .admin-member-history .beneficiary-history-list p { color: #646c78; font-size: 14px; line-height: 1.7; }
+  .admin-member-history .beneficiary-history-dot.is-current { background: #174b38; }
+  @media (max-width: 1100px) { .admin-member-management .mb-scroll-hint { display: block; } }
+  @media (max-width: 767px) {
+    .admin-member-management .mb-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .admin-member-management .mb-filter-grid.admin-member-filters { grid-template-columns: minmax(0, 1fr); }
+    .admin-member-management .mb-header .admin-member-add { width: 100%; }
+    .admin-member-management .ui-dialog form > .grid { grid-template-columns: minmax(0, 1fr); }
+    .admin-member-management .ui-dialog form > .grid > .col-span-2 { grid-column: 1 / -1; }
+    .admin-member-history .mb-header { flex-direction: column; }
+  }
+  @media (max-width: 359px) { .admin-member-management .mb-metrics { grid-template-columns: minmax(0, 1fr); } }
+}

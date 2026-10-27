@@ -57,9 +57,9 @@ test('batch claim deductions show success and error alerts inside the claim dial
     const submit = selector => act(async () => container.querySelector(selector).dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
     const { default: Pending } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/ClaimsPendingDeduction.jsx');
     await act(async () => root.render(React.createElement(Pending, { user: { name: 'Treasurer' } })));
-    assert.equal(button('Process deduction').disabled, true, 'nothing can be processed until claims are selected');
+    assert.equal(button('Review deduction').disabled, true, 'nothing can be processed until claims are selected');
     await act(async () => container.querySelector('input[aria-label="Select all claims on this page"]').click());
-    await click('Process deduction (2)');
+    await click('Review deduction (2)');
     await fill('#deduction-jv', 'JV-TEST');
     await submit('#deduction-details');
     await click('Confirm deduction');

@@ -40,3 +40,89 @@
 .mc-dialog footer { background: #f8faf8; }
 .mc-report .mc-register .rounded-full { border-radius: 4px; }
 @media(max-width: 640px) { .mc-header h1 { font-size: 25px; } .mc-tab { flex: 1 1 calc(50% - 4px); padding-inline: 8px; } .mc-view-heading { align-items: stretch; flex-direction: column; gap: 16px; } .mc-rate { width: 100%; } .mc-queue-filters, .mc-pagination { padding-inline: 16px; } .mc-search-field { max-width: none; } }
+/* Treasurer Claims redesign. Existing rules above remain shared with the claims-officer portal. */
+@media screen {
+  .treasurer-claims { --tc-ink: #101820; --tc-muted: #646c78; --tc-green: #174b38; max-width: 1600px; margin-inline: auto; padding-bottom: 24px; color: var(--tc-ink); }
+  .treasurer-claims .mc-header { margin-bottom: 24px; }
+  .treasurer-claims .mc-eyebrow { display: flex; gap: 16px; margin: 0 0 20px; color: var(--tc-muted); font-size: 14px; font-weight: 400; line-height: 1.5; letter-spacing: normal; text-transform: none; }
+  .treasurer-claims .mc-eyebrow strong { font-weight: 600; }
+  .treasurer-claims .mc-header h1 { margin: 0; color: var(--tc-ink); font-size: clamp(28px, 3vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -.04em; }
+  .treasurer-claims .mc-description { margin-top: 8px; color: var(--tc-muted); font-size: clamp(14px, 1.5vw, 19px); line-height: 1.5; }
+  .treasurer-claims .mc-tabs { display: flex; align-items: stretch; flex-wrap: wrap; gap: 16px; padding: 0; margin-bottom: 28px; border: 0; border-bottom: 1px solid #dce3df; border-radius: 0; background: transparent; }
+  .treasurer-claims .mc-tab { gap: 7px; min-height: 54px; padding: 12px 16px; border-radius: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; color: var(--tc-muted); background: transparent; font-size: 17px; font-weight: 500; line-height: 1.5; }
+  .treasurer-claims .mc-tab:hover { background: #f8fbf8; color: var(--tc-green); }
+  .treasurer-claims .mc-tab[aria-pressed="true"] { border-bottom-color: var(--tc-green); background: transparent; color: var(--tc-green); font-weight: 600; }
+  .treasurer-claims .mc-count { min-width: auto; padding: 1px 5px; border: 0; border-radius: 4px; background: #e5f1e9; color: var(--tc-green); font-size: 13px; }
+  .treasurer-claims .mc-view-heading { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 18px 24px; }
+  .treasurer-claims .mc-view-heading h2 { color: var(--tc-ink); font-size: 28px; font-weight: 650; line-height: 1.3; letter-spacing: -.03em; }
+  .treasurer-claims .mc-view-heading p { color: var(--tc-muted); font-size: 14px; line-height: 1.6; }
+  .treasurer-claims .mc-rate { padding: 0; border: 0; border-radius: 0; background: transparent; text-align: right; }
+  .treasurer-claims .mc-rate p:first-child { color: var(--tc-ink); font-size: 16px; line-height: 1.6; }
+  .treasurer-claims .mc-rate strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .treasurer-claims .mc-rate p:nth-child(2) { margin-top: 3px; color: var(--tc-muted); font-size: 13px; font-weight: 400; }
+  .treasurer-claims .mc-action[data-ui-button] { min-height: 46px; height: auto; padding: 10px 18px; gap: 10px; border: 1px solid #87918d; border-radius: 6px; background: #fff; color: var(--tc-ink); font-size: 15px; font-weight: 500; line-height: 1.4; white-space: normal; box-shadow: none; }
+  .treasurer-claims .mc-action[data-ui-button]:hover:not(:disabled) { background: #f8fbf8; border-color: var(--tc-green); }
+  .treasurer-claims .mc-action[data-ui-button].bg-coop-green { background: var(--tc-green); border-color: var(--tc-green); color: #fff; }
+  .treasurer-claims .mc-action[data-ui-button].bg-coop-green:hover:not(:disabled) { background: #103d2c; color: #fff; }
+  .treasurer-claims :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 3px solid #528369; outline-offset: 3px; }
+  .treasurer-claims .mc-register[data-ui-panel] { min-width: 0; overflow: visible; border: 0; border-radius: 0; background: #fff; box-shadow: none; }
+  .treasurer-claims .mc-queue-filters { display: flex; align-items: end; justify-content: space-between; flex-wrap: nowrap; gap: 14px; padding: 0 0 22px; border: 0; }
+  .treasurer-claims .mc-search-field { flex: 1; min-width: 0; max-width: none; }
+  .treasurer-claims .mc-search-field label { margin-bottom: 8px; color: var(--tc-ink); font-size: 15px; font-weight: 500; line-height: 1.5; }
+  .treasurer-claims .mc-search-field input.ui-input[data-ui-input] { height: 48px; min-height: 48px; padding: 10px 44px; border: 1px solid #ccd2db; border-radius: 6px; background: #fff; color: var(--tc-ink); font-size: 16px; line-height: 1.5; }
+  .treasurer-claims .mc-search-field .relative > svg { left: 15px; top: 15px; width: 18px; height: 18px; color: var(--tc-muted); }
+  .treasurer-claims .mc-search-field .relative > button { display: flex; align-items: center; justify-content: center; top: 2px; right: 2px; width: 44px; height: 44px; border-radius: 5px; }
+  .treasurer-claims .mc-queue-filters > .mc-action { min-height: 48px; flex-shrink: 0; }
+  .treasurer-claims .mc-table-scroll { max-width: 100%; overflow-x: auto; border: 1px solid #dce3df; border-radius: 8px; }
+  .treasurer-claims .mc-scroll-hint { display: none; margin-bottom: 12px; color: var(--tc-muted); font-size: 12px; line-height: 1.6; }
+  .treasurer-claims .mc-register table.ui-table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: 15px; }
+  .treasurer-claims .mc-register table.ui-table > thead > tr > th { padding: 14px 20px; border-bottom: 1px solid #dce3df; background: #f0f4f1; color: var(--tc-ink); font-size: 14px; font-weight: 600; line-height: 1.5; text-align: left; }
+  .treasurer-claims .mc-register table.ui-table > tbody > tr > td { padding: 18px 20px; border-bottom: 1px solid #e8ece9; color: var(--tc-ink); font-size: 15px; line-height: 1.5; }
+  .treasurer-claims .mc-register table.ui-table > tbody > tr:last-child > td { border-bottom: 0; }
+  .treasurer-claims .mc-register table.ui-table > tbody > tr:hover { background: #f8fbf8; }
+  .treasurer-claims .mc-register table.ui-table > tbody > tr[data-selected="true"] { background: #eaf4ed; }
+  .treasurer-claims .mc-register table.ui-table > tbody > tr[data-selected="true"]:hover { background: #e5f1e9; }
+  .treasurer-claims .mc-claim-queue table.ui-table :is(th, td):first-child { width: 64px; min-width: 64px; max-width: 64px; padding: 6px 10px; }
+  .treasurer-claims .mc-check-target { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer; }
+  .treasurer-claims .mc-claim-queue table.ui-table td:nth-child(2) { min-width: 210px; max-width: 300px; overflow-wrap: anywhere; }
+  .treasurer-claims .mc-claim-queue table.ui-table td:nth-child(3) { min-width: 180px; max-width: 260px; overflow-wrap: anywhere; }
+  .treasurer-claims .mc-claim-queue input[type="checkbox"] { display: block; width: 24px; height: 24px; accent-color: var(--tc-green); cursor: pointer; }
+  .treasurer-claims .mc-claim-queue table.ui-table td p:first-child { color: var(--tc-ink); font-size: 16px; font-weight: 600; }
+  .treasurer-claims .mc-claim-queue table.ui-table td p:not(:first-child) { color: var(--tc-muted); font-size: 13px; }
+  .treasurer-claims .mc-claim-queue table.ui-table td:nth-child(2) > p.lg\:hidden { display: none; }
+  .treasurer-claims .mc-selection { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 20px; padding: 16px 20px; border-radius: 8px; background: #e5f1e9; }
+  .treasurer-claims .mc-selection > p { color: var(--tc-green); font-size: 18px; font-weight: 500; line-height: 1.5; }
+  .treasurer-claims .mc-selection strong { font-weight: 650; }
+  .treasurer-claims .mc-selection-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .treasurer-claims .mc-selection-actions .mc-action:not(.bg-coop-green) { padding-inline: 6px; border-color: transparent; background: transparent; color: var(--tc-green); text-decoration: underline; }
+  .treasurer-claims .mc-selection-help { margin-top: 12px; color: var(--tc-muted); font-size: 14px; line-height: 1.6; }
+  .treasurer-claims .mc-batch-help { margin-top: 6px; color: var(--tc-muted); font-size: 13px; line-height: 1.6; }
+  .treasurer-claims .mc-batch-help summary { width: fit-content; min-height: 44px; padding-block: 12px; cursor: pointer; }
+  .treasurer-claims .mc-batch-help p { max-width: 80ch; padding-block: 4px 12px; }
+  .treasurer-claims .mc-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 16px 0 0; border: 0; color: var(--tc-muted); font-size: 13px; }
+  .treasurer-claims .mc-pagination > div { flex-wrap: wrap; max-width: 100%; }
+  .treasurer-claims .mc-pagination button { min-width: 40px; min-height: 44px; border-radius: 6px; }
+  .treasurer-claims .mc-report .mc-register :is(th, td):first-child { width: auto; min-width: 180px; max-width: none; padding: 18px 20px; }
+  .treasurer-claims .mc-report .mc-register th.text-right, .treasurer-claims .mc-report .mc-register td.text-right { text-align: right; }
+  .treasurer-claims .mc-dialog { border-color: #dce3df; border-radius: 10px; }
+  .treasurer-claims .mc-dialog :is(input, textarea) { font-size: 16px; border-color: #ccd2db; }
+  .treasurer-claims .mc-dialog .ui-dialog-header h2 { color: var(--tc-ink); }
+  @media (max-width: 1250px) { .treasurer-claims .mc-rate { text-align: left; } .treasurer-claims .mc-view-heading { flex-direction: column; gap: 14px; } }
+  @media (max-width: 767px) {
+    .treasurer-claims .mc-tab { flex: 1 1 auto; font-size: 14px; padding-inline: 8px; }
+    .treasurer-claims .mc-tabs { gap: 8px; }
+    .treasurer-claims .mc-view-heading h2 { font-size: 24px; }
+    .treasurer-claims .mc-rate { width: auto; }
+    .treasurer-claims .mc-rate p:first-child { font-size: 14px; }
+    .treasurer-claims .mc-queue-filters { flex-wrap: wrap; }
+    .treasurer-claims .mc-search-field { flex-basis: 100%; }
+    .treasurer-claims .mc-scroll-hint { display: block; }
+    .treasurer-claims .mc-selection { align-items: start; flex-direction: column; padding: 16px; }
+    .treasurer-claims .mc-selection > p { font-size: 16px; }
+    .treasurer-claims .mc-selection-actions { width: 100%; }
+    .treasurer-claims .mc-selection-actions .bg-coop-green { flex: 1; }
+    .treasurer-claims .mc-dialog footer { padding-inline: 16px; }
+  }
+  @media (max-width: 359px) { .treasurer-claims .mc-eyebrow { gap: 12px; font-size: 13px; } .treasurer-claims .mc-tabs { gap: 0; } .treasurer-claims .mc-tab { padding-inline: 6px; font-size: 13px; } .treasurer-claims .mc-selection-actions { flex-direction: column; align-items: stretch; } }
+  @media (prefers-reduced-motion: reduce) { .treasurer-claims * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+}

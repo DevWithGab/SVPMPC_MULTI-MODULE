@@ -1,11 +1,10 @@
 import { SearchField } from '../../ui/workspace';
 import { Button as ActionButton } from '../../ui/button';
 import { Select, Input as TextInput } from '../../ui/input';
-import { PageHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import './MemberLedger.css';
 import React, { useRef, useState } from 'react';
-import { Search, ArrowLeft, Printer, Upload, Loader2, Download } from 'lucide-react';
+import { Search, ArrowLeft, Printer, Upload, Loader2, Download, BookOpen, MoreHorizontal, ChevronDown, Info } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import BulkLedgerUpload from './BulkLedgerUpload';
 import DailyLedgerSummary from './DailyLedgerSummary';
@@ -223,15 +222,14 @@ const MemberLedger = ({
     const noticeLabel = noticeLevel ? NOTICE_LEVEL_LABELS[noticeLevel] : 'Notice';
 
     return (
-      <div className="member-ledger space-y-5 print:space-y-0">
+      <div className="member-ledger treasurer-ledger ml-individual space-y-5 print:space-y-0">
         {correctionDialog && <LedgerCorrectionDialog entry={correctionDialog.entry} member={currentMember}
           onClose={() => { setCorrectionDialog(null); refreshData?.(); }}
           onSaved={async () => { setCorrectionDialog(null); await refreshData?.(); showToast?.('Amount updated. The change is saved in the audit log.', 'success'); }} />}
         {/* Header */}
-        <PageHeader className="ml-header ml-screen"><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></PageHeader>
-
-        {/* Controls */}
-        <div className="ml-controls ml-screen">
+        <header className="ml-header ml-screen">
+          <p className="ml-eyebrow">Mortuary management <span aria-hidden="true">/</span> Members ledger <span aria-hidden="true">/</span> <strong>{currentMember.name}</strong></p>
+          <div className="ml-controls ml-screen">
           <button
             onClick={() => {
               setSelectedLedgerMember(null);
@@ -244,42 +242,37 @@ const MemberLedger = ({
             <ArrowLeft className="w-4 h-4" /> Back to list
           </button>
         </div>
-        <div className="ml-document-actions ml-screen">
-          <section className="ml-action-group" aria-labelledby="ml-ledger-actions-title">
-            <h2 id="ml-ledger-actions-title">Ledger records</h2>
-            <p>Export, download, or print the transactions shown with your current filters.</p>
-          <div className="ml-actions">
-            <button
-              onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
-              disabled={loadingMemberLedger || mEntries.length === 0}
-              className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-            >
-              <Download className="w-4 h-4" /> Export Ledger CSV
-            </button>
-            <button
-              onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters, true)}
-              disabled={loadingMemberLedger || preparingLedger !== null}
-              aria-busy={preparingLedger === 'print'}
-              className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
-            >
-              {preparingLedger === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-              {preparingLedger === 'print' ? 'Preparing Ledger...' : 'Print Ledger'}
-            </button>
-            <button
+          <div className="ml-heading-row"><div><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></div>
+          <div className="ml-top-actions"><button
               onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters)}
               disabled={loadingMemberLedger || preparingLedger !== null}
               aria-busy={preparingLedger === 'download'}
-              className="inline-flex items-center gap-1.5 h-10 px-4 text-sm font-medium text-slate-600 border border-slate-200 bg-white hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="ml-button ml-primary"
             >
               {preparingLedger === 'download' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               {preparingLedger === 'download' ? 'Preparing Ledger PDF...' : 'Download Ledger PDF'}
             </button>
-          </div>
-          </section>
-          <section className="ml-action-group ml-notice-actions" aria-labelledby="ml-notice-actions-title">
-            <h2 id="ml-notice-actions-title">Balance notice</h2>
+            <details className="ml-more-menu"><summary><MoreHorizontal size={19} aria-hidden="true" />More<ChevronDown size={17} aria-hidden="true" /></summary><div className="ml-menu-items"><h2 id="ml-ledger-actions-title">Ledger records</h2><p>Export, download, or print the transactions shown with your current filters.</p><button
+              onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
+              disabled={loadingMemberLedger || mEntries.length === 0}
+              className="ml-button"
+            >
+              <Download className="w-4 h-4" /> Export Ledger CSV
+            </button><button
+              onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters, true)}
+              disabled={loadingMemberLedger || preparingLedger !== null}
+              aria-busy={preparingLedger === 'print'}
+              className="ml-button"
+            >
+              {preparingLedger === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+              {preparingLedger === 'print' ? 'Preparing Ledger...' : 'Print Ledger'}
+            </button><div className="ml-more-address"><p>Address</p><strong>{currentMember.address || '—'}</strong></div></div></details>
+          </div></div>
+        </header>
+        <div className="ml-document-actions ml-screen">          <section className="ml-action-group ml-notice-actions" aria-labelledby="ml-notice-actions-title">
+<div className="ml-notice-copy"><Info size={22} aria-hidden="true" /><div><h2 id="ml-notice-actions-title">Balance notice</h2>
             <p id="ml-notice-status">{noticeLevel ? `${noticeLabel} letter based on the member's current balance.` : 'No notice is required for the current balance.'}</p>
-            <div className="ml-actions">
+</div></div><details className="ml-notice-menu"><summary>Notice options <ChevronDown size={17} aria-hidden="true" /></summary><div className="ml-actions">
                 <button
                   onClick={() => printBalanceNotice(currentMember, user?.name, noticeThresholds)}
                   disabled={!noticeLevel}
@@ -306,15 +299,15 @@ const MemberLedger = ({
                   {downloadingNotice ? 'Preparing Notice PDF...' : `Download ${noticeLabel} PDF`}
                 </button>
             </div>
-          </section>
-        </div>
+</details>
+          </section></div>
 
         <section className="ml-filters ml-screen" aria-labelledby="ml-entry-filter-title">
           <div className="ml-filter-heading"><h2 id="ml-entry-filter-title">Find a transaction</h2><button className="ml-text-button" disabled={!hasActiveLedgerFilters && sortOrder === 'desc'} onClick={() => { setTransactionFilter('all'); setDatePreset('all'); setSortOrder('desc'); }}>Reset filters</button></div>
           <div className="ml-filter-grid ml-entry-filters">
-            <label>Transaction type<Select value={transactionFilter} onChange={e => setTransactionFilter(e.target.value)}><option value="all">All entries</option><option value="deposits">Received</option><option value="withdrawals">Withdrawn</option></Select></label>
-            <label>Date range<Select value={datePreset} onChange={e => setDatePreset(e.target.value)}><option value="all">All time</option><option value="thisMonth">This month</option><option value="lastMonth">Last month</option><option value="thisYear">This year</option></Select></label>
-            <label>Sort by date<Select value={sortOrder} onChange={e => setSortOrder(e.target.value)}><option value="desc">Newest first</option><option value="asc">Oldest first</option></Select></label>
+            <div><label htmlFor="ml-transaction-type">Transaction type</label><Select id="ml-transaction-type" value={transactionFilter} onChange={e => setTransactionFilter(e.target.value)}><option value="all">All entries</option><option value="deposits">Received</option><option value="withdrawals">Withdrawn</option></Select></div>
+            <div><label htmlFor="ml-date-range">Date range</label><Select id="ml-date-range" value={datePreset} onChange={e => setDatePreset(e.target.value)}><option value="all">All time</option><option value="thisMonth">This month</option><option value="lastMonth">Last month</option><option value="thisYear">This year</option></Select></div>
+            <div><label htmlFor="ml-date-sort">Sort by date</label><Select id="ml-date-sort" value={sortOrder} onChange={e => setSortOrder(e.target.value)}><option value="desc">Newest first</option><option value="asc">Oldest first</option></Select></div>
           </div>
         </section>
 
@@ -363,11 +356,12 @@ const MemberLedger = ({
               </div>
             </div>
             <div className="ml-member-details mt-3 pt-3 border-t border-slate-100 space-y-3">
-              <div>
+              <div className="ml-member-barangay ml-screen"><p>Barangay</p><p>{getBarangay(currentMember)}</p></div>
+              <div className="ml-member-address">
                 <p className="text-xs text-slate-400">Address</p>
                 <p className="text-sm font-medium text-slate-700">{currentMember.address || '—'}</p>
               </div>
-              <div>
+              <div className="ml-member-beneficiary">
                 <p className="text-xs text-slate-400">Beneficiary</p>
                 <p className="text-sm font-medium text-slate-700">{currentMember.beneficiaries || '—'}</p>
               </div>
@@ -382,6 +376,7 @@ const MemberLedger = ({
               para lumabas din sa printed statement. Sumusunod kung ano man
               yung filter/date range na applied sa taas. */}
           <div className="ml-summary px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+            <h2 className="ml-screen">Transaction history</h2>
             <p className="text-sm text-slate-500">
               <span className="font-semibold text-slate-700">{mEntries.length}</span>{' '}
               {mEntries.length === 1 ? 'entry' : 'entries'} shown &middot;{' '}
@@ -428,7 +423,7 @@ const MemberLedger = ({
                       {group.label}
                     </td>
                     <td className="px-5 py-2 text-xs text-right text-slate-400">
-                      closing balance <span className="font-mono text-slate-500">{formatPeso(group.closingBalance)}</span>
+                      closing balance <span className="font-mono text-slate-500" data-negative={group.closingBalance < 0 ? true : undefined}>{formatPeso(group.closingBalance)}</span>
                     </td>
                   </tr>
                   {group.entries.map((entry) => (
@@ -449,7 +444,7 @@ const MemberLedger = ({
                       <td className="px-5 py-3.5 text-sm text-right font-mono font-medium align-top text-red-500">
                         {entry.withdrawn > 0 ? formatPeso(entry.withdrawn) : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-right font-mono font-bold text-slate-900 align-top">
+                      <td data-negative={entry.balance < 0 ? true : undefined} className="px-5 py-3.5 text-sm text-right font-mono font-bold text-slate-900 align-top">
                         {formatPeso(entry.balance)}
                       </td>
                     </tr>
@@ -490,18 +485,19 @@ const MemberLedger = ({
   };
 
   return (
-    <div className="member-ledger">
-      <PageHeader className="ml-header ml-list-header"><div><p className="ml-eyebrow">Mortuary management / Member ledger</p><h1>Member ledger</h1><p className="ml-description">Upload daily transactions by CSV, then select a member to review or edit recorded amounts.</p></div><ActionButton variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</ActionButton></PageHeader>
-      <div role="group" aria-label="Member ledger views" className="mb-5 flex gap-3">
+    <div className="member-ledger treasurer-ledger ml-directory">
+      <header className="ml-header ml-list-header"><p className="ml-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Members ledger</strong></p><div className="ml-heading-row"><div><h1>Member ledgers</h1><p className="ml-description">Find a member to review their transaction history.</p></div><ActionButton variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={20} aria-hidden="true" />Bulk upload CSV</ActionButton></div></header>
+      <div role="group" aria-label="Member ledger views" className="ml-view-tabs">
         <ActionButton variant={ledgerView === 'register' ? 'default' : 'outline'} aria-pressed={ledgerView === 'register'} onClick={() => setLedgerView('register')}>Member Register</ActionButton>
         <ActionButton variant={ledgerView === 'daily' ? 'default' : 'outline'} aria-pressed={ledgerView === 'daily'} onClick={() => setLedgerView('daily')}>Daily Summary</ActionButton>
       </div>
       {ledgerView === 'daily' ? <DailyLedgerSummary refreshVersion={summaryVersion} /> : <>
       <section className="ml-filters" aria-labelledby="ml-member-filter-title">
-        <div className="ml-filter-heading"><h2 id="ml-member-filter-title">Find a member</h2><button className="ml-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button></div>
+        <h2 id="ml-member-filter-title" className="sr-only">Find a member</h2>
         <div className="ml-filter-grid">
-          <label>Search members<SearchField as="span" className="ml-search"><Search size={16} aria-hidden="true" /><TextInput unstyled placeholder="Search member…" value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} /></SearchField></label>
-          <label>Barangay<Select value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setCurrentPage(1); }}>{uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}</Select></label>
+          <div><label htmlFor="ml-member-search">Name or passbook number</label><SearchField as="span" className="ml-search"><Search size={18} aria-hidden="true" /><TextInput id="ml-member-search" unstyled placeholder="Search members..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} /></SearchField></div>
+          <div><label htmlFor="ml-barangay">Barangay</label><Select id="ml-barangay" value={barangayFilter} onChange={e => { setBarangayFilter(e.target.value); setCurrentPage(1); }}>{uniqueBarangays.map(b => <option key={b} value={b}>{b === 'All' ? 'All barangays' : b}</option>)}</Select></div>
+          <button className="ml-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
         </div>
       </section>
 
@@ -535,9 +531,10 @@ const MemberLedger = ({
                 </td>
                 <td className="px-5 py-4 text-sm text-slate-600">{getBarangay(member)}</td>
                 <td className="px-5 py-4 text-right">
-                  <span className={`text-sm font-bold tabular-nums ${member.balance < 1000 ? 'text-red-500' : 'text-slate-900'}`}>
-                    ₱{member.balance?.toLocaleString()}
+                  <span className={`text-sm font-bold tabular-nums ${member.balance < 0 ? 'ml-negative' : 'text-slate-900'}`}>
+                    {formatPeso(member.balance)}
                   </span>
+                  {member.balance < 0 && <span className="ml-standing ml-negative">{getStandingLabel(member.balance, noticeThresholds?.targetBalance)}</span>}
                 </td>
                 <td className="px-5 py-4 text-right">
                   <ActionButton variant="outline"
@@ -545,7 +542,7 @@ const MemberLedger = ({
                     className="ml-button"
                     aria-label={'Open ledger for ' + member.name}
                   >
-                    Open Ledger
+                    <BookOpen size={18} aria-hidden="true" />Open Ledger
                   </ActionButton>
                 </td>
               </tr>
@@ -580,6 +577,7 @@ const MemberLedger = ({
         )}
       </section>
 
+      <p className="ml-upload-help">Upload daily transactions by CSV, then select a member to review or edit recorded amounts.</p>
       </>}
       {/* Bulk Upload Modal */}
       {showBulkModal && <BulkLedgerUpload onClose={() => setShowBulkModal(false)} onImported={async () => { setSummaryVersion(value => value + 1); await refreshData?.(); }} onDownloadTemplate={downloadLedgerTemplate} />}

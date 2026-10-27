@@ -1,11 +1,10 @@
 import { SearchField } from '../../ui/workspace';
 import { Button as ActionButton } from '../../ui/button';
 import { Input as TextInput, Select } from '../../ui/input';
-import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
+import { Panel, PanelHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useEffect, useState } from 'react';
-import { Users, UserCheck, UserMinus, Heart, Search, FileText, UserPlus } from 'lucide-react';
-import AttendanceMetricGrid from '../../attendance/shared/AttendanceMetricGrid';
+import { Heart, Search, FileText, UserPlus } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import '../treasurer/MemberBalances.css';
@@ -48,27 +47,30 @@ const MemberManagement = ({
       backLabel="Back to members"
       parentSection="Members"
       registrationBeneficiary={{ name: beneficiaryMember.beneficiaries, relationship: beneficiaryMember.beneficiaryRelationship }}
+      className="treasurer-member-balances admin-member-history"
     />;
   }
 
   return (
-    <div className="member-balances admin-member-management">
-      <PageHeader className="mb-header">
+    <div className="member-balances treasurer-member-balances admin-member-management">
+      <p className="mb-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><strong>Members</strong></p>
+      <header className="mb-header">
         <div>
-          <p className="mb-eyebrow">Mortuary management / Members</p>
           <h1>Member management</h1>
           <p className="mb-description">Review registered members, check balances, and access claims and beneficiaries.</p>
         </div>
-        {onMemberAdded && <ActionButton onClick={() => setAddingMember(true)}><UserPlus size={15} aria-hidden="true" />Add member</ActionButton>}
-      </PageHeader>
+        {onMemberAdded && <ActionButton className="mb-button admin-member-add" onClick={() => setAddingMember(true)}><UserPlus size={20} aria-hidden="true" />Add member</ActionButton>}
+      </header>
       <CreateMemberModal isOpen={addingMember} onClose={() => setAddingMember(false)} barangays={barangays} createMember={mortuaryMemberAPI.createMember} onCreated={onMemberAdded} />
 
-      <AttendanceMetricGrid label="Membership overview" items={[
-        ['Total members', members.length.toLocaleString(), 'Registered mortuary fund participants', Users],
-        ['Active', members.filter(m => m.status === 'active').length.toLocaleString(), 'Active memberships', UserCheck],
-        ['Inactive', members.filter(m => m.status === 'inactive').length.toLocaleString(), 'Inactive memberships', UserMinus],
-        ['Deceased', members.filter(m => m.status === 'deceased').length.toLocaleString(), 'Members recorded as deceased', Heart],
-      ]} />
+      <dl className="mb-metrics" aria-label="Membership overview">
+        {[
+          ['Total members', members.length.toLocaleString(), 'Registered mortuary fund participants'],
+          ['Active', members.filter(m => m.status === 'active').length.toLocaleString(), 'Active memberships'],
+          ['Inactive', members.filter(m => m.status === 'inactive').length.toLocaleString(), 'Inactive memberships'],
+          ['Deceased', members.filter(m => m.status === 'deceased').length.toLocaleString(), 'Members recorded as deceased'],
+        ].map(([label, value, detail]) => <div key={label}><dt>{label}</dt><dd>{value}</dd><p>{detail}</p></div>)}
+      </dl>
 
       <section className="mb-filters" aria-labelledby="admin-member-filter-title">
         <div className="mb-filter-heading">
@@ -76,22 +78,22 @@ const MemberManagement = ({
           <button className="mb-text-button" onClick={clearFilters} disabled={!hasActiveFilters}>Reset filters</button>
         </div>
         <div className="mb-filter-grid admin-member-filters">
-          <label>
-            Search members
+          <div>
+            <label htmlFor="admin-member-search">Search members</label>
             <SearchField as="span" className="mb-search">
               <Search size={16} aria-hidden="true" />
-              <TextInput unstyled value={searchQuery} onChange={e => updateFilter(setSearchQuery, e.target.value)} placeholder="Name or Passbook No." />
+              <TextInput id="admin-member-search" unstyled value={searchQuery} onChange={e => updateFilter(setSearchQuery, e.target.value)} placeholder="Name or Passbook No." />
             </SearchField>
-          </label>
-          <label>
-            Membership status
-            <Select value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}>
+          </div>
+          <div>
+            <label htmlFor="admin-member-status">Membership status</label>
+            <Select id="admin-member-status" value={statusFilter} onChange={e => updateFilter(setStatusFilter, e.target.value)}>
               <option value="all">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="deceased">Deceased</option>
             </Select>
-          </label>
+          </div>
         </div>
       </section>
 
@@ -106,6 +108,7 @@ const MemberManagement = ({
           <span role="status">{totalMembers.toLocaleString()} of {members.length.toLocaleString()} members</span>
           <span>{statusFilter === 'all' ? 'All membership statuses' : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} members`}</span>
         </div>
+        <p className="mb-scroll-hint">Scroll horizontally to view contact details, balances, and member actions.</p>
         <div className="mb-table-scroll" role="region" aria-label="Member directory" tabIndex={0}>
           <DataTable>
             <thead>
@@ -123,7 +126,7 @@ const MemberManagement = ({
                 <tr key={member.id}>
                   <td><strong>{member.name}</strong><span className="mb-secondary">#{String(member.id).padStart(6, '0')}</span></td>
                   <td>{member.contact || '—'}</td>
-                  <td className="mb-number"><strong>₱{(Number(member.currentBalance) || 0).toLocaleString('en-PH')}</strong><span className="mb-secondary" data-standing={getMemberStanding(member.currentBalance, minimumBalance)}>{getStandingLabel(member.currentBalance, minimumBalance)}</span></td>
+                  <td className="mb-number"><strong className={Number(member.currentBalance) < 0 ? 'mb-negative-balance' : undefined}>₱{(Number(member.currentBalance) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span className="mb-secondary" data-standing={getMemberStanding(member.currentBalance, minimumBalance)}>{getStandingLabel(member.currentBalance, minimumBalance)}</span></td>
                   <td>
                     <span className={`mb-status${member.status === 'active' ? ' mb-status-active' : member.status === 'deceased' ? ' admin-member-deceased' : ''}`}>
                       {member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : 'Unknown'}

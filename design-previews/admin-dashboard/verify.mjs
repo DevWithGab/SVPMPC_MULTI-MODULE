@@ -1,0 +1,48 @@
+import { chromium } from '../../client/node_modules/playwright/index.mjs';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const browser=await chromium.launch({headless:true,channel:'msedge'});
+const context=await browser.newContext({viewport:{width:1487,height:1058},deviceScaleFactor:1,reducedMotion:'reduce',acceptDownloads:true});
+await context.addInitScript(()=>{if(window.top!==window)return;sessionStorage.setItem('token','isolated-visual-fixture');sessionStorage.setItem('user',JSON.stringify({name:'Preview Claims Officer',role:'claims_officer',modules:['mortuary']}));sessionStorage.setItem('selectedModule',JSON.stringify({module:'mortuary',role:'claims_officer'}));localStorage.setItem('mortuaryAdminSidebarCollapsed','false');});
+let members=Array.from({length:148},(_,i)=>({id:`M-${i}`,name:`Sample Member ${i}`,status:i<128?'active':i<140?'inactive':'deceased',barangay:'San Jose'}));
+const balances=members.map((m,i)=>({memberId:m.id,balance:i<6?-100:i<24?600:1000}));
+let contributions=[45000,38000,42000,35000].map((amount,i)=>({id:i,amount,member_id:`M-${i}`,member_name:['Elena Ramos','Roberto Cruz','Maria Santos','Jose Reyes'][i],created_at:`2026-${String(10-i).padStart(2,'0')}-15T08:30:00Z`,status:'Paid'}));
+let admin={claims:{pending_requirements:4,pending_deduction:3,deduction_processed:8,released:2,rejected:1,totalDeductionsCollected:44800},recentClaimActivities:[{memberName:'Elena Ramos',status:'deduction_processed',changedBy:'Maria Dela Cruz',changedAt:'2026-10-26T08:30:00Z'},{memberName:'Roberto Cruz',status:'pending_requirements',changedBy:'Juan Reyes',changedAt:'2026-10-25T08:30:00Z'},{memberName:'Maria Santos',status:'released',changedBy:'Maria Dela Cruz',changedAt:'2026-10-24T08:30:00Z'}],claimsNeedingAttention:[{memberName:'Roberto Cruz',status:'pending_requirements'},{memberName:'Jose Reyes',status:'pending_deduction'}]};
+const stats={fundBalance:114200,activeMembers:128,totalMembers:148,minimumBalance:1000,totalCollected:160000,lowBalanceMembers:24};
+let failed=false;const errors=[],writes=[],calls=[];
+await context.route('**/api/**',async route=>{
+ const request=route.request(),url=new URL(request.url()),path=url.pathname;calls.push(path);
+ if(request.method()!=='GET'){writes.push(path);await route.abort();return;}
+ if(failed&&path.endsWith('/fund-overview')){await route.fulfill({status:500,json:{message:'Preview failure'}});return;}
+ let data={success:true,data:[]};
+ if(path.endsWith('/admin/members')){const page=Number(url.searchParams.get('page')||1);data={success:true,data:members.slice((page-1)*100,page*100),pagination:{total:members.length,totalPages:Math.max(1,Math.ceil(members.length/100))}};}
+ if(path.endsWith('/contributions'))data={success:true,data:contributions,pagination:{total:contributions.length,totalPages:1}};
+ if(path.endsWith('/fund-overview'))data={success:true,data:stats};
+ if(path.endsWith('/admin/balances'))data={success:true,data:{members:balances}};
+ if(path.endsWith('/admin/dashboard'))data={success:true,data:admin};
+ if(path.endsWith('/claims')||path.endsWith('/beneficiaries'))data={success:true,data:[],pagination:{total:0,totalPages:1}};
+ await route.fulfill({json:data});
+});
+const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+async function open(){await page.goto('http://localhost:5173/mortuary/claims_officer?tab=dashboard');await page.getByRole('heading',{name:'Mortuary dashboard',exact:true}).waitFor();await page.getByText('44,800',{exact:false}).first().waitFor();await page.locator('.recharts-bar-rectangle').first().waitFor();}
+async function shot(name){await page.screenshot({path:`design-previews/admin-dashboard/${name}.png`,fullPage:true,animations:'disabled'});}
+async function fits(label){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`document overflow ${label}`);assert.ok(await page.locator('.mt-main').evaluate(el=>el.scrollWidth<=el.clientWidth+1),`main overflow ${label}`);}
+await open();await shot('desktop');assert.match(await page.locator('.mad-metrics').innerText(),/114,200/);assert.match(await page.locator('.mad-standing-overview').innerText(),/18/);assert.match(await page.locator('.mad-standing-overview').innerText(),/6/);assert.equal(await page.locator('.mad-claim-list button').count(),4);assert.match(await page.locator('.mad-claim-list button').nth(2).innerText(),/10/);
+const dl=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Export report',exact:true}).click()]);const csv=await readFile(await dl[0].path(),'utf8');assert.match(csv,/Sample Member 0/);assert.match(csv,/Sample Member 147/);assert.match(csv,/Negative Balance/);assert.match(csv,/Mortuary Member Report/i);
+await page.getByRole('button',{name:'Notifications',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Notifications',exact:true}).getAttribute('aria-expanded'),'true');assert.match(await page.locator('.mad-notification-menu').innerText(),/Roberto Cruz/);await shot('notifications');await page.keyboard.press('Escape');await page.locator('.mad-notification-menu').waitFor({state:'hidden'});
+await page.getByRole('button',{name:'Notifications',exact:true}).click();await page.getByRole('button',{name:'View all claims',exact:true}).click();await page.waitForURL(url=>url.searchParams.get('tab')==='claims');await open();
+for(const label of ['Manage claims','Pending requirements','Pending deduction','Deductions processed','Claims rejected','View claims']){await page.getByRole('button',{name:label,exact:false}).first().click();await page.waitForURL(url=>url.searchParams.get('tab')==='claims');await open();}
+await page.getByText('Claims workspace',{exact:true}).click();await shot('workspace');await page.getByRole('button',{name:'Register New Claim',exact:false}).click();await page.waitForURL(url=>url.searchParams.get('tab')==='claims');await open();await page.getByText('Claims workspace',{exact:true}).click();await page.getByRole('button',{name:'Beneficiaries Manage claim beneficiaries',exact:false}).click();await page.waitForURL(url=>url.searchParams.get('tab')==='beneficiaries');await open();
+await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();await page.getByRole('button',{name:'Expand sidebar',exact:true}).waitFor();await shot('collapsed');await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+await page.locator('.mt-account summary').click();await page.getByRole('button',{name:'Sign Out',exact:true}).waitFor();await page.locator('.mt-account summary').click();
+for(const [width,height] of [[834,1194],[390,844],[320,740],[1366,700]]){
+ await page.setViewportSize({width,height});await open();await fits(`dashboard ${width}`);await shot(`viewport-${width}`);await page.locator('.mt-main').evaluate(el=>el.scrollTop=el.scrollHeight);await shot(`scrolled-${width}`);await page.locator('.mt-main').evaluate(el=>el.scrollTop=0);
+ await page.getByRole('button',{name:'Notifications',exact:true}).click();await fits(`notifications ${width}`);const box=await page.locator('.mad-notification-menu').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width+1);await shot(`notifications-${width}`);await page.keyboard.press('Escape');
+ if(width<1024){assert.equal(await page.locator('.mt-sidebar').getAttribute('inert'),'');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.waitForFunction(()=>Math.abs(document.querySelector('.mt-sidebar').getBoundingClientRect().width-296)<1);await shot(`menu-${width}`);assert.ok(await page.getByRole('button',{name:'Close menu',exact:true}).evaluate(el=>el===document.activeElement));await page.keyboard.press('Escape');assert.equal(await page.getByRole('button',{name:'Open menu',exact:true}).getAttribute('aria-expanded'),'false');await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('navigation',{name:'Claims Officer workspace',exact:true}).getByRole('button',{name:'Members',exact:true}).click();await page.waitForURL(url=>url.searchParams.get('tab')==='members');assert.equal(await page.getByRole('button',{name:'Open menu',exact:true}).getAttribute('aria-expanded'),'false');}
+}
+members=[];contributions=[];admin={claims:{},recentClaimActivities:[],claimsNeedingAttention:[]};Object.assign(stats,{fundBalance:0,activeMembers:0,totalCollected:0,totalMembers:0});
+await page.setViewportSize({width:1487,height:1058});await page.goto('http://localhost:5173/mortuary/claims_officer?tab=dashboard');await page.getByText('No recent activities',{exact:true}).waitFor();await page.getByText('No claim activity yet',{exact:true}).waitFor();assert.ok(await page.getByRole('button',{name:'Export report',exact:true}).isDisabled());await page.getByRole('button',{name:'Notifications',exact:true}).click();await page.getByText("You're all caught up.",{exact:true}).waitFor();await shot('empty');await page.keyboard.press('Escape');
+failed=true;await page.goto('http://localhost:5173/mortuary/claims_officer?tab=dashboard');await page.getByText('Unable to load mortuary records and totals.',{exact:true}).waitFor();await shot('error');failed=false;await page.getByRole('button',{name:/Retry/}).click();await page.getByRole('heading',{name:'Mortuary dashboard',exact:true}).waitFor();
+assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
+console.log(JSON.stringify({result:'passed',errors,writes,memberRecords:148,checks:'metrics/standing/current claim counts, full CSV export, notifications and Escape, claims/workspace/navigation actions, sidebar collapse/account/mobile drawer, four responsive sizes'}));await browser.close();
+

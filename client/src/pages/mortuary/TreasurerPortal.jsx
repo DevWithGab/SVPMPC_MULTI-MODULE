@@ -1,11 +1,12 @@
 import '../../components/mortuary/treasurer/Claims.css';
+import './TreasurerPortal.css';
 import { loadAllPages } from '../../utils/loadAllPages';
 import LoadError from '../../components/shared/common/LoadError';
 import useUrlState from '../../hooks/useUrlState';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Users, FileText, LayoutGrid, BarChart3, Bell,
-  LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu, Banknote
+  Users, BookOpen, House, BarChart3, Bell,
+  LogOut, ChevronLeft, ChevronRight, Loader2, ClipboardCheck, Menu, Settings, UserRound, ChevronDown, X
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
@@ -27,7 +28,9 @@ import api from '../../services/api';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../utils/balanceNotice';
 
 
-const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed, onNavigate, badgeCount = 0 }) => (
+const SidebarItem = ({ id, icon, label, activeTab, setActiveTab, collapsed, onNavigate, badgeCount = 0 }) => {
+  const Icon = icon;
+  return (
   <button
     onClick={() => {
       setActiveTab(id);
@@ -36,26 +39,21 @@ const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, collapsed
     title={collapsed ? (badgeCount > 0 ? `${label}: ${badgeCount} pending deduction` : label) : undefined}
     aria-label={badgeCount > 0 ? `${label}, ${badgeCount} ${badgeCount === 1 ? 'claim' : 'claims'} pending deduction` : label}
     aria-current={activeTab === id ? 'page' : undefined}
-    className={`relative w-full flex items-center gap-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset ${
-      collapsed ? 'justify-center px-0 py-3' : 'px-4 py-2.5'
-    } ${
-      activeTab === id
-        ? 'bg-white text-coop-darkGreen shadow-sm'
-        : 'text-green-100/80 hover:bg-white/10 hover:text-white'
-    }`}
+    className={`mt-nav-item ${collapsed ? 'mt-nav-item-collapsed' : ''}`}
   >
     <Icon className="w-4.5 h-4.5 shrink-0" />
     {!collapsed && <span className="text-sm font-semibold tracking-tight">{label}</span>}
     {badgeCount > 0 && (
       <span
         aria-hidden="true"
-        className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold leading-none text-white ${collapsed ? 'absolute -top-1 -right-1' : '-ml-1'}`}
+        className={`mt-nav-badge ${collapsed ? 'mt-nav-badge-collapsed' : ''}`}
       >
         {badgeCount.toLocaleString('en-PH')}
       </span>
     )}
   </button>
-);
+  );
+};
 
 const ClaimsViewToggle = ({ claimsView, setClaimsView, counts }) => (
   <div className="mc-tabs" role="group" aria-label="Claims views">
@@ -95,7 +93,7 @@ const PortalSkeleton = () => (
   </div>
 );
 
-const TreasurerPortal = ({ user, onBack, token }) => {
+const TreasurerPortal = ({ user, onBack }) => {
   // State management
 
   const [requestedTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
@@ -162,6 +160,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isMobileMenuOpen]);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+  const navigationCollapsed = isDesktop && sidebarCollapsed;
 
   const [selectedMemberId, setSelectedMemberId] = useUrlState('member', null);
   const selectedMemberLedger = ledgerSnapshot.memberId === selectedMemberId ? ledgerSnapshot.entries : [];
@@ -489,8 +488,8 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         );
       case 'claims':
         return (
-          <div className="mortuary-claims">
-            <header className="mc-header"><p className="mc-eyebrow">Mortuary management / Claims</p><h1>Claims</h1><p className="mc-description">Review member assessments and track claim records.</p></header>
+          <div className="mortuary-claims treasurer-claims">
+            <header className="mc-header"><p className="mc-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Claims</strong></p><h1>Claims</h1><p className="mc-description">Select approved claims to prepare a member deduction.</p></header>
             <ClaimsViewToggle claimsView={claimsView} setClaimsView={setClaimsView} counts={claimsCounts} />
             {claimsView === 'pending-deduction' ? (
               <ClaimsPendingDeduction user={user} showToast={showToast} onProcessed={refreshAllData} />
@@ -541,7 +540,7 @@ const TreasurerPortal = ({ user, onBack, token }) => {
   };
 
   return (
-    <div className="h-dvh bg-slate-50 flex font-sans text-slate-900 relative overflow-hidden">
+    <div className="mortuary-treasurer-portal h-dvh flex font-sans relative overflow-hidden">
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
@@ -554,21 +553,25 @@ const TreasurerPortal = ({ user, onBack, token }) => {
         initial={false}
         animate={{
           width: isDesktop
-            ? sidebarCollapsed ? 76 : 268
-            : isMobileMenuOpen ? 268 : 0,
+            ? navigationCollapsed ? 76 : 296
+            : isMobileMenuOpen ? 296 : 0,
         }}
         transition={{ type: 'tween', duration: 0.2 }}
-        className="bg-coop-darkGreen flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden print:hidden"
+        className="mt-sidebar flex flex-col fixed inset-y-0 left-0 lg:sticky top-0 h-dvh z-50 overflow-hidden print:hidden"
+        id="treasurer-navigation"
+        aria-label="Mortuary navigation"
+        aria-hidden={!isDesktop && !isMobileMenuOpen ? true : undefined}
+        inert={!isDesktop && !isMobileMenuOpen ? true : undefined}
       >
         {/* Header */}
-        <div className={`border-b border-white/10 flex items-center shrink-0 ${sidebarCollapsed ? 'justify-center py-5' : 'gap-3 px-5 py-5'}`}>
+        <div className={`mt-brand ${navigationCollapsed ? 'mt-brand-collapsed' : ''}`}>
           <img
             src="/SVPMPC-LOGO(MAIN).png"
             alt="SVPMPC Logo"
-            className={`object-contain shrink-0 ${sidebarCollapsed ? 'w-8 h-8' : 'w-10 h-10'}`}
+            className="mt-brand-logo"
           />
           <AnimatePresence mode="wait">
-            {!sidebarCollapsed && (
+            {!navigationCollapsed && (
               <Motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -576,79 +579,66 @@ const TreasurerPortal = ({ user, onBack, token }) => {
                 transition={{ duration: 0.15 }}
                 className="min-w-0"
               >
-                <h1 className="text-sm font-bold text-white leading-tight truncate">St. Vincent Parish</h1>
-                <p className="text-[11px] text-green-100/70 leading-tight truncate">Multi-Purpose Cooperative</p>
-                <p className="text-[10px] font-bold text-coop-yellow tracking-wider mt-1">MORTUARY FUND SYSTEM</p>
+                <p className="mt-brand-name">SVPMPC</p>
+                <p className="mt-brand-description">Saint Vincent Parish<br />Multi-Purpose Cooperative</p>
               </Motion.div>
             )}
           </AnimatePresence>
         </div>
+        {!navigationCollapsed && <p className="mt-nav-label">Mortuary management</p>}
+        {!isDesktop && <button className="mt-close-menu" aria-label="Close menu" onClick={() => setIsMobileMenuOpen(false)}><X size={20} aria-hidden="true" /></button>}
 
         {/* Nav */}
-        <nav className={`flex-1 space-y-1 overflow-y-auto ${sidebarCollapsed ? 'px-2.5 py-4' : 'px-3 py-4'}`}>
-          <SidebarItem id="dashboard" icon={LayoutGrid} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="notices" icon={Bell} label="Notices" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" badgeCount={claimsCounts.pendingDeduction} activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="ledger" icon={FileText} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="reports" icon={BarChart3} label="Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
-          <SidebarItem id="settings" icon={Banknote} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+        <nav className="mt-nav" aria-label="Treasurer workspace">
+          <SidebarItem id="dashboard" icon={House} label="Dashboard" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={navigationCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="members" icon={Users} label="Member Balances" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={navigationCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="notices" icon={Bell} label="Notices" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={navigationCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="claims" icon={ClipboardCheck} label="Claims" badgeCount={claimsCounts.pendingDeduction} activeTab={activeTab} setActiveTab={setActiveTab} collapsed={navigationCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="ledger" icon={BookOpen} label="Members Ledger" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={navigationCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="reports" icon={BarChart3} label="Reports" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={navigationCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
+          <SidebarItem id="settings" icon={Settings} label="Settings" activeTab={activeTab} setActiveTab={setActiveTab} collapsed={navigationCollapsed} onNavigate={() => !isDesktop && setIsMobileMenuOpen(false)} />
         </nav>
 
         {/* Footer */}
-        <div className={`border-t border-white/10 shrink-0 ${sidebarCollapsed ? 'px-2.5 py-3' : 'px-3 py-3'}`}>
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-3 px-1 pb-2">
-              <div className="w-9 h-9 bg-white/10 border border-white/10 rounded-full flex items-center justify-center shrink-0">
-                <span className="text-white text-xs font-bold">{(user?.name || 'Finance Officer').charAt(0).toUpperCase()}</span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{user?.name || 'Finance Officer'}</p>
-                <p className="text-[11px] text-green-100/60">Finance Officer</p>
-              </div>
-            </div>
-          )}
-          <button
-            onClick={onBack}
-            title={sidebarCollapsed ? 'Sign Out' : undefined}
-            aria-label="Sign Out"
-            className={`w-full flex items-center gap-3 text-green-100/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!sidebarCollapsed && <span className="text-sm font-medium">Sign Out</span>}
-          </button>
+        <div className="mt-account">
+          {!navigationCollapsed ? <details>
+            <summary><UserRound size={26} aria-hidden="true" /><span>Finance Officer</span><ChevronDown size={18} aria-hidden="true" /></summary>
+            <div className="mt-account-details"><p>{user?.name || 'Finance Officer'}</p><button onClick={onBack} aria-label="Sign Out"><LogOut size={18} aria-hidden="true" />Sign Out</button></div>
+          </details> : <button className="mt-account-signout" onClick={onBack} aria-label="Sign Out" title="Sign Out"><LogOut size={20} aria-hidden="true" /></button>}
         </div>
 
         {/* Collapse Toggle */}
         {isDesktop && (
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="border-t border-white/10 py-3 flex items-center justify-center text-green-100/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+            aria-label={navigationCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="mt-collapse"
           >
-            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {navigationCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         )}
       </Motion.aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="lg:hidden bg-coop-darkGreen p-4 flex items-center justify-between shrink-0 print:hidden">
+        <div className="mt-mobile-bar lg:hidden flex items-center justify-between shrink-0 print:hidden">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             aria-label="Open menu"
-            className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center"
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="treasurer-navigation"
+            className="mt-menu-button"
           >
-            <Menu className="w-5 h-5 text-white" />
+            <Menu size={22} aria-hidden="true" />
           </button>
           <div className="text-center">
-            <h1 className="font-bold text-white text-base tracking-tight">Finance Officer</h1>
-            <p className="text-green-100/60 text-xs font-medium">Mortuary Fund</p>
+            <p className="font-semibold text-base">SVPMPC</p>
+            <p className="text-xs">Mortuary management</p>
           </div>
           <div className="w-10 h-10" />
         </div>
 
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+        <main className="mt-main flex-1 overflow-y-auto custom-scrollbar" data-view={activeTab}>
           {Object.entries(loadErrors).filter(([, message]) => message).map(([key, message]) => (
             <LoadError key={key} message={message} onRetry={retryLoads} retrying={retrying} />
           ))}

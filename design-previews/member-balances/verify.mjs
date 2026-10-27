@@ -1,0 +1,75 @@
+import { chromium } from '../../client/node_modules/playwright/index.mjs';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({headless:true,channel:'msedge'});
+const context=await browser.newContext({viewport:{width:1487,height:1058},deviceScaleFactor:1,reducedMotion:'reduce'});
+await context.addInitScript(()=>{
+ sessionStorage.setItem('token','isolated-visual-fixture');
+ sessionStorage.setItem('user',JSON.stringify({name:'Preview Treasurer',role:'finance_officer',modules:['mortuary']}));
+ sessionStorage.setItem('selectedModule',JSON.stringify({module:'mortuary',role:'finance_officer'}));
+ localStorage.setItem('treasurerSidebarCollapsed','false');
+});
+const names=['Ana Marie Bautista','Alfredo Castillo','Carmelita Serrano','Juan Miguel Dela Cruz','Maria Clara Santos','Eduardo Ramos Mendoza','Lourdes Aquino','Jose Antonio Reyes','Marilou Gonzales','Corazon Villanueva','Benigno Salazar','Josefina Bermudez'];
+const members=Array.from({length:105},(_,i)=>({id:`MEM-${String(i+1).padStart(4,'0')}`,name:names[i]||`Sample Member ${i+1}`,barangay:['Poblacion','San Vicente','San Roque'][i%3],status:i===4?'inactive':'active',balance:i===0?-2000.25:i===1?-650:i===2?0:i===3?400.75:1000+(i%10)*500}));
+let fixtureMembers=members;
+const thresholds={targetBalance:1000,notice1:1000,notice2:500,finalNotice:0};
+const calls=[];const errors=[];
+await context.route('**/api/**',async route=>{
+ const request=route.request();calls.push({method:request.method(),url:request.url()});
+ assert.equal(request.method(),'GET','visual verification must not write API data');
+ const path=new URL(request.url()).pathname;
+ let result={success:true,data:{}};
+ if(path.endsWith('/balances/all'))result={success:true,data:{members:fixtureMembers,pagination:{total:105,totalPages:1}}};
+ if(path.includes('/ledger/'))result={success:true,data:[],pagination:{totalPages:1}};
+ if(path.endsWith('/notice-thresholds'))result={success:true,data:thresholds};
+ if(path.endsWith('/contributions'))result={success:true,data:[],pagination:{totalPages:1}};
+ if(path.endsWith('/claims/pending-deduction'))result={success:true,data:[],pagination:{total:0,totalPages:1}};
+ await route.fulfill({json:result,headers:{'Access-Control-Allow-Origin':'*'}});
+});
+const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',msg=>{if(msg.type()==='error')errors.push(msg.text());});
+async function open(){await page.goto('http://localhost:5173/mortuary/finance_officer?tab=members');await page.getByRole('heading',{name:'Member balances',exact:true}).waitFor();await page.locator('.mb-table-scroll tbody tr').first().waitFor();}
+async function shot(name){await page.screenshot({path:`design-previews/member-balances/${name}.png`,fullPage:true,animations:'disabled'});}
+const rows=()=>page.locator('.mb-table-scroll tbody tr');
+await open();await shot('desktop');assert.equal(await rows().count(),100);
+await page.getByRole('button',{name:'Next page',exact:true}).click();assert.equal(await rows().count(),5);
+await page.getByLabel('Search members',{exact:true}).fill('Ana Marie');assert.equal(await rows().count(),1);assert.match(await rows().first().innerText(),/Ana Marie/);
+await page.getByRole('button',{name:'Reset filters',exact:true}).click();assert.equal(await rows().count(),100);
+await page.getByRole('button',{name:/^At Risk \d/}).click();assert.equal(await rows().count(),2);
+await page.getByRole('button',{name:/^Negative Balance \d/}).click();assert.equal(await rows().count(),2);await shot('negative-filter');
+await page.getByRole('button',{name:'Reset filters',exact:true}).click();
+await page.getByLabel('Barangay',{exact:true}).selectOption('San Vicente');assert.equal(await rows().count(),35);
+await page.getByRole('button',{name:'Reset filters',exact:true}).click();
+await page.getByLabel('Membership status',{exact:true}).selectOption('inactive');assert.equal(await rows().count(),1);
+await page.getByRole('button',{name:'Reset filters',exact:true}).click();
+await page.getByLabel('Sort by balance',{exact:true}).selectOption('desc');assert.equal(await page.locator('th[aria-sort]').getAttribute('aria-sort'),'descending');
+await page.getByRole('button',{name:'Balance',exact:true}).click();assert.equal(await page.getByLabel('Sort by balance',{exact:true}).inputValue(),'asc');
+await page.getByLabel('Search members',{exact:true}).fill('no-match-preview');await page.getByText('No members match these filters',{exact:true}).waitFor();await shot('empty-search');
+await page.getByRole('button',{name:'Reset filters',exact:true}).first().click();
+await page.getByRole('button',{name:'Open ledger for Ana Marie Bautista',exact:true}).click();await page.waitForURL(url=>url.searchParams.get('tab')==='ledger'&&url.searchParams.get('member')==='MEM-0001');
+await open();const previous=calls.length;await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.member-balances')?.getAttribute('aria-busy')==='false');assert.ok(calls.length>previous);
+const viewports=[];
+for(const [width,height] of [[834,1194],[390,844],[320,740],[1366,700]]){
+ await page.setViewportSize({width,height});await open();
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`document overflow ${width}`);
+ assert.ok(await page.locator('.mt-main').evaluate(el=>el.scrollWidth<=el.clientWidth+1),`main overflow ${width}`);
+ await shot(`viewport-${width}`);
+ await page.locator('.mb-table-scroll').scrollIntoViewIfNeeded();
+ await shot(`table-${width}`);
+ await page.locator('.mb-table-scroll').evaluate(el=>{el.scrollLeft=el.scrollWidth;});
+ await shot(`actions-${width}`);
+ await page.getByRole('button',{name:'Open ledger for Ana Marie Bautista',exact:true}).click();
+ await page.waitForURL(url=>url.searchParams.get('member')==='MEM-0001');
+ await open();
+ viewports.push({width,height});
+}
+thresholds.targetBalance=1500;
+await open();
+await page.getByRole('button',{name:/^At Risk \d/}).click();
+assert.equal(await rows().count(),members.filter(m=>m.balance>=0&&m.balance<1500).length);
+await shot('configured-threshold');
+fixtureMembers=[];
+await page.goto('http://localhost:5173/mortuary/finance_officer?tab=members');
+await page.getByText('No members found',{exact:true}).waitFor();
+await shot('no-members');
+assert.deepEqual(errors,[]);
+console.log(JSON.stringify({result:'passed',checks:'search, barangay/status/balance filters, reset, sorting, pagination, empty state, ledger actions, refresh, phone table scrolling',viewports,errors,api:'isolated GET fixtures only'}));
+await browser.close();

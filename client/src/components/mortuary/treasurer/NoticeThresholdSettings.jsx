@@ -1,7 +1,7 @@
 import { Button as ActionButton } from '../../ui/button';
 import { Table as DataTable } from '../../ui/table';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bell, Pencil, History, Loader2 } from 'lucide-react';
+import { Bell, Pencil, Loader2 } from 'lucide-react';
 import { noticeThresholdSettingAPI } from '../../../services/api';
 import UpdateNoticeThresholdModal from './modals/UpdateNoticeThresholdModal';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
@@ -42,10 +42,13 @@ export default function NoticeThresholdSettings({ user }) {
 
   return (
     <div className="fs-section">
+      <div className="fs-section-heading">
+      <h2>Notice thresholds</h2>
       <p className="fs-section-description">
         The balance ranges that trigger Notice 1, Notice 2, and the Final Notice printed from the Finance Officer's
         Member Ledger.
       </p>
+      </div>
 
       {loading ? (
         <div className="fs-loading" role="status" aria-label="Loading settings">
@@ -100,10 +103,10 @@ export default function NoticeThresholdSettings({ user }) {
           </div>
 
           {/* History */}
-          <div className="fs-panel fs-history">
+          <div className="fs-panel fs-history fs-threshold-history">
             <div className="fs-panel-heading">
-              <History className="w-4 h-4 text-coop-green" />
-              <p className="text-sm font-bold text-slate-900">Threshold History</p>
+              <h3>Threshold history</h3>
+              <p>Review previous balance ranges and who set them.</p>
             </div>
             <div className="fs-table-scroll" role="region" aria-label="Settings history" tabIndex={0}>
               <DataTable className="w-full">
