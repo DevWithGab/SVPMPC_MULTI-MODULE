@@ -4,7 +4,7 @@ import { Input as TextInput, Select } from '../../ui/input';
 import { Panel, PanelHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
 import React, { useEffect, useState } from 'react';
-import { Heart, Search, FileText, UserPlus } from 'lucide-react';
+import { Heart, Search, FileText, UserPlus, Users, UserCheck, UserMinus } from 'lucide-react';
 import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import '../treasurer/MemberBalances.css';
@@ -20,6 +20,7 @@ const MemberManagement = ({
   const { page, limit, setPage } = usePagination(1, 100);
   const [beneficiaryMember, setBeneficiaryMember] = useState(null);
   const [addingMember, setAddingMember] = useState(false);
+  const metricIcons = [Users, UserCheck, UserMinus, Heart];
   const barangays = [...new Set(members.map((m) => m.barangay).filter(Boolean))].sort();
 
   useEffect(() => {
@@ -69,7 +70,10 @@ const MemberManagement = ({
           ['Active', members.filter(m => m.status === 'active').length.toLocaleString(), 'Active memberships'],
           ['Inactive', members.filter(m => m.status === 'inactive').length.toLocaleString(), 'Inactive memberships'],
           ['Deceased', members.filter(m => m.status === 'deceased').length.toLocaleString(), 'Members recorded as deceased'],
-        ].map(([label, value, detail]) => <div key={label}><dt>{label}</dt><dd>{value}</dd><p>{detail}</p></div>)}
+        ].map(([label, value, detail], index) => {
+          const Icon = metricIcons[index];
+          return <div key={label} className={`mb-stat-card mb-stat-card-${index}`}><dt><span>{label}</span><span className="mb-stat-icon"><Icon size={19} aria-hidden="true" /></span></dt><dd>{value}</dd><p>{detail}</p></div>;
+        })}
       </dl>
 
       <section className="mb-filters" aria-labelledby="admin-member-filter-title">

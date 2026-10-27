@@ -136,7 +136,7 @@ export default function Claims({ user }) {
         {STAT_TILES.map(({ status, icon }) => {
           const meta = getClaimStatusMeta(status);
           return (
-            <button key={status} className="ac-metric" aria-pressed={statusFilter === status} onClick={() => updateFilter(setStatusFilter, statusFilter === status ? 'all' : status)}>
+            <button key={status} className="ac-metric" data-status={status} aria-pressed={statusFilter === status} onClick={() => updateFilter(setStatusFilter, statusFilter === status ? 'all' : status)}>
               <div className="attendance-metric-heading"><p>{meta.label}</p><span className="attendance-metric-icon">{React.createElement(icon, { size: 15, 'aria-hidden': true })}</span></div>
               <strong>{(claimCounts[status] ?? 0).toLocaleString()}</strong>
               <span>{statusFilter === status ? 'Selected · Click to clear' : 'Click to filter claims'}</span>

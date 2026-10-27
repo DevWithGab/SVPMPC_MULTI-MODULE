@@ -66,7 +66,7 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
       const confirmation = await noticeAlert.fire({
         icon: 'question',
         title: 'Print member notices?',
-        text: `Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel}? Each member's letter will be on a separate page in one print job.`,
+        text: `Print ${NOTICE_LEVEL_LABELS[level]} for ${count} member${count === 1 ? '' : 's'}${barangayLabel}? Each member gets two copies on one Letter-size sheet.`,
         showCancelButton: true,
         confirmButtonText: 'Yes, open print window',
         cancelButtonText: 'Cancel',

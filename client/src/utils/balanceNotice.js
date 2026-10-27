@@ -1,4 +1,4 @@
-import { buildCooperativeNoticeMarkup, COOPERATIVE_NOTICE_STYLES, drawCooperativeNotice } from './cooperativeNotice.js';
+import { buildCooperativeNoticeMarkup, COOPERATIVE_NOTICE_STYLES, drawTwoCopyNotice } from './cooperativeNotice.js';
 import { jsPDF } from 'jspdf';
 import { sanitizeNoticeHtml } from './sanitizeHtml.js';
 
@@ -153,7 +153,8 @@ const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
   const { level, html: bodyHtml } = buildNoticeBodyHtml(member, managerName, thresholds);
   if (!level) return '';
   if (level === 1 || level === 2 || level === 3) {
-    return buildCooperativeNoticeMarkup(member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoUrl, thresholds);
+    const copy = buildCooperativeNoticeMarkup(member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoUrl, thresholds);
+    return `<section class="notice-sheet"><div class="notice-copy">${copy}</div><div class="notice-copy">${copy}</div></section>`;
   }
 
   return `
@@ -171,6 +172,40 @@ const buildNoticeMarkup = (member, managerName, logoUrl, thresholds) => {
     </div>
   `;
 };
+
+const TWO_COPY_PRINT_STYLES = `
+  @page { size: Letter portrait; margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  .notice-sheet { box-sizing: border-box; width: 8.5in; height: 11in; padding: .5in; break-after: page; page-break-after: always; }
+  .notice-sheet:last-of-type { break-after: auto; page-break-after: auto; }
+  .notice-copy { box-sizing: border-box; position: relative; height: 50%; overflow: hidden; }
+  .notice-copy + .notice-copy { border-top: 1px dashed #aaa; }
+  .notice-copy .official-notice { position: absolute; box-sizing: border-box; width: 297mm; min-height: 0; padding: 0; break-after: auto; }
+`;
+const TWO_COPY_PRINT_SCRIPT = `<script>
+  function fitNotices() {
+    document.querySelectorAll('.notice-copy').forEach(slot => {
+      const notice = slot.querySelector('.official-notice');
+      notice.style.zoom = '1';
+      notice.style.left = '0';
+      const width = notice.offsetWidth;
+      const height = notice.scrollHeight;
+      const topInset = slot.previousElementSibling ? 24 : 6;
+      const scale = Math.min(slot.clientWidth / width, (slot.clientHeight - 30) / height);
+      notice.style.zoom = String(scale);
+      notice.style.left = ((slot.clientWidth / scale - width) / 2) + 'px';
+      notice.style.top = (topInset / scale) + 'px';
+    });
+  }
+  window.addEventListener('beforeprint', fitNotices);
+  async function printNotices() {
+    await Promise.all(Array.from(document.images, image => image.complete ? Promise.resolve() : new Promise(resolve => { image.onload = resolve; image.onerror = resolve; })));
+    if (document.fonts) await document.fonts.ready;
+    fitNotices();
+    window.print();
+  }
+  setTimeout(printNotices, 400);
+</script>`;
 
 /* Parehong window.open + document.write pattern na ginagamit sa ibang
 parte ng app para sa printable output (hal. claim disbursement receipts,
@@ -194,11 +229,11 @@ export const printBalanceNotice = (member, managerName, thresholds = DEFAULT_NOT
       <head>
         <meta charset="utf-8" />
         <title>${esc(NOTICE_LEVEL_LABELS[level])} - ${esc(member.name)}</title>
-        <style>${NOTICE_STYLES}${COOPERATIVE_NOTICE_STYLES}</style>
+        <style>${NOTICE_STYLES}${COOPERATIVE_NOTICE_STYLES}${TWO_COPY_PRINT_STYLES}</style>
       </head>
       <body>
         ${markup}
-        <script>setTimeout(() => window.print(), 400);</script>
+        ${TWO_COPY_PRINT_SCRIPT}
       </body>
     </html>
   `);
@@ -225,11 +260,11 @@ export const printBalanceNoticesBulk = (members, level, managerName, thresholds 
       <head>
         <meta charset="utf-8" />
         <title>${esc(NOTICE_LEVEL_LABELS[level])} - Batch (${targets.length})</title>
-        <style>${NOTICE_STYLES}${COOPERATIVE_NOTICE_STYLES}</style>
+        <style>${NOTICE_STYLES}${COOPERATIVE_NOTICE_STYLES}${TWO_COPY_PRINT_STYLES}</style>
       </head>
       <body>
         ${pages}
-        <script>setTimeout(() => window.print(), 400);</script>
+        ${TWO_COPY_PRINT_SCRIPT}
       </body>
     </html>
   `);
@@ -448,7 +483,7 @@ const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUr
   if (!level) return false;
 
   if (level === 1 || level === 2 || level === 3) {
-    drawCooperativeNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl, thresholds);
+    drawTwoCopyNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl, thresholds);
     return true;
   }
 
@@ -503,7 +538,7 @@ export const downloadBalanceNoticePDF = async (member, managerName, thresholds =
   if (!level) return false;
 
   const logoDataUrl = await getLogoDataUrl();
-  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
   renderMemberNoticePage(doc, member, managerName, thresholds, logoDataUrl);
   doc.save(`${filenameSafe(NOTICE_LEVEL_LABELS[level])}-${filenameSafe(member.name)}.pdf`);
   return true;
@@ -521,7 +556,7 @@ export const downloadBalanceNoticesBulkPDF = async (members, level, managerName,
   if (targets.length === 0) return 0;
 
   const logoDataUrl = await getLogoDataUrl();
-  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
   targets.forEach((member, index) => {
     if (index > 0) doc.addPage();
     renderMemberNoticePage(doc, member, managerName, thresholds, logoDataUrl);

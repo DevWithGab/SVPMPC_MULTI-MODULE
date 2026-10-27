@@ -1,4 +1,4 @@
-const { drawCooperativeNotice } = require('./cooperativeNotice');
+const { drawTwoCopyNotice } = require('./cooperativeNotice');
 /* Server-side port ito ng native PDF renderer ng
 client/src/utils/balanceNotice.js (parseRichTextBody/drawRichTextBody/
 drawNoticeLetterhead), ginagamit para sa large batches na ginegenerate sa
@@ -274,7 +274,7 @@ const renderMemberNoticePage = (doc, member, managerName, thresholds, logoDataUr
   if (!level) return false;
 
   if (level === 1 || level === 2 || level === 3) {
-    drawCooperativeNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl, thresholds);
+    drawTwoCopyNotice(doc, member, level, thresholds?.targetBalance ?? DEFAULT_NOTICE_THRESHOLDS.targetBalance, logoDataUrl, thresholds);
     return true;
   }
 
@@ -309,7 +309,7 @@ const generateNoticeBatchPdf = async (members, level, managerName, thresholds, o
   if (targets.length === 0) return 0;
 
   const logoDataUrl = getLogoDataUrl();
-  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
+  const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
   targets.forEach((member, index) => {
     if (index > 0) doc.addPage();
     renderMemberNoticePage(doc, member, managerName, thresholds, logoDataUrl);

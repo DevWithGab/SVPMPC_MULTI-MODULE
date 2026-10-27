@@ -6,9 +6,31 @@ import { join } from 'node:path';
 import { jsPDF } from 'jspdf';
 import { downloadBalanceNoticePDF, downloadBalanceNoticesBulkPDF, printBalanceNotice, parseRichTextBody, drawRichTextBody } from '../src/utils/balanceNotice.js';
 import batchService from '../../server/modules/mortuary/services/noticeLetterPdfService.js';
-import { drawCooperativeNotice } from '../src/utils/cooperativeNotice.js';
+import { drawCooperativeNotice, drawTwoCopyNotice } from '../src/utils/cooperativeNotice.js';
 
 const member = { id: 'MEM-2026-0042', name: 'Test Member', address: 'Sample Street', balance: -2000 };
+
+test('two-copy Letter layout keeps all text inside its half sheet, including long messages', () => {
+  for (const message of [undefined, 'A longer custom notice message. '.repeat(200)]) {
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+    const matrixMethod = doc.setCurrentTransformationMatrix.bind(doc);
+    const textMethod = doc.text.bind(doc);
+    let matrix;
+    let copy = -1;
+    const rendered = [[], []];
+    doc.setCurrentTransformationMatrix = value => { matrix = value; copy++; return matrixMethod(value); };
+    doc.text = (value, x, y, options) => {
+      const screenY = 792 - (matrix.d * (792 - y) + matrix.f);
+      assert.ok(screenY >= copy * 396 && screenY < (copy + 1) * 396, `text stays inside copy ${copy + 1}`);
+      rendered[copy].push(value);
+      return textMethod(value, x, y, options);
+    };
+    drawTwoCopyNotice(doc, member, 3, 1000, null, message ? { finalNoticeMessageTemplate: message } : undefined);
+    assert.equal(doc.getNumberOfPages(), 1);
+    assert.deepEqual(rendered[0], rendered[1], 'both copies have identical member content');
+    assert.ok(rendered[0].some(value => String(value).includes('Received by:')));
+  }
+});
 
 test('edited messages are used for print, individual PDF and background batches at every notice level', async (t) => {
   const previousWindow = globalThis.window;
@@ -189,11 +211,17 @@ test('all official forms auto-fill details and keep browser and server PDFs alig
       await downloadBalanceNoticePDF(record, 'Treasurer');
       const pdf = saved.at(-1);
       assert.equal(pdf.pages, 1);
-      assert.ok(pdf.width > pdf.height);
+      assert.equal(pdf.width, 612);
+      assert.equal(pdf.height, 792);
+      assert.equal(pdf.content.split('(PB-0042)').length - 1, 2, 'each member has two copies on one sheet');
+      assert.equal((markup.match(/class="notice-copy"/g) || []).length, 2);
+      assert.match(markup, /size: Letter portrait/);
       for (const expected of [heading, 'PB-0042', 'MONINA C. GUZMAN', 'Dupax del Sur, Nueva Vizcaya']) assert.ok(pdf.content.includes(expected));
       const outputPath = join(directory, 'notice-' + level + '.pdf');
       assert.equal(await batchService.generateNoticeBatchPdf([record], level, 'Treasurer', batchService.DEFAULT_NOTICE_THRESHOLDS, outputPath), 1);
       const content = await readFile(outputPath, 'latin1');
+      assert.equal(content.split('(PB-0042)').length - 1, 2, 'background PDFs also contain both copies');
+      assert.match(content, /\/MediaBox \[0 0 612(?:\.0*)? 792(?:\.0*)?\]/);
       for (const expected of [heading, 'PB-0042', 'MONINA C. GUZMAN']) assert.ok(content.includes(expected));
       await rm(outputPath);
     }

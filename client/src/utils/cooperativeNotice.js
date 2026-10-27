@@ -225,7 +225,7 @@ const drawMessage = (doc, value, startY, level) => {
     if (index) y += 7;
     const lines = doc.splitTextToSize(paragraph, doc.internal.pageSize.getWidth() - 121);
     for (const line of lines) {
-      if (y > pageHeight - 160) {
+      if (!doc.__noticeFit && y > pageHeight - 160) {
         doc.addPage();
         doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
         doc.text(`${level === 3 ? 'LAST NOTICE' : title(level)} (continued)`, 48, 60);
@@ -237,4 +237,63 @@ const drawMessage = (doc, value, startY, level) => {
     }
   });
   return y;
+};
+
+// Record the existing vector layout once, then fit two identical copies on Letter.
+// Measuring the complete body also keeps long custom messages inside each half.
+export const drawTwoCopyNotice = (doc, member, level, target, logo, settings) => {
+  const commands = [];
+  const bounds = { left: Infinity, top: Infinity, right: 0, bottom: 0 };
+  const include = (x, y, width = 0, height = 0) => { bounds.left = Math.min(bounds.left, x); bounds.top = Math.min(bounds.top, y); bounds.right = Math.max(bounds.right, x + width); bounds.bottom = Math.max(bounds.bottom, y + height); };
+  const drawingMethods = new Set(['text', 'line', 'rect', 'addImage']);
+  const stateMethods = new Set(['setFont', 'setFontSize', 'setTextColor', 'setLineWidth', 'setDrawColor']);
+  const layout = new Proxy(doc, {
+    get(object, key) {
+      if (key === '__noticeFit') return true;
+      if (key === 'internal') return { ...object.internal, pageSize: { getWidth: () => 841.89, getHeight: () => 595.28 } };
+      if (drawingMethods.has(key)) return (...args) => {
+        if (key === 'text') {
+          const lines = Array.isArray(args[0]) ? args[0] : [String(args[0])];
+          const size = object.getFontSize();
+          const textWidth = Math.max(...lines.map(line => object.getTextWidth(String(line))));
+          const align = args[3]?.align;
+          const x = args[1] - (align === 'center' ? textWidth / 2 : align === 'right' ? textWidth : 0);
+          const lineHeight = size * (args[3]?.lineHeightFactor || 1.15);
+          include(x, args[2] - size, textWidth, size * 1.3 + (lines.length - 1) * lineHeight);
+        }
+        if (key === 'line') include(Math.min(args[0], args[2]), Math.min(args[1], args[3]), Math.abs(args[2] - args[0]), Math.abs(args[3] - args[1]));
+        if (key === 'rect') include(args[0], args[1], args[2], args[3]);
+        if (key === 'addImage' && logo) include(args[2], args[3], args[4], args[5]);
+        commands.push([key, args]);
+        return layout;
+      };
+      if (stateMethods.has(key)) return (...args) => { commands.push([key, args]); object[key](...args); return layout; };
+      return typeof object[key] === 'function' ? object[key].bind(object) : object[key];
+    },
+  });
+  drawCooperativeNotice(layout, member, level, target, logo, settings);
+  const width = doc.internal.pageSize.getWidth();
+  const height = doc.internal.pageSize.getHeight();
+  const margin = 36; // Narrow margins: 0.5 inch on the Letter sheet.
+  const halfHeight = (height - margin * 2) / 2;
+  const copyInset = 4.5;
+  const contentWidth = bounds.right - bounds.left;
+  const contentHeight = bounds.bottom - bounds.top;
+  const cutLineGap = 18; // Quarter-inch clearance below the cut line.
+  const scale = Math.min((width - margin * 2) / contentWidth, (halfHeight - cutLineGap - copyInset) / contentHeight);
+  for (let copy = 0; copy < 2; copy++) {
+    const top = margin + copy * halfHeight + (copy === 0 ? copyInset : cutLineGap);
+    const left = (width - contentWidth * scale) / 2 - bounds.left * scale;
+    doc.saveGraphicsState();
+    doc.setCurrentTransformationMatrix(new doc.Matrix(scale, 0, 0, scale, left, height * (1 - scale) - top + bounds.top * scale));
+    for (const [method, args] of commands) {
+      if (method === 'addImage') {
+        try { doc[method](...args); } catch { /* Keep text printable when a logo is unavailable. */ }
+      } else doc[method](...args);
+    }
+    doc.restoreGraphicsState();
+  }
+  doc.setDrawColor(180); doc.setLineWidth(0.5); doc.setLineDashPattern([3, 3], 0);
+  doc.line(margin, height / 2, width - margin, height / 2);
+  doc.setLineDashPattern([], 0);
 };

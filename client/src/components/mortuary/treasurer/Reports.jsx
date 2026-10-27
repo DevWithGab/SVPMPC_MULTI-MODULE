@@ -307,11 +307,11 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
         sections = [
           { title: 'Balance overview', head: ['Particulars', 'Value'], widths: [125, 51], numberColumns: [1],
             body: [['Members with negative balances', String(filteredNegativeMembers.length)], ['Total shortfall to zero (PHP)', reportAmount(filteredTotalShortfall)]] },
-          { title: 'Members with negative balances', head: ['Passbook No.', 'Member name', ...brgyCol(['Barangay']), 'Status', 'Balance (PHP)'],
-            widths: byBarangay ? [34, 80, 27, 35] : [28, 55, 37, 23, 33], numberColumns: [byBarangay ? 3 : 4],
-            body: filteredNegativeMembers.map(m => [m.id, m.name, ...brgyCol([m.barangay]), m.status, reportAmount(m.balance)]),
+          { title: 'Members with negative balances', head: ['Passbook No.', 'Member name', ...brgyCol(['Barangay']), 'Balance (PHP)'],
+            widths: byBarangay ? [40, 96, 40] : [31, 68, 40, 37], numberColumns: [byBarangay ? 2 : 3],
+            body: filteredNegativeMembers.map(m => [m.id, m.name, ...brgyCol([m.barangay]), reportAmount(m.balance)]),
             emptyMessage: 'No members have a negative balance.',
-            total: ['Total balance', '', ...brgyCol(['']), '', reportAmount(-filteredTotalShortfall)] },
+            total: ['Total balance', '', ...brgyCol(['']), reportAmount(-filteredTotalShortfall)] },
         ];
       }
       const logo = await loadReportLogo();
@@ -367,8 +367,8 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
       });
     } else if (reportType === 'negativeBalances') {
       filename = 'negative-balances-' + new Date().toISOString().slice(0, 10) + '.csv';
-      const rows = [['Passbook No.', 'Member Name', 'Barangay', 'Status', 'Balance (PHP)', 'Shortfall to Zero (PHP)'],
-        ...filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.status, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
+      const rows = [['Passbook No.', 'Member Name', 'Barangay', 'Balance (PHP)', 'Shortfall to Zero (PHP)'],
+        ...filteredNegativeMembers.map(m => [m.id, m.name, m.barangay, m.balance.toFixed(2), (-m.balance).toFixed(2)])];
       csvContent = rows.map(row => row.map(value => '"' + String(value ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
     }
 
