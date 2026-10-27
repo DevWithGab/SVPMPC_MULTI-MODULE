@@ -3,11 +3,22 @@ import { ArrowRight } from 'lucide-react';
 
 export default function ModuleSelection({ systems, onSystemSelect }) {
   return (
+    <>
+    <nav className="selector-topbar" aria-label="KONEKTA information">
+      <span className="selector-wordmark">KONEKTA</span>
+      <details className="selector-about">
+        <summary>About</summary>
+        <div className="selector-about-content">
+          <h2>About KONEKTA</h2>
+          <p>Connect, Collaborate, Thrive</p>
+          <p>One connected workspace for Saint Vincent Parish Multi-Purpose Cooperative. Access member records, contributions, benefits, event registration, and attendance through your chosen module.</p>
+        </div>
+      </details>
+    </nav>
     <Motion.div className="module-selection w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
       <header className="module-selection-heading">
-        <p className="module-selection-eyebrow">Welcome to KONEKTA</p>
-        <h1>Where would you like to work?</h1>
-        <p>Choose a module to continue.</p>
+        <h1>Select a module</h1>
+        <p>Choose the system you want to access.</p>
       </header>
       <div className="module-selection-options">
         {systems.map((system) => (
@@ -21,7 +32,8 @@ export default function ModuleSelection({ systems, onSystemSelect }) {
           </Motion.button>
         ))}
       </div>
-      <p className="module-selection-help">Continue to your module’s sign-in options.</p>
+      <p className="module-selection-help">You’ll sign in after choosing a module.</p>
     </Motion.div>
+    </>
   );
 }

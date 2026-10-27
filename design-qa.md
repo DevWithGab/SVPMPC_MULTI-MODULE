@@ -572,3 +572,12 @@ final result: passed
 - Follow-up: inspect desktop and mobile rendering in the running local preview, including photo crop and caption contrast.
 
 final result: blocked
+
+## Module selector follow-up
+
+- Updated the right side to the supplied reference: KONEKTA/About header, Select a module heading, flat bordered module rows, green icons/arrows, descriptions, sign-in note, and two-part footer.
+- Adjusted desktop panel proportions to 38.5% branding and 61.5% workspace; retained mobile stacking and existing login routes.
+- Validation: production build and focused ESLint passed; existing Back/Forward and direct login navigation test passed after updating the expected heading.
+- Browser visual comparison remains blocked by the previously timed-out native browser access. Screenshot and mobile visual QA remain outstanding.
+
+final result: blocked

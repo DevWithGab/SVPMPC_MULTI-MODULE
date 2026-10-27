@@ -46,7 +46,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
     {
       id: "mortuary",
       title: "Mortuary Services",
-      description: "Manage funds & contribution",
+      description: "Member records, contributions, and benefits",
       icon: Wallet,
       color: "bg-coop-green",
       hoverColor: "hover:bg-coop-green",
@@ -60,7 +60,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
     {
       id: "attendance",
       title: "Attendance System",
-      description: "Generate QR & track events",
+      description: "Event registration and attendance records",
       icon: QrCode,
       color: "bg-coop-green",
       hoverColor: "hover:bg-coop-green",
