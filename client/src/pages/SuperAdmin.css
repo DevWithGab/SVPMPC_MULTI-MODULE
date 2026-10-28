@@ -1,0 +1,28 @@
+/* Keep legacy green utilities in this portal on the shared UI palette.
+   Descendant screens and dialogs inherit these values without changing other portals. */
+.super-admin-theme {
+  --color-emerald-50: #f0f7f1;
+  --color-emerald-100: #e1f2e5;
+  --color-emerald-200: #c4dfca;
+  --color-emerald-300: #a1c6aa;
+  --color-emerald-400: #73a67f;
+  --color-emerald-500: var(--ui-primary);
+  --color-emerald-600: var(--ui-primary);
+  --color-emerald-700: var(--ui-primary-hover);
+  --color-emerald-800: var(--ui-primary-hover);
+  --color-emerald-900: var(--ui-primary-hover);
+  --color-green-50: var(--color-emerald-50);
+  --color-green-100: var(--color-emerald-100);
+  --color-green-200: var(--color-emerald-200);
+  --color-green-300: var(--color-emerald-300);
+  --color-green-400: var(--color-emerald-400);
+  --color-green-500: var(--ui-primary);
+  --color-green-600: var(--ui-primary);
+  --color-green-700: var(--ui-primary-hover);
+  --color-green-800: var(--ui-primary-hover);
+  --color-green-900: var(--ui-primary-hover);
+}
+
+.super-admin-theme :is(.backup-workspace, .admin-audit-logs) :is(input, select, button, summary, [tabindex]):focus-visible {
+  outline-color: var(--ui-primary);
+}

@@ -103,7 +103,7 @@ function AppRoutes() {
   if (isSuperAdmin && isAdminPortalRoute) {
     return (
       <div className="h-dvh flex flex-col overflow-hidden">
-        <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-emerald-900 text-white p-3 shrink-0">
+        <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-[var(--ui-primary-hover)] text-white p-3 shrink-0">
           <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/claims_officer">Mortuary</Link>
           <button className="ml-auto" onClick={handleLogout}>Sign out</button>
         </nav>
@@ -113,7 +113,7 @@ function AppRoutes() {
   }
 
   return (<>
-    {isSuperAdmin && <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-emerald-900 text-white p-3">
+    {isSuperAdmin && <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-[var(--ui-primary-hover)] text-white p-3">
       <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/claims_officer">Mortuary</Link>
       <button className="ml-auto" onClick={handleLogout}>Sign out</button>
     </nav>}

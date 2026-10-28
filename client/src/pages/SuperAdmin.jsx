@@ -27,6 +27,7 @@ import { UploadFilePicker, UploadTemplateCard } from '../components/mortuary/sha
 import { sanitizePhoneInput } from '../utils/validation';
 import CreateMemberModal, { MemberFormField as FormField } from '../components/shared/CreateMemberModal';
 import { validateMemberField } from '../utils/memberValidation';
+import './SuperAdmin.css';
 
 
 const SuperAdmin = ({ onAuthenticated }) => {
@@ -311,7 +312,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
   // Authentication Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-slate-50 flex items-center justify-center p-4">
+      <div className="super-admin-theme min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-slate-50 flex items-center justify-center p-4">
         <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -321,7 +322,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
             <CardHeader
               className="bg-emerald-900 bg-cover bg-center text-white p-8"
               style={{
-                backgroundImage: 'linear-gradient(rgba(10, 60, 41, 0.72), rgba(10, 60, 41, 0.88)), url("/images/backgrounds/building-coop.png")',
+                backgroundImage: 'linear-gradient(rgb(from var(--ui-primary-hover) r g b / 72%), rgb(from var(--ui-primary-hover) r g b / 88%)), url("/images/backgrounds/building-coop.png")',
                 '--ui-heading': '#ffffff',
                 '--ui-muted': '#e1f2e9',
                 alignItems: 'center',
@@ -404,7 +405,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
 
   // Main Super Admin Dashboard
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="super-admin-theme min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -588,7 +589,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
                       </td>
                       <td className="px-6 py-4">
                         <Badge
-                          variant={member.status === 'active' ? 'default' : 'secondary'}
+                          variant={member.status === 'active' ? 'outline' : 'secondary'}
                           className={member.status === 'active' ? 'bg-emerald-100 text-emerald-800' : ''}
                         >
                           {member.status}
