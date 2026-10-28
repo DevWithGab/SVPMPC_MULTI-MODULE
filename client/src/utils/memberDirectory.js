@@ -39,6 +39,17 @@ export function normalizeDirectoryMembers(members, attendance) {
   });
 }
 
+const memberLastName = member => {
+  if (member.lastName || member.last_name) return String(member.lastName || member.last_name).trim();
+  const name = String(member.name || '').trim();
+  if (name.includes(',')) return name.split(',')[0].trim();
+  const parts = name.split(/\s+/);
+  if (parts.length > 1 && /^(jr\.?|sr\.?|ii|iii|iv|v)$/i.test(parts.at(-1))) parts.pop();
+  let start = parts.length - 1;
+  while (start > 0 && /^(de|del|dela|la|las|los|van|von|san|santa)$/i.test(parts[start - 1])) start--;
+  return parts.slice(start).join(' ');
+};
+
 export function filterDirectoryMembers(members, { search = '', status = 'all', barangay = 'all', sort = 'name' }) {
   const query = search.trim().toLowerCase();
   return members.filter(member =>
@@ -50,7 +61,7 @@ export function filterDirectoryMembers(members, { search = '', status = 'all', b
       const difference = (new Date(b.lastAttendance).getTime() || 0) - (new Date(a.lastAttendance).getTime() || 0);
       if (difference) return difference;
     }
-    return a.name.localeCompare(b.name) || a.memberId.localeCompare(b.memberId);
+    return memberLastName(a).localeCompare(memberLastName(b)) || a.name.localeCompare(b.name) || a.memberId.localeCompare(b.memberId);
   });
 }
 

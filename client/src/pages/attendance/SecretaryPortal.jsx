@@ -209,9 +209,9 @@ const SecretaryPortal = ({ onBack, user }) => {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
     { id: "live", label: "Live Attendance", icon: Activity },
-    { id: "reports", label: "Reports", icon: FileText },
     { id: "events", label: "Event Management", icon: Calendar },
     { id: "members", label: "QR Management", icon: Users },
+    { id: "reports", label: "Reports", icon: FileText },
   ];
 
   if (loading) {

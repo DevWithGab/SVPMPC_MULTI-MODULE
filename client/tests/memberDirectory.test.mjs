@@ -55,3 +55,10 @@ test('bulk QR print renders one escaped card per member under the barangay scope
   assert.match(html, /id="print-status"/);
   assert.match(html, /002002_x\.png/);
 });
+
+test('member directory sorts by surname with full-name and passbook tie breakers', () => {
+  const names = ['Ana Santos', 'Zena Cruz', 'Ben de la Cruz Jr.', 'Cruz, Abel', 'Jose Santos III'];
+  const members = normalizeDirectoryMembers(names.map((memberName, index) => ({ memberId: String(index), memberName })), []);
+  assert.deepEqual(filterDirectoryMembers(members, {}).map(member => member.name), ['Cruz, Abel', 'Zena Cruz', 'Ben de la Cruz Jr.', 'Ana Santos', 'Jose Santos III']);
+  assert.deepEqual(filterDirectoryMembers(members, { sort: 'passbook' }).map(member => member.memberId), ['0', '1', '2', '3', '4']);
+});

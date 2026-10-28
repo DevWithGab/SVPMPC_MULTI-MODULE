@@ -186,7 +186,7 @@ export default function QRManagement() {
         <label>Search members<SearchField as="div" className="md-search"><Search size={16} /><TextInput unstyled value={search} onChange={e => update(setSearch, e.target.value)} placeholder="Name, passbook, email, or phone" /></SearchField></label>
         <label>Membership status<Select value={status} onChange={e => update(setStatus, e.target.value)}><option value="all">All statuses</option>{statuses.map(value => <option key={value} value={value}>{value.charAt(0).toUpperCase() + value.slice(1)}</option>)}</Select></label>
         <label>Barangay<Select value={barangay} onChange={e => update(setBarangay, e.target.value)}><option value="all">All barangays</option>{barangays.map(value => <option key={value}>{value}</option>)}</Select></label>
-        <label>Sort by<Select value={sort} onChange={e => update(setSort, e.target.value)}><option value="name">Member name: A–Z</option><option value="passbook">Passbook number</option></Select></label>
+        <label>Sort by<Select value={sort} onChange={e => update(setSort, e.target.value)}><option value="name">Last name: A–Z</option><option value="passbook">Passbook number</option></Select></label>
       </div>
     </section>
     <section className="md-register" aria-labelledby="md-register-title" aria-busy={loading}>
@@ -209,7 +209,7 @@ export default function QRManagement() {
     </section>
     <p className="md-footnote">The secretary can create, activate, deactivate, regenerate, and print member QR codes. Only active QR codes belonging to eligible members can be printed or used for attendance. Filter by barangay before using Print QR cards or Download PDF to get one barangay at a time.</p>
 
-    <Modal isOpen={Boolean(selectedMember)} onClose={() => !printing && !qrBusy && setSelectedId(null)} title="Member QR code" description="Create and manage this member's attendance code." className="qrm-member-modal" footer={selectedMember && <div className="qrm-modal-footer"><div className="md-dialog-actions"><button className="md-button" disabled={printing || !!qrBusy} onClick={() => setSelectedId(null)}>Close</button><button className="md-button md-primary" disabled={!ready || qrState !== 'ready' || printing || !!qrBusy || !!getQrUnavailableReason(selectedMember)} onClick={() => printQr(selectedMember)}>{printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}{printing ? 'Preparing…' : 'Print QR card'}</button></div></div>}>
+    <Modal isOpen={Boolean(selectedMember)} onClose={() => !printing && !qrBusy && setSelectedId(null)} title="Member QR code" description="Create and manage this member's attendance code." className="qrm-member-modal">
       {selectedMember && <div className="md-qr-dialog"><div className="md-qr-letterhead"><img src="/SVPMPC-LOGO(MAIN).png" alt="Cooperative logo" /><div><strong>St. Vincent Parish<br />Multi-Purpose Cooperative</strong></div></div><div className="qrm-modal-member"><h3>{selectedMember.name}</h3><p className="md-qr-id">Passbook number <span>{selectedMember.memberId}</span></p></div>
         {getQrUnavailableReason(selectedMember) ? <div className="qrm-empty-preview" role="status"><QrCode size={36} aria-hidden="true" /><strong>{selectedMember.qrCodeGenerated ? 'QR code unavailable' : 'No QR code yet'}</strong><p>{getQrUnavailableReason(selectedMember)}</p></div> : <div className="md-qr-preview">
           {qrState === 'loading' && <p role="status">Loading issued QR code…</p>}
