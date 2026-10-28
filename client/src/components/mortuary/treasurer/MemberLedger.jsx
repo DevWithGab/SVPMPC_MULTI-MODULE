@@ -13,6 +13,7 @@ import { getBarangay } from '../../../utils/helpers';
 import { getNoticeLevel, NOTICE_LEVEL_LABELS, printBalanceNotice, downloadBalanceNoticePDF } from '../../../utils/balanceNotice';
 import { outputMemberLedgerPdf } from '../../../utils/memberLedgerPdf';
 import { getStandingLabel } from '../../../utils/memberStanding';
+import { buildLedgerCsvTemplate } from '../../../utils/ledgerCsvTemplate';
 
 
 const formatPeso = (amount, { signed = false } = {}) => {
@@ -154,13 +155,7 @@ const MemberLedger = ({
   };
 
   const downloadLedgerTemplate = () => {
-    const date = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(new Date());
-    const csv = [
-      'Passbook No.,transactionDate,credit,debit,description,transactionType,referenceId,paymentMethod',
-      `000123,${date},100.00,0.00,Member contribution,contribution,RECEIPT-001,cash`,
-    ].join('\r\n') + '\r\n';
+    const csv = buildLedgerCsvTemplate();
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
     link.href = url;

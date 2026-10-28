@@ -85,8 +85,8 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
       <UploadTemplateCard onDownload={onDownloadTemplate} disabled={busy}>
         <p>Required columns: Passbook No., transactionDate (YYYY-MM-DD recommended), credit, debit. Keep leading zeros in passbook numbers.</p>
         <p>Enter a positive amount in either credit or debit and 0 in the other, with up to two decimal places, without currency signs or thousands separators.</p>
-        <p>Optional columns: description, transactionType, referenceId, paymentMethod (cash). Transaction types: contribution, payout, adjustment, penalty, automatic_deduction, claim_payout.</p>
-        <p>For daily payments, enter the amount in credit, 0 in debit, and contribution as the transactionType. Use the receipt or transaction reference from your collection system as referenceId.</p>
+        <p>Optional column: referenceId. Use the receipt or transaction reference from your collection system.</p>
+        <p>For daily payments, enter the amount in credit and 0 in debit. Credits are recorded as contributions and debits as payouts. Payment method defaults to cash.</p>
         <p>You can add daily transactions to the same CSV or upload a new file. Duplicates are skipped automatically; only new entries affect balances. Keep the original referenceId when re-uploading a transaction.</p>
         <p>A reference reused for the same member with different transaction details needs correction. Existing entries are never overwritten. Unknown passbook numbers and invalid values must be corrected before importing.</p>
       </UploadTemplateCard>

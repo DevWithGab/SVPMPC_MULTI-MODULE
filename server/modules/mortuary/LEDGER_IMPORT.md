@@ -3,14 +3,16 @@
 Treasurer → Members Ledger → Bulk upload CSV is the daily transaction entry point. The Contributions navigation tab has been removed; its old URL opens Member Ledger. Contribution history remains available to dashboards and reports.
 
 Required columns: `Passbook No.`, `transactionDate` (`YYYY-MM-DD`), `credit`, `debit`.
-Optional columns: `description`, `transactionType`, `referenceId`, `paymentMethod` (`cash`).
+Optional column in the template: `referenceId`.
 
-For payments from the external collection system, use a positive credit, zero debit, `contribution` as the type, and its original receipt/transaction reference. Use `adjustment` for opening balances that should not count as newly collected payments.
+For payments from the external collection system, use a positive credit, zero debit, and its original receipt/transaction reference. Credits default to `contribution`, debits to `payout`, payment method to `cash`, and description to `Bulk upload`.
 
 ```csv
-Passbook No.,transactionDate,credit,debit,description,transactionType,referenceId,paymentMethod
-000123,2026-10-26,100.00,0.00,Daily contribution,contribution,OR-20261026-001,cash
+Passbook No.,transactionDate,credit,debit,referenceId
+000123,2026-10-26,100.00,0.00,OR-20261026-001
 ```
+
+Older CSVs with `description`, `transactionType`, and `paymentMethod` remain supported. An opening balance that should not count as a newly collected payment still needs `transactionType=adjustment` in a legacy CSV; the simplified template is for daily transactions.
 
 1. Choose the CSV and preview every row.
 2. Already recorded rows and repeated copies in the file are duplicates, not validation errors. Keep them in the file; only ready rows are imported.
