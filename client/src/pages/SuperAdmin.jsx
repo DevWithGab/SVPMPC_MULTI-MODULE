@@ -11,7 +11,7 @@ import useUrlState from '../hooks/useUrlState';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
-  Mail, Phone, MapPin, Calendar, Key, ArrowLeft, X, Plus,
+  MapPin, Calendar, Key, ArrowLeft, X, Plus, LockKeyhole,
   CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack, Eye, EyeOff
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
@@ -550,100 +550,33 @@ const SuperAdmin = ({ onAuthenticated }) => {
           </div>
         </div>
 
-        {/* Members Table */}
-        <Card className="border-slate-200 shadow-sm">
+        {/* Shared member register */}
+        <Card className="sam-member-register">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Member</th>
-                    <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Barangay</th>
-                    <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-black text-slate-600 uppercase tracking-wider">Modules</th>
-                    <th className="px-6 py-4 text-right text-xs font-black text-slate-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {paginatedMembers.map((member) => (
-                    <tr key={member.memberId} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="font-bold text-slate-900">{member.memberName}</p>
-                          <p className="text-sm text-slate-500">Passbook No.: {member.memberId}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <p className="text-sm text-slate-600 flex items-center gap-2">
-                            <Mail className="w-3 h-3" />
-                            {member.email}
-                          </p>
-                          <p className="text-sm text-slate-600 flex items-center gap-2">
-                            <Phone className="w-3 h-3" />
-                            {member.phoneNumber}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm text-slate-600 flex items-center gap-2">
-                          <MapPin className="w-3 h-3" />
-                          {member.barangay}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge
-                          variant={member.status === 'active' ? 'outline' : 'secondary'}
-                          className={member.status === 'active' ? 'bg-emerald-100 text-emerald-800' : ''}
-                        >
-                          {member.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-1">
-                          {member.modules?.map(mod => (
-                            <Badge key={mod} variant="outline" className="text-xs">
-                              {mod}
-                            </Badge>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right whitespace-nowrap">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditMember(member)}
-                          className="text-slate-600 hover:text-slate-900"
-                        >
-                          <Pencil className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        {['active', 'inactive'].includes(member.status) ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleStatus(member)}
-                            className={
-                              member.status === 'active'
-                                ? 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'
-                                : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
-                            }
-                          >
-                            <Power className="w-4 h-4 mr-1" />
-                            {member.status === 'active' ? 'Deactivate' : 'Activate'}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">No status action</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+            <div className="sam-register-heading"><div><h2>Member directory</h2><p>Shared membership records and assigned modules.</p></div><span className="sam-result-count">{membersTotal.toLocaleString()} {membersTotal === 1 ? 'member' : 'members'}</span></div>
+            <div className="sam-table-scroll" role="region" aria-label="Member directory" tabIndex={0}>
+              <table className="sam-members-table" aria-label="Shared member records" aria-busy={loading}>
+                <colgroup><col className="sam-col-member" /><col className="sam-col-contact" /><col className="sam-col-barangay" /><col className="sam-col-status" /><col className="sam-col-modules" /><col className="sam-col-actions" /></colgroup>
+                <thead><tr><th scope="col">Member</th><th scope="col">Contact details</th><th scope="col">Barangay</th><th scope="col">Membership</th><th scope="col">Modules</th><th scope="col">Actions</th></tr></thead>
+                <tbody>
+                  {paginatedMembers.map(member => <tr key={member.memberId}>
+                    <td data-label="Member"><strong className="sam-member-name" title={member.memberName}>{member.memberName || 'Unnamed member'}</strong><span className="sam-passbook" title={`Passbook: ${member.memberId}`}>Passbook <span>{member.memberId}</span></span></td>
+                    <td data-label="Contact details"><div className="sam-contact"><span className={!member.email ? 'sam-muted' : ''} title={member.email || undefined}>{member.email || 'No email recorded'}</span><span className="sam-phone">{member.phoneNumber || 'No phone recorded'}</span></div></td>
+                    <td data-label="Barangay"><span className="sam-barangay"><MapPin size={13} aria-hidden="true" />{member.barangay || 'Not recorded'}</span></td>
+                    <td data-label="Membership"><Badge variant="outline" className={`sam-membership sam-status-${member.status}`}><span aria-hidden="true" />{member.status}</Badge></td>
+                    <td data-label="Modules"><div className="sam-modules">{member.modules?.length ? member.modules.map(module => <Badge key={module} variant="outline" className="sam-module">{module}</Badge>) : <span className="sam-muted">Not assigned</span>}</div></td>
+                    <td data-label="Actions"><div className="sam-member-actions">
+                      <Button variant="outline" size="sm" disabled={loading} onClick={() => openEditMember(member)} aria-label={`Edit ${member.memberName}`} className="sam-edit"><Pencil size={14} aria-hidden="true" />Edit</Button>
+                      {['active', 'inactive'].includes(member.status) ? <Button variant="outline" size="sm" disabled={loading} onClick={() => handleToggleStatus(member)} aria-label={`${member.status === 'active' ? 'Deactivate' : 'Activate'} ${member.memberName}`} className={`sam-toggle ${member.status === 'active' ? 'sam-deactivate' : 'sam-activate'}`}><Power size={14} aria-hidden="true" />{member.status === 'active' ? 'Deactivate' : 'Activate'}</Button>
+                        : <span className="sam-status-locked" title="Only active or inactive memberships can be changed here."><LockKeyhole size={13} aria-hidden="true" />Status locked</span>}
+                    </div></td>
+                  </tr>)}
+                  {!paginatedMembers.length && <tr><td colSpan={6}><div className="sam-empty"><Users size={26} aria-hidden="true" /><strong>{loading ? 'Loading member records...' : 'No members to display'}</strong>{!loading && <p>Try a different name, passbook number, or membership status.</p>}</div></td></tr>}
                 </tbody>
               </table>
             </div>
             {membersTotal > 0 && (
-              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="sam-register-pagination">
                 <PaginationInfo currentPage={membersPage} limit={membersLimit} total={membersTotal} />
                 <Pagination
                   currentPage={membersPage}
