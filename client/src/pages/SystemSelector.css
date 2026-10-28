@@ -51,6 +51,17 @@
   .system-selector:not([data-step="MODULE_SELECTION"]) .selector-content { max-width: 480px; justify-content: center; }
   .system-selector:not([data-step="MODULE_SELECTION"]) .selector-workspace { padding-block: 40px; }
   .system-selector .entry-login { width: 100%; margin-block: auto; padding-block: 12px; }
+  .system-selector .entry-role-selection { width: 100%; margin-block: auto; padding-block: 12px; }
+  .system-selector .entry-role-options { display: grid; gap: 14px; margin-top: 32px; }
+  .system-selector .entry-role-option { display: flex; align-items: center; gap: 18px; width: 100%; min-height: 100px; padding: 20px; border: 1px solid #ccd2db; border-radius: 8px; background: #fff; color: var(--entry-ink); text-align: left; cursor: pointer; transition: background-color .18s, border-color .18s; }
+  .system-selector .entry-role-option:hover { border-color: #6b8c7a; background: #f7faf8; }
+  .system-selector .entry-role-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 8px; background: #e5f1e9; color: var(--entry-green); }
+  .system-selector .entry-role-copy { flex: 1; min-width: 0; }
+  .system-selector .entry-role-title { display: block; font-size: 17px; font-weight: 600; line-height: 1.4; letter-spacing: -.015em; }
+  .system-selector .entry-role-description { display: block; margin-top: 5px; color: var(--entry-muted); font-size: 14px; line-height: 1.5; }
+  .system-selector .entry-role-arrow { flex-shrink: 0; color: var(--entry-muted); }
+  .system-selector .entry-role-option:hover .entry-role-arrow { color: var(--entry-green); }
+  .system-selector .entry-role-help { margin-top: 24px; max-width: 42ch; color: var(--entry-muted); font-size: 13px; line-height: 1.7; }
   .system-selector .entry-login-back { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; margin-bottom: 36px; color: var(--entry-muted); font-size: 14px; cursor: pointer; }
   .system-selector .entry-login-back:hover { color: var(--entry-green); }
   .system-selector .entry-login-module-icon { display: flex; align-items: center; justify-content: center; width: 68px; height: 68px; margin-bottom: 24px; border-radius: 14px; background: #e5f1e9; color: var(--entry-green); }
@@ -121,6 +132,12 @@
     .system-selector[data-step="MODULE_SELECTION"] .selector-terminal-footer { position: static; }
     .system-selector:not([data-step="MODULE_SELECTION"]) .selector-workspace { padding: 28px 24px; }
     .system-selector .entry-login { padding-block: 0; }
+    .system-selector .entry-role-selection { padding-block: 0; }
+    .system-selector .entry-role-options { margin-top: 26px; gap: 12px; }
+    .system-selector .entry-role-option { gap: 12px; min-height: 96px; padding: 16px; }
+    .system-selector .entry-role-icon { width: 42px; height: 42px; flex-basis: 42px; }
+    .system-selector .entry-role-title { font-size: 16px; }
+    .system-selector .entry-role-description { font-size: 13px; }
     .system-selector .entry-login-back { margin-bottom: 24px; font-size: 13px; }
     .system-selector .entry-login-module-icon { width: 56px; height: 56px; margin-bottom: 20px; }
     .system-selector .entry-login-subtitle { font-size: 16px; }
