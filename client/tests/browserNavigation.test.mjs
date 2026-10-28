@@ -19,11 +19,12 @@ test('login and portal screens follow browser Back/Forward, including direct log
     let location;
     let setTab;
     let tab;
+    let signedIn;
     function Harness({ portal = false }) {
       navigate = useNavigate();
       location = useLocation();
       [tab, setTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims']);
-      return portal ? React.createElement('p', null, tab) : React.createElement(SystemSelector, { key: location.search });
+      return portal ? React.createElement('p', null, tab) : React.createElement(SystemSelector, { key: location.search, onModuleSelect: (...args) => { signedIn = args; } });
     }
     const mount = (entry, portal = false) => act(async () => root.render(
       React.createElement(MemoryRouter, { key: entry, initialEntries: [entry] }, React.createElement(Harness, { portal })),
@@ -39,27 +40,35 @@ test('login and portal screens follow browser Back/Forward, including direct log
     await mount('/');
     shows('Choose a module');
     await click('Attendance System');
-    shows('Select Your Role');
+    shows('Sign in to your account to continue.');
     assert.equal(location.search, '?module=attendance');
-    await click('Scanner Operator');
-    shows('Sign in as Scanner Operator to continue.');
-    assert.equal(location.search, '?module=attendance&role=scanner_operator');
-    await travel(-1);
-    shows('Select Your Role');
+    assert.equal(container.querySelector('.role-selection'), null);
     await travel(-1);
     shows('Choose a module');
     await travel(1);
-    shows('Select Your Role');
-    await travel(1);
-    shows('Sign in as Scanner Operator to continue.');
-    await click('Back to Role Selection');
-    shows('Select Your Role');
-    await travel(-1);
+    shows('Sign in to your account to continue.');
+    await click('Back to System Selection');
     shows('Choose a module');
-    await travel(1);
-    shows('Select Your Role');
-    await click('Back to Modules');
+    await mount('/?module=attendance&role=scanner_operator');
+    shows('Sign in to your account to continue.');
+    await click('Back to System Selection');
     shows('Choose a module');
+
+    const originalFetch = globalThis.fetch;
+    try {
+      for (const role of ['secretary', 'scanner_operator']) {
+        await mount('/?module=attendance');
+        globalThis.fetch = async (_url, options) => {
+          const body = JSON.parse(options.body);
+          assert.equal(body.module, 'attendance');
+          assert.equal(body.expectedRole, undefined);
+          return { ok: true, json: async () => ({ token: 'test-token', user: { role } }) };
+        };
+        await act(async () => container.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
+        assert.equal(signedIn[0], 'attendance');
+        assert.equal(signedIn[1], role);
+      }
+    } finally { globalThis.fetch = originalFetch; window.sessionStorage.clear(); }
 
     await mount('/?module=mortuary&role=treasurer');
     shows('Sign in to your account to continue.');

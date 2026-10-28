@@ -86,7 +86,7 @@ export default function SecretaryDashboard({ attendanceLogs, events: initialEven
 
   return <div className="secretary-dashboard">
     <PageHeader separateBreadcrumb className="sd-header">
-      <div><p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p><h1>Attendance dashboard</h1><p className="sd-description">{formatLongDate(now)} <span>· Philippine time</span></p></div>
+      <div><p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p><h1>Dashboard</h1><p className="sd-description">{formatLongDate(now)} <span>· Philippine time</span></p></div>
       <div className="sd-header-actions">
         <ActionButton variant="outline" className="sd-button" onClick={retry} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
         <ActionButton variant="default" className="sd-button sd-primary" onClick={() => setActiveTab('events')}>Manage events <ArrowRight size={15} aria-hidden="true" /></ActionButton>

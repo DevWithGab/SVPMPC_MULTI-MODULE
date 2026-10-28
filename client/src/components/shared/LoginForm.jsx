@@ -17,13 +17,13 @@ export default function LoginForm({
     <Motion.div className="entry-login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
       <button className="entry-login-back" type="button" onClick={onBack} disabled={loginLoading}>
         <ArrowLeft size={18} aria-hidden="true" />
-        {isMortuary ? 'Back to System Selection' : 'Back to Role Selection'}
+        Back to System Selection
       </button>
       <header className="entry-login-heading">
         <span className="entry-login-module-icon"><ModuleIcon size={32} aria-hidden="true" /></span>
         <p className="entry-login-eyebrow">{system?.title || 'Staff access'}</p>
         <h1>Welcome back.</h1>
-        <p className="entry-login-subtitle">{isMortuary ? 'Sign in to your account to continue.' : `Sign in as ${roles[type] || 'staff'} to continue.`}</p>
+        <p className="entry-login-subtitle">{isMortuary || type === 'attendance' ? 'Sign in to your account to continue.' : `Sign in as ${roles[type] || 'staff'} to continue.`}</p>
       </header>
       <form className="entry-login-form" onSubmit={onSubmit} aria-label={`${system?.title || 'Staff'} sign in`} aria-busy={loginLoading}>
         <div className="entry-login-field">
@@ -54,7 +54,7 @@ export default function LoginForm({
           {loginLoading ? <><LoaderCircle className="animate-spin" size={20} aria-hidden="true" /> Signing in…</> : <>Sign in <ArrowRight size={20} aria-hidden="true" /></>}
         </button>
       </form>
-      <p className="entry-login-help">{isMortuary
+      <p className="entry-login-help">{isMortuary || type === 'attendance'
         ? 'Use your staff account. Your assigned role determines your workspace.'
         : 'Need help signing in? Contact your administrator.'}</p>
       <div className="entry-login-admin">

@@ -223,7 +223,7 @@ const Dashboard = ({
       <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p>
       <PageHeader separateBreadcrumb className="sd-header">
         <div>
-          <h1>Attendance dashboard</h1>
+          <h1>Dashboard</h1>
           <p className="sd-description">{formatLongDate(new Date())} <span>· Philippine time</span></p>
           <p role="status" className={refreshError ? 'aad-refresh text-amber-800' : 'aad-refresh'}>
             {refreshError ? 'Unable to refresh attendance totals. Retrying automatically.' : 'Attendance totals update every 10 seconds.'}

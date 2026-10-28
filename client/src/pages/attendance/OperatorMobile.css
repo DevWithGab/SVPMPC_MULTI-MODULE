@@ -39,10 +39,7 @@
   .operator-mobile-nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 62px; border-radius: 10px; color: #46594e; font-size: 12px; font-weight: 600; cursor: pointer; }
   .operator-mobile-nav-icon { display: grid; place-items: center; width: 48px; height: 32px; border-radius: 10px; }
   .operator-mobile-nav-icon svg { width: 24px; height: 24px; stroke-width: 2; }
-  .operator-mobile-nav button[aria-current="page"] { color: #174b38; font-weight: 600; }
-  .operator-mobile-nav button[aria-current="page"] { background: #edf5ef; }
-  .operator-mobile-nav button[aria-current="page"] .operator-mobile-nav-icon { background: #174b38; color: #fff; }
-  .operator-mobile-nav button:active { background: #f1f6f3; }
+  .operator-mobile-nav button[aria-current="page"] .operator-mobile-nav-icon { color: #174b38; }
   .operator-portal .attendance-breadcrumb { display: none; }
   .operator-portal .ui-page-header[data-ui-page-header] { gap: 12px; margin-bottom: 20px; }
   .operator-portal .ui-page-header[data-ui-page-header] h1 { font-size: 25px; line-height: 1.25; letter-spacing: -.03em; }

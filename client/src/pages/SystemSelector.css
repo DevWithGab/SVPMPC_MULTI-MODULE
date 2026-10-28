@@ -158,3 +158,30 @@
     .system-selector *, .system-selector *::before, .system-selector *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
 }
+/* Keep module selection within the viewport instead of adding page scroll. */
+@media screen {
+  .system-selector[data-step="MODULE_SELECTION"] { height: 100dvh; min-height: 0; }
+  .system-selector[data-step="MODULE_SELECTION"] .selector-branding { height: 100%; min-height: 0; }
+  .system-selector[data-step="MODULE_SELECTION"] .selector-workspace { min-height: 0; padding-block: clamp(16px, 4vh, 36px); }
+  .system-selector[data-step="MODULE_SELECTION"] .selector-content { min-height: 0; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-selection { padding-block: clamp(12px, 3vh, 28px); }
+  .system-selector[data-step="MODULE_SELECTION"] .module-selection-options { margin-top: clamp(16px, 3vh, 28px); gap: clamp(12px, 2vh, 20px); }
+  .system-selector[data-step="MODULE_SELECTION"] .module-option { min-height: clamp(80px, 14vh, 120px); padding-block: clamp(12px, 2.5vh, 24px); }
+  .system-selector[data-step="MODULE_SELECTION"] .module-selection-help { margin-top: clamp(12px, 3vh, 28px); }
+  .system-selector[data-step="MODULE_SELECTION"] .selector-terminal-footer { margin-top: 0 !important; padding-top: 12px; }
+}
+@media screen and (max-width: 767px) {
+  .system-selector[data-step="MODULE_SELECTION"] .selector-topbar { margin-bottom: 0; }
+}
+@media screen and (max-height: 550px) {
+  .system-selector[data-step="MODULE_SELECTION"] .module-selection-heading h1 { font-size: 24px; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-selection-heading > p:last-child { font-size: 15px; margin-top: 4px; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-option { min-height: 64px; padding: 10px 14px; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-option-icon { height: 40px; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-option-icon svg { width: 30px; height: 30px; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-option-title { font-size: 17px; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-option-description { font-size: 12px; margin-top: 3px; }
+  .system-selector[data-step="MODULE_SELECTION"] .module-selection-help { display: none; }
+  .system-selector[data-step="MODULE_SELECTION"] .selector-branding-caption { margin-top: 16px; }
+  .system-selector[data-step="MODULE_SELECTION"] .selector-branding-tagline { font-size: 14px; }
+}
