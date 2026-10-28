@@ -5,7 +5,10 @@ export default function ModuleSelection({ systems, onSystemSelect }) {
   return (
     <>
     <nav className="selector-topbar" aria-label="KONEKTA information">
-      <span className="selector-wordmark">KONEKTA</span>
+      <span className="selector-wordmark">
+        <span className="selector-wordmark-name">KONEKTA<span className="selector-wordmark-dot" aria-hidden="true" /></span>
+        <span className="selector-wordmark-caption">Cooperative services</span>
+      </span>
       <details className="selector-about">
         <summary>About</summary>
         <div className="selector-about-content">

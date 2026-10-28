@@ -21,7 +21,10 @@
   .system-selector .selector-content { display: flex; flex: 1; min-width: 0; width: 100%; max-width: 960px; flex-direction: column; margin-inline: auto; }
   .system-selector[data-step="MODULE_SELECTION"] .selector-content { position: relative; }
   .system-selector .selector-topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 44px; }
-  .system-selector .selector-wordmark { color: #123e30; font-size: 21px; font-weight: 600; letter-spacing: .22em; }
+  .system-selector .selector-wordmark { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 7px; color: #123e30; }
+  .system-selector .selector-wordmark-name { display: inline-flex; align-items: baseline; gap: 5px; font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: .1em; }
+  .system-selector .selector-wordmark-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 2px; background: #528369; }
+  .system-selector .selector-wordmark-caption { color: var(--entry-muted); font-size: 10px; font-weight: 500; line-height: 1.5; letter-spacing: .18em; text-transform: uppercase; }
   .system-selector .selector-about { position: relative; font-size: 19px; }
   .system-selector .selector-about summary { display: block; padding-block: 10px; cursor: pointer; list-style: none; }
   .system-selector .selector-about summary::-webkit-details-marker { display: none; }
@@ -114,7 +117,9 @@
     .system-selector .selector-branding-copyright { font-size: 10px; max-width: none; }
     .system-selector .selector-workspace { min-height: 0; padding: 36px 24px 24px; }
     .system-selector .selector-topbar { margin-bottom: 36px; }
-    .system-selector .selector-wordmark { font-size: 16px; }
+    .system-selector .selector-wordmark { gap: 6px; }
+    .system-selector .selector-wordmark-name { font-size: 25px; }
+    .system-selector .selector-wordmark-caption { font-size: 9px; letter-spacing: .14em; }
     .system-selector .selector-about { font-size: 16px; }
     .system-selector .module-selection { padding-block: 0; }
     .system-selector .module-selection-eyebrow { font-size: 12px; margin-bottom: 14px; }
