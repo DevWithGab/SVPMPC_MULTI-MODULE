@@ -26,7 +26,16 @@ export default function ClaimsPendingDeduction({ onProcessed }) {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [printing, setPrinting] = useState(false);
   const inFlight = useRef(false);
+
+  const printSummary = async () => {
+    setPrinting(true);
+    setError('');
+    try { await printDeductionSummary(result); }
+    catch (err) { setError(err.message || 'Unable to print the summary. Please try again.'); }
+    finally { setPrinting(false); }
+  };
 
   useEffect(() => {
     let active = true;
@@ -100,7 +109,7 @@ export default function ClaimsPendingDeduction({ onProcessed }) {
     </div>
     </>} />
     {open && <ClaimDialog title={result ? 'Deduction summary' : preview ? 'Confirm deduction' : 'Batch deduction'} step={result ? 'Completed' : preview ? 'Step 2 of 2 · Confirm assessment' : 'Step 1 of 2 · Review claims'} busy={busy} onClose={close} footer={result ? <>
-      <Action onClick={() => printDeductionSummary(result)}><Printer className="h-4 w-4" />Print summary</Action><Action primary onClick={close}>Done</Action>
+      <Action disabled={printing} onClick={printSummary}>{printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}{printing ? 'Preparing summary...' : 'Print summary'}</Action><Action primary onClick={close}>Done</Action>
     </> : <>
       <Action disabled={busy} onClick={() => { if (preview) { setPreview(null); setError(''); } else close(); }}>{preview ? 'Back' : 'Cancel'}</Action>
       {preview ? <Action primary disabled={busy} onClick={process}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Processing deduction…' : 'Confirm deduction'}</Action> : <Action primary type="submit" form="deduction-details" disabled={busy}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Calculating impact…' : 'Review summary'}</Action>}

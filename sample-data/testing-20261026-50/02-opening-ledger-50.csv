@@ -1,6 +1,6 @@
 ﻿Passbook No.,transactionDate,credit,debit,description,transactionType,referenceId,paymentMethod
 905001,10/26/2026,1000,0,Testing ulet,adjustment,OR-14231,cash
-905002,10/26/2026,500,0,Test opening balance,adjustment,OR-1323,cash
+905002,10/26/2026,0,200,Test opening balance,adjustment,OR-1323,cash
 905003,10/26/2026,2000,0,Test opening balance,adjustment,OR-1234,cash
 905004,10/27/2026,4000,0,Test opening balance,adjustment,OR-5344,cash
 905005,10/27/2026,1000,0,Test opening balance,adjustment,OR-353,cash
