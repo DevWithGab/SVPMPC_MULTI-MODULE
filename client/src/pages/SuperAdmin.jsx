@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
   Mail, Phone, MapPin, Calendar, Key, ArrowLeft, X, Plus,
-  CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack
+  CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack, Eye, EyeOff
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
@@ -33,6 +33,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
   const [section, setSection] = useUrlState('tab', 'members', ['members', 'staff', 'auditlogs', 'mortuary-audit', 'mortuary-backup']);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -317,7 +318,15 @@ const SuperAdmin = ({ onAuthenticated }) => {
           className="w-full max-w-md"
         >
           <Card className="border-slate-200 shadow-2xl rounded-3xl overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-8">
+            <CardHeader
+              className="bg-emerald-900 bg-cover bg-center text-white p-8"
+              style={{
+                backgroundImage: 'linear-gradient(rgba(10, 60, 41, 0.72), rgba(10, 60, 41, 0.88)), url("/images/backgrounds/building-coop.png")',
+                '--ui-heading': '#ffffff',
+                '--ui-muted': '#e1f2e9',
+                alignItems: 'center',
+              }}
+            >
               <div className="flex items-center justify-center mb-4">
                 <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                   <Shield className="w-8 h-8" />
@@ -329,19 +338,31 @@ const SuperAdmin = ({ onAuthenticated }) => {
             <CardContent className="p-8">
               <form onSubmit={handleAuth} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">
+                  <label htmlFor="super-admin-password" className="block text-sm font-bold text-slate-700 mb-2">
                     Super Admin Password
                   </label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
-                      type="password"
+                      id="super-admin-password"
+                      type={showAuthPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       value={authPassword}
                       onChange={(e) => setAuthPassword(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                      className="w-full pl-12 pr-14 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                       placeholder="Enter super admin password"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowAuthPassword(visible => !visible)}
+                      aria-label={showAuthPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showAuthPassword}
+                      aria-controls="super-admin-password"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                    >
+                      {showAuthPassword ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
+                    </button>
                   </div>
                   {authError && (
                     <p className="text-red-600 text-sm mt-2 flex items-center gap-2">
