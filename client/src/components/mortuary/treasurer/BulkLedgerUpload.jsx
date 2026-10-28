@@ -102,7 +102,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
       {!!result?.rows?.length && <div className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white">
         <DataTable className="w-full text-left text-sm">
           <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>
-            {['Row', 'Member', 'Date', 'Reference', 'Credit', 'Debit', 'Type', 'Result'].map(label => <th key={label} className="px-3 py-3">{label}</th>)}
+            {['Row', 'Member', 'Date', 'Reference', 'Credit', 'Debit', 'Result'].map(label => <th key={label} className="px-3 py-3">{label}</th>)}
           </tr></thead>
           <tbody className="divide-y divide-slate-100">{result.rows.map(row => <tr key={row.row}>
             <td className="px-3 py-3">{row.row}</td>
@@ -111,7 +111,6 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
             <td className="px-3 py-3 break-all">{row.entry.referenceId}</td>
             <td className="px-3 py-3 tabular-nums">{row.entry.credit}</td>
             <td className="px-3 py-3 tabular-nums">{row.entry.debit}</td>
-            <td className="px-3 py-3">{row.entry.transactionType}</td>
             <td className={`px-3 py-3 ${row.errors.length ? 'text-rose-700' : 'text-slate-700'}`}><p className="font-medium">{labels[row.status]}</p>{row.message && <p className="mt-1 text-xs">{row.message}</p>}{row.errors.map(message => <p key={message} className="mt-1 text-xs">{message}</p>)}</td>
           </tr>)}</tbody>
         </DataTable>
