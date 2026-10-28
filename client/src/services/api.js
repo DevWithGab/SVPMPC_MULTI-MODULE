@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { notifyAttendanceUpdated } from '../utils/attendanceUpdates';
+import { notifyClaimsUpdated } from '../utils/claimUpdates';
 import { clearAuthSession } from '../utils/authSession';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
@@ -484,6 +485,7 @@ export const claimAPI = {
 
   approveClaim: async (claimId, approvalData = {}) => {
     const response = await api.put(`/mortuary/admin/claims/${claimId}/approve`, approvalData);
+    if (response.data.success !== false) notifyClaimsUpdated();
     return response.data;
   },
 
@@ -785,6 +787,7 @@ export const treasurerAPI = {
   lang sisingilin ang bawat member (rate x bilang ng claims). */
   processDeductionBatch: async (claimIds) => {
     const response = await api.post('/mortuary/treasurer/claims/deduction-batch', { claimIds });
+    if (response.data.success !== false) notifyClaimsUpdated();
     return response.data;
   },
 

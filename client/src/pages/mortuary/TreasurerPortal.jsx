@@ -26,6 +26,7 @@ import {
 import { Toast } from '../../components/ui/toast';
 import api, { treasurerAPI } from '../../services/api';
 import { DEFAULT_NOTICE_THRESHOLDS } from '../../utils/balanceNotice';
+import { subscribeClaimUpdates } from '../../utils/claimUpdates';
 
 
 const SidebarItem = ({ id, icon, label, activeTab, setActiveTab, collapsed, onNavigate, badgeCount = 0 }) => {
@@ -394,17 +395,7 @@ const TreasurerPortal = ({ user, onBack }) => {
     })();
   }, [fetchMembers, fetchContributions, fetchDeductionSummary, fetchDashboardStats, fetchClaimsCounts, fetchNoticeThresholds]);
 
-  useEffect(() => {
-    const refreshClaims = () => {
-      if (!document.hidden) fetchClaimsCounts();
-    };
-    const interval = window.setInterval(refreshClaims, 30000);
-    window.addEventListener('focus', refreshClaims);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener('focus', refreshClaims);
-    };
-  }, [fetchClaimsCounts]);
+  useEffect(() => subscribeClaimUpdates(fetchClaimsCounts), [fetchClaimsCounts]);
 
   useEffect(() => {
     if (activeTab === 'reports') {

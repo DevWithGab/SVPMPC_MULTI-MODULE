@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { subscribeClaimUpdates } from '../../../utils/claimUpdates.js';
 
 export const peso = (value) => value == null ? '—' : new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value));
 export const shortDate = (value) => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -17,15 +18,28 @@ export function useClaimQueue(fetchClaims) {
   const key = `${page}:${query}:${version}`;
   useEffect(() => {
     let active = true;
-    fetchClaims({ page, limit: 100, search: query }).then((res) => {
-      if (!active) return;
-      const total = res.pagination?.total ?? res.data?.length ?? 0;
-      if (page > Math.max(1, Math.ceil(total / 100))) { setPage(Math.max(1, Math.ceil(total / 100))); return; }
-      setState({ claims: res.data || [], total, key, error: '' });
-    }).catch(() => {
-      if (active) setState((old) => ({ ...old, key, error: 'Unable to load claims. Please try again.' }));
-    });
-    return () => { active = false; };
+    let pending = false;
+    let inFlight = false;
+    const load = async () => {
+      if (inFlight) { pending = true; return; }
+      inFlight = true;
+      try {
+        const res = await fetchClaims({ page, limit: 100, search: query });
+        if (!active) return;
+        const total = res.pagination?.total ?? res.data?.length ?? 0;
+        if (page > Math.max(1, Math.ceil(total / 100))) { setPage(Math.max(1, Math.ceil(total / 100))); return; }
+        setState({ claims: res.data || [], total, key, error: '' });
+      } catch {
+        // Keep complete rows visible if a background refresh fails.
+        if (active) setState(old => old.key === key && !old.error ? old : { ...old, key, error: 'Unable to load claims. Please try again.' });
+      } finally {
+        inFlight = false;
+        if (active && pending) { pending = false; void load(); }
+      }
+    };
+    void load();
+    const unsubscribe = subscribeClaimUpdates(load);
+    return () => { active = false; unsubscribe(); };
   }, [fetchClaims, page, query, key]);
   return { ...state, loading: state.key !== key || search.trim() !== query, search, setSearch, page, setPage, refresh: () => setVersion((n) => n + 1) };
 }
