@@ -1,0 +1,39 @@
+.event-attendees-panel { background: var(--ui-surface); color: var(--ui-ink); font-variant-numeric: tabular-nums; }
+.event-attendees-panel .eap-header { padding: 20px var(--ui-panel-x); }
+.event-attendees-panel .eap-header h2 { font-size: 18px; font-weight: 600; color: var(--ui-heading); overflow-wrap: anywhere; }
+.event-attendees-panel .eap-description { margin-top: 6px; font-size: 13px; color: var(--ui-muted); }
+.event-attendees-panel .eap-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 16px var(--ui-panel-x); border-bottom: 1px solid var(--ui-divider); }
+.event-attendees-panel .eap-search { flex: 1 1 280px; max-width: 420px; }
+.event-attendees-panel .eap-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.event-attendees-panel .eap-filters button { min-height: var(--ui-control-height); border-radius: var(--ui-control-radius); font-weight: 500; }
+.event-attendees-panel .eap-filters button[aria-pressed="true"] { background: var(--ui-primary); border-color: var(--ui-primary); color: #fff; }
+.event-attendees-panel .eap-filters button[aria-pressed="true"]:hover { background: var(--ui-primary-hover); }
+.event-attendees-panel .eap-filters button > span { min-width: 23px; font-size: 11px; }
+.event-attendees-panel .eap-pagination { padding: 16px var(--ui-panel-x); border-top: 0; gap: 16px; color: var(--ui-muted); }
+.event-attendees-panel .eap-list-heading,
+.event-attendees-panel .eap-member { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, .8fr) 100px; align-items: center; gap: 24px; }
+.event-attendees-panel .eap-list-heading { padding: 12px var(--ui-panel-x); background: var(--ui-subtle); border-bottom: 1px solid var(--ui-divider); color: var(--ui-muted); font-size: 12px; font-weight: 600; }
+.event-attendees-panel .eap-list-heading > span:last-child { text-align: right; }
+.event-attendees-panel .eap-member { padding: 18px var(--ui-panel-x); border-bottom: 1px solid var(--ui-divider); min-height: 76px; }
+.event-attendees-panel .eap-member:last-child { border-bottom: 0; }
+.event-attendees-panel .eap-member:hover { background: var(--ui-subtle); }
+.event-attendees-panel .eap-member > div > p:first-child { color: var(--ui-heading); font-size: 14px; font-weight: 600; line-height: 1.6; }
+.event-attendees-panel .eap-passbook,
+.event-attendees-panel .eap-barangay { min-width: 0; color: var(--ui-muted); font-size: 13px; overflow-wrap: anywhere; }
+.event-attendees-panel .eap-passbook { font-variant-numeric: tabular-nums; font-size: 12px; }
+.event-attendees-panel .eap-status { min-width: 83px; justify-self: end; justify-content: center; font-size: 12px; font-weight: 500; }
+.event-attendees-panel [role="list"] + .eap-pagination { border-top: 1px solid var(--ui-divider); }
+@media (max-width: 767px) {
+  .event-attendees-panel .eap-toolbar { gap: 12px; }
+  .event-attendees-panel .eap-search { flex-basis: 100%; max-width: none; }
+  .event-attendees-panel .eap-filters { width: 100%; }
+  .event-attendees-panel .eap-filters button { flex: 1; }
+  .event-attendees-panel .eap-pagination { align-items: flex-start; }
+  .event-attendees-panel .eap-list-heading { display: none; }
+  .event-attendees-panel .eap-member { grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; align-items: start; }
+  .event-attendees-panel .eap-member > div:first-child { grid-column: 1; grid-row: 1; }
+  .event-attendees-panel .eap-passbook,
+  .event-attendees-panel .eap-barangay { grid-column: 1 / -1; font-size: 12px; }
+  .event-attendees-panel .eap-member [data-label]::before { content: attr(data-label) ': '; color: var(--ui-muted); font-weight: 500; }
+  .event-attendees-panel .eap-status { grid-column: 2; grid-row: 1; min-width: 75px; margin-top: 2px; }
+}

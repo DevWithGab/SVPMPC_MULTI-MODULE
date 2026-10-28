@@ -17,7 +17,7 @@ test('event attendees shows 100 members per page and resets pagination when filt
     await act(async () => root.render(React.createElement(Panel, { event: { name: 'Test assembly', date: '2026-10-20' }, allMembers: members, presentLogs: members.slice(0, 5) })));
     const rows = () => container.querySelectorAll('[role="listitem"]');
     assert.equal(rows().length, 100);
-    assert.equal(container.querySelectorAll('[aria-label="Next page"]').length, 2);
+    assert.equal(container.querySelectorAll('[aria-label="Next page"]').length, 1);
     await act(async () => container.querySelector('[aria-label="Next page"]').click());
     assert.equal(rows().length, 5);
     assert.match(rows()[0].textContent, /Member 101/);

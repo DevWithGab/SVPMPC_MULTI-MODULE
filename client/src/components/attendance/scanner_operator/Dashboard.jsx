@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { Button as ActionButton } from '../../ui/button';
 import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
-import { Activity, ArrowRight, CalendarDays, CheckCircle2, Clock3, History, LockKeyhole, MapPin, QrCode } from 'lucide-react';
+import { Activity, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Clock3, History, LockKeyhole, MapPin, QrCode } from 'lucide-react';
 import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import useScannerDashboardEvents from '../../../hooks/useScannerDashboardEvents';
 import { formatDate, formatDateTime, formatLongDate, formatTimeRange, formatTimeString, getManilaHour } from '../../../utils/date';
@@ -86,7 +86,17 @@ export default function Dashboard({ user, attendanceLogs = [], events = EMPTY_EV
             const memberName = record.member_name || record.memberName || record.name || 'Unknown member';
             const name = record.eventName || (typeof record.event === 'string' ? record.event : record.event?.eventName || record.event?.name) || 'Unknown event';
             const timestamp = getTimestamp(record);
-            return <tr key={record.id ?? record._id ?? index}><td><strong>{memberName}</strong></td><td>{name}</td><td>{timestamp && !Number.isNaN(new Date(timestamp).getTime()) ? formatDateTime(timestamp) : 'Unknown time'}</td></tr>;
+            const recordedAt = timestamp && !Number.isNaN(new Date(timestamp).getTime()) ? formatDateTime(timestamp) : 'Unknown time';
+            return <tr key={record.id ?? record._id ?? index}>
+              <td>
+                <strong className="sod-desktop-member">{memberName}</strong>
+                <details className="sod-mobile-record">
+                  <summary><span>{memberName}</span><ChevronDown size={16} aria-hidden="true" /></summary>
+                  <dl><div><dt>Event</dt><dd>{name}</dd></div><div><dt>Check-in (PHT)</dt><dd>{recordedAt}</dd></div></dl>
+                </details>
+              </td>
+              <td>{name}</td><td>{recordedAt}</td>
+            </tr>;
           })}</tbody>
         </DataTable></div> : <div className="sod-recent-empty"><History size={23} aria-hidden="true" /><strong>No attendance records yet</strong><p>Member check-ins will appear here once scanning begins.</p></div>}
         {recentRecords.length > 0 && <p className="sd-panel-footer">Showing the latest {recentRecords.length} of {records.length.toLocaleString()} records.</p>}

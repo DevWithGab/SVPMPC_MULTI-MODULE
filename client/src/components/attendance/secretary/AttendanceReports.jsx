@@ -450,10 +450,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
           <h1 ref={attendeesHeadingRef} tabIndex={-1}>Event attendees</h1>
           <p className="text-sm text-slate-500 mt-1">Search members or filter by attendance status. Showing up to 75 members per page.</p>
         </PageHeader>
-        <p className="ar-scope">
-          Full event attendance · All dates and barangays. Absence is based on
-          active membership.
-        </p>
         <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
           <EventAttendeesPanel
             event={viewingEvent}
@@ -771,21 +767,21 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                             </div>
                           </TableCell>
                           <TableCell className="py-3" data-label="Total attendance">
-                            <span className="text-sm font-medium text-slate-700">
-                              {event.attendanceCount} records
+                            <span className={`ar-record-count${event.attendanceCount === 0 ? ' is-empty' : ''}`}>
+                              {event.attendanceCount.toLocaleString()} <span>{event.attendanceCount === 1 ? 'record' : 'records'}</span>
                             </span>
                           </TableCell>
-                          <TableCell className="py-3 break-words" data-label="Scanned by">{event.scanners}</TableCell>
+                          <TableCell className={`ar-scanner${event.attendanceCount === 0 ? ' is-empty' : ''}`} data-label="Scanned by">{event.scanners}</TableCell>
                           <TableCell className="py-3" data-label="Attendees">
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <Users className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm font-medium text-slate-700">
-                                  {event.uniqueAttendees} members
+                            <div className="ar-attendee-cell">
+                              <div className="ar-member-count">
+                                <span>
+                                  <strong>{event.uniqueAttendees.toLocaleString()}</strong> {event.uniqueAttendees === 1 ? 'member' : 'members'}
                                 </span>
                               </div>
                               <button
                                 className="ar-view"
+                                type="button"
                                 aria-label={`View attendees for ${event.displayName}`}
                                 onClick={() =>
                                   setViewingEvent({
@@ -803,13 +799,13 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                                   })
                                 }
                               >
-                                <Users size={16} aria-hidden="true" /> View attendees <ChevronRight size={16} aria-hidden="true" />
+                                View attendees <ChevronRight size={14} aria-hidden="true" />
                               </button>
                             </div>
                           </TableCell>
                           <TableCell className="py-3" data-label="Export">
                             <div
-                              className="flex items-center gap-2"
+                              className="ar-export-actions"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <Button

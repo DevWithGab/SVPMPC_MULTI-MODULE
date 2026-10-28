@@ -24,22 +24,26 @@ export default function LiveAttendanceView({
           <h1>Live attendance</h1>
           <p className="sla-description">Track member check-ins for the active event.</p>
         </div>
+        <div className="sla-header-actions">
         <ActionButton variant="outline" className="sla-button" onClick={onRefresh} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
         </ActionButton>
+        </div>
       </PageHeader>
 
       {error && <div className="sla-error" role="alert">{error}</div>}
 
-      <section className="sla-event" aria-labelledby="sla-event-title">
-        <div className="sla-event-icon">{activeEvent ? <Activity size={20} aria-hidden="true" /> : <CalendarOff size={20} aria-hidden="true" />}</div>
+      {activeEvent && <section className="sla-event" aria-labelledby="sla-event-title">
+        <div className="sla-event-icon"><Activity size={22} aria-hidden="true" /></div>
         <div className="sla-event-info">
-          <p className="sla-eyebrow">Active event</p>
-          <h2 id="sla-event-title">{loading && !activeEvent ? 'Checking for an active event…' : selectedEventLabel}</h2>
-          <p>Updates automatically every {refreshIntervalSeconds} seconds while this tab is visible.</p>
+          <p className="sla-eyebrow">Current event</p>
+          <div className="sla-event-title-row">
+            <h2 id="sla-event-title">{selectedEventLabel}</h2>
+          </div>
+          <p className="sla-event-updates"><Clock size={14} aria-hidden="true" /><span>Updates every {refreshIntervalSeconds} seconds while this tab is visible.</span></p>
         </div>
-        <span className={`sla-status${activeEvent ? ' sla-status-active' : ''}`}>{loading ? 'Refreshing' : error ? 'Refresh failed' : activeEvent ? 'Active' : 'No active event'}</span>
-      </section>
+        <span className="sla-status sla-status-active" role="status"><span className="sla-status-dot" aria-hidden="true" />{loading ? 'Refreshing' : error ? 'Refresh failed' : 'Active'}</span>
+      </section>}
 
       {activeEvent && <AttendanceMetricGrid label="Active event attendance overview" busy={loading} items={[
         ['Total check-ins', liveRows.length.toLocaleString(), 'Recorded for the active event', Users],
@@ -48,11 +52,18 @@ export default function LiveAttendanceView({
       ]} />}
 
       {!activeEvent ? (
-        <div className="sla-panel sla-empty" role="status">
-          {loading ? <RefreshCw size={28} className="animate-spin" aria-hidden="true" /> : <CalendarOff size={28} aria-hidden="true" />}
-          <strong>{loading ? 'Loading live attendance…' : error ? 'Unable to confirm the active event' : 'No active event right now'}</strong>
-          <p>{error ? 'The event and its check-ins will be checked again automatically.' : operatorView ? 'Check with the Secretary or Admin about the event schedule. Member check-ins will appear here once an event is active.' : 'Start an event from Event Management to see member check-ins here.'}</p>
-        </div>
+        <section className="sla-panel sla-idle" aria-labelledby="sla-idle-title" aria-busy={loading}>
+          <div className="sla-idle-heading">
+            <h2>Live check-ins</h2>
+            <span className="sla-status">{loading ? 'Checking' : error ? 'Connection issue' : 'Awaiting event'}</span>
+          </div>
+          <div className="sla-empty sla-idle-body" role="status">
+            <span className="sla-idle-icon">{loading ? <RefreshCw size={26} className="animate-spin" aria-hidden="true" /> : <CalendarOff size={26} aria-hidden="true" />}</span>
+            <h3 id="sla-idle-title">{loading ? 'Checking for an active event…' : error ? 'Unable to confirm the active event' : 'No active event right now'}</h3>
+            <p>{error ? 'Use Refresh to try again. We will also keep checking automatically.' : operatorView ? 'Check with the Secretary or Admin about the event schedule. Member check-ins will appear here once an event is active.' : 'Start an event in Event Management. Member check-ins will appear here automatically once the event is active.'}</p>
+          </div>
+          <div className="sla-idle-footer"><Clock size={14} aria-hidden="true" /><span>Checks for updates every {refreshIntervalSeconds} seconds while this tab is visible.</span></div>
+        </section>
       ) : <>
         <section className="sla-filters" aria-labelledby="sla-filter-title">
           <div className="sla-filter-heading"><h2 id="sla-filter-title">Filter check-ins</h2><button className="sla-text-button" disabled={selectedBarangay === 'all'} onClick={() => onBarangayChange('all')}>Reset filter</button></div>

@@ -338,15 +338,16 @@ input::-ms-clear {
 /* One thin focus outline for search and filter controls across all portals.
    Root specificity keeps page styles from adding a second, thicker ring. */
 @media screen {
-  #root :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(:where([data-ui-search] input)), select, textarea):focus,
+  #root :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not(:where([data-ui-search] input, .entry-login-input input)), select, textarea):focus,
   #root [data-ui-search]:focus-within {
     outline: 1px solid #2d7a3e;
     outline-offset: 3px;
     box-shadow: none;
   }
 
-  /* The search wrapper supplies the outline around both icon and input. */
-  #root [data-ui-search] input:focus {
+  /* These wrappers supply the focus indicator around both icon and input. */
+  #root [data-ui-search] input:focus,
+  #root .entry-login-input input:focus {
     outline: none;
     box-shadow: none;
   }

@@ -1,10 +1,13 @@
 import { Input as TextInput } from '../../ui/input';
+import { SearchField, PanelHeader } from '../../ui/workspace';
+import { Button } from '../../ui/button';
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, X, Users, CheckCircle2, XCircle } from "lucide-react";
 import { formatDate } from "../../../utils/date";
 import { Pagination, PaginationInfo } from "../../ui/pagination";
 import { usePagination } from "../../../hooks/usePagination";
 import { attendanceScannedBy } from '../../../utils/attendanceScannedBy';
+import './EventAttendeesPanel.css';
 
 /* Ipinapakita dito kung sino talaga ang dumalo sa event kumpara sa hindi -
 nirender bilang body ng sarili nitong page (hindi modal, hindi cramped
@@ -111,7 +114,7 @@ export default function EventAttendeesPanel({
 
   return (
     <div className="event-attendees-panel">
-      <div className="px-6 py-4 flex items-start justify-between gap-4 border-b border-slate-100">
+      <PanelHeader className="eap-header">
         <div>
           <h2 className="text-lg font-bold text-slate-900">{event.name}</h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -119,32 +122,36 @@ export default function EventAttendeesPanel({
               ? formatDate(event.date)
               : "No date"}
           </p>
+          <p className="eap-description">Review attendance for active members and recorded attendees.</p>
         </div>
         {onClose && (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={onClose}
             aria-label="Close"
             className="text-slate-400 hover:text-slate-600 transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         )}
-      </div>
+      </PanelHeader>
 
-      <div className="px-6 py-4 flex flex-col sm:flex-row gap-3 sm:items-center border-b border-slate-100">
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <div className="eap-toolbar">
+        <SearchField className="eap-search">
+          <Search size={18} aria-hidden="true" />
           <TextInput
+            unstyled
             type="text"
             aria-label="Search members by name or passbook number"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search member by name or Passbook No."
-            className="h-10 w-full pl-9 pr-3 text-sm rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-coop-green/20 focus:border-coop-green outline-none transition-all"
+            placeholder="Search name or passbook number"
           />
-        </div>
+        </SearchField>
 
-        <div className="flex flex-wrap items-center gap-2" aria-label="Attendance status">
+        <div className="eap-filters" role="group" aria-label="Attendance status">
           {[
             {
               key: "all",
@@ -154,7 +161,9 @@ export default function EventAttendeesPanel({
             { key: "present", label: "Present", count: presentList.length },
             { key: "absent", label: "Absent", count: absentList.length },
           ].map((tab) => (
-            <button
+            <Button
+              variant={filter === tab.key ? 'default' : 'outline'}
+              type="button"
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               aria-pressed={filter === tab.key}
@@ -172,12 +181,12 @@ export default function EventAttendeesPanel({
               >
                 {tab.count}
               </span>
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
-      {pagination}
+      <div className="eap-list-heading" aria-hidden="true"><span>Member</span><span>Passbook number</span><span>Barangay</span><span>Status</span></div>
       <div className="divide-y divide-slate-100" role="list" aria-label="Event members">
         {pagedList.length > 0 ? (
           pagedList.map((m) => {
@@ -188,20 +197,18 @@ export default function EventAttendeesPanel({
               <div
                 key={m.memberId}
                 role="listitem"
-                className="px-6 py-3.5 flex items-center gap-3"
+                className="eap-member"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-900 break-words">
                     {m.memberName}
                   </p>
-                  <p className="text-xs text-slate-500 break-words">
-                    {m.barangay || "—"}{" "}
-                    {m.memberId ? `• Passbook No.: ${m.memberId}` : ""}
-                  </p>
                   {isPresent && <p className="text-xs text-slate-500 break-words">Scanned by: {attendanceScannedBy(m)}</p>}
                 </div>
+                <div className="eap-passbook" data-label="Passbook no.">{m.memberId || 'Not recorded'}</div>
+                <div className="eap-barangay" data-label="Barangay">{m.barangay || 'Not recorded'}</div>
                 <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                  className={`eap-status inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
                     isPresent
                       ? "bg-green-50 text-coop-green"
                       : "bg-slate-100 text-slate-500"

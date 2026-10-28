@@ -20,7 +20,10 @@ test('personal scan history keeps authenticated scope, pagination, PHT timestamp
     api.getAllAttendance = async query => {
       queries.push(query);
       if (fail) throw new Error('History temporarily unavailable');
-      return { attendance: [{ attendanceId: String(query.page), memberName: query.page === 1 ? 'Ana Santos' : 'Next Member', memberId: '001234', eventName: 'General Assembly', barangay: 'Poblacion', scanTime: '2026-10-25T11:25:00Z' }, { attendanceId: 'invalid', memberName: 'Other Member', scanTime: 'invalid' }], pagination: { total: 151 } };
+      const attendance = query.page === 1
+        ? Array.from({ length: 100 }, (_, index) => ({ attendanceId: `first-${index}`, memberName: index === 0 ? 'Ana Santos' : 'Other Member', memberId: '001234', eventId: 'E1', eventName: 'General Assembly', barangay: 'Poblacion', scanTime: index === 0 ? '2026-10-25T11:25:00Z' : 'invalid' }))
+        : Array.from({ length: 51 }, (_, index) => ({ attendanceId: `second-${index}`, memberName: 'Next Member', eventId: 'E2', eventName: 'Monthly Assembly', barangay: 'San Isidro' }));
+      return { attendance, pagination: { total: 151, totalPages: 2 } };
     };
     await act(async () => root.render(React.createElement(MyScans, { user: { name: 'Test Operator' } })));
     assert.equal(queries[0].mine, true);
@@ -36,6 +39,25 @@ test('personal scan history keeps authenticated scope, pagination, PHT timestamp
     await act(async () => container.querySelector('[aria-label="Next page"]').click());
     assert.equal(queries.at(-1).page, 2);
     assert.match(container.querySelector('tbody').textContent, /Next Member/);
+    const [eventFilter, barangayFilter] = container.querySelectorAll('.oms-filters select');
+    assert.equal(eventFilter.options.length, 3, 'filters include events from later API pages');
+    await act(async () => { eventFilter.value = 'E2'; eventFilter.dispatchEvent(new window.Event('change', { bubbles: true })); });
+    assert.equal(container.querySelectorAll('tbody tr').length, 51);
+    assert.match(container.querySelector('.oms-pagination').textContent, /51/);
+    await act(async () => { barangayFilter.value = 'Poblacion'; barangayFilter.dispatchEvent(new window.Event('change', { bubbles: true })); });
+    assert.match(container.querySelector('tbody').textContent, /No matching scans/);
+    await act(async () => container.querySelector('.oms-filters > button').click());
+    assert.equal(container.querySelectorAll('tbody tr').length, 100);
+    assert.match(container.querySelector('.oms-mobile-details summary').textContent, /Ana Santos/);
+    assert.match(container.querySelector('.oms-detail-card').textContent, /001234.*General Assembly.*Poblacion.*7:25 PM/);
+    const search = container.querySelector('#oms-search');
+    const setInputValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    await act(async () => { setInputValue.call(search, 'Ana Santos'); search.dispatchEvent(new window.Event('input', { bubbles: true })); });
+    assert.equal(container.querySelectorAll('tbody tr').length, 1);
+    assert.match(container.querySelector('tbody').textContent, /Ana Santos/);
+    await act(async () => { setInputValue.call(search, '001234'); search.dispatchEvent(new window.Event('input', { bubbles: true })); });
+    assert.equal(container.querySelectorAll('tbody tr').length, 100, 'passbook search spans the loaded history');
+    await act(async () => { setInputValue.call(search, ''); search.dispatchEvent(new window.Event('input', { bubbles: true })); });
     fail = true;
     await act(async () => container.querySelector('header button').click());
     assert.match(container.querySelector('[role="alert"]').textContent, /History temporarily unavailable/);

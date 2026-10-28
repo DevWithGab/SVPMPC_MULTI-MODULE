@@ -169,8 +169,9 @@ test('live attendance view closes on schedule even while the server status stays
 
     now = Date.parse('2026-10-21T10:00:00+08:00');
     await act(async () => timers.get(3000)());
-    assert.equal(container.querySelector('#sla-event-title').textContent, 'No active event');
-    assert.equal(container.querySelector('.sla-status').textContent, 'No active event');
+    assert.equal(container.querySelector('#sla-event-title'), null);
+    assert.equal(container.querySelector('#sla-idle-title').textContent, 'No active event right now');
+    assert.equal(container.querySelector('.sla-status').textContent, 'Awaiting event');
   } finally {
     await act(async () => root.unmount());
     if (saved) {

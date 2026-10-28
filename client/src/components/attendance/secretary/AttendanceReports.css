@@ -13,8 +13,30 @@
 .attendance-reports td { padding: 17px 20px; }
 .attendance-reports td:first-child { max-width: 340px; overflow-wrap: anywhere; }
 .attendance-reports :is(th, td)[data-label="Total attendance"] { text-align: right; }
-.ar-view { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 12px; border: 1px solid #aac5b0; border-radius: 5px; background: #edf5ee; font-weight: 600; color: #245e32; font-size: 13px; margin-block: 10px 8px; cursor: pointer; white-space: nowrap; }
+.ar-view { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 6px 10px; border: 1px solid #d4e3d8; border-radius: 6px; background: #f1f7f3; font-weight: 600; color: #245e32; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .ar-view:hover { background: #deeddf; border-color: #608d69; }
+.attendance-reports .ar-events-table { border-collapse: collapse; min-width: 900px; }
+.attendance-reports .ar-events-table thead { background: #f6f8f7; }
+.attendance-reports .ar-events-table th { padding: 13px 20px; font-size: 11px; font-weight: 600; white-space: nowrap; border-bottom: 1px solid #dce3dd; }
+.attendance-reports .ar-events-table td { padding: 18px 20px; vertical-align: middle; border-bottom: 1px solid #edf0ee; font-size: 13px; line-height: 1.5; }
+.attendance-reports .ar-events-table tbody tr { background: #fff; }
+.attendance-reports .ar-events-table tbody tr:hover { background: #f8fbf9; }
+.attendance-reports .ar-events-table tbody tr:last-child td { border-bottom: 0; }
+.attendance-reports .ar-events-table td:first-child p:first-child { line-height: 1.4; }
+.attendance-reports .ar-events-table td:first-child p + p { margin-top: 4px; color: #758078; font-size: 12px; }
+.ar-record-count { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 4px 9px; border-radius: 6px; background: #edf5ef; color: #245e32; font-weight: 600; white-space: nowrap; }
+.ar-record-count span { font-weight: 400; }
+.ar-record-count.is-empty { background: #f1f3f4; color: #7a8580; }
+.ar-scanner { max-width: 200px; overflow-wrap: anywhere; color: #42534a; }
+.ar-scanner.is-empty { color: #7a8580; font-size: 12px; }
+.ar-attendee-cell { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ar-member-count { color: #647069; font-size: 12px; white-space: nowrap; }
+.ar-member-count strong { color: #34453a; font-weight: 600; }
+.ar-export-actions { display: flex; align-items: center; gap: 6px; }
+.attendance-reports .ar-export-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 7px 10px; border: 1px solid #dce3dd; border-radius: 6px; background: #fff; color: #526058; font-size: 12px; font-weight: 500; white-space: nowrap; box-shadow: none; }
+.attendance-reports .ar-export-actions button svg { width: 14px; height: 14px; margin: 0; }
+.attendance-reports .ar-export-actions button:hover:not(:disabled) { background: #edf5ef; border-color: #aac5b0; color: #245e32; }
+.attendance-reports .ar-export-actions button:disabled { opacity: 1; color: #a0a9a3; border-color: #edf0ee; background: #fafbfa; cursor: not-allowed; }
 .ar-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 13px; border: 1px solid #cdd6cf; border-radius: 5px; background: white; font-size: 12px; font-weight: 600; color: #34453a; cursor: pointer; white-space: nowrap; }
 .ar-button:hover { background: #f3f6f3; }
 .ar-button:disabled { opacity: .45; cursor: not-allowed; }
@@ -37,6 +59,8 @@
   .ar-events-table td[data-label="Export"] { grid-column: 1 / -1; }
   .ar-events-table td[data-label="Export"] button { min-height: 44px; }
   .ar-events-table .ar-view { display: flex; width: 100%; }
+  .ar-attendee-cell { flex-wrap: wrap; gap: 8px; }
+  .ar-events-table .ar-view { min-height: 44px; }
   .event-attendees-panel > div { padding-inline: 16px; }
   .event-attendees-panel [role="list"] { padding-inline: 0; }
   .event-attendees-panel [role="listitem"] { padding-inline: 16px; }

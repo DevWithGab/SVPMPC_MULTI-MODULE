@@ -1,13 +1,15 @@
 import AttendanceSidebar, { AttendanceMobileBar } from '../../components/attendance/shared/AttendanceSidebar';
 import LoadError from '../../components/shared/common/LoadError';
 import useUrlState from '../../hooks/useUrlState';
-import { useState, useEffect } from "react";
+import { createElement, useState, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   LayoutGrid,
   QrCode,
   Activity,
   History,
+  UserRound,
+  LogOut,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.jsx";
 import { useAttendance } from "../../hooks/useAttendance";
@@ -17,6 +19,7 @@ import {
   MyScans,
 } from "../../components/attendance/scanner_operator";
 import { LiveAttendanceList } from "../../components/attendance/shared";
+import './OperatorMobile.css';
 
 
 export default function AttendanceOperatorPortal({
@@ -122,7 +125,7 @@ export default function AttendanceOperatorPortal({
   };
 
   return (
-    <div className="portal-shell attendance-workspace h-dvh flex font-sans relative overflow-hidden">
+    <div className="portal-shell attendance-workspace operator-portal h-dvh flex font-sans relative overflow-hidden">
       {/* Sidebar Overlay for Mobile */}
       <AttendanceSidebar
         items={sidebarItems}
@@ -139,7 +142,20 @@ export default function AttendanceOperatorPortal({
       />
 
       <div className="attendance-main flex-1 flex flex-col min-w-0" inert={!isDesktop && isMobileMenuOpen ? true : undefined}>
-        <AttendanceMobileBar mobileOpen={isMobileMenuOpen} onOpen={() => setIsMobileMenuOpen(true)} />
+        <div className="operator-standard-bar"><AttendanceMobileBar mobileOpen={isMobileMenuOpen} onOpen={() => setIsMobileMenuOpen(true)} /></div>
+        <header className="operator-phone-header">
+          <div className="operator-phone-brand">
+            <img src="/SVPMPC-LOGO(MAIN).png" alt="SVPMPC logo" />
+            <div><strong>SVPMPC</strong><span>Scanner operator</span></div>
+          </div>
+          <details className="operator-phone-account">
+            <summary aria-label="Your account"><UserRound size={21} aria-hidden="true" /></summary>
+            <div className="operator-phone-account-menu">
+              <strong>{currentUser?.name || 'Scanner operator'}</strong>
+              {onBack && <button type="button" onClick={onBack}><LogOut size={16} aria-hidden="true" />Sign out</button>}
+            </div>
+          </details>
+        </header>
         <main className="attendance-content flex-1 overflow-y-auto">
             {loadError && <LoadError message={loadError} onRetry={refreshData} retrying={loading} />}
           <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -156,6 +172,15 @@ export default function AttendanceOperatorPortal({
             </AnimatePresence>
           </div>
         </main>
+        <nav className="operator-mobile-nav" aria-label="Scanner operator navigation">
+          {sidebarItems.map(({ id, icon }) => (
+            <button key={id} type="button" aria-current={activeTab === id ? 'page' : undefined}
+              onClick={() => setActiveTab(id)}>
+              <span className="operator-mobile-nav-icon">{createElement(icon, { size: 22, 'aria-hidden': true })}</span>
+              <span>{{ home: 'Home', scanner: 'Scan', live: 'Live', myscans: 'My scans' }[id]}</span>
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   );
