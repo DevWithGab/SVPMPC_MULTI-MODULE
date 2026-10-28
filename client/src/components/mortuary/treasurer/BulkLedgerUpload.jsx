@@ -1,5 +1,5 @@
 import CsvDateOrder from '../shared/CsvDateOrder';
-import Swal from 'sweetalert2';
+import { showBulkUploadAlert, showBulkUploadError } from '../../../utils/bulkUploadAlerts';
 import { Table as DataTable } from '../../ui/table';
 import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
@@ -53,7 +53,7 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
         const recorded = response.results.success.length;
         const failed = response.results.failed.length;
         const duplicates = response.summary?.duplicates || 0;
-        await Swal.fire({
+        await showBulkUploadAlert({
           // Keep the alert inside the native modal so it is visible and interactive.
           target: dialog.current,
           heightAuto: false,
@@ -68,7 +68,9 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
     } catch (failure) {
       setResult(failure.response?.data?.rows ? failure.response.data : null);
       setCompleted(false);
-      setError(failure.response?.data?.message || 'Unable to confirm this upload. Preview the same file again; saved entries will not be recorded twice.');
+      const message = failure.response?.data?.message || 'Unable to confirm this upload. Preview the same file again; saved entries will not be recorded twice.';
+      setError(message);
+      await showBulkUploadError(message, dialog.current);
     } finally { setBusy(false); inFlight.current = false; }
   };
 

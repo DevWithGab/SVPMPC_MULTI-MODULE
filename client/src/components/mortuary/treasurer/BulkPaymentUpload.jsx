@@ -6,6 +6,7 @@ import { Button } from '../../ui/button';
 import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../shared/BulkUploadDialog';
 import { treasurerAPI } from '../../../services/api';
 import { buildPaymentCsvTemplate } from '../../../utils/paymentCsvTemplate';
+import { showBulkUploadResult, showBulkUploadError } from '../../../utils/bulkUploadAlerts';
 
 const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(value || 0);
 const statusLabels = {
@@ -15,6 +16,7 @@ const statusLabels = {
 
 export default function BulkPaymentUpload({ onClose, onImported }) {
   const inFlight = useRef(false);
+  const dialog = useRef(null);
   const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState('');
   const [dateOrder, setDateOrder] = useState('auto');
@@ -69,13 +71,27 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
           setFilePickerVersion(version => version + 1);
         }
         // A screen refresh failure must not undo the successful form reset.
-        try { await onImported(); }
-        catch { setError(fullyImported ? 'Contributions were imported. Refresh the page to load updated balances.' : 'Import results are shown below. Refresh the page to load updated balances.'); }
+        let refreshNote = '';
+        try { await onImported?.(); }
+        catch {
+          refreshNote = 'Refresh the page to load updated balances.';
+          setError(fullyImported ? 'Contributions were imported. ' + refreshNote : 'Import results are shown below. ' + refreshNote);
+        }
+        await showBulkUploadResult({
+          target: dialog.current,
+          imported: response.summary?.imported,
+          failed: response.summary?.failed,
+          duplicates: response.summary?.duplicates,
+          successTitle: 'Payments recorded successfully',
+          note: refreshNote,
+        });
       }
     } catch (failure) {
-      setError(failure.response?.data?.message || 'Unable to reach the server. Preview the same file again before retrying; completed payments will be skipped.');
+      const message = failure.response?.data?.message || 'Unable to reach the server. Preview the same file again before retrying; completed payments will be skipped.';
+      setError(message);
       setResult(failure.response?.data?.rows ? failure.response.data : null);
       setCompleted(false);
+      await showBulkUploadError(message, dialog.current);
     } finally { setBusy(false); inFlight.current = false; }
   };
 
@@ -83,7 +99,7 @@ export default function BulkPaymentUpload({ onClose, onImported }) {
   const canImport = summary && !summary.invalid && summary.ready > 0 && !completed;
 
   return (
-    <BulkUploadDialog title="Bulk Upload Payments" description="Import daily contributions into each member's ledger."
+    <BulkUploadDialog dialogRef={dialog} title="Bulk Upload Payments" description="Import daily contributions into each member's ledger."
       busy={busy} onClose={onClose} footer={<>
         <Button type="button" variant="outline" disabled={busy} onClick={onClose} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50">{completed ? 'Done' : 'Cancel'}</Button>
         <Button type="button" variant={canImport ? 'outline' : 'default'} disabled={!csv || busy} onClick={() => submit('preview')}

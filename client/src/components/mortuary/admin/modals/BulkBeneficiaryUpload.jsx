@@ -4,6 +4,7 @@ import { Upload } from 'lucide-react';
 import { Button } from '../../../ui/button';
 import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../../shared/BulkUploadDialog';
 import { beneficiaryAPI } from '../../../../services/api';
+import { showBulkUploadResult, showBulkUploadError } from '../../../../utils/bulkUploadAlerts';
 
 const statusLabels = {
   ready: 'Ready', error: 'Needs correction', imported: 'Registered', failed: 'Needs retry',
@@ -11,6 +12,7 @@ const statusLabels = {
 
 export default function BulkBeneficiaryUpload({ onClose, onImported }) {
   const inFlight = useRef(false);
+  const dialog = useRef(null);
   const [busy, setBusy] = useState(false);
   const [csv, setCsv] = useState('');
   const [filename, setFilename] = useState('');
@@ -51,13 +53,26 @@ export default function BulkBeneficiaryUpload({ onClose, onImported }) {
       setResult(response);
       setCompleted(action === 'import');
       if (action === 'import') {
-        try { await onImported(); }
-        catch { setError('Import results are shown below. Refresh the page to load the updated directory.'); }
+        let refreshNote = '';
+        try { await onImported?.(); }
+        catch {
+          refreshNote = 'Refresh the page to load the updated directory.';
+          setError('Import results are shown below. ' + refreshNote);
+        }
+        await showBulkUploadResult({
+          target: dialog.current,
+          imported: response.summary?.imported,
+          failed: response.summary?.failed,
+          successTitle: 'Beneficiaries registered successfully',
+          note: refreshNote,
+        });
       }
     } catch (failure) {
-      setError(failure.response?.data?.message || 'Unable to reach the server. Preview the same file again before retrying.');
+      const message = failure.response?.data?.message || 'Unable to reach the server. Preview the same file again before retrying.';
+      setError(message);
       setResult(failure.response?.data?.rows ? failure.response.data : null);
       setCompleted(false);
+      await showBulkUploadError(message, dialog.current);
     } finally { setBusy(false); inFlight.current = false; }
   };
 
@@ -65,7 +80,7 @@ export default function BulkBeneficiaryUpload({ onClose, onImported }) {
   const canImport = summary && !summary.invalid && summary.ready > 0 && !completed;
 
   return (
-    <BulkUploadDialog title="Bulk Register Beneficiaries" description="Register or update beneficiaries for multiple members at once."
+    <BulkUploadDialog dialogRef={dialog} title="Bulk Register Beneficiaries" description="Register or update beneficiaries for multiple members at once."
       busy={busy} onClose={onClose} footer={<>
         <Button type="button" variant="outline" disabled={busy} onClick={onClose} className="border-slate-200 bg-white text-slate-600 hover:bg-slate-50">{completed ? 'Done' : 'Cancel'}</Button>
         <Button type="button" variant={canImport ? 'outline' : 'default'} disabled={!csv || busy} onClick={() => submit('preview')}

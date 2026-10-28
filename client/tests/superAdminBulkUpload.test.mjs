@@ -4,6 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { createServer } from 'vite';
+import Swal from 'sweetalert2';
 
 test('Super Admin keeps failed rows visible and shows request errors inside the upload window', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
@@ -12,6 +13,9 @@ test('Super Admin keeps failed rows visible and shows request errors inside the 
   const root = createRoot(container);
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   let api, original;
+  const originalFire = Swal.fire;
+  const alerts = [];
+  Swal.fire = async options => { alerts.push(options); return { isConfirmed: true }; };
   try {
     const { default: SuperAdmin } = await vite.ssrLoadModule('/src/pages/SuperAdmin.jsx');
     ({ adminAPI: api } = await vite.ssrLoadModule('/src/services/api.js'));
@@ -40,11 +44,16 @@ test('Super Admin keeps failed rows visible and shows request errors inside the 
     assert.match(container.textContent, /only those failed members/);
     assert.equal(button('Choose a new file to upload again').disabled, true);
     assert.equal(calls, 1);
+    assert.equal(alerts.at(-1).icon, 'warning');
+    assert.match(alerts.at(-1).text, /only the failed members/);
+    assert.ok(alerts.at(-1).target.contains(container.querySelector('input[type="file"]')));
     api.bulkCreateMembers = async () => { throw { response: { data: { message: 'Too many uploads. Try again in 15 minutes.' } } }; };
     await choose(csv);
     await act(async () => button('Upload Members').click());
     assert.match(container.querySelector('[role="alert"]').textContent, /Too many uploads/);
     assert.ok(button('Upload Members'));
+    assert.equal(alerts.at(-1).icon, 'error');
+    assert.match(alerts.at(-1).text, /Too many uploads/);
     await choose('memberName\nMaria');
     assert.match(container.querySelector('[role="alert"]').textContent, /Missing required columns/);
     assert.equal(button('Upload Members').disabled, true);
@@ -58,6 +67,7 @@ test('Super Admin keeps failed rows visible and shows request errors inside the 
     assert.equal(button('Upload Members').disabled, false);
 
   } finally {
+    Swal.fire = originalFire;
     if (original) Object.assign(api, original);
     await act(async () => root.unmount());
     container.remove();

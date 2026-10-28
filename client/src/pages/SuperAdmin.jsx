@@ -3,6 +3,7 @@ import MortuaryAuditLogs from '../components/mortuary/admin/AuditLogs';
 import MortuaryBackup from '../components/mortuary/admin/DatabaseBackup';
 import { importHeaderLabel } from '../utils/importHeaders';
 import { parseMemberUpload, memberUploadError } from '../utils/memberBulkUpload';
+import { showBulkUploadResult, showBulkUploadError } from '../utils/bulkUploadAlerts';
 import useUrlState from '../hooks/useUrlState';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -55,6 +56,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
   const [bulkError, setBulkError] = useState('');
   const [bulkResult, setBulkResult] = useState(null);
   const bulkInFlight = useRef(false);
+  const bulkDialog = useRef(null);
 
   // Edit Member form. Passbook No. stays read-only: ledger, contributions and
   // beneficiaries all reference the member by it.
@@ -271,8 +273,17 @@ const SuperAdmin = ({ onAuthenticated }) => {
       });
       // Keep failures visible and prevent resubmitting successful rows.
       if (response.summary.successful > 0) fetchMembers();
+      await showBulkUploadResult({
+        target: bulkDialog.current,
+        imported: response.summary.successful,
+        failed: response.summary.failed,
+        successTitle: 'Members uploaded successfully',
+        retryMessage: 'Correct the listed errors and upload a new CSV containing only the failed members. Do not upload successful members again.',
+      });
     } catch (error) {
-      setBulkError(error.response || error.request ? memberUploadError(error) : error.message);
+      const message = error.response || error.request ? memberUploadError(error) : error.message;
+      setBulkError(message);
+      await showBulkUploadError(message, bulkDialog.current);
     } finally {
       bulkInFlight.current = false;
       setLoading(false);
@@ -754,7 +765,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
       {/* Bulk Upload Modal */}
       <AnimatePresence>
         {showBulkModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div ref={bulkDialog} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
             <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
