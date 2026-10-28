@@ -9,7 +9,7 @@ test('secretary event status changes at PHT start and end without waiting for a 
   assert.equal(scheduledSecretaryEvent(event, at('09:00:00')).status, 'active');
   assert.equal(scheduledSecretaryEvent(event, at('09:59:59')).status, 'active');
   assert.equal(scheduledSecretaryEvent(event, at('10:00:00')).status, 'closed');
-  for (const status of ['draft', 'pending_approval', 'rejected', 'cancelled', 'closed']) {
+  for (const status of ['rejected', 'cancelled', 'closed']) {
     assert.equal(scheduledSecretaryEvent({ ...event, status }, at('11:00:00')).status, status);
   }
   assert.equal(event.status, 'upcoming', 'the server snapshot is not mutated');

@@ -73,7 +73,7 @@
   .attendance-workspace table.ui-table > tbody > tr:hover { background: #f8fbf8; }
   .attendance-workspace :is(.overflow-x-auto, .sd-table-scroll, .md-table-scroll, .amq-table-scroll) { max-width: 100%; }
   .attendance-workspace :is(.ui-page-actions, .sd-header-actions, .md-header-actions, .em-header-actions) { flex-wrap: wrap; }
-  .attendance-workspace .ui-dialog { max-width: calc(100vw - 32px); max-height: calc(100dvh - 32px); }
+  .attendance-workspace .ui-dialog { max-height: calc(100dvh - 32px); }
   .attendance-workspace :is(.sd-panel-heading h2, .aad-chart-title) { color: #101820; font-size: 21px; font-weight: 650; line-height: 1.3; letter-spacing: -.025em; }
   .attendance-workspace .aad-event h2 { color: #101820; font-size: 20px; font-weight: 600; letter-spacing: -.025em; }
   .attendance-workspace :is(.sd-button, .sd-primary) { border-radius: 8px; }
@@ -102,6 +102,45 @@
   .attendance-workspace .attendance-metric-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .attendance-workspace .attendance-metric-grid[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+/* Match the mortuary member workspace typography across attendance screens. */
+@media screen {
+  .attendance-workspace :is(.md-filter-heading, .em-filter-heading, .amq-filter-heading, .aae-filter-heading, .ar-filter-heading) h2 {
+    font-size: 20px; line-height: 1.4;
+  }
+  .attendance-workspace :is(.md-register-heading, .amq-register-heading, .aae-toolbar) h2 {
+    font-size: 26px; line-height: 1.3;
+  }
+  .attendance-workspace :is(.aae-search-label, .aae-group-filter > span, .ar-search-label) {
+    font-size: 14px; line-height: 1.5;
+  }
+  .attendance-workspace :is(.md-search input, .em-search input, .amq-search input, .aae-search input, .ar-search input,
+    .md-filter-grid select, .em-filter-grid select, .amq-filter-grid select,
+    .ui-input[data-ui-input]:not([data-ui-unstyled])) {
+    font-size: 15px;
+  }
+  .attendance-workspace :is(.aae-groups button, .md-view-switch button, .amq-view-toggle button,
+    .sd-link, .md-text-button, .em-reset, .ar-button, .ar-view) {
+    font-size: 14px;
+  }
+  .attendance-workspace :is(.aae-groups button span, .md-view-switch button span, .amq-view-toggle button span,
+    .aae-event-status, .amq-badge, .md-status, .sd-status) {
+    font-size: 12px;
+  }
+  .attendance-workspace :is(.aae-secondary, .md-secondary, .amq-secondary, .sd-secondary) {
+    font-size: 12px; line-height: 1.5;
+  }
+  .attendance-workspace :is(.aae-result-count, .aae-timezone, .sd-panel-footer, .md-scope, .ar-scope,
+    .md-pagination, .amq-pagination, .ar-pagination, .aal-pagination,
+    .aae-empty p, .aae-empty button, .sd-freshness) {
+    font-size: 13px; line-height: 1.5;
+  }
+  .attendance-workspace :is(.md-register-heading, .amq-register-heading, .aae-toolbar) p {
+    font-size: 14px; line-height: 1.6;
+  }
+  .attendance-workspace :is(.aae-table, .md-table, .amq-table) td strong {
+    font-size: 14px;
+  }
+}
 @media screen and (max-width: 1250px) {
   .attendance-workspace .ui-page-header[data-ui-page-header] { flex-direction: column; }
 }
@@ -116,6 +155,8 @@
   .attendance-workspace .attendance-metric-grid[data-count="3"] .attendance-metric:first-child { grid-column: 1 / -1; }
 }
 @media screen and (max-width: 767px) {
+  .attendance-workspace :is(.md-search input, .em-search input, .amq-search input, .aae-search input, .ar-search input, .md-filter-grid select, .em-filter-grid select, .amq-filter-grid select, .ui-input[data-ui-input]:not([data-ui-unstyled])) { font-size: 16px; }
+  .attendance-workspace :is(.md-register-heading, .amq-register-heading, .aae-toolbar) h2 { font-size: 24px; }
   .attendance-content > .max-w-7xl { padding: 24px 20px; }
   .attendance-workspace .ui-page-header[data-ui-page-header] { margin-bottom: 28px; }
   .attendance-workspace .aad-chart-panel { padding: 16px; }
@@ -138,4 +179,27 @@
 }
 @media screen and (prefers-reduced-motion: reduce) {
   .attendance-workspace *, .attendance-workspace *::before, .attendance-workspace *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Attendance page headers share the mortuary title, subtitle, and action layout. */
+@media screen {
+  .attendance-workspace :is(.attendance-breadcrumb, .attendance-page-breadcrumb) {
+    display: flex; flex-wrap: wrap; gap: 0 16px; margin: 0 0 20px;
+    color: #646c78; font-size: 14px; font-weight: 400; line-height: 1.5;
+    letter-spacing: normal; text-transform: none;
+  }
+  .attendance-workspace .ui-page-header[data-ui-page-header] > div:first-child > p:not([class*="eyebrow"]):not(.ui-page-eyebrow) {
+    margin-top: 8px; font-size: clamp(14px, 1.5vw, 19px); line-height: 1.5;
+  }
+  .attendance-workspace .ui-page-header[data-ui-page-header] > div:first-child > p.aad-refresh:not([class*="eyebrow"]) {
+    font-size: 16px; line-height: 1.5;
+  }
+  .attendance-workspace .ui-page-header[data-ui-page-header] > div:last-child:not(:first-child) {
+    margin-top: 0; gap: 12px; flex-wrap: wrap;
+  }
+  .attendance-workspace .ui-page-header[data-ui-page-header] > button { font-size: 15px; }
+}
+
+@media screen {
+  .attendance-workspace :is(.attendance-breadcrumb, .attendance-page-breadcrumb) + .ui-page-header[data-ui-page-header] { margin-top: 0; }
 }

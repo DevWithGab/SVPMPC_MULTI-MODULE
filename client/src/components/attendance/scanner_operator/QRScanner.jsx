@@ -787,7 +787,8 @@ export default function QRScanner({
 
   return (
     <div className="operator-qr-scanner">
-      <PageHeader className="oqs-header">
+      <PageHeader separateBreadcrumb className="oqs-header">
+        <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Scan attendance</strong></p>
         <h1>Scan attendance</h1>
         <p>Select the event, then scan each member's QR code.</p>
       </PageHeader>
@@ -825,7 +826,7 @@ export default function QRScanner({
       {(!hasActiveEvent || eventNotice) && (
         <div className="oqs-notice" role="status">
           <AlertCircle size={18} aria-hidden="true" />
-          <p>{eventNotice || "No active event is available. Approved events become available automatically at their scheduled start time."}</p>
+          <p>{eventNotice || "No active event is available. Created events become available automatically at their scheduled start time."}</p>
         </div>
       )}
       <div className="oqs-workspace">

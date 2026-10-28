@@ -103,7 +103,7 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       });
     }
 
-    return baseRoles;
+    return systemId === "attendance" ? baseRoles.filter(role => role.id !== "admin") : baseRoles;
   };
 
   const handleSystemSelect = (systemId) => {

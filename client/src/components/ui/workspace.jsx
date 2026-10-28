@@ -3,14 +3,31 @@ import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import './design-system.css';
 
-export function PageHeader({ title, eyebrow, description, actions, children, className = '', ...props }) {
-  const nodes = React.Children.toArray(children);
+export function PageHeader({ title, eyebrow, description, actions, children, className = '', separateBreadcrumb = false, ...props }) {
+  let nodes = React.Children.toArray(children);
+  let breadcrumb = null;
+  const isBreadcrumb = node => React.isValidElement(node) && node.type === 'p' && /eyebrow|breadcrumb/.test(node.props.className || '');
+  if (separateBreadcrumb) {
+    nodes = nodes.flatMap(node => {
+      if (isBreadcrumb(node)) { breadcrumb = node; return []; }
+      if (React.isValidElement(node) && node.type === 'div') {
+        const nested = React.Children.toArray(node.props.children);
+        const found = nested.find(isBreadcrumb);
+        if (found) {
+          breadcrumb = found;
+          return [React.cloneElement(node, {}, nested.filter(child => child !== found))];
+        }
+      }
+      return [node];
+    });
+    if (breadcrumb) breadcrumb = React.cloneElement(breadcrumb, { className: cn(breadcrumb.props.className, 'attendance-page-breadcrumb') });
+  }
   const directTitle = nodes.some(node => React.isValidElement(node) && node.type === 'h1');
   const isTitleNode = node => React.isValidElement(node) && (node.type === 'h1' || node.type === 'p');
-  const content = directTitle ? <><div>{nodes.filter(isTitleNode)}</div>{nodes.filter(node => !isTitleNode(node))}</> : children;
-  return <header className={cn('ui-page-header', className)} data-ui-page-header {...props}>
+  const content = directTitle ? <><div>{nodes.filter(isTitleNode)}</div>{nodes.filter(node => !isTitleNode(node))}</> : nodes.length ? nodes : null;
+  return <>{breadcrumb}<header className={cn('ui-page-header', className)} data-ui-page-header {...props}>
     {content || <><div>{eyebrow && <p className="ui-page-eyebrow">{eyebrow}</p>}<h1>{title}</h1>{description && <p className="ui-page-description">{description}</p>}</div>{actions && <div className="ui-page-actions">{actions}</div>}</>}
-  </header>;
+  </header></>;
 }
 
 export const Panel = React.forwardRef(function Panel({ as: elementType = 'section', className = '', ...props }, ref) {

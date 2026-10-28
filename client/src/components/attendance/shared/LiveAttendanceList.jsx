@@ -342,7 +342,7 @@ export default function LiveAttendanceList({
 
   return (
     <div className="space-y-6">
-      <PageHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <PageHeader separateBreadcrumb className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             LIVE ATTENDANCE

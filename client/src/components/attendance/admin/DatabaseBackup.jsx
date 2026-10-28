@@ -7,9 +7,9 @@ import useBackupDatasetExports from "../../../hooks/useBackupDatasetExports";
 const todayStamp = () => new Date().toISOString().split("T")[0];
 
 export default function DatabaseBackup({
-  members = [],
-  events = [],
-  attendanceLogs = [],
+  members,
+  events,
+  attendanceLogs,
   onRestored,
 }) {
   const [restoreFile, setRestoreFile] = useState(null);
@@ -20,7 +20,7 @@ export default function DatabaseBackup({
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [lastExport, setLastExport] = useState(null);
-  const { datasetExports, individualExportError } = useBackupDatasetExports("attendance", { members: members.length, events: events.length, attendanceLogs: attendanceLogs.length });
+  const { datasetExports, individualExportError } = useBackupDatasetExports("attendance", { members: members?.length, events: events?.length, attendanceLogs: attendanceLogs?.length });
 
   /* The complete backup is built by the server from every Attendance
   collection (members, events, attendance, reports, audit logs), so it never

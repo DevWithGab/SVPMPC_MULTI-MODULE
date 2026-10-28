@@ -34,7 +34,7 @@ test('module access requires both a compatible role and an assignment; superadmi
     for (const module of ['attendance', 'mortuary']) {
       for (const assigned of [false, true]) {
         let passed = false;
-        const compatible = role === 'admin' || (module === 'attendance' ? ['secretary', 'scanner_operator'].includes(role) : role === 'treasurer');
+        const compatible = module === 'attendance' ? ['secretary', 'scanner_operator'].includes(role) : ['admin', 'treasurer'].includes(role);
         middleware.authorizeModule(module)({ user: { role, modules: assigned ? [module] : [] } }, response(), () => { passed = true; });
         assert.equal(passed, role === 'super_admin' || assigned && compatible, `${role}/${module}/${assigned}`);
       }
@@ -241,7 +241,7 @@ test('password changes revoke all old tokens; only a fresh login with the new pa
   }
 });
 
-test('audit routes deny cross-module requests and scope unfiltered requests to assigned modules', async () => {
+test('audit routes restrict all module history to Super Admin', async () => {
   const showScope = (req, res) => res.json({ scope: req.auditModule });
   const router = load('../shared/routes/auditLogRoutes', {
     '../../middleware': { authorizeRoles: middleware.authorizeRoles, authenticateToken: (req, res, next) => { req.user = { role: req.headers['x-role'] || 'admin', modules: ['attendance'] }; next(); } },
@@ -253,17 +253,22 @@ test('audit routes deny cross-module requests and scope unfiltered requests to a
   try {
     const base = `http://127.0.0.1:${server.address().port}`;
     for (const path of ['/logs', '/trail/staff/example', '/stats', '/user/example', '/role/admin']) {
-      const denied = await fetch(base + path + '?module=mortuary');
-      assert.equal(denied.status, 403);
-      const scoped = await fetch(base + path);
-      assert.deepEqual((await scoped.json()).scope, ['attendance']);
-      const superadmin = await fetch(base + path + '?module=admin', { headers: { 'x-role': 'super_admin' } });
-      assert.equal(superadmin.status, 200);
+      for (const role of ['secretary', 'admin', 'scanner_operator', 'claims_officer', 'finance_officer']) {
+        for (const query of ['', '?module=attendance', '?module=mortuary']) {
+          const denied = await fetch(base + path + query, { headers: { 'x-role': role } });
+          assert.equal(denied.status, 403, role + path + query);
+        }
+      }
+      for (const module of ['attendance', 'mortuary', 'admin']) {
+        const superadmin = await fetch(base + path + '?module=' + module, { headers: { 'x-role': 'super_admin' } });
+        assert.equal(superadmin.status, 200);
+        assert.deepEqual((await superadmin.json()).scope, module);
+      }
     }
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
-test('both admin routers permit superadmin and reject secretary, treasurer, and scanner roles before controllers', async () => {
+test('management routers permit their module managers and reject other roles before controllers', async () => {
   for (const module of ['attendance', 'mortuary']) {
     const filename = `../modules/${module}/routes/adminRoutes`;
     const localRequire = createRequire(require.resolve(filename));
@@ -278,7 +283,7 @@ test('both admin routers permit superadmin and reject secretary, treasurer, and 
         guard({ user: { role } }, response(), () => { next = true; });
         if (!next) { passed = false; break; }
       }
-      assert.equal(passed, ['super_admin', 'admin'].includes(role), `${module}/${role}`);
+      assert.equal(passed, ['super_admin', module === 'attendance' ? 'secretary' : 'admin'].includes(role), `${module}/${role}`);
     }
   }
 });
@@ -326,4 +331,55 @@ test('staff deletion removes the account, keeps an audit record, and cannot targ
   assert.equal(superadmin.code, 404);
   const missing = response(); await staff.remove({ user: actor, params: { userId: 'staff' } }, missing);
   assert.equal(missing.code, 404);
+});
+
+
+test('attendance admin credentials become secretary credentials at login, with old sessions revoked', async () => {
+  const user = { userId: 'legacy', username: 'attendance.admin', role: 'admin', status: 'active', modules: ['attendance'], sessionVersion: 2,
+    comparePassword: async () => true, save: async () => {} };
+  let payload;
+  const controller = load('../shared/controllers/authController', {
+    '../models/User': { findOne: async () => user },
+    jsonwebtoken: { sign: data => { payload = data; return 'new-token'; } },
+  });
+  const res = response();
+  await controller.login({ body: { username: user.username, password: 'existing-password', module: 'attendance', expectedRole: 'secretary' } }, res);
+  assert.equal(res.code, 200);
+  assert.equal(res.data.user.role, 'secretary');
+  assert.equal(payload.role, 'secretary');
+  assert.equal(payload.sessionVersion, 3);
+});
+
+test('attendance admin is no longer assignable and secretary retains attendance-only access', () => {
+  const staff = require('../shared/controllers/staffController');
+  assert.equal(staff.validateAccess('admin', ['attendance']), false);
+  assert.equal(staff.validateAccess('secretary', ['attendance']), true);
+  assert.equal(staff.validateAccess('secretary', ['mortuary']), false);
+});
+
+
+test('attendance backup export and restore reject secretary accounts and permit Super Admin', async () => {
+  const hits = [];
+  const router = load('../modules/attendance/routes/adminRoutes', {
+    '../../../middleware': { ...require('../middleware'), authenticateToken: (req, res, next) => { req.user = { role: req.headers['x-role'] }; next(); } },
+    '../controllers/backupController': {
+      getFullBackup: (req, res) => { hits.push('export'); res.json({ ok: true }); },
+      restoreBackup: (req, res) => { hits.push('restore'); res.json({ ok: true }); },
+    },
+  });
+  const app = express(); app.use(router);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  try {
+    const base = 'http://127.0.0.1:' + server.address().port;
+    for (const [method, path] of [['GET', '/backup/export'], ['POST', '/backup/restore']]) {
+      for (const role of ['secretary', 'scanner_operator', 'admin', 'claims_officer']) {
+        const res = await fetch(base + path, { method, headers: { 'x-role': role } });
+        assert.equal(res.status, 403, role + path);
+      }
+      const allowed = await fetch(base + path, { method, headers: { 'x-role': 'super_admin' } });
+      assert.equal(allowed.status, 200);
+    }
+    assert.deepEqual(hits, ['export', 'restore']);
+  } finally { await new Promise(resolve => server.close(resolve)); }
 });

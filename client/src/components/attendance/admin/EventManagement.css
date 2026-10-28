@@ -46,3 +46,49 @@
 .aae-register-footer { display: flex; justify-content: space-between; gap: 12px; }
 @media (max-width: 800px) { .aae-filter-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .aae-filters { padding-inline: 16px; } .aae-register-footer { flex-direction: column; gap: 3px; } }
+
+/* Event editor: clear required fields and a distinct schedule section. */
+.attendance-workspace .ui-dialog.aae-event-form-modal { width: min(600px, calc(100vw - 32px)); max-width: 600px; max-height: calc(100dvh - 48px); border-radius: 14px; }
+.aae-event-form-modal .ui-dialog-header { padding: 22px 24px; }
+.aae-event-form-modal .ui-dialog-header h2 { font-size: 21px; letter-spacing: -.025em; }
+.aae-event-form-modal .ui-dialog-header p { font-size: 13px; line-height: 1.5; }
+.aae-event-form-modal .ui-dialog-body { padding: 20px 24px 24px; }
+.aae-event-form { display: grid; gap: 22px; }
+.aae-required-note { margin: 0; color: #728077; font-size: 12px; }
+.aae-required-note > span, .aae-event-form .ui-field-required { color: #ad453b; font-weight: 600; }
+.aae-event-details-fields { display: grid; gap: 18px; }
+.aae-event-form .ui-field > label { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; color: #34483c; font-size: 14px; font-weight: 600; }
+.aae-optional { margin-left: auto; font-size: 12px; font-weight: 400; color: #7a877f; }
+.attendance-workspace .aae-event-form .ui-input { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #ccd8d0; border-radius: 8px; background: #fff; padding: 10px 12px; color: #203729; font-size: 14px; box-shadow: none; }
+.aae-event-form .ui-input::placeholder { color: #929c96; }
+.aae-event-form textarea.ui-input { min-height: 90px; line-height: 1.6; resize: vertical; }
+.aae-event-form .ui-input:focus { border-color: #528369; outline: 2px solid #52836926; outline-offset: 1px; }
+.aae-schedule-fields { padding: 18px; border: 1px solid #e1e9e4; border-radius: 10px; background: #f8fbf9; }
+.aae-schedule-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.aae-schedule-heading h3 { font-size: 14px; font-weight: 600; color: #314a3a; }
+.aae-schedule-heading > span { font-size: 12px; color: #748178; }
+.aae-schedule-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; }
+.aae-schedule-note { margin: 12px 0 0; font-size: 12px; line-height: 1.6; color: #6b7b70; }
+.aae-form-error { padding: 12px 14px; border: 1px solid #ebcfc9; border-radius: 8px; background: #fff8f6; color: #9b4236; font-size: 13px; line-height: 1.5; }
+.aae-event-form-modal > .aae-event-form-footer[data-ui-modal-actions] { margin: 0; padding: 16px 24px; gap: 10px; border-top: 1px solid #e3eae5; background: #fff; }
+.aae-event-form-footer .ui-button { min-height: 44px; border-radius: 8px; font-size: 14px; padding-inline: 18px; }
+@media (max-width: 600px) {
+  .aae-event-form-modal .ui-dialog-header, .aae-event-form-modal .ui-dialog-body { padding: 18px; }
+  .aae-event-form-modal > .aae-event-form-footer[data-ui-modal-actions] { padding: 14px 18px; }
+  .aae-schedule-fields { padding: 14px; }
+  .aae-schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .aae-schedule-grid > .ui-field:first-child { grid-column: 1 / -1; }
+  .aae-event-form .ui-input { font-size: 16px; }
+}
+
+/* Event details keep the summary readable and actions visible. */
+.attendance-workspace .ui-dialog.aae-view-modal { width: min(600px, calc(100vw - 32px)); max-width: 600px; max-height: calc(100dvh - 48px); border-radius: 14px; }
+.aae-view-modal .ui-dialog-header { padding: 20px 24px; }
+.aae-view-modal .ui-dialog-header h2 { font-size: 19px; letter-spacing: -.025em; }
+.aae-view-modal .ui-dialog-body { padding: 24px; }
+.aae-view-modal > .aae-view-footer[data-ui-modal-actions] { margin: 0; padding: 16px 24px; border-top: 1px solid #e3eae5; gap: 10px; }
+.aae-view-footer .ui-button { min-height: 44px; border-radius: 8px; font-size: 14px; padding-inline: 18px; }
+@media (max-width: 480px) {
+  .aae-view-modal .ui-dialog-header, .aae-view-modal .ui-dialog-body { padding: 18px; }
+  .aae-view-modal > .aae-view-footer[data-ui-modal-actions] { padding: 14px 18px; }
+}

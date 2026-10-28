@@ -52,6 +52,12 @@ const login = async (req, res) => {
       });
     }
 
+    // Retire attendance-only admin accounts while preserving their credentials.
+    if (user.role === 'admin' && user.modules?.includes('attendance') && !user.modules.includes('mortuary')) {
+      user.role = 'secretary';
+      user.sessionVersion = (user.sessionVersion || 0) + 1;
+    }
+
     // Optional role gate to prevent cross-role logins from specific login forms
     if (expectedRole) {
       const allowedRolesByExpectedRole = {

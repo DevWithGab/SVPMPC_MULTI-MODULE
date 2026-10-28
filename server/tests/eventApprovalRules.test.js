@@ -47,7 +47,7 @@ function database(events = []) {
     }
   }
 
-  const Event = {
+  const Event = Object.assign(EventDoc, {
     findOne: async (query) => {
       const found = state.events.find(e => e.eventId === query.eventId);
       return found ? new EventDoc({ ...found }) : null;
@@ -64,7 +64,7 @@ function database(events = []) {
       const [removed] = state.events.splice(index, 1);
       return new EventDoc(removed);
     },
-  };
+  });
 
   return {
     state,
@@ -82,121 +82,6 @@ function controller(db, globals) {
 const event = (overrides) => ({
   eventId: 'EVT-1', eventName: 'General Assembly', eventDate: new Date(), startTime: '09:00', endTime: '17:00',
   location: 'Hall', status: 'draft', ...overrides,
-});
-
-// --- approveEvent ---------------------------------------------------------
-
-test('event approval logs the authenticated admin name and business ID', async () => {
-  const db = database([event({ status: 'pending_approval' })]);
-  const res = response();
-  await controller(db).approveEvent({ params: { eventId: 'EVT-1' },
-    user: { userId: 'ADMIN-1', id: 'mongo-id', username: 'attendance.admin', role: 'admin' },
-    ip: '', get: () => '',
-  }, res);
-  assert.equal(res.code, 200);
-  assert.equal(db.state.auditLogs[0].userId, 'ADMIN-1');
-  assert.equal(db.state.auditLogs[0].userName, 'attendance.admin');
-});
-
-test('approveEvent moves a draft or pending_approval event to upcoming', async () => {
-  for (const status of ['draft', 'pending_approval']) {
-    const db = database([event({ status })]);
-    const { approveEvent } = controller(db);
-    const res = response();
-    await approveEvent({ params: { eventId: 'EVT-1' }, user: { role: 'admin' }, ip: '', get: () => '' }, res);
-    assert.equal(res.code, 200, status);
-    assert.equal(db.state.events[0].status, 'upcoming', status);
-  }
-});
-
-test('approveEvent rejects an event that is not draft or pending_approval, and a missing event', async () => {
-  for (const status of ['upcoming', 'active', 'closed', 'cancelled', 'rejected']) {
-    const db = database([event({ status })]);
-    const { approveEvent } = controller(db);
-    const res = response();
-    await approveEvent({ params: { eventId: 'EVT-1' }, user: {}, ip: '', get: () => '' }, res);
-    assert.equal(res.code, 400, status);
-    assert.equal(db.state.events[0].status, status, `${status} must be left untouched`);
-  }
-
-  const db = database([]);
-  const { approveEvent } = controller(db);
-  const missing = response();
-  await approveEvent({ params: { eventId: 'NOPE' }, user: {}, ip: '', get: () => '' }, missing);
-  assert.equal(missing.code, 404);
-});
-
-// --- rejectEvent -----------------------------------------------------------
-
-test('rejectEvent requires a non-blank reason and only accepts a pending_approval event', async () => {
-  const db = database([event({ status: 'pending_approval' })]);
-  const { rejectEvent } = controller(db);
-
-  for (const reason of [undefined, '', '   ']) {
-    const res = response();
-    await rejectEvent({ params: { eventId: 'EVT-1' }, body: { reason }, user: {}, ip: '', get: () => '' }, res);
-    assert.equal(res.code, 400, JSON.stringify(reason));
-  }
-  assert.equal(db.state.events[0].status, 'pending_approval', 'no reason must leave the event untouched');
-
-  const ok = response();
-  await rejectEvent({ params: { eventId: 'EVT-1' }, body: { reason: 'Venue unavailable' }, user: {}, ip: '', get: () => '' }, ok);
-  assert.equal(ok.code, 200);
-  assert.equal(db.state.events[0].status, 'rejected');
-  assert.equal(db.state.events[0].rejectionReason, 'Venue unavailable');
-
-  const wrongStatus = database([event({ status: 'draft' })]);
-  const res2 = response();
-  await controller(wrongStatus).rejectEvent({ params: { eventId: 'EVT-1' }, body: { reason: 'x' }, user: {}, ip: '', get: () => '' }, res2);
-  assert.equal(res2.code, 400, 'a draft event has never been submitted, so it cannot be rejected');
-});
-
-// --- submit / cancel / resubmit ---------------------------------------------
-
-test('submitEvent only accepts draft or rejected, and clears any previous rejection reason', async () => {
-  const db = database([event({ status: 'rejected', rejectionReason: 'Previously rejected' })]);
-  const { submitEvent } = controller(db);
-  const res = response();
-  await submitEvent({ params: { eventId: 'EVT-1' }, body: {}, user: {}, ip: '', get: () => '' }, res);
-  assert.equal(res.code, 200);
-  assert.equal(db.state.events[0].status, 'pending_approval');
-  assert.equal(db.state.events[0].rejectionReason, undefined, 'resubmitting must clear the stale rejection reason');
-
-  for (const status of ['pending_approval', 'upcoming', 'active', 'closed', 'cancelled']) {
-    const other = database([event({ status })]);
-    const r = response();
-    await controller(other).submitEvent({ params: { eventId: 'EVT-1' }, body: {}, user: {}, ip: '', get: () => '' }, r);
-    assert.equal(r.code, 400, status);
-  }
-});
-
-test('cancelEvent accepts draft, pending_approval, or rejected, but not an already-live or already-closed event', async () => {
-  for (const status of ['draft', 'pending_approval', 'rejected']) {
-    const db = database([event({ status })]);
-    const res = response();
-    await controller(db).cancelEvent({ params: { eventId: 'EVT-1' }, body: {}, user: {}, ip: '', get: () => '' }, res);
-    assert.equal(res.code, 200, status);
-    assert.equal(db.state.events[0].status, 'cancelled', status);
-  }
-  for (const status of ['upcoming', 'active', 'closed']) {
-    const db = database([event({ status })]);
-    const res = response();
-    await controller(db).cancelEvent({ params: { eventId: 'EVT-1' }, body: {}, user: {}, ip: '', get: () => '' }, res);
-    assert.equal(res.code, 400, status);
-  }
-});
-
-test('resubmitEvent only accepts a rejected event', async () => {
-  const db = database([event({ status: 'rejected' })]);
-  const res = response();
-  await controller(db).resubmitEvent({ params: { eventId: 'EVT-1' }, body: {}, user: {}, ip: '', get: () => '' }, res);
-  assert.equal(res.code, 200);
-  assert.equal(db.state.events[0].status, 'pending_approval');
-
-  const draft = database([event({ status: 'draft' })]);
-  const res2 = response();
-  await controller(draft).resubmitEvent({ params: { eventId: 'EVT-1' }, body: {}, user: {}, ip: '', get: () => '' }, res2);
-  assert.equal(res2.code, 400, 'a draft was never rejected, so "resubmit" does not apply');
 });
 
 // --- reopenEvent -------------------------------------------------------------
@@ -274,59 +159,94 @@ test('reopenEvent sets status to upcoming for a fully-future schedule, and to ac
   assert.equal(active.state.events[0].status, 'active');
 });
 
-// --- updateEvent's edit-lock -------------------------------------------------
 
-test('updateEvent blocks a secretary after approval but lets an admin update an approved schedule', async () => {
-  for (const status of ['upcoming', 'active', 'closed']) {
-    const db = database([event({ status })]);
-    const secretaryRes = response();
-    await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { eventName: 'New Name' }, user: { role: 'secretary' }, ip: '', get: () => '' }, secretaryRes);
-    assert.equal(secretaryRes.code, 400, `secretary editing a(n) ${status} event`);
+const request = (body = {}) => ({ params: { eventId: 'EVT-1' }, body, user: { userId: 'SEC-1', username: 'secretary', role: 'secretary' }, ip: '', get: () => '' });
 
-    const adminRes = response();
-    await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { startTime: '10:00' }, user: { role: 'admin' }, ip: '', get: () => '' }, adminRes);
-    assert.equal(adminRes.code, 200, `admin editing a(n) ${status} event`);
-    assert.equal(db.state.events[0].startTime, '10:00');
-  }
+test('secretary creates an event without approval and forged statuses are ignored', async () => {
+  const db = database();
+  const res = response();
+  await controller(db).createEvent(request({ eventName: 'Assembly', eventDate: '2035-01-01', startTime: '09:00', endTime: '17:00', location: 'Hall', createdBy: 'secretary', status: 'pending_approval' }), res);
+  assert.equal(res.code, 201);
+  assert.equal(res.data.event.status, 'upcoming');
+  assert.equal(db.state.auditLogs[0].userId, 'SEC-1');
+});
 
-  for (const status of ['draft', 'pending_approval', 'rejected']) {
-    const db = database([event({ status })]);
-    const secretaryRes = response();
-    await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { eventName: 'Edited' }, user: { role: 'secretary' }, ip: '', get: () => '' }, secretaryRes);
-    assert.equal(secretaryRes.code, 200, `secretary editing a(n) ${status} event`);
+test('events open at the start boundary and close at the end boundary in Philippine time', async () => {
+  for (const [time, expected] of [['08:59:59', 'upcoming'], ['09:00:00', 'active'], ['16:59:59', 'active'], ['17:00:00', 'closed']]) {
+    const fixed = new Date('2026-10-28T' + time + '+08:00');
+    class FixedDate extends Date { constructor(...args) { super(...(args.length ? args : [fixed.getTime()])); } }
+    const db = database([event({ eventDate: '2026-10-28', status: 'upcoming' })]);
+    const doc = await db.deps['../models/Event'].findOne({ eventId: 'EVT-1' });
+    await controller(db, { Date: FixedDate }).refreshEventStatus(doc);
+    assert.equal(doc.status, expected, time);
   }
 });
 
-test('approved and closed event name, description and location cannot be changed by either admin role', async () => {
+test('old pending events follow their schedule without an approval step', async () => {
+  const db = database([event({ eventDate: '2035-01-01', status: 'pending_approval' })]);
+  const doc = await db.deps['../models/Event'].findOne({ eventId: 'EVT-1' });
+  await controller(db).refreshEventStatus(doc);
+  assert.equal(doc.status, 'upcoming');
+});
+
+test('secretary edits all event details and schedules without approval locks', async () => {
+  const db = database([event({ eventDate: '2035-01-01', status: 'upcoming' })]);
+  const res = response();
+  await controller(db).updateEvent(request({ eventName: 'Changed assembly', description: 'Updated', location: 'New Hall', startTime: '10:00', status: 'pending_approval' }), res);
+  assert.equal(res.code, 200);
+  assert.equal(res.data.event.eventName, 'Changed assembly');
+  assert.equal(res.data.event.location, 'New Hall');
+  assert.equal(res.data.event.eventTime, '10:00');
+  assert.equal(res.data.event.status, 'upcoming');
+});
+
+test('closed details can be edited, but changing a closed schedule requires Reopen and a reason', async () => {
+  const db = database([event({ status: 'closed' })]);
+  const res = response();
+  await controller(db).updateEvent(request({ eventName: 'Corrected name' }), res);
+  assert.equal(res.code, 200);
+  assert.equal(res.data.event.status, 'closed');
+  const denied = response();
+  await controller(db).updateEvent(request({ eventDate: '2035-01-01' }), denied);
+  assert.equal(denied.code, 400);
+  assert.match(denied.data.message, /Reopen/);
+});
+
+test('secretary can delete upcoming, active, and closed events with an audit record', async () => {
   for (const status of ['upcoming', 'active', 'closed']) {
-    for (const role of ['admin', 'super_admin']) {
-      for (const field of ['eventName', 'description', 'location']) {
-        const db = database([event({ status, eventName: 'Approved name', description: 'Approved description' })]);
-        const originalValue = db.state.events[0][field];
-        const res = response();
-        await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { [field]: 'Changed', location: 'New Hall' }, user: { role }, ip: '', get: () => '' }, res);
-        assert.equal(res.code, 400);
-        assert.equal(db.state.events[0][field], originalValue);
-        assert.notEqual(db.state.events[0].location, 'New Hall');
-      }
+    const db = database([event({ status })]);
+    const res = response();
+    await controller(db).deleteEvent(request(), res);
+    assert.equal(res.code, 200);
+    assert.equal(db.state.events.length, 0);
+    assert.equal(db.state.auditLogs[0].action, 'event_deleted');
+  }
+});
+
+test('invalid schedules are rejected without saving an event', async () => {
+  for (const patch of [{ eventDate: 'invalid' }, { startTime: '25:00' }, { endTime: '08:00' }]) {
+    const db = database();
+    const res = response();
+    await controller(db).createEvent(request({ eventName: 'Assembly', eventDate: '2035-01-01', startTime: '09:00', endTime: '17:00', location: 'Hall', createdBy: 'secretary', ...patch }), res);
+    assert.equal(res.code, 400);
+    assert.equal(db.state.events.length, 0);
+  }
+});
+
+
+test('event name and location are required on create and edit, including whitespace-only values', async () => {
+  for (const field of ['eventName', 'location']) {
+    for (const value of ['', '   ', null]) {
+      const db = database();
+      const res = response();
+      await controller(db).createEvent(request({ eventName: 'Assembly', eventDate: '2035-01-01', startTime: '09:00', endTime: '17:00', location: 'Hall', createdBy: 'secretary', [field]: value }), res);
+      assert.equal(res.code, 400);
+      assert.equal(db.state.events.length, 0);
+      const existing = database([event({ status: 'upcoming', eventDate: '2035-01-01' })]);
+      const edited = response();
+      await controller(existing).updateEvent(request({ [field]: value }), edited);
+      assert.equal(edited.code, 400);
+      assert.equal(existing.state.events[0][field], field === 'eventName' ? 'General Assembly' : 'Hall');
     }
   }
-});
-
-test('unchanged approved details may accompany a schedule update', async () => {
-  const db = database([event({ status: 'upcoming', eventName: 'Approved name', description: 'Approved description' })]);
-  const res = response();
-  await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { eventName: 'Approved name', description: 'Approved description', location: 'Hall', startTime: '10:00' }, user: { role: 'admin' }, ip: '', get: () => '' }, res);
-  assert.equal(res.code, 200);
-  assert.equal(db.state.events[0].location, 'Hall');
-  assert.equal(db.state.events[0].startTime, '10:00');
-});
-
-test('updateEvent preserves a rejected event\'s status across an edit, but does not resurrect it to any other status', async () => {
-  const db = database([event({ status: 'rejected', rejectionReason: 'Fix the venue' })]);
-  const res = response();
-  await controller(db).updateEvent({ params: { eventId: 'EVT-1' }, body: { location: 'New Hall' }, user: { role: 'secretary' }, ip: '', get: () => '' }, res);
-  assert.equal(res.code, 200);
-  assert.equal(db.state.events[0].status, 'rejected', 'editing a rejected event must not silently re-approve or reset it — resubmitEvent is the only path back to pending_approval');
-  assert.equal(db.state.events[0].location, 'New Hall');
 });

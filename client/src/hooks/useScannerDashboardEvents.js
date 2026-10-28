@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { eventAPI } from '../services/api';
 import { loadDashboardRecords } from '../utils/attendanceDashboard';
-import { canScanEvent } from '../utils/scannerSchedule';
+import { canScanEvent, scannerEventWindow } from '../utils/scannerSchedule';
 
 export default function useScannerDashboardEvents(initialEvents) {
   const [events, setEvents] = useState(null);
@@ -44,5 +44,10 @@ export default function useScannerDashboardEvents(initialEvents) {
     };
   }, []);
 
-  return { activeEvents: (events ?? initialEvents).filter(event => canScanEvent(event, now)), refreshError };
+  const availableEvents = events ?? initialEvents;
+  const upcomingEvents = availableEvents.filter(event =>
+    ['upcoming', 'active'].includes(event.status) && (scannerEventWindow(event)?.start ?? 0) > now,
+  ).sort((a, b) => scannerEventWindow(a).start - scannerEventWindow(b).start);
+  return { activeEvents: availableEvents.filter(event => canScanEvent(event, now)), upcomingEvents, refreshError };
+
 }

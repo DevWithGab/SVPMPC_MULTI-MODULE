@@ -1,11 +1,11 @@
 const express = require('express');
 const {
   authenticateToken,
-  authorizeAdminOnly,
+
   authorizeRoles,
 } = require('../../../middleware');
 
-const authorizeAttendanceAdminOnly = authorizeRoles('admin', 'super_admin');
+const authorizeAttendanceManager = authorizeRoles('secretary', 'super_admin');
 
 // Import existing controllers
 const memberController = require('../controllers/memberController');
@@ -17,9 +17,9 @@ const router = express.Router();
 
 // Apply authentication and authorization middleware to all routes
 router.use(authenticateToken);
-router.use(authorizeAdminOnly);
+router.use(authorizeAttendanceManager);
 
-// Member management routes (admin has full access)
+// Secretary member management
 router.get('/members', memberController.getAllMembers);
 // Was ':id' while the controller reads req.params.memberId — always 404'd.
 router.get('/members/:memberId', memberController.getMemberById);
@@ -28,28 +28,24 @@ router.get('/members/:memberId', memberController.getMemberById);
 router.post('/members/generate-qr', memberController.generateQRCodes);
 router.post('/members/generate-all-qr', memberController.generateAllQRCodes);
 router.get('/members/:memberId/qr-status', memberController.getQRStatus);
-router.post('/members/:memberId/regenerate-qr', authorizeAttendanceAdminOnly, memberController.regenerateQRCode);
-router.post('/members/:memberId/deactivate-qr', authorizeAttendanceAdminOnly, memberController.deactivateQRCode);
-router.post('/members/:memberId/reactivate-qr', authorizeAttendanceAdminOnly, memberController.reactivateQRCode);
+router.post('/members/:memberId/regenerate-qr', authorizeAttendanceManager, memberController.regenerateQRCode);
+router.post('/members/:memberId/deactivate-qr', authorizeAttendanceManager, memberController.deactivateQRCode);
+router.post('/members/:memberId/reactivate-qr', authorizeAttendanceManager, memberController.reactivateQRCode);
 
-// Event management routes (admin has full access)
+// Secretary event management
 router.get('/events', eventController.getAllEvents);
 router.post('/events', eventController.createEventAsAdmin);
 router.get('/events/:eventId', eventController.getEventById);
 router.put('/events/:eventId', eventController.updateEvent);
 router.delete('/events/:eventId', eventController.deleteEvent);
-router.post('/events/:eventId/approve', eventController.approveEvent);
-router.post('/events/:eventId/reject', eventController.rejectEvent);
 router.post('/events/:eventId/reopen', eventController.reopenEvent);
 
-// Attendance management routes (admin has full access)
+// Secretary attendance management
 router.get('/attendance', attendanceController.getAllAttendance);
 router.post('/attendance', attendanceController.recordAttendance);
 
-/* Database backup/restore - bulk write over live data yung restore, kaya
-parehong strict admin-only gate ang binigay dito gaya ng QR lifecycle
-actions sa itaas. */
-router.get('/backup/export', authorizeAttendanceAdminOnly, backupController.getFullBackup);
-router.post('/backup/restore', authorizeAttendanceAdminOnly, backupController.restoreBackup);
+// Attendance backups and restores are managed exclusively by Super Admin.
+router.get('/backup/export', authorizeRoles('super_admin'), backupController.getFullBackup);
+router.post('/backup/restore', authorizeRoles('super_admin'), backupController.restoreBackup);
 
 module.exports = router;

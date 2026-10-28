@@ -7,7 +7,7 @@ hand-written copy nito yung navigation.js, StaffAccounts.jsx, at App.jsx
 nakakaalam kung magkakaiba na sila - dito na lang idadagdag, ipapalit ang
 pangalan, o ire-scope yung role o module ngayon. */
 export const ROLE_MODULES = {
-  admin: ['attendance'],
+
   secretary: ['attendance'],
   scanner_operator: ['attendance'],
   claims_officer: ['mortuary'],

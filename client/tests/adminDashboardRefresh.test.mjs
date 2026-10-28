@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { createServer } from 'vite';
 
-test('admin dashboard refreshes Present and Absent every 10 seconds and recovers from incomplete refreshes', async () => {
+test('combined secretary dashboard refreshes Present and Absent every 10 seconds and recovers from incomplete refreshes', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   const container = document.createElement('div');
   document.body.append(container);
@@ -13,7 +13,7 @@ test('admin dashboard refreshes Present and Absent every 10 seconds and recovers
   const saved = { interval: globalThis.setInterval, clear: globalThis.clearInterval, act: globalThis.IS_REACT_ACT_ENVIRONMENT, visibility: Object.getOwnPropertyDescriptor(document, 'visibilityState') };
   let api, methods;
   try {
-    const { default: AdminPortal } = await vite.ssrLoadModule('/src/pages/attendance/AdminPortal.jsx');
+    const { default: SecretaryPortal } = await vite.ssrLoadModule('/src/pages/attendance/SecretaryPortal.jsx');
     api = await vite.ssrLoadModule('/src/services/api.js');
     methods = { members: api.memberAPI.getAllMembers, events: api.eventAPI.getEvents, attendance: api.attendanceAPI.getAllAttendance };
     const event = { eventId: 'TEST-A', eventName: 'Test assembly', eventDate: '2026-10-21', startTime: '13:15', endTime: '14:25', status: 'active' };
@@ -34,7 +34,12 @@ test('admin dashboard refreshes Present and Absent every 10 seconds and recovers
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     let visible = true;
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visible ? 'visible' : 'hidden' });
-    await act(async () => root.render(React.createElement(MemoryRouter, null, React.createElement(AdminPortal, { user: { role: 'admin' } }))));
+    await act(async () => root.render(React.createElement(MemoryRouter, null, React.createElement(SecretaryPortal, { user: { role: 'secretary' } }))));
+    for (const label of ['Event Management', 'Reports', 'QR Management']) {
+      assert.ok([...container.querySelectorAll('button')].some(button => button.textContent.includes(label)), label);
+    }
+    assert.match(container.textContent, /Secretary/);
+    for (const label of ['Audit Logs', 'Backup & Restore']) assert.ok(![...container.querySelectorAll('button')].some(button => button.textContent.includes(label)), label);
     const value = name => [...container.querySelectorAll('.attendance-metric')].find(card => card.querySelector('p')?.textContent === name)?.querySelector('strong')?.textContent;
     assert.equal(value('Present'), '0');
     assert.equal(value('Absent'), '20');

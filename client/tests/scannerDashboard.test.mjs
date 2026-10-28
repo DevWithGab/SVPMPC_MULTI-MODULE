@@ -4,7 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createServer } from 'vite';
 
-test('scanner dashboard follows scheduled boundaries and refreshes approvals and closures without reloading', async () => {
+test('scanner dashboard follows scheduled boundaries and refreshes availability and closures without reloading', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   const container = document.createElement('div');
   document.body.append(container);
@@ -36,9 +36,12 @@ test('scanner dashboard follows scheduled boundaries and refreshes approvals and
     const button = () => container.querySelector('header button');
     assert.equal(button().disabled, true);
     assert.ok(pages.includes(2));
+    assert.match(container.querySelector('[aria-current="step"]').textContent, /Waiting/);
     now = Date.parse('2026-10-21T13:15:00+08:00');
     await act(async () => timers.get(1000)());
     assert.equal(button().disabled, false, 'scheduled start activates upcoming events');
+    assert.match(container.querySelector('[aria-current="step"]').textContent, /Scanning open/);
+    assert.equal(container.querySelectorAll('.sod-upcoming-list li').length, 0, 'active sessions no longer appear in upcoming');
     assert.equal(container.querySelectorAll('.sod-event-list li').length, 1, 'pending approvals remain excluded');
     await act(async () => button().click());
     assert.equal(destination, 'scanner');

@@ -4,7 +4,7 @@ const AuditLog = require('../models/AuditLog');
 const { actorName, invalidateStaffNames } = require('../utils/actorName');
 
 const { roleModules: roles } = require('../utils/staffRoles');
-const managedRoles = [...Object.keys(roles), 'treasurer'];
+const managedRoles = [...Object.keys(roles), 'admin', 'treasurer'];
 const publicUser = user => Object.fromEntries(['userId', 'staffId', 'fullName', 'username', 'email', 'phoneNumber', 'role', 'modules', 'status', 'isTemporaryPassword', 'lastLoginDate'].map(key => [key, user[key]]));
 const temporaryPassword = () => randomBytes(18).toString('base64url');
 const normalizeUsername = value => typeof value === 'string' ? value.trim().toLowerCase() : '';

@@ -19,7 +19,7 @@ test('Attendance Trend reflects recent momentum, not first-vs-last across the wh
   const saved = { interval: globalThis.setInterval, clear: globalThis.clearInterval, act: globalThis.IS_REACT_ACT_ENVIRONMENT };
   let api, methods;
   try {
-    const { default: AdminPortal } = await vite.ssrLoadModule('/src/pages/attendance/AdminPortal.jsx');
+    const { default: AdminPortal } = await vite.ssrLoadModule('/src/pages/attendance/SecretaryPortal.jsx');
     api = await vite.ssrLoadModule('/src/services/api.js');
     methods = { members: api.memberAPI.getAllMembers, events: api.eventAPI.getEvents, attendance: api.attendanceAPI.getAllAttendance };
     // Rates (with 100 members, present count == rate%): 32, 73, 27, 44, 14, 30.
@@ -41,7 +41,7 @@ test('Attendance Trend reflects recent momentum, not first-vs-last across the wh
     globalThis.setInterval = () => 1;
     globalThis.clearInterval = () => {};
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-    await act(async () => root.render(React.createElement(MemoryRouter, null, React.createElement(AdminPortal, { user: { role: 'admin' } }))));
+    await act(async () => root.render(React.createElement(MemoryRouter, null, React.createElement(AdminPortal, { user: { role: 'secretary' } }))));
     const trendPanel = [...container.querySelectorAll('.aad-chart-panel')]
       .find(panel => panel.querySelector('.aad-chart-title')?.textContent === 'Attendance Trend');
     const caption = trendPanel.querySelector('.aad-chart-caption');

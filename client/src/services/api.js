@@ -297,35 +297,13 @@ export const eventAPI = {
     return response.data;
   },
 
-  /* Admin-only, at kabaligtaran ng updateEvent sa taas gumagana ito kahit
-  anuman yung status ng event (kasama yung closed/time-exceeded) -
-  pinapayagan ito ng server specifically para sa requests na authenticated
-  bilang 'admin' sa route na ito. */
-  updateEventAsAdmin: async (eventId, eventData) => {
-    const response = await api.put(`/attendance/admin/events/${eventId}`, eventData);
-    return response.data;
-  },
-
-  /* Admin-only, at pag Closed na lang yung event - ang server ang nag-enforce
-  sa dalawa (auth + status), ito lang yung tumuturo sa authenticated admin
-  route imbes sa unauthenticated legacy na isa. */
   deleteEvent: async (eventId) => {
-    const response = await api.delete(`/attendance/admin/events/${eventId}`);
-    return response.data;
-  },
-
-  approveEvent: async (eventId) => {
-    const response = await api.post(`/attendance/admin/events/${eventId}/approve`);
-    return response.data;
-  },
-
-  rejectEvent: async (eventId, reason) => {
-    const response = await api.post(`/attendance/admin/events/${eventId}/reject`, { reason });
+    const response = await api.delete(`/attendance/secretary/events/${eventId}`);
     return response.data;
   },
 
   reopenEvent: async (eventId, { eventDate, startTime, endTime, reason }) => {
-    const response = await api.post(`/attendance/admin/events/${eventId}/reopen`, {
+    const response = await api.post(`/attendance/secretary/events/${eventId}/reopen`, {
       eventDate,
       startTime,
       endTime,

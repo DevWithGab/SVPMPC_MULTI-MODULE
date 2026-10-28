@@ -12,11 +12,9 @@ import {
   Calendar,
   Users,
   UserPlus,
-  FileText,
   ScanLine,
   TrendingUp,
   TrendingDown,
-  XCircle,
 } from "lucide-react";
 import {
   Bar,
@@ -199,39 +197,32 @@ const Dashboard = ({
       section: "live",
     },
     {
-      label: "Event Approvals",
-      desc: "Review pending submissions",
+      label: "Event Management",
+      desc: "Create and manage events",
       icon: Calendar,
       section: "events",
     },
     {
-      label: "Member QR Management",
+      label: "QR Management",
       desc: "Generate and manage QR codes",
       icon: UserPlus,
       section: "members",
-    },
-    {
-      label: "Backup & Restore",
-      desc: "Export or restore system data",
-      icon: FileText,
-      section: "backup",
     },
   ];
 
   const eventStatusCount = (...statuses) =>
     (Array.isArray(events) ? events : []).filter((event) => statuses.includes(event?.status)).length;
   const needsAttention = [
-    ["Pending approvals", eventStatusCount("draft", "pending_approval"), Clock, "events"],
+    ["Closed events", eventStatusCount("closed"), Clock, "events"],
     ["Active events", activeEvents.length, Activity, "live"],
     ["Upcoming events", eventStatusCount("approved", "upcoming", "scheduled"), Calendar, "events"],
-    ["Rejected events", eventStatusCount("rejected"), XCircle, "events"],
   ];
 
   return (
     <div className="secretary-dashboard attendance-admin-dashboard">
-      <PageHeader className="sd-header">
+      <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p>
+      <PageHeader separateBreadcrumb className="sd-header">
         <div>
-          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p>
           <h1>Attendance dashboard</h1>
           <p className="sd-description">{formatLongDate(new Date())} <span>· Philippine time</span></p>
           <p role="status" className={refreshError ? 'aad-refresh text-amber-800' : 'aad-refresh'}>
@@ -240,10 +231,10 @@ const Dashboard = ({
         </div>
         <div className="sd-header-actions">
           <ActionButton variant="outline" className="sd-button" onClick={() => setActiveSection?.("events")}>
-            <Calendar size={15} aria-hidden="true" /> Event approvals
+            <Calendar size={20} aria-hidden="true" /> Event Management
           </ActionButton>
           <ActionButton variant="default" className="sd-button sd-primary" onClick={() => setActiveSection?.("live")}>
-            Live attendance <ArrowRight size={15} aria-hidden="true" />
+            Live attendance <ArrowRight size={19} aria-hidden="true" />
           </ActionButton>
         </div>
       </PageHeader>

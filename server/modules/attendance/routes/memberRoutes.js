@@ -1,5 +1,5 @@
 const { authorizeRoles } = require('../../../middleware/auth');
-const manageRecords = authorizeRoles('admin', 'super_admin', 'secretary');
+const manageRecords = authorizeRoles('secretary', 'super_admin');
 const express = require('express');
 const { 
   getAllMembers,
@@ -39,7 +39,7 @@ router.post('/events', manageRecords, createEvent);
 router.get('/events', getAllEvents);
 router.get('/events/:eventId', getEventById);
 router.put('/events/:eventId', manageRecords, updateEvent);
-router.delete('/events/:eventId', authorizeRoles('admin', 'super_admin'), deleteEvent);
+router.delete('/events/:eventId', authorizeRoles('secretary', 'super_admin'), deleteEvent);
 
 // Attendance routes
 router.post('/attendance/record', recordAttendance);

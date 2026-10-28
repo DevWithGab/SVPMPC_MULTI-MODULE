@@ -1,6 +1,9 @@
 import CsvDateOrder from '../components/mortuary/shared/CsvDateOrder';
 import MortuaryAuditLogs from '../components/mortuary/admin/AuditLogs';
 import MortuaryBackup from '../components/mortuary/admin/DatabaseBackup';
+import AttendanceAuditLogs from '../components/attendance/admin/AuditLogs';
+import AttendanceBackup from '../components/attendance/admin/DatabaseBackup';
+import '../components/attendance/shared/AttendanceWorkspace.css';
 import { importHeaderLabel } from '../utils/importHeaders';
 import { parseMemberUpload, memberUploadError } from '../utils/memberBulkUpload';
 import { showBulkUploadResult, showBulkUploadError } from '../utils/bulkUploadAlerts';
@@ -31,7 +34,7 @@ import './SuperAdmin.css';
 
 
 const SuperAdmin = ({ onAuthenticated }) => {
-  const [section, setSection] = useUrlState('tab', 'members', ['members', 'staff', 'auditlogs', 'mortuary-audit', 'mortuary-backup']);
+  const [section, setSection] = useUrlState('tab', 'members', ['members', 'staff', 'auditlogs', 'mortuary-audit', 'mortuary-backup', 'attendance-audit', 'attendance-backup']);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
   const [showAuthPassword, setShowAuthPassword] = useState(false);
@@ -425,11 +428,13 @@ const SuperAdmin = ({ onAuthenticated }) => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-wrap gap-3 mb-6"><Button variant={section === 'members' ? 'default' : 'outline'} onClick={() => setSection('members')}>Members</Button><Button variant={section === 'staff' ? 'default' : 'outline'} onClick={() => setSection('staff')}>Staff Accounts</Button><Button variant={section === 'auditlogs' ? 'default' : 'outline'} onClick={() => setSection('auditlogs')}>Staff Audit Logs</Button><Button variant={section === 'mortuary-audit' ? 'default' : 'outline'} onClick={() => setSection('mortuary-audit')}>Mortuary Audit Logs</Button><Button variant={section === 'mortuary-backup' ? 'default' : 'outline'} onClick={() => setSection('mortuary-backup')}>Mortuary Backup & Restore</Button></div>
+        <div className="flex flex-wrap gap-3 mb-6"><Button variant={section === 'members' ? 'default' : 'outline'} onClick={() => setSection('members')}>Members</Button><Button variant={section === 'staff' ? 'default' : 'outline'} onClick={() => setSection('staff')}>Staff Accounts</Button><Button variant={section === 'auditlogs' ? 'default' : 'outline'} onClick={() => setSection('auditlogs')}>Staff Audit Logs</Button><Button variant={section === 'mortuary-audit' ? 'default' : 'outline'} onClick={() => setSection('mortuary-audit')}>Mortuary Audit Logs</Button><Button variant={section === 'mortuary-backup' ? 'default' : 'outline'} onClick={() => setSection('mortuary-backup')}>Mortuary Backup &amp; Restore</Button><Button variant={section === 'attendance-audit' ? 'default' : 'outline'} onClick={() => setSection('attendance-audit')}>Attendance Audit Logs</Button><Button variant={section === 'attendance-backup' ? 'default' : 'outline'} onClick={() => setSection('attendance-backup')}>Attendance Backup &amp; Restore</Button></div>
         {section === 'staff' && <StaffAccounts />}
         {section === 'auditlogs' && <StaffAuditLog />}
         {section === 'mortuary-audit' && <MortuaryAuditLogs />}
         {section === 'mortuary-backup' && <MortuaryBackup />}
+        {section === 'attendance-audit' && <div className="attendance-workspace" style={{ height: 'auto' }}><AttendanceAuditLogs /></div>}
+        {section === 'attendance-backup' && <div className="attendance-workspace" style={{ height: 'auto' }}><AttendanceBackup onRestored={fetchMembers} /></div>}
         <div hidden={section !== 'members'}>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

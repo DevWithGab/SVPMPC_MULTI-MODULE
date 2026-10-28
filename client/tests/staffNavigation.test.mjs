@@ -17,12 +17,14 @@ test('new and legacy Mortuary accounts resolve to their officer workspace', () =
 
 test('superadmin can restore either admin portal without a module assignment', () => {
   for (const module of ['attendance', 'mortuary']) {
-    assert.equal(readSession(storage({ role: 'super_admin' }, module, 'admin')).module, module);
+    assert.equal(readSession(storage({ role: 'super_admin' }, module, module === 'attendance' ? 'secretary' : 'admin')).module, module);
   }
 });
 
 test('ordinary staff cannot restore an unassigned module or another role', () => {
   assert.equal(readSession(storage({ role: 'admin', modules: ['attendance'] }, 'mortuary', 'admin')), null);
   assert.equal(readSession(storage({ role: 'secretary', modules: ['attendance'] }, 'attendance', 'admin')), null);
-  assert.equal(readSession(storage({ role: 'admin', modules: ['attendance'] }, 'attendance', 'admin')).role, 'admin');
+  assert.equal(readSession(storage({ role: 'admin', modules: ['attendance'] }, 'attendance', 'admin')), null);
+  assert.equal(portalPath('attendance', 'admin'), '/');
+  assert.equal(readSession(storage({ role: 'secretary', modules: ['attendance'] }, 'attendance', 'secretary')).role, 'secretary');
 });

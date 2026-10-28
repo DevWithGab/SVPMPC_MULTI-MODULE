@@ -4,7 +4,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createServer } from 'vite';
 
-test('admin approved-events table closes on time despite a stale server status', async () => {
+test('secretary scheduled-events table closes on time despite a stale server status', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   const container = document.createElement('div');
   document.body.append(container);
@@ -21,9 +21,14 @@ test('admin approved-events table closes on time despite a stale server status',
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     const render = (events) => act(async () => root.render(React.createElement(EventManagement, { events, setEvents: () => {} })));
     await render([event]);
-    const approvedTable = () => container.querySelector('[aria-label="Approved events"] tbody');
+    const approvedTable = () => container.querySelector('[aria-label="Active events"] tbody');
     const closedTable = () => container.querySelector('[aria-label="Closed events"] tbody');
     assert.match(approvedTable().textContent, /Active/);
+    assert.doesNotMatch(container.querySelector('[aria-label="Upcoming events"] tbody').textContent, /Timed assembly/);
+    const tabs = [...container.querySelectorAll('.aae-groups button')];
+    assert.deepEqual(tabs.map(button => button.textContent.trim()), ['Upcoming0', 'Active1', 'Closed0']);
+    await act(async () => tabs[1].click());
+    assert.equal(tabs[1].getAttribute('aria-pressed'), 'true');
     assert.doesNotMatch(closedTable().textContent, /Timed assembly/);
 
     // The server's own status field is still "active" here — only the

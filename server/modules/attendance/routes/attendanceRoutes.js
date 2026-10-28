@@ -1,5 +1,5 @@
 const { authorizeRoles } = require('../../../middleware/auth');
-const manageRecords = authorizeRoles('admin', 'super_admin', 'secretary');
+const manageRecords = authorizeRoles('secretary', 'super_admin');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -74,7 +74,7 @@ router.post('/events', manageRecords, eventController.createEvent);
 router.get('/events', eventController.getAllEvents);
 router.get('/events/:eventId', eventController.getEventById);
 router.put('/events/:eventId', manageRecords, eventController.updateEvent);
-router.delete('/events/:eventId', authorizeRoles('admin', 'super_admin'), eventController.deleteEvent);
+router.delete('/events/:eventId', authorizeRoles('secretary', 'super_admin'), eventController.deleteEvent);
 
 // Legacy attendance routes
 router.post('/attendance/record', attendanceController.recordAttendance);

@@ -27,10 +27,9 @@ export async function loadSecretaryEvents(getPage) {
   } while (page <= totalPages);
   return records;
 }
-/* Yung mga approved events lang ang sumusunod sa clock. I-preserve yung
-approval, cancellation, rejection at closed states na ibinalik ng server. */
+// Legacy pending events also follow their schedule without approval.
 export function scheduledSecretaryEvent(event, now = Date.now()) {
-  if (!['upcoming', 'active'].includes(event.status)) return event;
+  if (!['draft', 'pending_approval', 'upcoming', 'active'].includes(event.status)) return event;
   const window = scannerEventWindow(event);
   if (!window) return event;
   const status = now >= window.end ? 'closed' : now >= window.start ? 'active' : 'upcoming';

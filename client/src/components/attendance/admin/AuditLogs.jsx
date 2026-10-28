@@ -199,7 +199,7 @@ const AuditLogs = () => {
   return (
     <div className="secretary-dashboard attendance-audit-logs">
       {/* Header */}
-      <PageHeader className="sd-header">
+      <PageHeader separateBreadcrumb className="sd-header">
         <div>
           <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Activity history</strong></p>
           <h1>Audit logs</h1>

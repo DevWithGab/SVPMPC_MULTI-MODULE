@@ -1,18 +1,66 @@
+/* Personal scanning history: clear identities, timestamps, and record scope. */
 .operator-my-scans { min-width: 0; }
-.oms-operator { display: flex; align-items: start; gap: 14px; padding: 22px 20px; margin-bottom: 24px; }
-.oms-operator > div { min-width: 0; }
-.oms-operator h2 { margin-top: 5px; color: #17251d; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
-.oms-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #dce3dd; border-radius: 4px; background: #f8faf8; color: #52715a; }
-.oms-table { min-width: 760px; }
-.operator-my-scans td { color: #526058; font-size: 13px; }
-.operator-my-scans td:first-child { color: #24362a; min-width: 200px; max-width: 320px; overflow-wrap: anywhere; }
-.operator-my-scans td:nth-child(2) { max-width: 320px; overflow-wrap: anywhere; }
-.operator-my-scans td:last-child { min-width: 190px; }
-.operator-my-scans tbody tr:hover { background: #f8faf8; }
-.operator-my-scans td[colspan] { padding: 0; }
-.operator-my-scans .sd-status { align-self: center; }
-.oms-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-top: 1px solid #e2e7e3; }
-.oms-error { padding: 14px 20px; color: #9b3425; background: #fff5f3; border-bottom: 1px solid #ebc9c1; font-size: 13px; line-height: 1.6; }
-@media (max-width: 640px) {
-  .oms-operator, .oms-pagination, .oms-error { padding-inline: 16px; }
+.attendance-workspace .operator-my-scans .sd-panel { border-color: #dfe7e1; border-radius: 12px; box-shadow: none; }
+.oms-operator { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; padding: 22px 24px; margin-bottom: 24px; }
+.oms-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.oms-identity > div { min-width: 0; }
+.oms-identity-icon { display: grid; place-items: center; width: 46px; height: 46px; flex: 0 0 46px; border-radius: 10px; background: #edf5ef; color: #3e6b4e; }
+.oms-role-label { margin: 0 0 5px; color: #7c8980; font-size: 11px; font-weight: 500; }
+.oms-identity h2 { color: #233c2d; font-size: 19px; line-height: 1.4; font-weight: 600; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.oms-identity-hint { margin-top: 5px; color: #7a877f; font-size: 12px; line-height: 1.5; }
+.oms-total { display: flex; align-items: center; gap: 12px; padding-left: 28px; border-left: 1px solid #e0e8e3; }
+.oms-total-icon { color: #789382; }
+.oms-total > div > span { display: block; color: #738177; font-size: 12px; }
+.oms-total strong { display: block; margin-top: 3px; color: #234b32; font-size: 28px; line-height: 1.2; font-weight: 650; font-variant-numeric: tabular-nums; }
+.oms-total small { align-self: flex-end; padding-bottom: 3px; color: #8a958e; font-size: 11px; }
+.attendance-workspace .operator-my-scans .oms-history .sd-panel-heading { padding: 22px 24px; align-items: center; }
+.attendance-workspace .operator-my-scans .oms-history .sd-panel-heading h2 { font-size: 21px; letter-spacing: -.025em; }
+.oms-order-label { display: inline-flex; align-items: center; gap: 6px; color: #7b887f; font-size: 12px; white-space: nowrap; }
+.operator-my-scans .oms-table { min-width: 900px; table-layout: fixed; }
+.oms-col-member { width: 33%; }
+.oms-col-event { width: 29%; }
+.oms-col-barangay { width: 18%; }
+.oms-col-time { width: 20%; }
+.attendance-workspace .operator-my-scans table.oms-table > thead > tr > th { padding: 14px 24px; color: #64776a; font-size: 12px; font-weight: 600; background: #f7faf8; border-color: #e4ebe6; }
+.attendance-workspace .operator-my-scans table.oms-table > tbody > tr > td { padding: 18px 24px; border-color: #edf1ee; color: #4c6354; vertical-align: middle; }
+.attendance-workspace .operator-my-scans table.oms-table > tbody > tr:hover > td { background: #f9fbfa; }
+.oms-timezone { margin-left: 3px; color: #87978c; font-size: 10px; font-weight: 500; }
+.oms-member-name { display: block; font-size: 14px; font-weight: 600; color: #253e2e; overflow-wrap: anywhere; line-height: 1.5; }
+.oms-passbook { display: flex; gap: 5px; margin-top: 5px; color: #8a968e; font-size: 11px; font-weight: 400; white-space: nowrap; }
+.oms-passbook > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #7c8b81; font-variant-numeric: tabular-nums; }
+.oms-event-name { display: block; font-size: 13px; line-height: 1.6; color: #4a6252; overflow-wrap: anywhere; }
+.oms-location { display: flex; align-items: center; gap: 6px; color: #7b897f; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.oms-location > svg { flex-shrink: 0; color: #91a196; }
+.oms-checkin { display: flex; flex-direction: column; gap: 4px; font-variant-numeric: tabular-nums; }
+.oms-checkin strong { color: #355c42; font-size: 14px; font-weight: 500; }
+.oms-checkin > span { color: #859188; font-size: 12px; }
+.oms-muted { color: #8a968e; font-size: 12px; }
+.attendance-workspace .operator-my-scans table.oms-table > tbody > tr > td[colspan] { padding: 0; }
+.oms-empty { display: flex; align-items: center; flex-direction: column; gap: 12px; padding: 48px 24px; text-align: center; color: #8a9c8f; }
+.oms-empty strong { color: #526c5b; font-size: 14px; font-weight: 500; }
+.oms-empty p { max-width: 350px; color: #7d8d82; font-size: 13px; line-height: 1.7; }
+.oms-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-top: 1px solid #e4ebe6; color: #78867c; font-size: 12px; }
+.oms-error { padding: 14px 24px; color: #9b4f3c; background: #fff8f3; border-bottom: 1px solid #ead7cd; font-size: 13px; line-height: 1.6; }
+@media (max-width: 700px) {
+  .oms-operator { padding: 20px 18px; gap: 18px; }
+  .oms-identity { width: 100%; align-items: flex-start; }
+  .oms-total { width: 100%; padding: 16px 0 0; border-left: 0; border-top: 1px solid #e4ebe6; }
+  .oms-total > div { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 12px; }
+  .oms-total strong { margin: 0; font-size: 24px; }
+  .oms-total small { display: none; }
+  .attendance-workspace .operator-my-scans .oms-history .sd-panel-heading { padding: 18px; align-items: flex-start; }
+  .oms-order-label { font-size: 11px; }
+  .operator-my-scans .oms-table-scroll { overflow: visible; }
+  .operator-my-scans table.oms-table { display: block; min-width: 0; table-layout: auto; }
+  .oms-table colgroup { display: none; }
+  .oms-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .oms-table tbody { display: grid; gap: 12px; padding: 16px; background: #f8faf9; }
+  .oms-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px; border: 1px solid #dfe8e2; border-radius: 10px; background: #fff; }
+  .attendance-workspace .operator-my-scans table.oms-table > tbody > tr > td { display: block; min-width: 0; padding: 0; border: 0; background: transparent; }
+  .oms-table td:first-child, .oms-table td:nth-child(2), .oms-table td[colspan] { grid-column: 1 / -1; }
+  .oms-table td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; margin-bottom: 5px; color: #87958b; font-size: 11px; }
+  .attendance-workspace .operator-my-scans table.oms-table > tbody > tr > td:nth-child(2) { padding-bottom: 12px; border-bottom: 1px solid #edf1ee; }
+  .oms-table .oms-passbook { white-space: normal; }
+  .oms-table .oms-passbook > span { overflow-wrap: anywhere; }
+  .oms-pagination { padding: 16px; align-items: flex-start; }
 }

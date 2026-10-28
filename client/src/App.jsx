@@ -8,7 +8,7 @@ import MortuaryAdminPortal from "./pages/mortuary/AdminPortal";
 import MortuaryTreasurerPortal from "./pages/mortuary/TreasurerPortal";
 import AttendanceSecretaryPortal from "./pages/attendance/SecretaryPortal";
 import AttendanceOperatorPortal from "./pages/attendance/OperatorPortal";
-import AttendanceAdminPortal from "./pages/attendance/AdminPortal";
+
 
 import { BrowserRouter, Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { readSession, portalPath } from './utils/navigation';
@@ -23,7 +23,7 @@ const PORTAL_COMPONENTS = {
   '/mortuary/finance_officer': MortuaryTreasurerPortal,
   '/attendance/secretary': AttendanceSecretaryPortal,
   '/attendance/scanner_operator': AttendanceOperatorPortal,
-  '/attendance/admin': AttendanceAdminPortal,
+
 };
 
 /* Galing ito sa MODULE_ROLES, kaya kung may role/module na idinagdag sa constants.js
@@ -76,15 +76,16 @@ function AppRoutes() {
   const routesElement = (
     <Routes>
       <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector key={location.search} onModuleSelect={handleLogin} notice={loginNotice} />} />
-      <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'admin', user, token)} />} />
+      <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'secretary', user, token)} />} />
       {Object.entries(portals).map(([path, Portal]) => (
         <Route key={path} path={path} element={
-          isSuperAdmin && (path.endsWith('/admin') || path.startsWith('/mortuary/')) ? createElement(Portal, { user: authUser, token: authToken, onBack: handleLogout })
+          isSuperAdmin && (path === '/attendance/secretary' || path.startsWith('/mortuary/')) ? createElement(Portal, { user: authUser, token: authToken, onBack: handleLogout })
             : !session ? <Navigate to="/" replace state={{ from: { pathname: location.pathname, search: location.search } }} />
             : home !== path ? <Navigate to={home} replace />
               : createElement(Portal, { user: session.user, token: session.token, onBack: handleLogout })
         } />
       ))}
+      <Route path="/attendance/admin" element={<Navigate to="/attendance/secretary" replace />} />
       <Route path="/mortuary/admin" element={<Navigate to="/mortuary/claims_officer" replace />} />
       <Route path="/mortuary/treasurer" element={<Navigate to="/mortuary/finance_officer" replace />} />
       <Route path="*" element={<Navigate to={home} replace />} />
@@ -99,7 +100,7 @@ function AppRoutes() {
   screen) ay umaasa sa normal page scrolling gamit ang min-h-screen, kaya HINDI dapat
   i-wrap ng ganito - kapag ginawa, ma-clip ito laban sa overflow-hidden na walang
   paraan para mag-scroll. */
-  const isAdminPortalRoute = location.pathname === '/attendance/admin' || location.pathname.startsWith('/mortuary/');
+  const isAdminPortalRoute = location.pathname === '/attendance/secretary' || location.pathname.startsWith('/mortuary/');
   if (isSuperAdmin && isAdminPortalRoute) {
     return (
       <div className="h-dvh flex flex-col overflow-hidden">

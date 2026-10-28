@@ -7,7 +7,7 @@ const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const getPhtParts = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(date).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  }).formatToParts(new Date(date)).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
   return { date: `${parts.year}-${parts.month}-${parts.day}`, year: parts.year, month: parts.month, day: parts.day };
 };
 
@@ -26,8 +26,27 @@ const getEventEndDateTime = (event) => {
   return end;
 };
 
+const validateEventDetails = (event) => {
+  if (typeof event.eventName !== 'string' || !event.eventName.trim()) return 'Event name is required';
+  if (typeof event.location !== 'string' || !event.location.trim()) return 'Location is required';
+  return null;
+};
+
+const validateSchedule = (event) => {
+  if (!event.eventDate || !Number.isFinite(new Date(event.eventDate).getTime())) return 'A valid event date is required';
+  const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!timePattern.test(event.startTime) || !timePattern.test(event.endTime)) return 'Valid start and end times are required';
+  if (event.endTime <= event.startTime) return 'End time must be after start time';
+  return null;
+};
+
+const scheduledStatus = (event) => {
+  const now = new Date();
+  return now >= getEventEndDateTime(event) ? 'closed' : now >= getPhtDateTime(event) ? 'active' : 'upcoming';
+};
+
 const refreshEventStatus = async (event) => {
-  if (!event || !['upcoming', 'active'].includes(event.status)) return event;
+  if (!event || !['draft', 'pending_approval', 'upcoming', 'active'].includes(event.status)) return event;
   const now = new Date();
   const nextStatus = now >= getEventEndDateTime(event)
     ? 'closed'
@@ -50,7 +69,7 @@ const getEventFilter = (identifier) => {
 // check and update finished events
 const checkAndUpdateCompletedEvents = async () => {
   try {
-    const events = await Event.find({ status: { $in: ['upcoming', 'active'] } });
+    const events = await Event.find({ status: { $in: ['draft', 'pending_approval', 'upcoming', 'active'] } });
     for (const event of events) await refreshEventStatus(event);
   } catch (error) {
     console.error('Error updating completed events:', error);
@@ -60,10 +79,8 @@ const checkAndUpdateCompletedEvents = async () => {
 const eventStatusTimer = setInterval(checkAndUpdateCompletedEvents, 60 * 1000);
 eventStatusTimer.unref();
 
-/* Ang route ang nagsasabi kung kailangan pa ng approval - para hindi
-basta lumabas na "Upcoming" yung event na ginawa ng Secretary, at
-ma-miss sa Pending Approvals list ng Admin. */
-const handleCreateEvent = async (req, res, { autoApprove }) => {
+// All events follow their scheduled Philippine time without approval.
+const handleCreateEvent = async (req, res) => {
   try {
     const { eventName, eventDate, eventTime, startTime, endTime, location, description, type, createdBy } = req.body;
 
@@ -71,27 +88,33 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    const detailsError = validateEventDetails({ eventName, location });
+    if (detailsError) return res.status(400).json({ message: detailsError });
+
     const newEvent = new Event({
       eventId: uuidv4(),
-      eventName,
+      eventName: eventName.trim(),
       eventDate,
       eventTime: startTime, // keep eventTime for backward compatibility, same as startTime
       startTime,
       endTime,
-      location,
+      location: location.trim(),
       description,
       type: type || 'General Assembly',
-      status: autoApprove ? 'upcoming' : 'pending_approval',
+      status: 'upcoming',
       createdBy,
     });
 
+    const scheduleError = validateSchedule(newEvent);
+    if (scheduleError) return res.status(400).json({ message: scheduleError });
+    newEvent.status = scheduledStatus(newEvent);
     const saved = await newEvent.save();
 
     // log the audit event
     await createAuditLog({
       userId: req.user?.userId || req.user?.id || createdBy,
       userName: req.user?.fullName || req.user?.name || req.user?.username || createdBy,
-      userRole: req.user?.role || 'admin',
+      userRole: req.user?.role || 'secretary',
       action: 'event_created',
       module: 'attendance',
       entityType: 'event',
@@ -132,13 +155,8 @@ const handleCreateEvent = async (req, res, { autoApprove }) => {
   }
 };
 
-/* Ginagamit ng Secretary, legacy, at member routes - laging pending_approval
-muna para makita ng Admin sa Pending Approvals list. */
-const createEvent = (req, res) => handleCreateEvent(req, res, { autoApprove: false });
-
-/* Admin route lang gumagamit nito - walang mag-a-approve sa Admin, kaya
-diretso na sa "upcoming" status. */
-const createEventAsAdmin = (req, res) => handleCreateEvent(req, res, { autoApprove: true });
+const createEvent = handleCreateEvent;
+const createEventAsAdmin = handleCreateEvent; // Compatibility for existing clients.
 
 // get all events, with filters and pagination
 const getAllEvents = async (req, res) => {
@@ -193,6 +211,7 @@ const getEventById = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
+    await refreshEventStatus(event);
     res.status(200).json(event);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching event', error: safeErrorMessage(error) });
@@ -213,31 +232,20 @@ const updateEvent = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    /* Puwede lang i-edit ng Secretary yung event kung draft/pending/rejected
-    pa - pag approved o closed na, Admin na ang bahala dun. Si Admin wala
-    namang ganitong restriction: parehong route (Secretary at Admin) ang
-    gumagamit nitong controller, pero 'admin' role lang ang makaka-edit
-    kahit anong status, kasama na yung closed na event. */
-    
-    if (
-      !['draft', 'pending_approval', 'rejected'].includes(originalEvent.status) &&
-      !['admin', 'super_admin'].includes(req.user?.role)
-    ) {
-      return res.status(400).json({ message: 'Only draft, pending, or rejected events can be edited' });
+    await refreshEventStatus(originalEvent);
+    const candidate = { ...originalEvent.toObject(), ...updates };
+    const detailsError = validateEventDetails(candidate);
+    if (detailsError) return res.status(400).json({ message: detailsError });
+    if (updates.eventName !== undefined) updates.eventName = updates.eventName.trim();
+    if (updates.location !== undefined) updates.location = updates.location.trim();
+    const scheduleError = validateSchedule(candidate);
+    if (scheduleError) return res.status(400).json({ message: scheduleError });
+    if (originalEvent.status === 'closed' && ['eventDate', 'startTime', 'endTime'].some(field =>
+      updates[field] !== undefined && String(field === 'eventDate' ? new Date(updates[field]).getTime() : updates[field]) !== String(field === 'eventDate' ? new Date(originalEvent[field]).getTime() : originalEvent[field]))) {
+      return res.status(400).json({ message: 'Use Reopen with a reason to change a closed event schedule' });
     }
-
-    if (['upcoming', 'active', 'closed'].includes(originalEvent.status)) {
-      const changedLockedField = ['eventName', 'description', 'location'].some(field =>
-        updates[field] !== undefined && updates[field] !== (originalEvent[field] ?? ''));
-      if (changedLockedField) {
-        return res.status(400).json({ message: 'The event name, description, and location cannot be changed after approval' });
-      }
-      delete updates.eventName;
-      delete updates.description;
-      delete updates.location;
-    }
-
-    updates.status = originalEvent.status === 'rejected' ? 'rejected' : originalEvent.status;
+    updates.eventTime = candidate.startTime;
+    updates.status = originalEvent.status === 'closed' ? 'closed' : scheduledStatus(candidate);
     const event = await Event.findOneAndUpdate(filter, updates, { new: true, runValidators: true });
 
     // log the audit event
@@ -284,91 +292,22 @@ const updateEvent = async (req, res) => {
   }
 };
 
-const transitionEvent = async (req, res, nextStatus, allowedStatuses, message) => {
-  const eventId = req.params.eventId || req.params.id;
-  const event = await Event.findOne(getEventFilter(eventId));
-  if (!event) return res.status(404).json({ message: 'Event not found' });
-  if (!allowedStatuses.includes(event.status)) return res.status(400).json({ message: `Event cannot be ${message.toLowerCase()} from its current status` });
-  const before = event.toObject();
-  event.status = nextStatus;
-  if (nextStatus !== 'rejected') event.rejectionReason = undefined;
-  if (req.body?.reason) event.rejectionReason = req.body.reason;
-  await event.save();
-
-  /* Ito yung ginagamit ng submit/cancel/resubmit/reject (may sarili naman
-  si approveEvent sa baba). Parehong action string lang ang ginagamit kagaya
-  ng reopenEvent, kaya di na kailangan gumawa ng bagong AuditLog.action value. */
-  await createAuditLog({
-    userId: req.user?.userId || req.user?.id,
-    userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-    userRole: req.user?.role || 'admin',
-    action: 'event_status_changed',
-    module: 'attendance',
-    entityType: 'event',
-    entityId: event.eventId,
-    entityName: event.eventName,
-    description: event.rejectionReason
-      ? `Event "${event.eventName}" ${message.toLowerCase()}: ${event.rejectionReason}`
-      : `Event "${event.eventName}" ${message.toLowerCase()}`,
-    changes: { before, after: event.toObject() },
-    status: 'success',
-    ipAddress: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-
-  return res.json({ message: `Event ${message.toLowerCase()} successfully`, event });
-};
-
-const submitEvent = (req, res) => transitionEvent(req, res, 'pending_approval', ['draft', 'rejected'], 'submitted for approval');
-const cancelEvent = (req, res) => transitionEvent(req, res, 'cancelled', ['draft', 'pending_approval', 'rejected'], 'cancelled');
-const resubmitEvent = (req, res) => transitionEvent(req, res, 'pending_approval', ['rejected'], 'resubmitted');
-const approveEvent = async (req, res) => {
-  const eventId = req.params.eventId || req.params.id;
-  const event = await Event.findOne(getEventFilter(eventId));
-  if (!event) return res.status(404).json({ message: 'Event not found' });
-  if (!['draft', 'pending_approval'].includes(event.status)) return res.status(400).json({ message: 'Only pending events can be approved' });
-  const before = event.toObject();
-  event.status = 'upcoming';
-  await event.save();
-
-  await createAuditLog({
-    userId: req.user?.userId || req.user?.id,
-    userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-    userRole: req.user?.role || 'admin',
-    action: 'event_status_changed',
-    module: 'attendance',
-    entityType: 'event',
-    entityId: event.eventId,
-    entityName: event.eventName,
-    description: `Event "${event.eventName}" approved`,
-    changes: { before, after: event.toObject() },
-    status: 'success',
-    ipAddress: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-
-  return res.json({ message: 'Event approved successfully', event });
-};
-const rejectEvent = (req, res) => {
-  if (!req.body?.reason?.trim()) return res.status(400).json({ message: 'A rejection reason is required' });
-  return transitionEvent(req, res, 'rejected', ['pending_approval'], 'rejected');
-};
-/* Pag i-reopen ang closed event, kailangan ng bagong schedule sa hinaharap -
-kasi yung luma, lagpas na, babalik lang agad sa closed pag na-check ulit ng
-60s timer (refreshEventStatus). Required din ang reason galing sa Admin,
-nilalagay sa event para sa audit trail. */
+// Reopening requires a reason and a new schedule that has not ended.
 const reopenEvent = async (req, res) => {
   const eventId = req.params.eventId || req.params.id;
   const event = await Event.findOne(getEventFilter(eventId));
   if (!event) return res.status(404).json({ message: 'Event not found' });
+  await refreshEventStatus(event);
   if (event.status !== 'closed') return res.status(400).json({ message: 'Only closed events can be reopened' });
 
   const { eventDate, startTime, endTime, reason } = req.body || {};
-  if (!reason?.trim()) return res.status(400).json({ message: 'A reason for reopening is required' });
+  if (typeof reason !== 'string' || !reason.trim()) return res.status(400).json({ message: 'A reason for reopening is required' });
   if (!eventDate || !startTime || !endTime) {
     return res.status(400).json({ message: 'A new date, start time, and end time are required to reopen this event' });
   }
 
+  const scheduleError = validateSchedule({ eventDate, startTime, endTime });
+  if (scheduleError) return res.status(400).json({ message: scheduleError });
   const before = event.toObject();
 
   event.eventDate = eventDate;
@@ -403,9 +342,7 @@ const reopenEvent = async (req, res) => {
   return res.json({ message: 'Event reopened successfully', event });
 };
 
-/* Pwede lang mag-delete ng event ang Admin, at closed na dapat muna. Yung
-mga buhay pa (pending/upcoming/active) dapat sa reject/cancel/reopen
-dumaan, para hindi mabura ng mali yung live na event. */
+// Secretary can delete events in any state; retain the audit history.
 const deleteEvent = async (req, res) => {
   try {
     const eventId = req.params.eventId || req.params.id;
@@ -414,10 +351,6 @@ const deleteEvent = async (req, res) => {
 
     if (!existing) {
       return res.status(404).json({ message: 'Event not found' });
-    }
-
-    if (existing.status !== 'closed') {
-      return res.status(400).json({ message: 'Only closed events can be deleted' });
     }
 
     const event = await Event.findOneAndDelete(filter);
@@ -472,11 +405,6 @@ module.exports = {
   getEventById,
   updateEvent,
   deleteEvent,
-  submitEvent,
-  cancelEvent,
-  resubmitEvent,
-  approveEvent,
-  rejectEvent,
   reopenEvent,
   refreshEventStatus,
   getPhtDateTime,

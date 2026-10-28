@@ -18,7 +18,7 @@ export default function LiveAttendanceView({
 }) {
   return (
     <div className="secretary-live-attendance">
-      <PageHeader className="sla-header">
+      <PageHeader separateBreadcrumb className="sla-header">
         <div>
           <p className="sla-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Live attendance</strong></p>
           <h1>Live attendance</h1>

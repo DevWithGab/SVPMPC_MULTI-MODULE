@@ -7,7 +7,6 @@ import { Table as DataTable } from '../../ui/table';
 import React, { useMemo, useState } from "react";
 import {
   AlertTriangle,
-  Edit3,
   Loader2,
   Search,
   RotateCcw,
@@ -29,8 +28,8 @@ const getEventName = (event) =>
 const eventDisplayName = (event) => getEventName(event) || "this event";
 
 const statusLabels = {
-  draft: "Pending Approval",
-  pending_approval: "Pending Approval",
+  draft: "Scheduled",
+  pending_approval: "Scheduled",
   upcoming: "Upcoming",
   active: "Active",
   closed: "Closed",
@@ -40,12 +39,10 @@ const statusLabels = {
 
 const getStatusLabel = (status) => statusLabels[status] || status;
 
-const EventManagement = ({ events = [], setEvents }) => {
-  const [viewedEvent, setViewedEvent] = useState(null);
-  const [eventGroup, setEventGroup] = useState('pending');
+const EventManagement = ({ events = [], setEvents, user }) => {
+  const [selectedEvent, setViewedEvent] = useState(null);
+  const [eventGroup, setEventGroup] = useState('upcoming');
   const [search, setSearch] = useState('');
-  const [eventToReject, setEventToReject] = useState(null);
-  const [rejectionReason, setRejectionReason] = useState("");
   const [eventToDelete, setEventToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [eventToReopen, setEventToReopen] = useState(null);
@@ -67,31 +64,21 @@ const EventManagement = ({ events = [], setEvents }) => {
     location: "",
   });
   const [savingEdit, setSavingEdit] = useState(false);
-  const approvedDetailsLocked = ["upcoming", "active", "closed"].includes(editingEvent?.status);
+  const [eventFormError, setEventFormError] = useState('');
 
-  /* Ang server lang ang nagpapalit ng stored status ng approved event mula
-  upcoming/active papunta sa closed, at ginagawa niya ito sa background sweep
-  (every 60s) - kaya kung direkta lang basahin ang event.status mula sa fetched
-  list, pwedeng magpakita ng "Active" kahit isa o dalawang minuto na pasado ang
-  actual end time nito. Dito, kinukwenta ulit ang upcoming/active/closed base sa
-  sariling schedule ng event gamit ang once-a-second clock - parehong correction
-  na ginagamit na ng Secretary's Event Management at Dashboard - kaya tama lang
-  ang oras ng pagsara ng badges dito, kahit gaano pa katagal ang stale ng
-  persisted status. */
+  // Keep displayed status accurate between server refreshes.
   const correctedEvents = useScheduledSecretaryEvents(events);
+  const viewedEvent = correctedEvents.find(event => getEventKey(event) === getEventKey(selectedEvent)) || selectedEvent;
 
-  const pendingEvents = useMemo(
+  const upcomingEvents = useMemo(
     () =>
       correctedEvents.filter((event) =>
-        ["draft", "pending_approval"].includes(event.status),
+        event.status === "upcoming",
       ),
     [correctedEvents],
   );
-  const approvedEvents = useMemo(
-    () =>
-      correctedEvents.filter((event) =>
-        ["upcoming", "active"].includes(event.status),
-      ),
+  const activeEvents = useMemo(
+    () => correctedEvents.filter(event => event.status === "active"),
     [correctedEvents],
   );
   const closedEvents = useMemo(
@@ -107,49 +94,7 @@ const EventManagement = ({ events = [], setEvents }) => {
     );
   const eventDate = (event) => formatDate(event.eventDate || event.date);
 
-  const approveEvent = async (event) => {
-    try {
-      const response = await eventAPI.approveEvent(getEventKey(event));
-      updateEventInList(response.event);
-      setNotice({
-        type: "success",
-        message:
-          "Event approved. It will activate automatically at its PHT start time.",
-      });
-    } catch (error) {
-      setNotice({
-        type: "error",
-        message: error.response?.data?.message || "Unable to approve event.",
-      });
-    }
-  };
-
-  const rejectEvent = async () => {
-    if (!eventToReject || !rejectionReason.trim()) return;
-    try {
-      const response = await eventAPI.rejectEvent(
-        getEventKey(eventToReject),
-        rejectionReason.trim(),
-      );
-      updateEventInList(response.event);
-      setNotice({
-        type: "success",
-        message:
-          "Event Rejected - Revision required. The Secretary has been notified.",
-      });
-      setEventToReject(null);
-      setRejectionReason("");
-    } catch (error) {
-      setNotice({
-        type: "error",
-        message: error.response?.data?.message || "Unable to reject event.",
-      });
-    }
-  };
-
-  /* Pasado na yung old date/time ng closed event, kaya kapag ire-reopen ito
-  kailangan ng bagong schedule - kung hindi, isasara ulit agad ito ng 60s
-  auto-status timer. Required din na ilagay ng Admin kung bakit ito ire-reopen. */
+  // A new schedule prevents reopened events from closing immediately.
   const openReopenModal = (event) => {
     const todayPht = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Manila",
@@ -228,13 +173,9 @@ const EventManagement = ({ events = [], setEvents }) => {
     return "";
   };
 
-  /* Puwede ng Admin i-edit ang kahit anong approved o closed event - kasama
-  na yung closed (time-exceeded) na dati hindi talaga magalaw. Pero yung
-  date/time ay off-limits dito para sa closed event: ang status-refresh timer
-  ay bumabantay lang sa upcoming/active events, kaya kung ie-edit ang schedule
-  ng closed event dito sa form, hindi naman ito babalik sa labas ng 'closed' -
-  dahil dito, yung dedicated Reopen flow ang gamitin para dun. */
+  // Closed event schedules change only through Reopen.
   const openEditModal = (event) => {
+    setEventFormError('');
     const parsedDate = new Date(event.eventDate || event.date);
     setEditingEvent(event);
     setEditForm({
@@ -249,19 +190,19 @@ const EventManagement = ({ events = [], setEvents }) => {
     });
   };
 
-  const submitEditEvent = async () => {
-    if (!editingEvent || savingEdit || editingEvent.status === "closed") return;
+  const submitEditEvent = async (event) => {
+    event?.preventDefault();
+    if (!editingEvent || savingEdit) return;
     if (!editForm.name.trim() || !editForm.location.trim()) return;
 
     setSavingEdit(true);
+    setEventFormError('');
     try {
       const isClosed = editingEvent.status === "closed";
       const payload = {};
-      if (!approvedDetailsLocked) {
-        payload.eventName = editForm.name.trim();
-        payload.description = editForm.description;
-        payload.location = editForm.location.trim();
-      }
+      payload.eventName = editForm.name.trim();
+      payload.description = editForm.description;
+      payload.location = editForm.location.trim();
 
       if (!isClosed) {
         const startTime = normalizeTimeValue(editForm.startTime);
@@ -272,18 +213,19 @@ const EventManagement = ({ events = [], setEvents }) => {
         payload.endTime = endTime;
       }
 
-      const response = await eventAPI.updateEventAsAdmin(
-        getEventKey(editingEvent),
-        payload,
-      );
-      updateEventInList(response.event);
-      setNotice({ type: "success", message: "Event updated successfully." });
+      if (!isClosed && (!payload.eventDate || !payload.startTime || !payload.endTime || payload.endTime <= payload.startTime)) {
+        setEventFormError('Choose a date and an end time after the start time.');
+        return;
+      }
+      const response = editingEvent.isNew
+        ? await eventAPI.createEvent({ ...payload, createdBy: user?.userId || user?.username || 'secretary' })
+        : await eventAPI.updateEvent(getEventKey(editingEvent), payload);
+      if (editingEvent.isNew) setEvents([...events, response.event]);
+      else updateEventInList(response.event);
+      setNotice({ type: "success", message: editingEvent.isNew ? "Event created. It will open automatically at its scheduled time." : "Event updated successfully." });
       setEditingEvent(null);
     } catch (error) {
-      setNotice({
-        type: "error",
-        message: error.response?.data?.message || "Unable to update event.",
-      });
+      setEventFormError(error.response?.data?.message || "Unable to save the event. Please try again.");
     } finally {
       setSavingEdit(false);
     }
@@ -314,10 +256,15 @@ const EventManagement = ({ events = [], setEvents }) => {
     }
   };
 
+  const openCreateModal = () => {
+    setEventFormError('');
+    setEditingEvent({ isNew: true });
+    setEditForm({ name: '', description: '', date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date()), startTime: '', endTime: '', location: '' });
+  };
   const groups = [
-    { key: 'pending', label: 'Pending', title: 'Pending approvals', ariaLabel: 'Pending event approvals', records: pendingEvents, description: 'Review each submission before approving its attendance schedule.' },
-    { key: 'approved', label: 'Approved', title: 'Approved events', ariaLabel: 'Approved events', records: approvedEvents, description: 'Manage schedules for upcoming and active events.' },
-    { key: 'closed', label: 'Closed', title: 'Closed events', ariaLabel: 'Closed events', records: closedEvents, description: 'Review past events or reopen a session with a new schedule.' },
+    { key: 'upcoming', label: 'Upcoming', title: 'Upcoming events', ariaLabel: 'Upcoming events', records: upcomingEvents, description: 'Events open automatically at their scheduled Philippine start time.' },
+    { key: 'active', label: 'Active', title: 'Active events', ariaLabel: 'Active events', records: activeEvents, description: 'Attendance is open until the scheduled Philippine end time.' },
+    { key: 'closed', label: 'Closed', title: 'Closed events', ariaLabel: 'Closed events', records: closedEvents, description: 'View past events or reopen with a reason and a new schedule.' },
   ];
   const query = search.trim().toLowerCase();
   const matchesSearch = event => !query || [getEventName(event), event.location, getEventKey(event)]
@@ -327,13 +274,13 @@ const EventManagement = ({ events = [], setEvents }) => {
 
   return (
     <div className="secretary-dashboard attendance-admin-events">
-      <PageHeader className="sd-header">
+      <PageHeader separateBreadcrumb className="sd-header">
         <div>
           <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Events</strong></p>
-          <h1>Event approvals</h1>
-          <p className="sd-description">Review submissions and manage attendance schedules.</p>
+          <h1>Event Management</h1>
+          <p className="sd-description">Create, edit, and manage attendance schedules.</p>
         </div>
-        <span className="aae-timezone">Philippine Standard Time (PHT)</span>
+        <div><ActionButton type="button" onClick={openCreateModal}>Create event</ActionButton></div>
       </PageHeader>
 
       {notice && <Toast message={notice.message} type={notice.type} onClose={() => setNotice(null)} />}
@@ -341,7 +288,7 @@ const EventManagement = ({ events = [], setEvents }) => {
       <Panel as="section" className="sd-panel aae-filters" aria-labelledby="aae-filter-title">
         <div className="aae-filter-heading">
           <h2 id="aae-filter-title">Find an event</h2>
-          <button type="button" className="sd-link" disabled={!search && eventGroup === 'pending'} onClick={() => { setSearch(''); setEventGroup('pending'); }}>Reset filters</button>
+          <button type="button" className="sd-link" disabled={!search && eventGroup === 'upcoming'} onClick={() => { setSearch(''); setEventGroup('upcoming'); }}>Reset filters</button>
         </div>
         <div className="aae-filter-grid">
           <label className="aae-search-label">
@@ -376,27 +323,20 @@ const EventManagement = ({ events = [], setEvents }) => {
                 <thead><tr><th scope="col">Event</th><th scope="col">Schedule</th><th scope="col">Location</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
                 <tbody>
                   {records.map(event => <tr key={getEventKey(event)}>
-                    <td><strong>{getEventName(event)}</strong><span className="aae-secondary">{group.key === 'pending' ? 'Submitted by Secretary' : getEventKey(event)}</span></td>
+                    <td><strong>{getEventName(event)}</strong><span className="aae-secondary">{getEventKey(event)}</span></td>
                     <td><span>{eventDate(event)}</span><span className="aae-secondary">{formatTimeRange(event.startTime, event.endTime)}</span></td>
                     <td>{event.location || 'Not specified'}</td>
                     <td><span className={`aae-event-status aae-status-${event.status}`}>{getStatusLabel(event.status)}</span></td>
                     <td><div className="aae-row-actions">
                       <ActionButton variant="outline" type="button" className="sd-button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</ActionButton>
-                      {group.key === 'pending' ? <>
-                        <ActionButton variant="outline" type="button" className="sd-button aae-reject" onClick={() => setEventToReject(event)} aria-label={`Reject ${eventDisplayName(event)}`}>Reject</ActionButton>
-                        <ActionButton variant="default" type="button" className="sd-button sd-primary aae-approve" onClick={() => approveEvent(event)} aria-label={`Approve ${eventDisplayName(event)}`}>Approve</ActionButton>
-                      </> : <>
-                        {group.key !== 'closed' && <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit schedule</ActionButton>}
-                        {group.key === 'closed' && <>
-                          <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</ActionButton>
-                          <ActionButton variant="outline" type="button" className="sd-button aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</ActionButton>
-                        </>}
-                      </>}
+                      <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit</ActionButton>
+                      {group.key === 'closed' && <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</ActionButton>}
+                      <ActionButton variant="outline" type="button" className="sd-button aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</ActionButton>
                     </div></td>
                   </tr>)}
                   {records.length === 0 && <tr><td colSpan={5}><div className="aae-empty">
-                    <strong>{query ? 'No matching events' : group.key === 'pending' ? 'No events awaiting approval' : group.key === 'approved' ? 'No approved events' : 'No closed events'}</strong>
-                    <p>{query ? 'Try another event name or location.' : group.key === 'pending' ? 'New submissions from the Secretary will appear here.' : group.description}</p>
+                    <strong>{query ? 'No matching events' : `No ${group.label.toLowerCase()} events`}</strong>
+                    <p>{query ? 'Try another event name or location.' : group.description}</p>
                     {query && <button type="button" onClick={() => setSearch('')}>Clear search</button>}
                   </div></td></tr>}
                 </tbody>
@@ -411,12 +351,8 @@ const EventManagement = ({ events = [], setEvents }) => {
         isOpen={Boolean(viewedEvent)}
         onClose={() => setViewedEvent(null)}
         title={viewedEvent?.status === "closed" ? "Closed event details" : "Event details"}
-        className="aae-event-modal aae-view-modal max-w-lg"
-      >
-        {viewedEvent && (
-          <div>
-            <EventDetails event={viewedEvent} name={getEventName(viewedEvent)} formattedDate={eventDate(viewedEvent)} statusLabel={getStatusLabel(viewedEvent.status)} closedNote={<>This event is closed. Recorded details are read-only. Use <strong>Reopen event</strong> to set a new attendance schedule.</>} />
-            <ModalActions className="aae-modal-actions">
+        className="aae-event-modal aae-view-modal"
+        footer={viewedEvent && (<ModalActions className="aae-view-footer">
               <Button
                 type="button"
                 variant="outline"
@@ -425,210 +361,57 @@ const EventManagement = ({ events = [], setEvents }) => {
               >
                 Close
               </Button>
-              {['draft', 'pending_approval'].includes(viewedEvent.status) && <>
-                <Button type="button" variant="outline" onClick={() => { setEventToReject(viewedEvent); setViewedEvent(null); }} className="sd-button border-red-200 text-red-700">Reject event</Button>
-                <Button type="button" onClick={() => { approveEvent(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Approve event</Button>
-              </>}
-              {['upcoming', 'active'].includes(viewedEvent.status) && <Button type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Edit schedule</Button>}
+              {['upcoming', 'active'].includes(viewedEvent.status) && <Button type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Edit event</Button>}
               {viewedEvent.status === 'closed' && <Button type="button" onClick={() => { openReopenModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Reopen event</Button>}
-            </ModalActions>
+            </ModalActions>)}
+      >
+        {viewedEvent && (
+          <div>
+            <EventDetails event={viewedEvent} name={getEventName(viewedEvent)} formattedDate={eventDate(viewedEvent)} statusLabel={getStatusLabel(viewedEvent.status)} closedNote={<>This event is closed. Use <strong>Reopen event</strong> to set a new attendance schedule.</>} />
+
           </div>
         )}
       </Modal>
 
-      {/* Reject Event Modal */}
-      <Modal
-        isOpen={Boolean(eventToReject)}
-        onClose={() => setEventToReject(null)}
-        title="Reject Event"
-        className="aae-event-modal max-w-lg"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500">
-            The Secretary will receive "Event Rejected - Revision required".
-          </p>
-          <Textarea
-            value={rejectionReason}
-            onChange={(event) => setRejectionReason(event.target.value)}
-            rows={4}
-            required
-            placeholder="Reason for rejection"
-            className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
-          />
-          <ModalActions className="aae-modal-actions">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEventToReject(null)}
-              className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={rejectEvent}
-              disabled={!rejectionReason.trim()}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold disabled:opacity-50"
-            >
-              Reject Event
-            </Button>
-          </ModalActions>
-        </div>
-      </Modal>
-
-      {/* Edit Event Modal */}
+      {/* Create and edit event form */}
       <Modal
         isOpen={Boolean(editingEvent)}
         onClose={() => !savingEdit && setEditingEvent(null)}
-        title={editingEvent?.status === "closed" ? "Event Details" : "Edit schedule"}
-        className="aae-event-modal max-w-lg"
+        title={editingEvent?.isNew ? "Create event" : "Edit event"}
+        description="Set the event details and its attendance schedule."
+        className="aae-event-modal aae-event-form-modal"
+        footer={editingEvent && <ModalActions className="aae-event-form-footer">
+          <Button type="button" variant="outline" disabled={savingEdit} onClick={() => setEditingEvent(null)}>Cancel</Button>
+          <Button type="submit" form="attendance-event-form" disabled={savingEdit || !editForm.name.trim() || !editForm.location.trim()} className="bg-coop-green text-white">
+            {savingEdit && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+            {savingEdit ? 'Saving...' : editingEvent.isNew ? 'Create event' : 'Save event'}
+          </Button>
+        </ModalActions>}
       >
-        {editingEvent && (
-          <div className="space-y-4">
-            <FormField>
-              <label htmlFor="admin-edit-event-name" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Event Name
-              </label>
-              <Input
-                id="admin-edit-event-name"
-                type="text"
-                value={editForm.name}
-                readOnly={approvedDetailsLocked}
-                aria-describedby={approvedDetailsLocked ? "approved-event-details-help" : undefined}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, name: e.target.value })
-                }
-                required
-                className={`border-slate-200 rounded-lg${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
-              />
+        {editingEvent && <form id="attendance-event-form" className="aae-event-form" onSubmit={submitEditEvent}>
+          <p className="aae-required-note"><span aria-hidden="true">*</span> Required fields</p>
+          <div className="aae-event-details-fields">
+            <FormField id="admin-edit-event-name" label="Event name" required>
+              <Input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} placeholder="e.g. General Assembly" autoComplete="off" />
             </FormField>
-            <FormField>
-              <label htmlFor="admin-edit-event-description" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Description
-              </label>
-              <Textarea
-                id="admin-edit-event-description"
-                value={editForm.description}
-                readOnly={approvedDetailsLocked}
-                aria-describedby={approvedDetailsLocked ? "approved-event-details-help" : undefined}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, description: e.target.value })
-                }
-                rows={3}
-                className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
-              />
+            <FormField id="admin-edit-event-location" label="Location" required>
+              <Input value={editForm.location} onChange={e => setEditForm({ ...editForm, location: e.target.value })} placeholder="e.g. Parish Hall, Poblacion" autoComplete="off" />
             </FormField>
-
-            {approvedDetailsLocked && <p id="approved-event-details-help" className="text-xs text-slate-500">The event name, description, and location are locked after approval.</p>}
-
-            {editingEvent.status === "closed" ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                This event's time has already passed, so its date and time
-                aren't editable here. Use <strong>Reopen</strong> instead to
-                give it a new schedule.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={editForm.date}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, date: e.target.value })
-                    }
-                    required
-                    className="border-slate-200 rounded-lg"
-                  />
-                </FormField>
-                <FormField>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    Start Time
-                  </label>
-                  <Input
-                    type="time"
-                    value={editForm.startTime}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, startTime: e.target.value })
-                    }
-                    required
-                    className="border-slate-200 rounded-lg"
-                  />
-                </FormField>
-                <FormField>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                    End Time
-                  </label>
-                  <Input
-                    type="time"
-                    value={editForm.endTime}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, endTime: e.target.value })
-                    }
-                    required
-                    className="border-slate-200 rounded-lg"
-                  />
-                </FormField>
-              </div>
-            )}
-
-            <FormField>
-              <label htmlFor="admin-edit-event-location" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Location
-              </label>
-              <Input
-                type="text"
-                id="admin-edit-event-location"
-                readOnly={approvedDetailsLocked}
-                aria-describedby={approvedDetailsLocked ? "approved-event-details-help" : undefined}
-                value={editForm.location}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, location: e.target.value })
-                }
-                required
-                className={`border-slate-200 rounded-lg${approvedDetailsLocked ? " bg-slate-50 text-slate-500" : ""}`}
-              />
+            <FormField id="admin-edit-event-description" label={<>Description <span className="aae-optional">Optional</span></>}>
+              <Textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={3} placeholder="Add a short description or instructions for attendees." />
             </FormField>
-
-            <ModalActions className="aae-modal-actions">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={savingEdit}
-                onClick={() => setEditingEvent(null)}
-                className="flex-1 border-slate-200 hover:border-slate-300 text-slate-600 rounded-lg font-semibold"
-              >
-                {editingEvent.status === "closed" ? "Close" : "Cancel"}
-              </Button>
-              {editingEvent.status !== "closed" && (
-              <Button
-                type="button"
-                onClick={submitEditEvent}
-                disabled={
-                  savingEdit ||
-                  !editForm.name.trim() ||
-                  !editForm.location.trim()
-                }
-                className="flex-1 bg-coop-green hover:bg-coop-darkGreen text-white rounded-lg font-semibold disabled:opacity-50"
-              >
-                {savingEdit ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="w-4 h-4 mr-2 inline" />
-                    Save schedule
-                  </>
-                )}
-              </Button>
-              )}
-            </ModalActions>
           </div>
-        )}
+          {editingEvent.status === 'closed' ? <p className="aae-schedule-note">This event is closed. Use Reopen to set a new schedule and record a reason.</p> : <section className="aae-schedule-fields" aria-labelledby="aae-schedule-title">
+            <div className="aae-schedule-heading"><h3 id="aae-schedule-title">Attendance schedule</h3><span>Philippine time (PHT)</span></div>
+            <div className="aae-schedule-grid">
+              <FormField id="admin-edit-event-date" label="Date" required><Input type="date" value={editForm.date} onChange={e => setEditForm({ ...editForm, date: e.target.value })} /></FormField>
+              <FormField id="admin-edit-event-start" label="Start time" required><Input type="time" value={editForm.startTime} onChange={e => setEditForm({ ...editForm, startTime: e.target.value })} /></FormField>
+              <FormField id="admin-edit-event-end" label="End time" required><Input type="time" value={editForm.endTime} onChange={e => setEditForm({ ...editForm, endTime: e.target.value })} /></FormField>
+            </div>
+            <p className="aae-schedule-note">Attendance opens at the start time and closes at the end time automatically.</p>
+          </section>}
+          {eventFormError && <p role="alert" className="aae-form-error">{eventFormError}</p>}
+        </form>}
       </Modal>
 
       {/* Delete Event Modal */}

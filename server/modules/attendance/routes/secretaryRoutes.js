@@ -13,8 +13,10 @@ const {
   getAllEvents,
   getEventById,
   updateEvent,
+  deleteEvent,
+  reopenEvent,
 } = require('../controllers/eventController');
-const { submitEvent, cancelEvent, resubmitEvent } = require('../controllers/eventController');
+
 
 const { 
   recordAttendance,
@@ -33,9 +35,8 @@ router.post('/events', createEvent);
 router.get('/events', getAllEvents);
 router.get('/events/:eventId', getEventById);
 router.put('/events/:eventId', updateEvent);
-router.post('/events/:eventId/submit', submitEvent);
-router.post('/events/:eventId/cancel', cancelEvent);
-router.post('/events/:eventId/resubmit', resubmitEvent);
+router.delete('/events/:eventId', deleteEvent);
+router.post('/events/:eventId/reopen', reopenEvent);
 
 // Member management routes (Secretary can view members)
 router.get('/members', getAllMembers);
