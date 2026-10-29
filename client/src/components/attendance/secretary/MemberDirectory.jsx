@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { SearchField } from '../../ui/workspace';
 import { Input as TextInput, Select } from '../../ui/input';
 import { PageHeader } from '../../ui/workspace';
@@ -164,8 +165,8 @@ export default function QRManagement() {
     return <div className="qrm-qr-cell">
       <span className={`qrm-qr-badge qrm-qr-${label.toLowerCase().replaceAll(' ', '-')}`}><span aria-hidden="true" />{label === 'Not created' ? 'No QR code' : `QR ${label.toLowerCase()}`}</span>
       <div className="md-row-actions">
-        <button className={`md-button qrm-manage ${!member.qrCodeGenerated ? 'qrm-create' : ''}`} disabled={!ready || !!qrBusy} onClick={() => openQr(member)} aria-label={`Manage QR for ${member.name}`}><QrCode size={15} aria-hidden="true" />{member.qrCodeGenerated ? 'Manage QR' : 'Create QR'}</button>
-        <button className="md-button qrm-print" disabled={printing || !!qrBusy || !!reason} onClick={() => printQr(member)} aria-label={`Print QR card for ${member.name}`} title={reason || 'Print QR card'}><Printer size={16} aria-hidden="true" /></button>
+        <Tooltip content="Create or manage this member's attendance QR code."><button className={`md-button qrm-manage ${!member.qrCodeGenerated ? 'qrm-create' : ''}`} disabled={!ready || !!qrBusy} onClick={() => openQr(member)} aria-label={`Manage QR for ${member.name}`}><QrCode size={15} aria-hidden="true" />{member.qrCodeGenerated ? 'Manage QR' : 'Create QR'}</button></Tooltip>
+        <Tooltip content="Print this member's active attendance QR card."><button className="md-button qrm-print" disabled={printing || !!qrBusy || !!reason} onClick={() => printQr(member)} aria-label={`Print QR card for ${member.name}`} title={reason || undefined}><Printer size={16} aria-hidden="true" /></button></Tooltip>
       </div>
     </div>;
   };
@@ -173,7 +174,7 @@ export default function QRManagement() {
 
   return <div className="member-directory qr-management">
     <PageHeader separateBreadcrumb className="md-header"><div><p className="md-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>QR Management</strong></p><h1>QR Management</h1><p className="md-description">Find members, create and manage their QR codes, and print attendance QR cards.</p></div>
-      <div className="md-header-actions"><button className="md-button" onClick={generateMissingQr} disabled={!ready || printing || !!qrBusy}><QrCode size={15} />{qrBusy === 'bulk' ? 'Creating...' : 'Create missing QR codes'}</button><button className="md-button md-primary" onClick={exportDirectory} disabled={!ready || !filtered.length}><Download size={15} /> Export CSV</button></div>
+      <div className="md-header-actions"><Tooltip content="Create QR codes for eligible members who do not have one yet."><button className="md-button" onClick={generateMissingQr} disabled={!ready || printing || !!qrBusy}><QrCode size={15} />{qrBusy === 'bulk' ? 'Creating...' : 'Create missing QR codes'}</button></Tooltip><Tooltip content="Export all members matching the current directory filters as CSV."><button className="md-button md-primary" onClick={exportDirectory} disabled={!ready || !filtered.length}><Download size={15} /> Export CSV</button></Tooltip></div>
     </PageHeader>
     {feedback && <div role={feedback.error ? 'alert' : 'status'} className={`md-notice ${feedback.error ? 'md-error' : ''}`}>{feedback.message}</div>}
     <AttendanceMetricGrid label="QR Management overview" busy={loading} items={[
@@ -181,7 +182,7 @@ export default function QRManagement() {
       ['Active members', ready ? normalized.filter(member => member.status === 'active').length.toLocaleString() : '—', null, UserCheck],
       ['QR codes available', ready ? normalized.filter(member => !getQrUnavailableReason(member)).length.toLocaleString() : '—', null, QrCode],
     ]} />
-    <section className="md-filters" aria-label="Member filters"><div className="md-filter-heading"><h2>Find a member</h2><div className="md-filter-actions"><button className="md-text-button" onClick={reset} disabled={!hasFilters}>Reset filters</button><button className="md-button" onClick={printAllQr} disabled={!ready || printing || downloadingPdf || !!qrBusy || !printable.length} title={ready ? `Print QR cards for ${printScope}` : undefined}>{printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />} Print QR cards{ready ? ` (${printable.length.toLocaleString()})` : ''}</button><button className="md-button" onClick={downloadQrPdf} disabled={!ready || printing || downloadingPdf || !!qrBusy || !printable.length} title={ready ? `Download QR cards for ${printScope} as PDF` : undefined}>{downloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} {downloadingPdf ? 'Preparing PDF…' : 'Download PDF'}</button></div></div>
+    <section className="md-filters" aria-label="Member filters"><div className="md-filter-heading"><h2>Find a member</h2><div className="md-filter-actions"><button className="md-text-button" onClick={reset} disabled={!hasFilters}>Reset filters</button><Tooltip content="Print active, eligible QR cards matching the current member filters."><button className="md-button" onClick={printAllQr} disabled={!ready || printing || downloadingPdf || !!qrBusy || !printable.length}>{printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />} Print QR cards{ready ? ` (${printable.length.toLocaleString()})` : ''}</button></Tooltip><Tooltip content="Download active, eligible QR cards matching the current filters as PDF."><button className="md-button" onClick={downloadQrPdf} disabled={!ready || printing || downloadingPdf || !!qrBusy || !printable.length}>{downloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} {downloadingPdf ? 'Preparing PDF…' : 'Download PDF'}</button></Tooltip></div></div>
       <div className="md-filter-grid">
         <label>Search members<SearchField as="div" className="md-search"><Search size={16} /><TextInput unstyled value={search} onChange={e => update(setSearch, e.target.value)} placeholder="Name, passbook, email, or phone" /></SearchField></label>
         <label>Membership status<Select value={status} onChange={e => update(setStatus, e.target.value)}><option value="all">All statuses</option>{statuses.map(value => <option key={value} value={value}>{value.charAt(0).toUpperCase() + value.slice(1)}</option>)}</Select></label>
@@ -218,11 +219,11 @@ export default function QRManagement() {
         </div>}
         <div className="md-qr-controls" aria-label="QR controls">
           <p className={`qrm-control-status qrm-state-${qrStatusLabel(selectedMember).toLowerCase().replaceAll(' ', '-')}`}>QR status: {qrStatusLabel(selectedMember)}</p>
-          {!selectedMember.qrCodeGenerated ? <button className="md-button md-primary" disabled={!!qrBusy || printing || downloadingPdf || ['inactive', 'deceased'].includes(selectedMember.status)} onClick={() => runQrAction('create')}>{qrBusy === 'create' ? 'Creating...' : 'Create QR'}</button> : <>
-            <button className="md-button" disabled={!!qrBusy || printing || downloadingPdf || ['inactive', 'deceased'].includes(selectedMember.status)} onClick={() => runQrAction('regenerate')}>{qrBusy === 'regenerate' ? 'Regenerating...' : 'Regenerate QR'}</button>
+          {!selectedMember.qrCodeGenerated ? <Tooltip content="Create an attendance QR code for this member."><button className="md-button md-primary" disabled={!!qrBusy || printing || downloadingPdf || ['inactive', 'deceased'].includes(selectedMember.status)} onClick={() => runQrAction('create')}>{qrBusy === 'create' ? 'Creating...' : 'Create QR'}</button></Tooltip> : <>
+            <Tooltip content="Generate a new attendance QR code for this member."><button className="md-button" disabled={!!qrBusy || printing || downloadingPdf || ['inactive', 'deceased'].includes(selectedMember.status)} onClick={() => runQrAction('regenerate')}>{qrBusy === 'regenerate' ? 'Regenerating...' : 'Regenerate QR'}</button></Tooltip>
             {selectedMember.qrCodeActive !== false && !['inactive', 'deceased'].includes(selectedMember.status)
-              ? <button className="md-button qrm-control-deactivate" disabled={!!qrBusy || printing || downloadingPdf} onClick={() => runQrAction('deactivate')}>{qrBusy === 'deactivate' ? 'Deactivating...' : 'Deactivate QR'}</button>
-              : <button className="md-button md-primary" disabled={!!qrBusy || printing || downloadingPdf || ['inactive', 'deceased'].includes(selectedMember.status)} onClick={() => runQrAction('activate')}>{qrBusy === 'activate' ? 'Activating...' : 'Activate QR'}</button>}
+              ? <Tooltip content="Disable this QR code so it cannot be used for attendance check-ins."><button className="md-button qrm-control-deactivate" disabled={!!qrBusy || printing || downloadingPdf} onClick={() => runQrAction('deactivate')}>{qrBusy === 'deactivate' ? 'Deactivating...' : 'Deactivate QR'}</button></Tooltip>
+              : <Tooltip content="Enable this QR code for attendance check-ins by an eligible member."><button className="md-button md-primary" disabled={!!qrBusy || printing || downloadingPdf || ['inactive', 'deceased'].includes(selectedMember.status)} onClick={() => runQrAction('activate')}>{qrBusy === 'activate' ? 'Activating...' : 'Activate QR'}</button></Tooltip>}
           </>}
         </div>
         <dl className="md-qr-details"><div><dt>Membership status</dt><dd>{badge(selectedMember)}</dd></div><div><dt>Barangay</dt><dd>{selectedMember.barangay || 'Not recorded'}</dd></div><div><dt>Member since</dt><dd>{directoryDate(selectedMember.joinDate)}</dd></div></dl>

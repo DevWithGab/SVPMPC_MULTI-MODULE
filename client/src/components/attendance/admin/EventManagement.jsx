@@ -280,7 +280,7 @@ const EventManagement = ({ events = [], setEvents, user }) => {
           <h1>Event Management</h1>
           <p className="sd-description">Create, edit, and manage attendance schedules.</p>
         </div>
-        <div><ActionButton type="button" onClick={openCreateModal}>Create event</ActionButton></div>
+        <div><ActionButton tooltip="Create an event and set its attendance schedule." type="button" onClick={openCreateModal}>Create event</ActionButton></div>
       </PageHeader>
 
       {notice && <Toast message={notice.message} type={notice.type} onClose={() => setNotice(null)} />}
@@ -328,10 +328,10 @@ const EventManagement = ({ events = [], setEvents, user }) => {
                     <td>{event.location || 'Not specified'}</td>
                     <td><span className={`aae-event-status aae-status-${event.status}`}>{getStatusLabel(event.status)}</span></td>
                     <td><div className="aae-row-actions">
-                      <ActionButton variant="outline" type="button" className="sd-button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</ActionButton>
-                      <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit</ActionButton>
-                      {group.key === 'closed' && <ActionButton variant="outline" type="button" className="sd-button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</ActionButton>}
-                      <ActionButton variant="outline" type="button" className="sd-button aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</ActionButton>
+                      <ActionButton tooltip="Review the event details, schedule, and current status." variant="outline" type="button" className="sd-button" onClick={() => setViewedEvent(event)} aria-label={`View details for ${eventDisplayName(event)}`}>View</ActionButton>
+                      <ActionButton tooltip="Update the event details and attendance schedule." variant="outline" type="button" className="sd-button" onClick={() => openEditModal(event)} aria-label={`Edit ${eventDisplayName(event)}`}>Edit</ActionButton>
+                      {group.key === 'closed' && <ActionButton tooltip="Set a new attendance schedule for this closed event." variant="outline" type="button" className="sd-button" onClick={() => openReopenModal(event)} aria-label={`Reopen ${eventDisplayName(event)}`}>Reopen</ActionButton>}
+                      <ActionButton tooltip="Review the confirmation before permanently deleting this event." variant="outline" type="button" className="sd-button aae-reject" onClick={() => setEventToDelete(event)} aria-label={`Delete ${eventDisplayName(event)}`}>Delete</ActionButton>
                     </div></td>
                   </tr>)}
                   {records.length === 0 && <tr><td colSpan={5}><div className="aae-empty">
@@ -361,8 +361,8 @@ const EventManagement = ({ events = [], setEvents, user }) => {
               >
                 Close
               </Button>
-              {['upcoming', 'active'].includes(viewedEvent.status) && <Button type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Edit event</Button>}
-              {viewedEvent.status === 'closed' && <Button type="button" onClick={() => { openReopenModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Reopen event</Button>}
+              {['upcoming', 'active'].includes(viewedEvent.status) && <Button tooltip="Update the event details and attendance schedule." type="button" onClick={() => { openEditModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Edit event</Button>}
+              {viewedEvent.status === 'closed' && <Button tooltip="Set a new attendance schedule for this closed event." type="button" onClick={() => { openReopenModal(viewedEvent); setViewedEvent(null); }} className="sd-button sd-primary bg-coop-green text-white">Reopen event</Button>}
             </ModalActions>)}
       >
         {viewedEvent && (

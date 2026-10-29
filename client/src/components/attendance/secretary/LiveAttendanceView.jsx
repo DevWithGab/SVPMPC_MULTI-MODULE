@@ -25,7 +25,7 @@ export default function LiveAttendanceView({
           <p className="sla-description">Track member check-ins for the active event.</p>
         </div>
         <div className="sla-header-actions">
-        <ActionButton variant="outline" className="sla-button" onClick={onRefresh} disabled={loading}>
+        <ActionButton tooltip="Reload check-ins for the selected event and current filters." variant="outline" className="sla-button" onClick={onRefresh} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
         </ActionButton>
         </div>

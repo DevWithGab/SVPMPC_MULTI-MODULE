@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { SearchField } from '../../ui/workspace';
 import { PageHeader } from '../../ui/workspace';
 import { Select, Input as TextInput } from '../../ui/input';
@@ -475,7 +476,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
+          <Button tooltip="Export the complete attendance report using the current filters as CSV."
             onClick={handleExportCSV}
             disabled={exportDisabled}
             variant="outline"
@@ -484,7 +485,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Button
+          <Button tooltip="Download the complete attendance report using the current filters as PDF."
             onClick={handleExportPDF}
             disabled={exportDisabled}
             className="bg-coop-green hover:bg-coop-darkGreen text-white font-semibold px-5 py-2.5 rounded-lg"
@@ -779,7 +780,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                                   <strong>{event.uniqueAttendees.toLocaleString()}</strong> {event.uniqueAttendees === 1 ? 'member' : 'members'}
                                 </span>
                               </div>
-                              <button
+                              <Tooltip content="View members recorded as present or absent for this event."><button
                                 className="ar-view"
                                 type="button"
                                 aria-label={`View attendees for ${event.displayName}`}
@@ -800,7 +801,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                                 }
                               >
                                 View attendees <ChevronRight size={14} aria-hidden="true" />
-                              </button>
+                              </button></Tooltip>
                             </div>
                           </TableCell>
                           <TableCell className="py-3" data-label="Export">
@@ -808,7 +809,7 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                               className="ar-export-actions"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <Button
+                              <Button tooltip="Export this event's attendees grouped by barangay as CSV."
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
@@ -818,12 +819,11 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                                   exportDisabled || event.attendanceCount === 0
                                 }
                                 aria-label={`Export ${event.displayName} attendees as CSV`}
-                                title="Export attendees (CSV)"
                                 className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Download className="w-4 h-4 mr-1.5" /> CSV
                               </Button>
-                              <Button
+                              <Button tooltip="Download this event's attendees grouped by barangay as PDF."
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
@@ -833,7 +833,6 @@ export default function AttendanceReports({ attendanceLogs, events }) {
                                   exportDisabled || event.attendanceCount === 0
                                 }
                                 aria-label={`Export ${event.displayName} attendees as PDF`}
-                                title="Export attendees (PDF)"
                                 className="border-slate-200 hover:border-coop-green hover:bg-green-50 text-slate-600 hover:text-coop-green rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 {exportingEventId === eventKey ? (

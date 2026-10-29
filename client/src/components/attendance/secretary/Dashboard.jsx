@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { Button as ActionButton } from '../../ui/button';
 import { PageHeader, Panel, PanelHeader } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
@@ -88,8 +89,8 @@ export default function SecretaryDashboard({ attendanceLogs, events: initialEven
     <PageHeader separateBreadcrumb className="sd-header">
       <div><p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Dashboard</strong></p><h1>Dashboard</h1><p className="sd-description">{formatLongDate(now)} <span>· Philippine time</span></p></div>
       <div className="sd-header-actions">
-        <ActionButton variant="outline" className="sd-button" onClick={retry} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
-        <ActionButton variant="default" className="sd-button sd-primary" onClick={() => setActiveTab('events')}>Manage events <ArrowRight size={15} aria-hidden="true" /></ActionButton>
+        <ActionButton tooltip="Reload the latest event schedule and attendance records." variant="outline" className="sd-button" onClick={retry} disabled={refreshing}><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
+        <ActionButton tooltip="Create events and manage their attendance schedules." variant="default" className="sd-button sd-primary" onClick={() => setActiveTab('events')}>Manage events <ArrowRight size={15} aria-hidden="true" /></ActionButton>
       </div>
     </PageHeader>
 
@@ -118,7 +119,7 @@ export default function SecretaryDashboard({ attendanceLogs, events: initialEven
         </Panel>
 
         <Panel as="section" className="sd-panel" aria-labelledby="sd-attendance-title">
-          <PanelHeader as="div" className="sd-panel-heading"><div><h2 id="sd-attendance-title">Latest attendance</h2><p>The five most recent attendance entries across all events.</p></div><button className="sd-link" onClick={() => setActiveTab('live')}>Live attendance <ArrowRight size={14} aria-hidden="true" /></button></PanelHeader>
+          <PanelHeader as="div" className="sd-panel-heading"><div><h2 id="sd-attendance-title">Latest attendance</h2><p>The five most recent attendance entries across all events.</p></div><Tooltip content="Open live attendance to review event check-ins."><button className="sd-link" onClick={() => setActiveTab('live')}>Live attendance <ArrowRight size={14} aria-hidden="true" /></button></Tooltip></PanelHeader>
           {attendanceReady && latest.length ? <div className="sd-table-scroll" role="region" aria-label="Latest attendance" tabIndex={0}><DataTable className="sd-attendance-table"><thead><tr><th scope="col">Member</th><th scope="col">Event</th><th scope="col">Recorded (PHT)</th></tr></thead><tbody>
             {latest.slice(0, 5).map((record, index) => <tr key={record._id || record.id || index}>
               <td><strong>{record.memberName || record.member_name || record.name || 'Unknown member'}</strong><span className="sd-secondary">Passbook: {record.memberId || record.member_id || 'Not recorded'}</span></td>
