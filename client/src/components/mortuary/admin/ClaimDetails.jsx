@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { Button as ActionButton } from '../../ui/button';
 import { Input as TextInput, Textarea } from '../../ui/input';
 import { FormField } from '../../ui/workspace';
@@ -259,14 +260,14 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
               : "Approve is disabled until every requirement item is marked Submitted."}
           </p>
           <div className="flex gap-2 shrink-0">
-            <Button
+            <Button tooltip="Review a rejection decision and enter the reason before confirming."
               variant="danger"
               onClick={() => setApproveRejectMode("reject")}
               className="px-4"
             >
               <XCircle className="w-4 h-4" /> Reject
             </Button>
-            <Button
+            <Button tooltip="Review approval and move the completed claim to pending deduction after confirmation."
               variant="primary"
               onClick={() => setApproveRejectMode("approve")}
               disabled={!allSubmitted}
@@ -373,7 +374,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                       placeholder="e.g. Barangay Certificate"
                       className="flex-1 min-w-0 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-coop-green/30 focus:border-coop-green"
                     />
-                    <Button
+                    <Button tooltip="Add this document to the claim requirements checklist."
                       type="submit"
                       size="sm"
                       className="ac-primary-button"
@@ -395,15 +396,14 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                       (label) =>
                         !existingRequirementLabels.has(label.toLowerCase()),
                     ).map((label) => (
-                      <button
-                        key={label}
+                      <Tooltip key={label} content="Add this document to the claim requirements checklist."><button
                         type="button"
                         disabled={addingRequirement}
                         onClick={() => addRequirement(null, label)}
                         className="px-2.5 py-1 rounded-full border border-slate-200 text-xs font-medium text-slate-500 hover:border-coop-green hover:text-coop-green hover:bg-coop-green/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         + {label}
-                      </button>
+                      </button></Tooltip>
                     ))}
                   </div>
                 )}
@@ -457,11 +457,10 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                         </td>
                         {canDecide && (
                           <td className="px-3 py-3 text-right">
-                            <button
+                            <Tooltip content="Remove this checklist requirement to undo an accidental addition."><button
                               type="button"
                               onClick={() => removeRequirement(reqKey)}
                               disabled={isSaving || removingRequirement === reqKey}
-                              title="Remove this requirement (undo an accidental add)"
                               aria-label={`Remove ${claim.requirements?.[reqKey]?.label || fallbackLabel(reqKey)}`}
                               className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-rose-600 disabled:opacity-50"
                             >
@@ -471,7 +470,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
                                 <Undo2 className="w-3.5 h-3.5" />
                               )}
                               Remove
-                            </button>
+                            </button></Tooltip>
                           </td>
                         )}
                       </tr>
@@ -556,7 +555,7 @@ export default function ClaimDetails({ claimId, user, onBack, onChanged }) {
             {verificationSaved && <p role="status" className="mt-2 text-sm text-coop-green">Verification and reference saved.</p>}
             {(canDecide || claim.status === 'pending_deduction') && (
               <div className="ac-verification-actions mt-4">
-                <Button
+                <Button tooltip="Save the death verification details and claim reference number."
                   variant="default"
                   className="ac-primary-button"
                   size="sm"

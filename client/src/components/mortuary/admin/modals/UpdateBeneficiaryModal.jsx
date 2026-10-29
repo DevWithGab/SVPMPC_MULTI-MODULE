@@ -112,7 +112,7 @@ export default function UpdateBeneficiaryModal({ isOpen, onClose, memberId, memb
           <Button type="button" variant="secondary" onClick={onClose} className="flex-1" disabled={submitting}>
             Cancel
           </Button>
-          <Button type="submit" className="flex-1" disabled={submitting}>
+          <Button tooltip="Save the beneficiary details and record the change in the member history." type="submit" className="flex-1" disabled={submitting}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Save
           </Button>

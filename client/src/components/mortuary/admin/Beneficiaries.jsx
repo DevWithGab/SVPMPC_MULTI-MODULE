@@ -64,10 +64,10 @@ export default function Beneficiaries({ user }) {
           <p className="mb-description">Review the beneficiary on file for each member, update details, and track changes.</p>
         </div>
         <div className="mb-header-actions">
-          <ActionButton variant="outline" className="mb-button beneficiary-bulk-button" onClick={() => setBulkUploadOpen(true)}>
+          <ActionButton tooltip="Preview a CSV before registering or updating beneficiaries in bulk." variant="outline" className="mb-button beneficiary-bulk-button" onClick={() => setBulkUploadOpen(true)}>
             <Upload size={15} aria-hidden="true" />Bulk register
           </ActionButton>
-          <ActionButton variant="outline" className="mb-button" onClick={load} disabled={loading}>
+          <ActionButton tooltip="Reload the latest beneficiary records." variant="outline" className="mb-button" onClick={load} disabled={loading}>
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}
           </ActionButton>
         </div>
@@ -114,10 +114,10 @@ export default function Beneficiaries({ user }) {
                     {b.isRegistered ? 'Registered' : 'Not registered'}
                   </span></td>
                   <td><div className="beneficiary-actions">
-                    <ActionButton variant="outline" className="mb-button mb-ledger-button" onClick={() => setHistoryMember({ memberId: b.memberId, memberName: b.memberName })} aria-label={`View beneficiary history for ${b.memberName}`}>
+                    <ActionButton tooltip="Review the recorded history of beneficiary changes for this member." variant="outline" className="mb-button mb-ledger-button" onClick={() => setHistoryMember({ memberId: b.memberId, memberName: b.memberName })} aria-label={`View beneficiary history for ${b.memberName}`}>
                       <History size={14} aria-hidden="true" /> History
                     </ActionButton>
-                    <ActionButton variant="outline" className="mb-button mb-ledger-button" onClick={() => setEditRecord(b)} aria-label={`${b.isRegistered ? 'Update' : 'Register'} beneficiary for ${b.memberName}`}>
+                    <ActionButton tooltip="Register or update this member's beneficiary details." variant="outline" className="mb-button mb-ledger-button" onClick={() => setEditRecord(b)} aria-label={`${b.isRegistered ? 'Update' : 'Register'} beneficiary for ${b.memberName}`}>
                       <Pencil size={14} aria-hidden="true" /> {b.isRegistered ? 'Update' : 'Register'}
                     </ActionButton>
                   </div></td>

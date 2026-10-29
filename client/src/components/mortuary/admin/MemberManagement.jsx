@@ -60,7 +60,7 @@ const MemberManagement = ({
           <h1>Member management</h1>
           <p className="mb-description">Review registered members, check balances, and access claims and beneficiaries.</p>
         </div>
-        {onMemberAdded && <ActionButton className="mb-button admin-member-add" onClick={() => setAddingMember(true)}><UserPlus size={20} aria-hidden="true" />Add member</ActionButton>}
+        {onMemberAdded && <ActionButton tooltip="Register a member in the shared cooperative records." className="mb-button admin-member-add" onClick={() => setAddingMember(true)}><UserPlus size={20} aria-hidden="true" />Add member</ActionButton>}
       </header>
       <CreateMemberModal isOpen={addingMember} onClose={() => setAddingMember(false)} barangays={barangays} createMember={mortuaryMemberAPI.createMember} onCreated={onMemberAdded} />
 
@@ -139,10 +139,10 @@ const MemberManagement = ({
                   <td className="admin-member-join-date">{member.join_date || '—'}</td>
                   <td>
                       <div className="admin-member-actions">
-                        <ActionButton variant="outline" className="mb-button mb-ledger-button" onClick={() => setBeneficiaryMember(member)} aria-label={`View beneficiaries for ${member.name}`}>
+                        <ActionButton tooltip="View this member's registered beneficiaries and history." variant="outline" className="mb-button mb-ledger-button" onClick={() => setBeneficiaryMember(member)} aria-label={`View beneficiaries for ${member.name}`}>
                           <Heart size={14} aria-hidden="true" /> Beneficiaries
                         </ActionButton>
-                        {setActiveTab && <ActionButton variant="outline" className="mb-button mb-ledger-button" onClick={() => setActiveTab('claims')} aria-label="Open claims">
+                        {setActiveTab && <ActionButton tooltip="Open the claims register to find or register a claim." variant="outline" className="mb-button mb-ledger-button" onClick={() => setActiveTab('claims')} aria-label="Open claims">
                           <FileText size={14} aria-hidden="true" /> Claims
                         </ActionButton>}
                       </div>

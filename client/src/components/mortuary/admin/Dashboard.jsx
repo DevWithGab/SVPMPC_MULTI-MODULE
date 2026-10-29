@@ -73,7 +73,7 @@ const NotificationBell = ({ items, count, onViewAll }) => {
 
   return (
     <div className="relative" ref={ref}>
-      <ActionButton variant="outline"
+      <ActionButton tooltip="View claims awaiting review or processing." variant="outline"
         onClick={() => setOpen((o) => !o)}
         aria-label="Notifications"
         aria-expanded={open}
@@ -140,7 +140,7 @@ const RecentClaimActivities = ({ activities, onViewAll }) => (
   <section className="mad-recent-claims" aria-labelledby="mad-recent-claims-title">
     <header className="mad-recent-heading">
       <div><h2 id="mad-recent-claims-title">Recent Claim Activity</h2><p>Latest updates to member claims</p></div>
-      <ActionButton variant="outline" className="td-button" onClick={onViewAll}>View all claims <ArrowRight size={17} aria-hidden="true" /></ActionButton>
+      <ActionButton tooltip="Open the claims register to review all claim records." variant="outline" className="td-button" onClick={onViewAll}>View all claims <ArrowRight size={17} aria-hidden="true" /></ActionButton>
     </header>
     {activities.length > 0 ? <div className="mad-recent-scroll" role="region" aria-label="Recent claim updates" tabIndex={0}>
       <table className="mad-recent-table">
@@ -243,7 +243,7 @@ const Dashboard = ({
         </div>
         <div className="td-header-actions">
 
-          <ActionButton variant="default" className="td-button td-primary" onClick={() => setActiveTab("claims")}>
+          <ActionButton tooltip="Open the claims register to register or review a claim." variant="default" className="td-button td-primary" onClick={() => setActiveTab("claims")}>
             Manage claims <ArrowRight size={15} aria-hidden="true" />
           </ActionButton>
           <NotificationBell items={needsAttention} count={needsAttentionCount} onViewAll={() => setActiveTab("claims")} />

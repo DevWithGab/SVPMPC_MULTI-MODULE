@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { SearchField } from '../../ui/workspace';
 import { Button as ActionButton } from '../../ui/button';
 import { Input as TextInput, Select } from '../../ui/input';
@@ -127,8 +128,8 @@ export default function Claims({ user }) {
           <p className="td-description">Register, verify, and process death benefit claims.</p>
         </div>
         <div className="td-header-actions">
-          <ActionButton variant="outline" className="td-button" onClick={handleChanged} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}</ActionButton>
-          <ActionButton variant="default" type="button" aria-haspopup="dialog" onClick={() => setShowRegisterModal(true)} className="td-button td-primary"><Plus size={15} aria-hidden="true" />Register new claim</ActionButton>
+          <ActionButton tooltip="Reload the latest claim records and status counts." variant="outline" className="td-button" onClick={handleChanged} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Refreshing…' : 'Refresh'}</ActionButton>
+          <ActionButton tooltip="Start a new claim for a deceased member and review the details before registering." variant="default" type="button" aria-haspopup="dialog" onClick={() => setShowRegisterModal(true)} className="td-button td-primary"><Plus size={15} aria-hidden="true" />Register new claim</ActionButton>
         </div>
       </header>
 
@@ -225,7 +226,7 @@ export default function Claims({ user }) {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
+                      <Tooltip content="Open the claim to review its requirements, verification, and recorded status."><button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); open(); }}
                         aria-label={`${action.label} for the claim of ${claim.memberName}`}
@@ -233,7 +234,7 @@ export default function Claims({ user }) {
                       >
                         {action.label}
                         <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                      </button></Tooltip>
                     </td>
                   </tr>
                 );
