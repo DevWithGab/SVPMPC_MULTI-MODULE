@@ -72,7 +72,7 @@ export default function NoticeThresholdSettings({ user }) {
                   </p>
                 </div>
               </div>
-              <ActionButton variant="default"
+              <ActionButton tooltip="Update the balance thresholds used to determine member notice levels." variant="default"
                 onClick={() => setShowUpdateModal(true)}
                 className="td-button td-primary"
               >

@@ -16,11 +16,11 @@ export function Tooltip({ content, children }) {
     if (event.pointerType === 'touch') return;
     keepOpen();
     const rect = event.currentTarget.getBoundingClientRect();
-    const width = Math.min(280, window.innerWidth - 24);
+    const width = Math.min(320, window.innerWidth - 24);
     setPosition({
       left: Math.max(width / 2 + 12, Math.min(rect.left + rect.width / 2, window.innerWidth - width / 2 - 12)),
-      top: rect.bottom + 96 > window.innerHeight ? rect.top - 8 : rect.bottom + 8,
-      above: rect.bottom + 96 > window.innerHeight,
+      top: rect.bottom + 140 > window.innerHeight ? rect.top - 8 : rect.bottom + 8,
+      above: rect.bottom + 140 > window.innerHeight,
     });
   };
   const open = Boolean(position);

@@ -66,7 +66,7 @@ const MemberBalances = ({
       <p className="mb-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Member balances</strong></p>
       <header className="mb-header">
         <div><h1>Member balances</h1><p className="mb-description">Track contributions and review member balances.</p></div>
-        <ActionButton variant="outline" className="mb-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
+        <ActionButton tooltip="Reload current member balances." variant="outline" className="mb-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
       </header>
       <dl className="mb-metrics" aria-label="Member balance overview">
         {[
@@ -105,7 +105,7 @@ const MemberBalances = ({
             <td>{getBarangay(m)}</td>
             <td className="mb-number"><strong className={m.balance < 0 ? 'mb-negative-balance' : ''}>{m.balance == null ? '₱' : peso(m.balance)}</strong><span className="mb-secondary" data-standing={getMemberStanding(m.balance, targetBalance)}>{getStandingLabel(m.balance, targetBalance)}</span></td>
             <td><span className={'mb-status' + (m.status === 'active' ? ' mb-status-active' : '')}>{m.status === 'active' ? 'Active' : 'Inactive'}</span></td>
-            <td><ActionButton variant="outline" className="mb-button mb-ledger-button" onClick={e => { e.stopPropagation(); onOpenLedger?.(m); }} aria-label={'Open ledger for ' + m.name}><BookOpen size={17} aria-hidden="true" />Open ledger<ArrowRight size={16} aria-hidden="true" /></ActionButton></td>
+            <td><ActionButton tooltip="Review this member's deposits, deductions, and running balance." variant="outline" className="mb-button mb-ledger-button" onClick={e => { e.stopPropagation(); onOpenLedger?.(m); }} aria-label={'Open ledger for ' + m.name}><BookOpen size={17} aria-hidden="true" />Open ledger<ArrowRight size={16} aria-hidden="true" /></ActionButton></td>
           </tr>)}</tbody></DataTable>
         </div>
         {filteredMembers.length === 0 && <div className="mb-empty" role="status"><strong>{hasActiveFilters ? 'No members match these filters' : 'No members found'}</strong><p>{hasActiveFilters ? 'Try a different name, passbook number, status, or barangay.' : 'Member balances will appear here when records are available.'}</p>{hasActiveFilters && <ActionButton variant="outline" className="mb-button" onClick={clearFilters}>Reset filters</ActionButton>}</div>}

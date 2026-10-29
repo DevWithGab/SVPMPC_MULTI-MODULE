@@ -104,15 +104,15 @@ export default function ClaimsPendingDeduction({ onProcessed }) {
       <p className="text-sm text-slate-700">{selected.size ? <><strong>{selected.size}</strong> {selected.size === 1 ? 'claim' : 'claims'} selected{rate ? <> · <span className="tabular-nums">{peso(rate.amount * selected.size)}</span> per active member</> : null}</> : 'No claims selected'}</p>
       <div className="mc-selection-actions">
         {selected.size > 0 && <Action onClick={() => setSelected(new Map())}>Clear selection</Action>}
-        <Action primary disabled={!selected.size} onClick={start}>Review deduction{selected.size ? ` (${selected.size})` : ''}</Action>
+        <Action tooltip="Review the selected claims and calculate their deduction impact before confirming." primary disabled={!selected.size} onClick={start}>Review deduction{selected.size ? ` (${selected.size})` : ''}</Action>
       </div>
     </div>
     </>} />
     {open && <ClaimDialog title={result ? 'Deduction summary' : preview ? 'Confirm deduction' : 'Batch deduction'} step={result ? 'Completed' : preview ? 'Step 2 of 2 · Confirm assessment' : 'Step 1 of 2 · Review claims'} busy={busy} onClose={close} footer={result ? <>
-      <Action disabled={printing} onClick={printSummary}>{printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}{printing ? 'Preparing summary...' : 'Print summary'}</Action><Action primary onClick={close}>Done</Action>
+      <Action tooltip="Print the summary of the completed deduction batch." disabled={printing} onClick={printSummary}>{printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}{printing ? 'Preparing summary...' : 'Print summary'}</Action><Action primary onClick={close}>Done</Action>
     </> : <>
       <Action disabled={busy} onClick={() => { if (preview) { setPreview(null); setError(''); } else close(); }}>{preview ? 'Back' : 'Cancel'}</Action>
-      {preview ? <Action primary disabled={busy} onClick={process}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Processing deduction…' : 'Confirm deduction'}</Action> : <Action primary type="submit" form="deduction-details" disabled={busy}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Calculating impact…' : 'Review summary'}</Action>}
+      {preview ? <Action tooltip="Process the reviewed deduction batch using the recorded claim references." primary disabled={busy} onClick={process}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Processing deduction…' : 'Confirm deduction'}</Action> : <Action primary type="submit" form="deduction-details" disabled={busy}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? 'Calculating impact…' : 'Review summary'}</Action>}
     </>}>
       {result && <div role="status" className="flex gap-3 text-sm leading-6 text-slate-700"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-coop-green" /><p>{result.claimCount} {result.claimCount === 1 ? 'claim was' : 'claims were'} deducted using their saved references. These claims are now complete.</p></div>}
       {shown ? <>

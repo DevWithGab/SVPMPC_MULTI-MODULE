@@ -77,7 +77,7 @@ export default function DeductionSettings({ user }) {
                   </p>
                 </div>
               </div>
-              <ActionButton variant="default"
+              <ActionButton tooltip="Update the deduction amount assessed per active member for each claim." variant="default"
                 onClick={() => setShowUpdateModal(true)}
                 className="td-button td-primary"
               >

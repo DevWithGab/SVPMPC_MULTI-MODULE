@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { Select } from '../../ui/input';
 import { Panel } from '../../ui/workspace';
 import { Table as DataTable } from '../../ui/table';
@@ -406,8 +407,8 @@ const Reports = ({ contributions = [], stats = {}, members = [], membersLoading 
           <div className="rp-report-field"><label htmlFor="mortuary-report-type">Report type</label><Select id="mortuary-report-type" value={reportType} onChange={event => { setReportType(event.target.value); setPage(1); setExportError(''); }}>{REPORT_TYPES.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}</Select><p>{REPORT_TYPES.length} report types available.</p></div>
           <p className="rp-selected-scope">{['memberStanding', 'negativeBalances', 'deceasedMembers'].includes(reportType) ? 'Current member records' : 'All recorded activity'}<span>{reportType === 'summary' ? 'Fund-wide' : barangayFilter === 'all' ? 'All barangays' : barangayFilter}</span></p>
           <div className="reports-export-actions">
-            <button type="button" onClick={exportToCSV} disabled={exportDisabled} className="reports-button"><FileText size={20} aria-hidden="true" />Export CSV</button>
-            <button type="button" onClick={generatePDF} disabled={exportDisabled} className="reports-button reports-button-primary">{exporting ? <Loader2 size={20} className="animate-spin" aria-hidden="true" /> : <Download size={20} aria-hidden="true" />}{exporting ? 'Preparing PDF...' : 'Export PDF'}</button>
+            <Tooltip content="Export the complete selected report using the current filters as CSV."><button type="button" onClick={exportToCSV} disabled={exportDisabled} className="reports-button"><FileText size={20} aria-hidden="true" />Export CSV</button></Tooltip>
+            <Tooltip content="Download the complete selected report using the current filters as PDF."><button type="button" onClick={generatePDF} disabled={exportDisabled} className="reports-button reports-button-primary">{exporting ? <Loader2 size={20} className="animate-spin" aria-hidden="true" /> : <Download size={20} aria-hidden="true" />}{exporting ? 'Preparing PDF...' : 'Export PDF'}</button></Tooltip>
           </div>
         </section>
         <Panel as="section" className="reports-document" aria-labelledby="report-title" aria-busy={reportLoading}>

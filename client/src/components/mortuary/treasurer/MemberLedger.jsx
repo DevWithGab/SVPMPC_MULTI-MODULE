@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { SearchField } from '../../ui/workspace';
 import { Button as ActionButton } from '../../ui/button';
 import { Select, Input as TextInput } from '../../ui/input';
@@ -238,7 +239,7 @@ const MemberLedger = ({
           </button>
         </div>
           <div className="ml-heading-row"><div><h1>Member ledger</h1><p className="ml-description">Transaction history for {currentMember.name}</p></div>
-          <div className="ml-top-actions"><button
+          <div className="ml-top-actions"><Tooltip content="Download the member ledger PDF using the current transaction filters."><button
               onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters)}
               disabled={loadingMemberLedger || preparingLedger !== null}
               aria-busy={preparingLedger === 'download'}
@@ -246,14 +247,14 @@ const MemberLedger = ({
             >
               {preparingLedger === 'download' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               {preparingLedger === 'download' ? 'Preparing Ledger PDF...' : 'Download Ledger PDF'}
-            </button>
-            <details className="ml-more-menu"><summary><MoreHorizontal size={19} aria-hidden="true" />More<ChevronDown size={17} aria-hidden="true" /></summary><div className="ml-menu-items"><h2 id="ml-ledger-actions-title">Ledger records</h2><p>Export, download, or print the transactions shown with your current filters.</p><button
+            </button></Tooltip>
+            <details className="ml-more-menu"><summary><MoreHorizontal size={19} aria-hidden="true" />More<ChevronDown size={17} aria-hidden="true" /></summary><div className="ml-menu-items"><h2 id="ml-ledger-actions-title">Ledger records</h2><p>Export, download, or print the transactions shown with your current filters.</p><Tooltip content="Export the transactions shown by the current filters as CSV."><button
               onClick={() => exportLedgerToCSV(mEntries, currentMember.name)}
               disabled={loadingMemberLedger || mEntries.length === 0}
               className="ml-button ml-primary"
             >
               <Download className="w-4 h-4" /> Export Ledger CSV
-            </button><button
+            </button></Tooltip><Tooltip content="Prepare the filtered member ledger for printing."><button
               onClick={() => handleLedgerPdf(currentMember, mEntries, hasActiveLedgerFilters, true)}
               disabled={loadingMemberLedger || preparingLedger !== null}
               aria-busy={preparingLedger === 'print'}
@@ -261,14 +262,14 @@ const MemberLedger = ({
             >
               {preparingLedger === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
               {preparingLedger === 'print' ? 'Preparing Ledger...' : 'Print Ledger'}
-            </button></div></details>
+            </button></Tooltip></div></details>
           </div></div>
         </header>
         <div className="ml-document-actions ml-screen">          <section className="ml-action-group ml-notice-actions" aria-labelledby="ml-notice-actions-title">
 <div className="ml-notice-copy"><Info size={22} aria-hidden="true" /><div><h2 id="ml-notice-actions-title">Balance notice</h2>
             <p id="ml-notice-status">{noticeLevel ? `${noticeLabel} letter based on the member's current balance.` : 'No notice is required for the current balance.'}</p>
 </div></div><details className="ml-notice-menu"><summary>Notice options <ChevronDown size={17} aria-hidden="true" /></summary><div className="ml-actions">
-                <button
+                <Tooltip content="Print the balance notice required by this member's current balance."><button
                   onClick={() => printBalanceNotice(currentMember, user?.name, noticeThresholds)}
                   disabled={!noticeLevel}
                   aria-describedby="ml-notice-status"
@@ -276,8 +277,8 @@ const MemberLedger = ({
                 >
                   <Printer className="w-4 h-4" />
                   Print {noticeLabel}
-                </button>
-                <button
+                </button></Tooltip>
+                <Tooltip content="Download this member's balance notice as a PDF."><button
                   onClick={() => handleDownloadNotice(currentMember)}
                   disabled={!noticeLevel || downloadingNotice}
                   aria-describedby="ml-notice-status"
@@ -286,7 +287,7 @@ const MemberLedger = ({
                 >
                   {downloadingNotice ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                   {downloadingNotice ? 'Preparing Notice PDF...' : `Download ${noticeLabel} PDF`}
-                </button>
+                </button></Tooltip>
             </div>
 </details>
           </section></div>
@@ -424,7 +425,7 @@ const MemberLedger = ({
                         {shortenRef(entry.ref_no)}
                         {entry.correctionPending && <p className="mt-1 font-sans text-xs text-amber-800">Edit needs retry</p>}
                         <div className="ml-screen mt-2 flex flex-col items-start gap-2 font-sans">
-                          {(entry.canCorrect || entry.correctionPending) && ['finance_officer', 'treasurer', 'super_admin'].includes(user?.role) && <button type="button" className="ml-text-button" onClick={() => setCorrectionDialog({ entry })}>{entry.correctionPending ? 'Finish edit' : 'Edit amount'}</button>}
+                          {(entry.canCorrect || entry.correctionPending) && ['finance_officer', 'treasurer', 'super_admin'].includes(user?.role) && <Tooltip content="Review an amount correction before saving it to the audit trail."><button type="button" className="ml-text-button" onClick={() => setCorrectionDialog({ entry })}>{entry.correctionPending ? 'Finish edit' : 'Edit amount'}</button></Tooltip>}
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-sm text-right font-mono font-medium align-top text-green-600">
@@ -475,7 +476,7 @@ const MemberLedger = ({
 
   return (
     <div className="member-ledger treasurer-ledger ml-directory">
-      <header className="ml-header ml-list-header"><p className="ml-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Members ledger</strong></p><div className="ml-heading-row"><div><h1>Member ledgers</h1><p className="ml-description">Find a member to review their transaction history.</p></div><ActionButton variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={20} aria-hidden="true" />Bulk upload CSV</ActionButton></div></header>
+      <header className="ml-header ml-list-header"><p className="ml-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Members ledger</strong></p><div className="ml-heading-row"><div><h1>Member ledgers</h1><p className="ml-description">Find a member to review their transaction history.</p></div><ActionButton tooltip="Upload a CSV and preview ledger entries before importing." variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={20} aria-hidden="true" />Bulk upload CSV</ActionButton></div></header>
       <div role="group" aria-label="Member ledger views" className="ml-view-tabs">
         <ActionButton variant={ledgerView === 'register' ? 'default' : 'outline'} aria-pressed={ledgerView === 'register'} onClick={() => setLedgerView('register')}>Member Register</ActionButton>
         <ActionButton variant={ledgerView === 'daily' ? 'default' : 'outline'} aria-pressed={ledgerView === 'daily'} onClick={() => setLedgerView('daily')}>Daily Summary</ActionButton>
@@ -526,7 +527,7 @@ const MemberLedger = ({
                   {member.balance < 0 && <span className="ml-standing ml-negative">{getStandingLabel(member.balance, noticeThresholds?.targetBalance)}</span>}
                 </td>
                 <td className="px-5 py-4 text-right">
-                  <ActionButton variant="outline"
+                  <ActionButton tooltip="Review this member's transaction history and running balance." variant="outline"
                     onClick={(e) => { e.stopPropagation(); setSelectedLedgerMember(member); }}
                     className="ml-button"
                     aria-label={'Open ledger for ' + member.name}

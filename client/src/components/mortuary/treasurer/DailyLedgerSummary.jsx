@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { useEffect, useState } from 'react';
 import api from '../../../services/api';
 import useUrlState from '../../../hooks/useUrlState';
@@ -47,9 +48,9 @@ export default function DailyLedgerSummary({ refreshVersion = 0 }) {
     <div className="reports-document-heading">
       <div><h2 id="daily-summary-title">Daily summary</h2><p>Review amounts added to member ledgers for one day.</p></div>
       <div className="reports-export-actions">
-        <button className="reports-button reports-button-primary" disabled={!ready || exporting} onClick={() => exportData(downloadDailySummaryPdf)}><Download size={16} aria-hidden="true" />Download PDF</button>
-        <button className="reports-button" disabled={!ready || exporting} onClick={() => exportData(printDailySummary)}><Printer size={16} aria-hidden="true" />Print summary</button>
-        <button className="reports-button" disabled={!ready || exporting} onClick={() => exportData(downloadDailySummary)}>Download CSV</button>
+        <Tooltip content="Download all ledger entries for the selected date as PDF."><button className="reports-button reports-button-primary" disabled={!ready || exporting} onClick={() => exportData(downloadDailySummaryPdf)}><Download size={16} aria-hidden="true" />Download PDF</button></Tooltip>
+        <Tooltip content="Prepare the complete ledger summary for the selected date for printing."><button className="reports-button" disabled={!ready || exporting} onClick={() => exportData(printDailySummary)}><Printer size={16} aria-hidden="true" />Print summary</button></Tooltip>
+        <Tooltip content="Export all ledger entries for the selected date as CSV."><button className="reports-button" disabled={!ready || exporting} onClick={() => exportData(downloadDailySummary)}>Download CSV</button></Tooltip>
       </div>
     </div>
     <div className="reports-filters">

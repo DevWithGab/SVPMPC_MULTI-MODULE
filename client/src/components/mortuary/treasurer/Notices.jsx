@@ -1,3 +1,4 @@
+import { Tooltip } from '../../ui/tooltip';
 import { Button as ActionButton } from '../../ui/button';
 import { Select } from '../../ui/input';
 import { FormField } from '../../ui/workspace';
@@ -240,11 +241,11 @@ export default function Notices({ members, user, noticeThresholds, onRefresh, re
                 <div className="tn-range"><span className="tn-cell-label">Current balance</span><strong>{noticeRanges[level]}</strong></div>
                 <div className="tn-count"><span className="tn-cell-label">Members</span><strong>{count.toLocaleString()}</strong><p>{count === 0 ? 'No members need this notice.' : `eligible ${count === 1 ? 'member' : 'members'}`}</p></div>
                 <div className="tn-actions">
-                  <button onClick={() => handleBulkDownload(level)} disabled={count === 0 || noticeBusy} aria-label={'Download ' + NOTICE_LEVEL_LABELS[level] + ' PDF for ' + count + ' members'} className="tn-button tn-primary">
+                  <Tooltip content="Download a PDF of notices for the members in this notice level and selected barangay."><button onClick={() => handleBulkDownload(level)} disabled={count === 0 || noticeBusy} aria-label={'Download ' + NOTICE_LEVEL_LABELS[level] + ' PDF for ' + count + ' members'} className="tn-button tn-primary">
                     {preparing ? <Loader2 size={20} className="animate-spin" aria-hidden="true" /> : <Download size={20} aria-hidden="true" />}
                     {preparing ? 'Preparing...' : 'Download PDF'}
-                  </button>
-                  <button onClick={() => handleBulkPrint(level)} disabled={count === 0 || noticeBusy} aria-label={'Print ' + NOTICE_LEVEL_LABELS[level] + ' for ' + count + ' members'} className="tn-button tn-print"><Printer size={20} aria-hidden="true" />Print</button>
+                  </button></Tooltip>
+                  <Tooltip content="Print notices for the members in this notice level and selected barangay."><button onClick={() => handleBulkPrint(level)} disabled={count === 0 || noticeBusy} aria-label={'Print ' + NOTICE_LEVEL_LABELS[level] + ' for ' + count + ' members'} className="tn-button tn-print"><Printer size={20} aria-hidden="true" />Print</button></Tooltip>
                 </div>
               </section>
             );

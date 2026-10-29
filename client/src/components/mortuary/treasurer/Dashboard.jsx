@@ -46,8 +46,8 @@ const Dashboard = ({ stats, deductions = [], claimsCounts, claimsError, setActiv
       <header className="td-header">
         <div><h1>Dashboard</h1><p className="td-description">{formatLongDate(new Date())} · Philippine time</p></div>
         <div className="td-header-actions">
-          <ActionButton variant="outline" className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
-          <ActionButton className="td-button td-primary" onClick={() => setActiveTab('ledger')}>Open member ledger <ArrowRight size={19} aria-hidden="true" /></ActionButton>
+          <ActionButton tooltip="Reload the latest fund totals and claim counts." variant="outline" className="td-button" onClick={onRefresh} disabled={refreshing}><RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" />{refreshing ? 'Refreshing…' : 'Refresh'}</ActionButton>
+          <ActionButton tooltip="Find a member and review their deposits, deductions, and running balance." className="td-button td-primary" onClick={() => setActiveTab('ledger')}>Open member ledger <ArrowRight size={19} aria-hidden="true" /></ActionButton>
         </div>
       </header>
 
@@ -72,14 +72,14 @@ const Dashboard = ({ stats, deductions = [], claimsCounts, claimsError, setActiv
             {claimsError || !claimsCounts ? <p role="status" className="td-status">{claimsError ? 'Unable to load claim counts. Retry using the notice above.' : 'Loading claim counts…'}</p> : <>
               <strong className="td-attention-number">{outstandingClaims.toLocaleString()}</strong>
               <div><h3>Claims awaiting deduction</h3><p>{outstandingClaims ? 'Approved claims ready for member assessment.' : 'No claims pending deduction.'}</p>
-                <ActionButton variant="outline" className="td-button" onClick={() => setActiveTab('claims')}>Review claims <ArrowRight size={18} aria-hidden="true" /></ActionButton>
+                <ActionButton tooltip="Review approved claims awaiting deduction." variant="outline" className="td-button" onClick={() => setActiveTab('claims')}>Review claims <ArrowRight size={18} aria-hidden="true" /></ActionButton>
               </div>
             </>}
           </section>
           <section className="td-attention-item" aria-label="Members below minimum">
             <strong className="td-attention-number">{lowBalanceMembers.toLocaleString()}</strong>
             <div><h3>Members below minimum</h3><p>Includes {(stats?.memberStanding?.atRisk || 0).toLocaleString()} at risk and {(stats?.memberStanding?.negativeBalance || 0).toLocaleString()} with negative balances.</p>
-              <ActionButton variant="outline" className="td-button" onClick={() => setActiveTab('members')}>View balances <ArrowRight size={18} aria-hidden="true" /></ActionButton>
+              <ActionButton tooltip="Review member balances and identify accounts needing attention." variant="outline" className="td-button" onClick={() => setActiveTab('members')}>View balances <ArrowRight size={18} aria-hidden="true" /></ActionButton>
             </div>
           </section>
         </aside>
