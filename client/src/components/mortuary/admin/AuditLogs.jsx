@@ -506,6 +506,7 @@ const AuditLogs = () => {
                             }}
                             className="td-button"
                             aria-haspopup="dialog"
+                            tooltip="View the full activity record and recorded changes."
                             aria-label={`View ${actionLabel(log.action)} at ${formatDateTime(log.timestamp)}`}
                           >
                             <Eye className="w-4 h-4" />

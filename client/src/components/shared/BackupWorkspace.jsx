@@ -42,7 +42,7 @@ export default function BackupWorkspace({
           <div className="bw-setting-content">
             <div className="bw-download-row">
               <div><h3>{name} database</h3><p>All records, reports and settings in one JSON file.</p></div>
-              <ActionButton variant="default" type="button" className="sd-button sd-primary bw-button bw-primary" onClick={downloadFullBackup} disabled={exporting}>
+              <ActionButton variant="default" type="button" tooltip={`Download all ${name} records and settings as a JSON backup.`} className="sd-button sd-primary bw-button bw-primary" onClick={downloadFullBackup} disabled={exporting}>
                 {exporting && <Loader2 className="bw-spin" size={14} aria-hidden="true" />}
                 {exporting ? "Preparing..." : "Download backup"}
               </ActionButton>
@@ -72,7 +72,7 @@ export default function BackupWorkspace({
                   <tr key={label}>
                     <th scope="row">{label}</th>
                     <td>{typeof count === "number" ? count.toLocaleString() : count}</td>
-                    <td><ActionButton variant="outline" type="button" className="sd-button bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} JSON`} aria-busy={loading || undefined}>{loading ? "Preparing..." : "Download JSON"}</ActionButton></td>
+                    <td><ActionButton variant="outline" type="button" tooltip={`Download all ${label.toLowerCase()} records as a JSON backup.`} className="sd-button bw-export-link" onClick={download} disabled={disabled} aria-label={`Download ${label.toLowerCase()} JSON`} aria-busy={loading || undefined}>{loading ? "Preparing..." : "Download JSON"}</ActionButton></td>
                   </tr>
                 ))}</tbody>
               </DataTable>
@@ -104,7 +104,7 @@ export default function BackupWorkspace({
             <details className="bw-member-rules"><summary>Member restore rules</summary><p>For existing members, only {module === "attendance" ? "QR details" : "beneficiary fields"} are restored. Shared profiles, status, {module === "attendance" ? "beneficiaries" : "QR details"}, and module assignments are preserved. Missing members are enrolled in both Attendance and Mortuary.</p></details>
 
             <div className="bw-restore-actions">
-              <ActionButton variant="outline" type="button" className="sd-button bw-button" onClick={confirmRestore} disabled={!pendingRestore || restoring}>
+              <ActionButton variant="outline" type="button" tooltip="Restore the selected backup. Matching records may be overwritten; review the preview first." className="sd-button bw-button" onClick={confirmRestore} disabled={!pendingRestore || restoring}>
                 {restoring && <Loader2 size={14} className="bw-spin" aria-hidden="true" />}
                 {restoring ? "Restoring..." : "Restore backup"}
               </ActionButton>

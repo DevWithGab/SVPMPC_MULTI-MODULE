@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 import './design-system.css';
+import { Tooltip } from './tooltip';
 
 const buttonVariants = {
   default: 'bg-coop-green text-white hover:bg-coop-darkGreen',
@@ -22,9 +23,10 @@ const Button = React.forwardRef(({
   className = '', 
   variant = 'default', 
   size = 'default', 
+  tooltip,
   ...props 
 }, ref) => {
-  return (
+  const button = (
     <button
       ref={ref}
       data-ui-button
@@ -38,6 +40,7 @@ const Button = React.forwardRef(({
       {...props}
     />
   );
+  return tooltip ? <Tooltip content={tooltip}>{button}</Tooltip> : button;
 });
 Button.displayName = 'Button';
 

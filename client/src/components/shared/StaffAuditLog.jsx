@@ -95,7 +95,7 @@ export default function StaffAuditLog() {
                   <td data-label="Staff account" className="p-3 border-b">{log.entityName || '—'}</td>
                   <td data-label="Result" className="p-3 border-b capitalize"><span className={`sam-audit-result sam-audit-result-${log.status}`}>{outcomeLabel(log.status)}</span></td>
                   <td data-label="Details" className="p-3 border-b">
-                    <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>
+                    <Button variant="outline" size="sm" tooltip="View the full activity record and recorded changes." aria-haspopup="dialog" onClick={() => setSelectedLog(log)}>
                       <Eye className="w-4 h-4 mr-1" /> View
                     </Button>
                   </td>

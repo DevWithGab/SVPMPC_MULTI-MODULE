@@ -408,7 +408,7 @@ const AuditLogs = () => {
                               setSelectedLog(log);
                               setShowDetails(true);
                             }}
-                            className="sd-button" aria-haspopup="dialog"
+                            className="sd-button" aria-haspopup="dialog" tooltip="View the full activity record and recorded changes."
                           >
                             <Eye className="w-4 h-4" />
                             View details
