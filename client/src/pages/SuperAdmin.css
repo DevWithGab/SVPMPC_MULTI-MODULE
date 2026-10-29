@@ -1,6 +1,8 @@
 /* Keep legacy green utilities in this portal on the shared UI palette.
    Descendant screens and dialogs inherit these values without changing other portals. */
 .super-admin-theme {
+  --ui-primary: #174b38;
+  --ui-primary-hover: #103a2b;
   --color-emerald-50: #f0f7f1;
   --color-emerald-100: #e1f2e5;
   --color-emerald-200: #c4dfca;
@@ -21,6 +23,110 @@
   --color-green-700: var(--ui-primary-hover);
   --color-green-800: var(--ui-primary-hover);
   --color-green-900: var(--ui-primary-hover);
+}
+
+/* Portal layout and shared presentation, scoped to the authenticated hub. */
+.super-admin-theme { background: #f7f9f8; color: #182b22; }
+.sam-shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100dvh; }
+.sam-sidebar { position: sticky; top: 0; align-self: start; display: flex; flex-direction: column; min-height: 100dvh; padding: 28px 16px 20px; border-right: 1px solid #dfe7e2; background: #fff; }
+.sam-brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 30px; }
+.sam-brand > span { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border-radius: 12px; color: #fff; background: #174b38; }
+.sam-brand strong { color: #193c2c; font-size: 17px; font-weight: 700; letter-spacing: -.03em; }
+.sam-brand p { margin-top: 3px; color: #68766e; font-size: 11px; }
+.sam-navigation { display: grid; gap: 26px; }
+.sam-nav-group > p { margin: 0 12px 9px; color: #7b8880; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.sam-nav-group button { display: flex; align-items: center; gap: 11px; width: 100%; min-height: 46px; margin-top: 4px; padding: 11px 12px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #56665c; text-align: left; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.sam-nav-group button > svg { flex-shrink: 0; }
+.sam-nav-group button > span { flex: 1; }
+.sam-nav-group button:hover { color: #174b38; background: #f5f8f6; }
+.sam-nav-group button[aria-current="page"] { color: #174b38; background: #eaf3ed; border-color: #dcebe1; font-weight: 600; }
+.sam-sidebar-note { display: flex; align-items: flex-start; gap: 9px; margin: auto 8px 0; padding-top: 42px; color: #76837b; font-size: 11px; line-height: 1.7; }
+.sam-sidebar-note svg { flex-shrink: 0; margin-top: 3px; }
+.sam-sidebar-note strong { color: #506358; font-weight: 500; }
+.sam-sidebar-note p { margin-top: 4px; }
+.sam-mobile-navigation { display: none; }
+.sam-main { width: 100%; max-width: 1650px; min-width: 0; padding: 30px 36px 48px; margin-inline: auto; }
+.sam-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 27px; color: #758078; font-size: 13px; }
+.sam-breadcrumb strong { color: #3c5145; font-weight: 500; }
+.sam-page-heading { margin-bottom: 30px; }
+.sam-page-heading h1 { color: #162b20; font-size: clamp(28px, 3vw, 38px); font-weight: 700; letter-spacing: -.04em; line-height: 1.2; }
+.sam-page-heading p { margin-top: 10px; color: #67766d; font-size: 15px; line-height: 1.6; }
+.super-admin-theme :is(button, input, select, summary, [tabindex]):focus-visible { outline: 2px solid #528369; outline-offset: 3px; }
+.super-admin-theme .sam-main .ui-button { gap: 7px; min-height: 42px; height: auto; font-size: 13px; font-weight: 500; box-shadow: none; }
+.sam-stats { gap: 16px; margin-bottom: 24px; }
+.sam-stats > .ui-panel { border: 1px solid #dfe7e2; border-radius: 10px; box-shadow: 0 2px 8px #193c2c04; }
+.sam-stats > .ui-panel:first-child { border-color: #cddfd3; background: #eff6f1; }
+.sam-stats > .ui-panel > div { padding: 22px; }
+.sam-stats p:first-child { color: #627167; font-size: 12px; font-weight: 500; text-transform: none; }
+.sam-stats p + p { margin-top: 12px; font-size: 32px; font-weight: 650; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.sam-stats .w-12 { width: 38px; height: 38px; border-radius: 10px; }
+.sam-stats svg { width: 19px; height: 19px; }
+.sam-member-toolbar { flex-wrap: wrap; gap: 12px; padding: 18px; border: 1px solid #dfe7e2; border-radius: 10px; background: #fff; }
+.sam-member-toolbar > :first-child { min-width: 220px; }
+.sam-member-toolbar input, .sam-member-toolbar select { min-height: 44px; border-color: #d6dfd9; border-radius: 7px; font-size: 13px; }
+.sam-member-toolbar input { padding-block: 10px; }
+.sam-member-toolbar select { padding: 10px 12px; background: #fff; }
+.super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) { padding: 24px; border-color: #dfe7e2; border-radius: 10px; }
+.super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) h2 { color: #233b2c; font-size: 21px; font-weight: 650; letter-spacing: -.025em; }
+.super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) h2 + p { max-width: 640px; margin-top: 6px; color: #67766d; line-height: 1.6; }
+.sam-panel-heading { padding-bottom: 22px; margin-bottom: 22px; border-bottom: 1px solid #e6ece8; }
+.sam-panel-heading > .flex { flex-wrap: wrap; }
+.sam-panel-heading select { min-height: 42px; border-color: #d6dfd9; background: #fff; color: #43594b; }
+.super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) table { min-width: 800px; }
+.super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) table th { padding: 13px 16px; background: #f7faf8; color: #617167; font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: normal; }
+.super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) table td { padding: 18px 16px; border-color: #edf1ee; color: #40574a; font-size: 13px; line-height: 1.6; }
+.super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) table tr:last-child td { border-bottom: 0; }
+.sam-action-label { display: inline-block; padding: 4px 8px; border: 1px solid #dfe7e2; border-radius: 6px; background: #f5f8f6; color: #4b6253; font-size: 12px; white-space: nowrap; }
+.sam-audit-result { display: inline-block; padding: 3px 8px; border-radius: 5px; background: #f1f4f2; color: #526359; font-size: 12px; }
+.sam-audit-result-success { color: #28623e; background: #eaf5ed; }
+.sam-audit-result-failure, .sam-audit-result-error, .sam-audit-result-failed { color: #984737; background: #fff0eb; }
+.super-admin-theme .sam-main :is(.treasurer-dashboard, .secretary-dashboard, .attendance-workspace) { min-width: 0; margin: 0; padding: 0; background: transparent; }
+.super-admin-theme .sam-main .ui-page-header { margin-bottom: 30px; gap: 20px; }
+.super-admin-theme .sam-main .ui-page-header h1 { color: #162b20; font-size: clamp(28px, 3vw, 38px); font-weight: 700; letter-spacing: -.04em; line-height: 1.2; }
+.super-admin-theme .sam-main .ui-page-header :is(.td-description, .sd-description, .ui-page-description) { margin-top: 10px; color: #67766d; font-size: 15px; line-height: 1.6; }
+.super-admin-theme .sam-main .ui-page-header :is(.td-eyebrow, .sd-eyebrow, .ui-page-eyebrow) { margin-bottom: 10px; color: #67766d; font-size: 12px; text-transform: none; letter-spacing: normal; }
+.super-admin-theme .sam-main :is(.ui-panel, .mb-filters, .aal-filters, .attendance-metric) { border-color: #dfe7e2; border-radius: 10px; box-shadow: 0 2px 8px #193c2c04; }
+.super-admin-theme .sam-main :is(.bw-setting-content, .bw-setting-label) { padding: 24px; }
+.super-admin-theme .sam-main .bw-datasets .bw-setting-content { padding: 0; }
+.super-admin-theme .sam-main :is(.bw-download-row p, .bw-setting-label p, .bw-file-label, .bw-restore-notice, .bw-help) { font-size: 13px; }
+@media (max-width: 1200px) {
+  .sam-shell { grid-template-columns: 220px minmax(0, 1fr); }
+  .sam-main { padding: 28px 24px 40px; }
+  .sam-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+  .sam-shell { display: block; }
+  .sam-sidebar { position: static; min-height: 0; padding: 18px; border-right: 0; border-bottom: 1px solid #dfe7e2; }
+  .sam-brand { padding: 0 0 18px; }
+  .sam-mobile-navigation { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #dcebe1; border-radius: 7px; background: #eff6f1; color: #174b38; text-align: left; font-size: 13px; cursor: pointer; }
+  .sam-mobile-navigation > svg:last-child { margin-left: auto; transform: rotate(90deg); }
+  .sam-mobile-navigation[aria-expanded="true"] > svg:last-child { transform: rotate(-90deg); }
+  .sam-navigation { display: none; padding-top: 22px; gap: 18px; }
+  .sam-navigation.is-open { display: grid; }
+  .sam-sidebar-note { display: none; }
+  .sam-main { padding: 22px 18px 36px; }
+  .sam-breadcrumb { margin-bottom: 22px; font-size: 12px; }
+  .sam-page-heading { margin-bottom: 24px; }
+  .sam-stats { gap: 12px; }
+  .sam-stats > .ui-panel > div { padding: 16px; }
+  .sam-stats .w-12 { display: none; }
+  .sam-member-toolbar { padding: 14px; }
+  .sam-member-toolbar > :first-child { min-width: 0; width: 100%; flex-basis: 100%; }
+  .sam-member-toolbar > .flex { flex: 1; }
+  .sam-member-toolbar > .flex > * { flex: 1 1 auto; }
+  .super-admin-theme :is(.sam-staff-accounts, .sam-staff-audit) { padding: 18px; }
+  .sam-staff-accounts > .flex > .flex, .sam-panel-heading > .flex { width: 100%; }
+  .sam-staff-accounts > .flex > .flex > *, .sam-panel-heading > .flex > * { flex: 1; }
+  .super-admin-theme .sam-staff-audit table { display: block; min-width: 0; }
+  .sam-staff-audit thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .sam-staff-audit tbody { display: grid; gap: 14px; }
+  .sam-staff-audit tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 16px; border: 1px solid #e2e9e4; border-radius: 8px; }
+  .super-admin-theme .sam-staff-audit table td { display: block; min-width: 0; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; }
+  .sam-staff-audit td::before { display: block; content: attr(data-label); margin-bottom: 5px; color: #718078; font-size: 11px; text-transform: none; }
+  .sam-staff-audit td:first-child { grid-column: 1 / -1; }
+  .sam-staff-audit .sam-action-label { white-space: normal; }
+  .super-admin-theme .sam-main .ui-page-header { flex-direction: column; align-items: stretch; }
+  .super-admin-theme .sam-main :is(.bw-setting-content, .bw-setting-label) { padding: 18px; }
 }
 
 .super-admin-theme :is(.backup-workspace, .admin-audit-logs) :is(input, select, button, summary, [tabindex]):focus-visible {

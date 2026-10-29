@@ -58,7 +58,7 @@ export default function StaffAccounts() {
       setCredentials(result.credentials || null); setForm(null);
     });
   };
-  return <section className="bg-white border border-slate-200 rounded-xl p-6 mb-8" aria-label="Staff accounts">
+  return <section className="sam-staff-accounts bg-white border border-slate-200 rounded-xl p-6 mb-8" aria-label="Staff accounts">
     <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
       <div><h2 className="text-xl font-bold">Staff Accounts</h2><p className="text-sm text-slate-500">Create accounts, assign access, and manage staff sign-in.</p></div>
       <div className="flex gap-2"><Button variant="outline" disabled={busy || loadingList} onClick={refresh}>Refresh list</Button><Button disabled={busy || loadingList || Boolean(credentials)} onClick={() => { setForm({ ...empty, role: system === 'mortuary' ? 'claims_officer' : 'secretary', modules: [system] }); setError(''); }}>Create staff account</Button></div>

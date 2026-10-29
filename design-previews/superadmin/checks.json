@@ -1,0 +1,175 @@
+{
+  "checks": [
+    {
+      "width": 1440,
+      "tab": "members",
+      "overflow": false,
+      "title": "Member management"
+    },
+    {
+      "width": 1440,
+      "tab": "staff",
+      "overflow": false,
+      "title": "Staff accounts"
+    },
+    {
+      "width": 1440,
+      "tab": "auditlogs",
+      "overflow": false,
+      "title": "Staff audit logs"
+    },
+    {
+      "width": 1440,
+      "tab": "mortuary-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 1440,
+      "tab": "mortuary-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    },
+    {
+      "width": 1440,
+      "tab": "attendance-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 1440,
+      "tab": "attendance-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    },
+    {
+      "width": 834,
+      "tab": "members",
+      "overflow": false,
+      "title": "Member management"
+    },
+    {
+      "width": 834,
+      "tab": "staff",
+      "overflow": false,
+      "title": "Staff accounts"
+    },
+    {
+      "width": 834,
+      "tab": "auditlogs",
+      "overflow": false,
+      "title": "Staff audit logs"
+    },
+    {
+      "width": 834,
+      "tab": "mortuary-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 834,
+      "tab": "mortuary-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    },
+    {
+      "width": 834,
+      "tab": "attendance-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 834,
+      "tab": "attendance-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    },
+    {
+      "width": 390,
+      "tab": "members",
+      "overflow": false,
+      "title": "Member management"
+    },
+    {
+      "width": 390,
+      "tab": "staff",
+      "overflow": false,
+      "title": "Staff accounts"
+    },
+    {
+      "width": 390,
+      "tab": "auditlogs",
+      "overflow": false,
+      "title": "Staff audit logs"
+    },
+    {
+      "width": 390,
+      "tab": "mortuary-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 390,
+      "tab": "mortuary-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    },
+    {
+      "width": 390,
+      "tab": "attendance-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 390,
+      "tab": "attendance-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    },
+    {
+      "width": 320,
+      "tab": "members",
+      "overflow": false,
+      "title": "Member management"
+    },
+    {
+      "width": 320,
+      "tab": "staff",
+      "overflow": false,
+      "title": "Staff accounts"
+    },
+    {
+      "width": 320,
+      "tab": "auditlogs",
+      "overflow": false,
+      "title": "Staff audit logs"
+    },
+    {
+      "width": 320,
+      "tab": "mortuary-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 320,
+      "tab": "mortuary-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    },
+    {
+      "width": 320,
+      "tab": "attendance-audit",
+      "overflow": false,
+      "title": "Audit logs"
+    },
+    {
+      "width": 320,
+      "tab": "attendance-backup",
+      "overflow": false,
+      "title": "Backup & restore"
+    }
+  ],
+  "errors": [],
+  "mobileNavigation": "passed",
+  "auditDetails": "passed"
+}

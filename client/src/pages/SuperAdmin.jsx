@@ -12,7 +12,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
   MapPin, Calendar, Key, ArrowLeft, X, Plus, LockKeyhole,
-  CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack, Eye, EyeOff
+  CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack, Eye, EyeOff,
+  ClipboardList, Database, ChevronRight, Menu
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
@@ -32,9 +33,26 @@ import CreateMemberModal, { MemberFormField as FormField } from '../components/s
 import { validateMemberField } from '../utils/memberValidation';
 import './SuperAdmin.css';
 
+const ADMIN_SECTIONS = [
+  { group: 'Administration', items: [
+    { id: 'members', label: 'Members', icon: Users, title: 'Member management', description: 'Manage shared member records and access across your cooperative.' },
+    { id: 'staff', label: 'Staff Accounts', icon: Shield, title: 'Staff accounts', description: 'Manage staff access, roles, and sign-in credentials.' },
+    { id: 'auditlogs', label: 'Staff Audit Logs', icon: ClipboardList, title: 'Staff audit logs', description: 'Review changes to staff accounts and access.' },
+  ] },
+  { group: 'Mortuary', items: [
+    { id: 'mortuary-audit', label: 'Mortuary Audit Logs', icon: ClipboardList },
+    { id: 'mortuary-backup', label: 'Mortuary Backup & Restore', icon: Database },
+  ] },
+  { group: 'Attendance', items: [
+    { id: 'attendance-audit', label: 'Attendance Audit Logs', icon: ClipboardList },
+    { id: 'attendance-backup', label: 'Attendance Backup & Restore', icon: Database },
+  ] },
+];
 
 const SuperAdmin = ({ onAuthenticated }) => {
   const [section, setSection] = useUrlState('tab', 'members', ['members', 'staff', 'auditlogs', 'mortuary-audit', 'mortuary-backup', 'attendance-audit', 'attendance-backup']);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const currentSection = ADMIN_SECTIONS.flatMap(group => group.items).find(item => item.id === section);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
   const [showAuthPassword, setShowAuthPassword] = useState(false);
@@ -409,26 +427,18 @@ const SuperAdmin = ({ onAuthenticated }) => {
   // Main Super Admin Dashboard
   return (
     <div className="super-admin-theme min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black text-slate-900">Super Admin</h1>
-                <p className="text-sm text-slate-500">Member Management System</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-wrap gap-3 mb-6"><Button variant={section === 'members' ? 'default' : 'outline'} onClick={() => setSection('members')}>Members</Button><Button variant={section === 'staff' ? 'default' : 'outline'} onClick={() => setSection('staff')}>Staff Accounts</Button><Button variant={section === 'auditlogs' ? 'default' : 'outline'} onClick={() => setSection('auditlogs')}>Staff Audit Logs</Button><Button variant={section === 'mortuary-audit' ? 'default' : 'outline'} onClick={() => setSection('mortuary-audit')}>Mortuary Audit Logs</Button><Button variant={section === 'mortuary-backup' ? 'default' : 'outline'} onClick={() => setSection('mortuary-backup')}>Mortuary Backup &amp; Restore</Button><Button variant={section === 'attendance-audit' ? 'default' : 'outline'} onClick={() => setSection('attendance-audit')}>Attendance Audit Logs</Button><Button variant={section === 'attendance-backup' ? 'default' : 'outline'} onClick={() => setSection('attendance-backup')}>Attendance Backup &amp; Restore</Button></div>
+      <div className="sam-shell">
+      <aside className="sam-sidebar">
+        <div className="sam-brand"><span><Shield size={23} aria-hidden="true" /></span><div><strong>Super Admin</strong><p>Cooperative management</p></div></div>
+        <button type="button" className="sam-mobile-navigation" aria-expanded={navigationOpen} aria-controls="sam-navigation" onClick={() => setNavigationOpen(open => !open)}><Menu size={18} aria-hidden="true" />{currentSection.label}<ChevronRight size={16} aria-hidden="true" /></button>
+        <nav id="sam-navigation" className={`sam-navigation${navigationOpen ? ' is-open' : ''}`} aria-label="Administration sections">
+          {ADMIN_SECTIONS.map(group => <div className="sam-nav-group" key={group.group}><p>{group.group}</p>{group.items.map(item => <button type="button" key={item.id} aria-current={section === item.id ? 'page' : undefined} onClick={() => { setSection(item.id); setNavigationOpen(false); }}><item.icon size={18} aria-hidden="true" /><span>{item.label}</span>{section === item.id && <ChevronRight size={14} aria-hidden="true" />}</button>)}</div>)}
+        </nav>
+        <div className="sam-sidebar-note"><LockKeyhole size={16} aria-hidden="true" /><div><strong>Administrator workspace</strong><p>Members, access, and system records in one place.</p></div></div>
+      </aside>
+      <main className="sam-main">
+        <div className="sam-breadcrumb"><span>Super admin</span><ChevronRight size={14} aria-hidden="true" /><strong>{currentSection.label}</strong></div>
+        {currentSection.title && <header className="sam-page-heading"><h1>{currentSection.title}</h1><p>{currentSection.description}</p></header>}
         {section === 'staff' && <StaffAccounts />}
         {section === 'auditlogs' && <StaffAuditLog />}
         {section === 'mortuary-audit' && <MortuaryAuditLogs />}
@@ -437,7 +447,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
         {section === 'attendance-backup' && <div className="attendance-workspace" style={{ height: 'auto' }}><AttendanceBackup onRestored={fetchMembers} /></div>}
         <div hidden={section !== 'members'}>
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="sam-stats grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="border-slate-200 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -499,11 +509,12 @@ const SuperAdmin = ({ onAuthenticated }) => {
         </div>
 
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="sam-member-toolbar flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
+              aria-label="Search members"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by name, email, or passbook no..."
@@ -512,6 +523,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
           </div>
           <div className="flex flex-wrap gap-2">
             <select
+              aria-label="Filter members by status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -591,6 +603,7 @@ const SuperAdmin = ({ onAuthenticated }) => {
         </Card>
       </div>
 
+      </main>
       </div>
 
       {/* Create Member Modal */}

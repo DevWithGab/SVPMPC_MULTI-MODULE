@@ -1,6 +1,6 @@
 import { Table as DataTable } from '../ui/table';
 import { useEffect, useRef, useState } from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, ClipboardList, RefreshCw } from 'lucide-react';
 import { auditAPI } from '../../services/api';
 import { Button } from '../ui/button';
 import { Pagination, PaginationInfo } from '../ui/pagination';
@@ -57,11 +57,11 @@ export default function StaffAuditLog() {
   useEffect(() => { setPage(1); }, [action, setPage]);
 
   return (
-    <section className="bg-white border border-slate-200 rounded-xl p-6 mb-8" aria-label="Staff account audit trail">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+    <section className="sam-staff-audit bg-white border border-slate-200 rounded-xl p-6 mb-8" aria-label="Staff account audit trail" aria-busy={loading}>
+      <div className="sam-panel-heading flex flex-wrap items-center justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-xl font-bold">Staff Account Activity</h2>
-          <p className="text-sm text-slate-500">Every staff account created, edited, password-reset, or deleted — retained even after the account itself is removed.</p>
+          <h2 className="text-xl font-bold">Staff account activity</h2>
+          <p className="text-sm text-slate-500">Account changes and password resets are retained, even after an account is removed.</p>
         </div>
         <div className="flex gap-2">
           <select value={action} onChange={(e) => setAction(e.target.value)} className="border rounded-md px-3 py-2 text-sm" aria-label="Filter by action">
@@ -71,7 +71,7 @@ export default function StaffAuditLog() {
             <option value="staff_password_reset">Password reset</option>
             <option value="staff_deleted">Deleted</option>
           </select>
-          <Button variant="outline" disabled={loading} onClick={refresh}>Refresh</Button>
+          <Button variant="outline" disabled={loading} onClick={refresh}><RefreshCw size={15} aria-hidden="true" />Refresh</Button>
         </div>
       </div>
 
@@ -89,12 +89,12 @@ export default function StaffAuditLog() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log._id}>
-                  <td className="p-3 border-b whitespace-nowrap">{formatDateTime(log.timestamp)}</td>
-                  <td className="p-3 border-b">{log.userName || 'System'}</td>
-                  <td className="p-3 border-b">{actionLabel(log.action)}</td>
-                  <td className="p-3 border-b">{log.entityName || '—'}</td>
-                  <td className="p-3 border-b capitalize">{outcomeLabel(log.status)}</td>
-                  <td className="p-3 border-b">
+                  <td data-label="When" className="p-3 border-b whitespace-nowrap">{formatDateTime(log.timestamp)}</td>
+                  <td data-label="Performed by" className="p-3 border-b">{log.userName || 'System'}</td>
+                  <td data-label="Action" className="p-3 border-b"><span className="sam-action-label">{actionLabel(log.action)}</span></td>
+                  <td data-label="Staff account" className="p-3 border-b">{log.entityName || '—'}</td>
+                  <td data-label="Result" className="p-3 border-b capitalize"><span className={`sam-audit-result sam-audit-result-${log.status}`}>{outcomeLabel(log.status)}</span></td>
+                  <td data-label="Details" className="p-3 border-b">
                     <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>
                       <Eye className="w-4 h-4 mr-1" /> View
                     </Button>
@@ -103,7 +103,7 @@ export default function StaffAuditLog() {
               ))}
             </tbody>
           </DataTable>
-          {!logs.length && <p className="py-4 text-slate-500">No staff account activity yet.</p>}
+          {!logs.length && <div className="sam-empty" role="status"><ClipboardList size={30} aria-hidden="true" /><strong>{action ? 'No activity matches this filter' : 'No staff account activity yet'}</strong><p>{action ? 'Choose another action to review the staff audit trail.' : 'Account changes will appear here when staff access is managed.'}</p>{action && <Button variant="outline" onClick={() => setAction('')}>Clear filter</Button>}</div>}
         </div>
       )}
 
