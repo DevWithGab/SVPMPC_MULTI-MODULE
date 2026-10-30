@@ -32,7 +32,7 @@ export default function BeneficiaryHistory({ memberId, memberName, onBack, backL
     <div className={`member-balances admin-beneficiaries ${className}`}>
       <PageHeader className="mb-header">
         <div>
-          <p className="mb-eyebrow">Mortuary management / {parentSection} / Beneficiary history</p>
+          <p className="mb-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><span>{parentSection}</span><span aria-hidden="true">/</span><strong>Beneficiary history</strong></p>
           <h1>Beneficiary history</h1>
           <p className="mb-description">Review current and previous beneficiary records for {memberName}. Passbook No. {memberId}.</p>
         </div>

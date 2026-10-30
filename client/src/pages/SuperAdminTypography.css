@@ -1,0 +1,101 @@
+﻿/* Shared screen typography for the hub and its embedded module screens.
+   Font-size overrides take precedence over each module's standalone styles. */
+@media screen {
+  .super-admin-design {
+    --sam-title-size: clamp(28px, 3vw, 44px);
+    --sam-subtitle-size: clamp(14px, 1.5vw, 19px);
+    --sam-section-size: 21px;
+    --sam-metric-size: clamp(25px, 2.5vw, 36px);
+    --sam-body-size: 14px;
+    --sam-label-size: 14px;
+    --sam-caption-size: 12px;
+    font-size: var(--sam-body-size);
+    line-height: 1.5;
+  }
+
+  .super-admin-design .sam-main h1 {
+    font-size: var(--sam-title-size) !important;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -.04em;
+    overflow-wrap: anywhere;
+  }
+  .super-admin-design :is(.sam-main, .ui-dialog) h2 {
+    font-size: var(--sam-section-size) !important;
+    line-height: 1.3;
+  }
+  .super-admin-design :is(.sam-main, .ui-dialog) h3 {
+    font-size: 18px !important;
+    line-height: 1.4;
+  }
+  .super-admin-design .sam-main .ui-panel-heading h3 {
+    font-size: var(--sam-section-size) !important;
+  }
+  .super-admin-design .sam-main :is(td, th) :is(span, a, strong) {
+    font-size: inherit !important;
+  }
+  .super-admin-design :is(.sam-main, .ui-dialog) :is(p, li, dt, label, input, select, textarea, button, summary, th, td) {
+    font-size: var(--sam-body-size) !important;
+  }
+  .super-admin-design :is(.sam-main, .ui-dialog) :is(.text-xs, .text-sm, small, .ui-badge, .sam-action-label, .sam-audit-result, .sam-membership, .sam-module, .sam-status-locked) {
+    font-size: var(--sam-caption-size) !important;
+  }
+  .super-admin-design .sam-main :is(.sam-page-heading > p, .td-description, .sd-description, .ui-page-description, .mb-description, .mc-description, .tn-description, .ml-description, .fs-description, .reports-description, .md-description, .ar-description, .sla-description) {
+    font-size: var(--sam-subtitle-size) !important;
+    line-height: 1.5;
+  }
+  .super-admin-design .sam-main :is(.sam-stats p:first-child, .td-metrics dt, .mb-stat-card dt, .rp-summary-metrics dt, .attendance-metric-heading > p, .sd-stat-label) {
+    font-size: var(--sam-label-size) !important;
+  }
+  .super-admin-design .sam-main :is(.sam-stats p + p, .td-metrics dd, .mb-stat-card dd, .rp-summary-metrics dd, .attendance-metric > strong, .ac-metric > strong, .sd-stat-value) {
+    font-size: var(--sam-metric-size) !important;
+    line-height: 1.2;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .super-admin-design .sam-main :is(.td-metrics p, .mb-stat-card > p, .rp-summary-metrics p, .attendance-metric > span, .ac-metric > span, .attendance-metric > small, .td-chart-footer p, .td-empty, .sam-register-pagination) {
+    font-size: var(--sam-caption-size) !important;
+  }
+  .super-admin-design .sam-main :is(.mad-claim-list strong, .aad-attention-list strong, .td-attention-number) {
+    font-size: 24px !important;
+  }
+  .super-admin-design .sam-main :is(.mad-claim-list button, .aad-attention-list button, .td-status-list dt) {
+    font-size: var(--sam-label-size) !important;
+  }
+  .super-admin-design .sam-main .recharts-text {
+    font-size: var(--sam-caption-size) !important;
+  }
+  .super-admin-design .sam-main .member-select-detail {
+    font-size: 12px !important;
+  }
+  .super-admin-design .sam-main .member-select-name {
+    font-size: 14px !important;
+  }
+  .super-admin-design .sam-navigation .sam-nav-group :is(a, button),
+  .super-admin-design .sam-account {
+    font-size: var(--sam-body-size);
+  }
+  .super-admin-design .sam-navigation .sam-submenu a,
+  .super-admin-design .sam-breadcrumb,
+  .super-admin-design .sam-nav-group > p {
+    font-size: var(--sam-caption-size);
+  }
+
+  @media (max-width: 800px) {
+    .super-admin-design {
+      --sam-title-size: 32px;
+      --sam-subtitle-size: 18px;
+      --sam-section-size: 22px;
+      --sam-metric-size: 32px;
+    }
+  }
+  @media (max-width: 480px) {
+    .super-admin-design {
+      --sam-title-size: 28px;
+      --sam-section-size: 20px;
+      --sam-metric-size: 28px;
+    }
+  }
+}
+

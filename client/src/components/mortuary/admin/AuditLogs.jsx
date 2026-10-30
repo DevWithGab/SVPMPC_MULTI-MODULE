@@ -218,7 +218,7 @@ const AuditLogs = () => {
     <div className="treasurer-dashboard admin-audit-logs">
       <PageHeader className="td-header">
         <div>
-          <p className="td-eyebrow">Mortuary management / Audit logs</p>
+          <p className="td-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><strong>Audit logs</strong></p>
           <h1>Audit logs</h1>
           <p className="td-description">
             Monitor claim activity and review changes in the mortuary module.
@@ -504,7 +504,7 @@ const AuditLogs = () => {
                               setSelectedLog(log);
                               setShowDetails(true);
                             }}
-                            className="td-button"
+                            className="td-button audit-details-button"
                             aria-haspopup="dialog"
                             tooltip="View the full activity record and recorded changes."
                             aria-label={`View ${actionLabel(log.action)} at ${formatDateTime(log.timestamp)}`}

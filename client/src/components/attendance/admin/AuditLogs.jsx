@@ -201,7 +201,7 @@ const AuditLogs = () => {
       {/* Header */}
       <PageHeader separateBreadcrumb className="sd-header">
         <div>
-          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Activity history</strong></p>
+          <p className="sd-eyebrow attendance-breadcrumb"><span>Attendance management</span><span aria-hidden="true">/</span><strong>Audit logs</strong></p>
           <h1>Audit logs</h1>
           <p className="sd-description">
             Review attendance activity, record changes, and action outcomes.
@@ -408,7 +408,7 @@ const AuditLogs = () => {
                               setSelectedLog(log);
                               setShowDetails(true);
                             }}
-                            className="sd-button" aria-haspopup="dialog" tooltip="View the full activity record and recorded changes."
+                            className="sd-button audit-details-button" aria-haspopup="dialog" tooltip="View the full activity record and recorded changes."
                           >
                             <Eye className="w-4 h-4" />
                             View details

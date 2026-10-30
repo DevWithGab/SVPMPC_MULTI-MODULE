@@ -26,6 +26,7 @@ export default function AttendanceOperatorPortal({
   onBack,
   user: propUser,
   token: propToken,
+  embedded = false,
 }) {
   const { user, updateAuth } = useAuth();
   const currentUser = propUser || user;
@@ -39,7 +40,7 @@ export default function AttendanceOperatorPortal({
   useEffect(() => {
     if (
       currentUser?.role &&
-      !["scanner_operator", "secretary", "admin"].includes(currentUser.role)
+      !["scanner_operator", "secretary", "admin", "super_admin"].includes(currentUser.role)
     ) {
       alert(
         "This session isn't signed in as a Scanner Operator. Please log in again with a Scanner Operator account.",
@@ -143,7 +144,7 @@ export default function AttendanceOperatorPortal({
 
       <div className="attendance-main flex-1 flex flex-col min-w-0" inert={!isDesktop && isMobileMenuOpen ? true : undefined}>
         <div className="operator-standard-bar"><AttendanceMobileBar mobileOpen={isMobileMenuOpen} onOpen={() => setIsMobileMenuOpen(true)} /></div>
-        <header className="operator-phone-header">
+        {!embedded && <header className="operator-phone-header">
           <div className="operator-phone-brand">
             <img src="/SVPMPC-LOGO(MAIN).png" alt="SVPMPC logo" />
             <div><strong>SVPMPC</strong><span>Scanner operator</span></div>
@@ -155,7 +156,7 @@ export default function AttendanceOperatorPortal({
               {onBack && <button type="button" onClick={onBack}><LogOut size={16} aria-hidden="true" />Sign out</button>}
             </div>
           </details>
-        </header>
+        </header>}
         <main className="attendance-content flex-1 overflow-y-auto">
             {loadError && <LoadError message={loadError} onRetry={refreshData} retrying={loading} />}
           <div className="px-4 py-6 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -172,7 +173,7 @@ export default function AttendanceOperatorPortal({
             </AnimatePresence>
           </div>
         </main>
-        <nav className="operator-mobile-nav" aria-label="Scanner operator navigation">
+        {!embedded && <nav className="operator-mobile-nav" aria-label="Scanner operator navigation">
           {sidebarItems.map(({ id, icon }) => (
             <button key={id} type="button" aria-current={activeTab === id ? 'page' : undefined}
               onClick={() => setActiveTab(id)}>
@@ -180,7 +181,7 @@ export default function AttendanceOperatorPortal({
               <span>{{ home: 'Home', scanner: 'Scan', live: 'Live', myscans: 'My scans' }[id]}</span>
             </button>
           ))}
-        </nav>
+        </nav>}
       </div>
     </div>
   );

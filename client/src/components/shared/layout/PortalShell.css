@@ -1,25 +1,27 @@
 /* Shared staff portal navigation for attendance and mortuary; screen styles do not affect printed records. */
 @media screen {
   .portal-shell { background: #fff; color: #101820; }
-  .portal-shell .mt-sidebar { background: #eff8ee; color: #101820; flex-shrink: 0; }
-  .portal-shell .mt-brand { display: flex; align-items: start; gap: 16px; padding: 36px 30px 24px; flex-shrink: 0; }
-  .portal-shell .mt-brand-logo { width: 64px; height: 72px; object-fit: contain; flex-shrink: 0; }
+  .portal-shell .mt-sidebar { background: #fff; color: #193c2c; border-right: 1px solid #dfe7e2; flex-shrink: 0; }
+  .portal-shell .mt-brand { display: flex; align-items: center; gap: 16px; padding: 34px 20px 32px 36px; flex-shrink: 0; }
+  .portal-shell .mt-brand-logo { width: 46px; height: 56px; object-fit: contain; flex-shrink: 0; }
   .portal-shell .mt-brand-name { font-size: 21px; line-height: 1.3; font-weight: 700; letter-spacing: -.025em; }
-  .portal-shell .mt-brand-description { margin-top: 3px; font-size: 15px; line-height: 1.4; color: #646c78; }
+  .portal-shell .mt-brand-description { margin-top: 6px; font-size: 13px; line-height: 1.5; color: #68766e; }
   .portal-shell .mt-brand-collapsed { justify-content: center; padding: 28px 12px; }
   .portal-shell .mt-brand-collapsed .mt-brand-logo { width: 44px; height: 52px; }
-  .portal-shell .mt-nav-label { padding: 0 34px 16px; font-size: 16px; line-height: 1.5; color: #646c78; }
-  .portal-shell .mt-nav { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; padding: 0 16px 20px; overflow-y: auto; }
-  .portal-shell .mt-nav-item { position: relative; display: flex; align-items: center; gap: 22px; width: 100%; min-height: 54px; padding: 12px 20px; border-radius: 6px; color: #101820; text-align: left; cursor: pointer; transition: background-color .15s, color .15s; }
-  .portal-shell .mt-nav-item > svg { width: 26px; height: 26px; flex-shrink: 0; stroke-width: 1.7; }
-  .portal-shell .mt-nav-item > span:not(.mt-nav-badge) { font-size: 19px; font-weight: 400; letter-spacing: -.02em; }
-  .portal-shell .mt-nav-item:hover { background: #e1ecdf; }
-  .portal-shell .mt-nav-item[aria-current="page"] { background: #174b38; color: #fff; }
+  .portal-shell .mt-nav-label { padding: 0 20px 14px 40px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; line-height: 1.5; color: #7b8880; }
+  .portal-shell .mt-nav { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 6px; padding: 0 20px 20px 24px; overflow-y: auto; }
+  .portal-shell .mt-nav-item { position: relative; display: flex; align-items: center; gap: 16px; width: 100%; min-height: 58px; padding: 14px 16px; border: 1px solid transparent; border-radius: 10px; color: #56665c; text-align: left; cursor: pointer; transition: background-color .15s, color .15s; }
+  .portal-shell .mt-nav-item > svg { width: 21px; height: 21px; flex-shrink: 0; stroke-width: 1.7; }
+  .portal-shell .mt-nav-item > span:not(.mt-nav-badge) { font-size: 15px; font-weight: 400; letter-spacing: normal; }
+  .portal-shell .mt-nav-item:hover { background: #f5f8f6; color: #174b38; }
+  .portal-shell .mt-nav-item[aria-current="page"] { background: #eaf3ed; border-color: #dcebe1; color: #174b38; }
+  .portal-shell .mt-nav-item[aria-current="page"] > span:not(.mt-nav-badge) { font-weight: 600; }
+  .portal-shell .mt-nav:has(.mt-nav-item-collapsed) { padding-inline: 12px; }
   .portal-shell .mt-nav-item-collapsed { justify-content: center; gap: 0; padding-inline: 0; }
   .portal-shell .mt-nav-badge { margin-left: auto; display: inline-flex; min-width: 20px; height: 20px; padding-inline: 5px; align-items: center; justify-content: center; border-radius: 5px; background: #e5f1e9; color: #174b38; font-size: 11px; font-weight: 600; }
   .portal-shell .mt-nav-badge-collapsed { position: absolute; top: 1px; right: -5px; }
-  .portal-shell .mt-account { margin: 12px 28px 0; padding-block: 20px 8px; border-top: 1px solid #cddbd0; flex-shrink: 0; }
-  .portal-shell .mt-account summary { display: flex; align-items: center; gap: 20px; min-height: 48px; list-style: none; cursor: pointer; font-size: 17px; }
+  .portal-shell .mt-account { margin: 12px 24px 0; padding-block: 20px 8px; border-top: 1px solid #dfe7e2; flex-shrink: 0; }
+  .portal-shell .mt-account summary { display: flex; align-items: center; gap: 12px; min-height: 48px; list-style: none; cursor: pointer; font-size: 14px; }
   .portal-shell .mt-account summary::-webkit-details-marker { display: none; }
   .portal-shell .mt-account summary > span { flex: 1; }
   .portal-shell .mt-account details[open] summary > svg:last-child { transform: rotate(180deg); }

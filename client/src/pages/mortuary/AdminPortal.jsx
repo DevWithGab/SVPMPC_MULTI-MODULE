@@ -52,7 +52,7 @@ const SidebarItem = ({
   </button>
 );
 
-const AdminPortal = ({ onBack, user }) => {
+const AdminPortal = ({ onBack, user, embedded = false }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return (
@@ -236,7 +236,7 @@ const AdminPortal = ({ onBack, user }) => {
         />
       )}
 
-      <Motion.aside
+      {!embedded && <Motion.aside
         initial={false}
         animate={{
           width: isDesktop
@@ -323,10 +323,10 @@ const AdminPortal = ({ onBack, user }) => {
             )}
           </button>
         )}
-      </Motion.aside>
+      </Motion.aside>}
 
       <div className="flex-1 flex flex-col min-w-0" inert={!isDesktop && isMobileMenuOpen ? true : undefined}>
-        <div className="mt-mobile-bar lg:hidden flex items-center justify-between shrink-0 print:hidden">
+        {!embedded && <div className="mt-mobile-bar lg:hidden flex items-center justify-between shrink-0 print:hidden">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             aria-label="Open menu"
@@ -341,7 +341,7 @@ const AdminPortal = ({ onBack, user }) => {
             <p className="text-xs">Mortuary management</p>
           </div>
           <div className="w-10 h-10" />
-        </div>
+        </div>}
 
         <main className="mt-main flex-1 overflow-y-auto" data-view={activeSection}>
           {loadError && <LoadError message={loadError} onRetry={fetchInitialData} retrying={loading} />}

@@ -27,7 +27,7 @@ export default function BackupWorkspace({
     <div className="secretary-dashboard backup-workspace">
       <PageHeader separateBreadcrumb={module === "attendance"} className="sd-header">
         <div>
-          <p className="sd-eyebrow">{name} management / Data recovery</p>
+          <p className="sd-eyebrow"><span>{name} management</span><span aria-hidden="true">/</span><strong>Backup and Restore</strong></p>
           <h1>Backup &amp; restore</h1>
           <p className="sd-description">Download complete or individual JSON backups and restore saved records.</p>
         </div>

@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useContext } from 'react';
+import { UrlStateContext } from '../../../hooks/urlStateContext';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, UserRound, X } from 'lucide-react';
 import '../../shared/layout/PortalShell.css';
@@ -21,6 +22,7 @@ export default function AttendanceSidebar({
   mobileOpen,
   onCloseMobile,
 }) {
+  const embedded = useContext(UrlStateContext).tab === 'feature';
   const navigationCollapsed = isDesktop && collapsed;
   const hidden = !isDesktop && !mobileOpen;
 
@@ -31,6 +33,7 @@ export default function AttendanceSidebar({
     return () => { cancelAnimationFrame(frame); previousFocus?.focus?.(); };
   }, [mobileOpen, isDesktop]);
 
+  if (embedded) return null;
   return <>
     {mobileOpen && !isDesktop && <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden" onClick={onCloseMobile} />}
     <Motion.aside
@@ -87,6 +90,8 @@ export default function AttendanceSidebar({
 }
 
 export function AttendanceMobileBar({ mobileOpen, onOpen }) {
+  const embedded = useContext(UrlStateContext).tab === 'feature';
+  if (embedded) return null;
   return <div className="mt-mobile-bar lg:hidden flex items-center justify-between shrink-0 print:hidden">
     <button type="button" onClick={onOpen} aria-label="Open menu" aria-expanded={mobileOpen} aria-controls={NAVIGATION_ID} className="mt-menu-button"><Menu size={22} aria-hidden="true" /></button>
     <div className="text-center"><p className="font-semibold text-base">SVPMPC</p><p className="text-xs">Attendance management</p></div>

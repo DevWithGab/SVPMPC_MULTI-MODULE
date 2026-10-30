@@ -5,6 +5,38 @@ import { createRoot } from 'react-dom/client';
 import { createServer } from 'vite';
 import { MemoryRouter, useNavigate, useLocation } from 'react-router-dom';
 
+test('embedded feature navigation preserves the Super Admin section and browser history', async () => {
+  const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
+  const container = document.createElement('div'); document.body.append(container);
+  const root = createRoot(container);
+  const previousAct = globalThis.IS_REACT_ACT_ENVIRONMENT;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  try {
+    const { default: useUrlState } = await vite.ssrLoadModule('/src/hooks/useUrlState.js');
+    const { UrlStateContext } = await vite.ssrLoadModule('/src/hooks/urlStateContext.js');
+    let setFeature, feature, location, navigate;
+    function Feature() {
+      [feature, setFeature] = useUrlState('tab', 'dashboard', ['dashboard', 'claims']);
+      location = useLocation(); navigate = useNavigate();
+      return React.createElement('p', null, feature);
+    }
+    await act(async () => root.render(React.createElement(MemoryRouter, { initialEntries: ['/super-admin?tab=mortuary-claims&feature=dashboard&member=old'] },
+      React.createElement(UrlStateContext.Provider, { value: { tab: 'feature' } }, React.createElement(Feature)))));
+    await act(async () => setFeature('claims'));
+    assert.equal(location.pathname, '/super-admin');
+    assert.equal(new URLSearchParams(location.search).get('tab'), 'mortuary-claims');
+    assert.equal(new URLSearchParams(location.search).get('member'), null);
+    assert.equal(feature, 'claims');
+    await act(async () => navigate(-1));
+    assert.equal(feature, 'dashboard');
+    await act(async () => navigate(1));
+    assert.equal(feature, 'claims');
+  } finally {
+    await act(async () => root.unmount()); container.remove();
+    globalThis.IS_REACT_ACT_ENVIRONMENT = previousAct; await vite.close();
+  }
+});
+
 test('login and portal screens follow browser Back/Forward, including direct login links', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   const container = document.createElement('div');
@@ -56,7 +88,7 @@ test('login and portal screens follow browser Back/Forward, including direct log
 
     const originalFetch = globalThis.fetch;
     try {
-      for (const role of ['secretary', 'scanner_operator']) {
+      for (const role of ['secretary', 'scanner_operator', 'super_admin']) {
         await mount('/?module=attendance');
         globalThis.fetch = async (_url, options) => {
           const body = JSON.parse(options.body);
@@ -66,7 +98,7 @@ test('login and portal screens follow browser Back/Forward, including direct log
         };
         await act(async () => container.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
         assert.equal(signedIn[0], 'attendance');
-        assert.equal(signedIn[1], role);
+        assert.equal(signedIn[1], role === 'super_admin' ? 'secretary' : role);
       }
     } finally { globalThis.fetch = originalFetch; window.sessionStorage.clear(); }
 

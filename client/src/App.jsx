@@ -10,7 +10,7 @@ import AttendanceSecretaryPortal from "./pages/attendance/SecretaryPortal";
 import AttendanceOperatorPortal from "./pages/attendance/OperatorPortal";
 
 
-import { BrowserRouter, Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { readSession, portalPath } from './utils/navigation';
 import { MODULE_ROLES } from './utils/constants';
 
@@ -76,10 +76,10 @@ function AppRoutes() {
   const routesElement = (
     <Routes>
       <Route path="/" element={session || isSuperAdmin ? <Navigate to={home} replace /> : <SystemSelector key={location.search} onModuleSelect={handleLogin} notice={loginNotice} />} />
-      <Route path="/super-admin" element={<SuperAdmin onAuthenticated={(user, token) => handleLogin('attendance', 'secretary', user, token)} />} />
+      <Route path="/super-admin" element={<SuperAdmin user={authUser} token={authToken} onLogout={handleLogout} onAuthenticated={(user, token) => handleLogin('attendance', 'secretary', user, token)} />} />
       {Object.entries(portals).map(([path, Portal]) => (
         <Route key={path} path={path} element={
-          isSuperAdmin && (path === '/attendance/secretary' || path.startsWith('/mortuary/')) ? createElement(Portal, { user: authUser, token: authToken, onBack: handleLogout })
+          isSuperAdmin ? createElement(Portal, { user: authUser, token: authToken, onBack: handleLogout })
             : !session ? <Navigate to="/" replace state={{ from: { pathname: location.pathname, search: location.search } }} />
             : home !== path ? <Navigate to={home} replace />
               : createElement(Portal, { user: session.user, token: session.token, onBack: handleLogout })
@@ -92,34 +92,7 @@ function AppRoutes() {
     </Routes>
   );
 
-  /* Dalawang /admin portals lang ang pumupuno ng exact 100dvh sa loob at nag-manage
-  ng sarili nilang scrolling - kapag nilagay sa taas ang superadmin nav bar, kailangan
-  nito itong height-constrained flex column para may sariling space ang nav bar imbes
-  na ma-overflow ng buong 100dvh ng portal papalagpas dito (dahil dito nahihide yung
-  collapse toggle ng sidebar sa ibaba). Yung ibang superadmin routes (hub mismo, login
-  screen) ay umaasa sa normal page scrolling gamit ang min-h-screen, kaya HINDI dapat
-  i-wrap ng ganito - kapag ginawa, ma-clip ito laban sa overflow-hidden na walang
-  paraan para mag-scroll. */
-  const isAdminPortalRoute = location.pathname === '/attendance/secretary' || location.pathname.startsWith('/mortuary/');
-  if (isSuperAdmin && isAdminPortalRoute) {
-    return (
-      <div className="h-dvh flex flex-col overflow-hidden">
-        <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-[var(--ui-primary-hover)] text-white p-3 shrink-0">
-          <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/claims_officer">Mortuary</Link>
-          <button className="ml-auto" onClick={handleLogout}>Sign out</button>
-        </nav>
-        <div className="flex-1 min-h-0">{routesElement}</div>
-      </div>
-    );
-  }
-
-  return (<>
-    {isSuperAdmin && <nav aria-label="Superadmin navigation" className="flex flex-wrap gap-5 bg-[var(--ui-primary-hover)] text-white p-3">
-      <Link to="/super-admin">Superadmin hub</Link><Link to="/attendance/admin">Attendance</Link><Link to="/mortuary/claims_officer">Mortuary</Link>
-      <button className="ml-auto" onClick={handleLogout}>Sign out</button>
-    </nav>}
-    {routesElement}
-  </>);
+  return routesElement;
 }
 
 export default function App() {

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight } from 'lucide-react';
 import { getBarangay } from '../../../utils/helpers';
+import './SearchableMemberSelect.css';
 
 const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Search member...", extraOptions = [], ariaLabel = 'Select member' }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +29,7 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
   const selectedExtraOption = (extraOptions || []).find((opt) => opt.value === value);
 
   return (
-    <div className="relative w-full" ref={dropdownRef}>
+    <div className="member-select relative w-full" ref={dropdownRef}>
       <div
         className="w-full min-h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 py-2 flex items-center cursor-text focus-within:ring-2 focus-within:ring-coop-green/20 focus-within:bg-white transition-all overflow-hidden"
         onClick={() => setIsOpen(true)}
@@ -111,10 +112,10 @@ const SearchableMemberSelect = ({ members, value, onChange, placeholder = "Searc
                    }}
                  >
                    <div>
-                     <p className="text-sm font-bold text-slate-900 group-hover:text-coop-green transition-colors">
+                     <p className="member-select-name text-sm font-bold text-slate-900 group-hover:text-coop-green transition-colors">
                        {m.name || 'Unknown Member'}
                      </p>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                     <p className="member-select-detail text-slate-400 mt-0.5">
                        UID: {m.id?.toString().padStart(6, '0') || '000000'} • {getBarangay(m)}
                      </p>
                    </div>

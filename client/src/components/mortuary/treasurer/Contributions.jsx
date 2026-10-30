@@ -48,7 +48,7 @@ const Contributions = ({
   return (
     <div className="mortuary-contributions">
       <PageHeader className="ct-header">
-        <div><p className="ct-eyebrow">Mortuary management / Contributions</p><h1>Contributions</h1><p className="ct-description">Record member payments and review contribution history.</p></div>
+        <div><p className="ct-eyebrow"><span>Mortuary management</span><span aria-hidden="true">/</span><strong>Contributions</strong></p><h1>Contributions</h1><p className="ct-description">Record member payments and review contribution history.</p></div>
         <div className="ct-header-actions">
           <ActionButton tooltip="Preview and import contribution payments from a CSV file." variant="outline" type="button" className="ct-button" onClick={() => setBulkUploadOpen(true)}><Upload size={15} aria-hidden="true" />Bulk upload CSV</ActionButton>
           <ActionButton tooltip="Record a contribution payment for a member." variant="default" type="button" className="ct-button ct-primary" onClick={() => setIsAddContributionOpen(true)}><Banknote size={15} aria-hidden="true" />Record payment</ActionButton>

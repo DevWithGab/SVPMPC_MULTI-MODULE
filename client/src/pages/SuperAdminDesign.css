@@ -1,0 +1,103 @@
+/* The Mortuary dashboard supplies the visual language for the Super Admin hub.
+   Shared page components, API calls, and print layouts retain their behavior. */
+@media screen {
+  .super-admin-design {
+    --ui-primary: #174b38;
+    --ui-primary-hover: #103d2c;
+    --ui-ink: #101820;
+    --ui-muted: #646c78;
+    --ui-border: #dce3df;
+    background: #fff;
+    color: #101820;
+  }
+  .super-admin-design .sam-main {
+    color: #101820;
+    background: #fff;
+  }
+  .super-admin-design .sam-main :is(.sam-page-heading, .ui-page-header, .td-header, .mb-header, .mc-header, .tn-header, .ml-header, .fs-header, .reports-page-heading) {
+    margin-bottom: 32px;
+    gap: 20px;
+  }
+  .super-admin-design .sam-main :is(.ui-page-header, .td-header) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .super-admin-design .sam-main h1 { color: #101820; }
+  .super-admin-design .sam-main :is(.sam-breadcrumb, .attendance-breadcrumb, .sd-eyebrow, .td-eyebrow, .mb-eyebrow, .mc-eyebrow, .ct-eyebrow, .reports-eyebrow, .tn-eyebrow, .fs-eyebrow, .ml-eyebrow, .ui-page-eyebrow) {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin: 0 0 20px;
+    padding: 0;
+    color: #646c78;
+    font-size: 14px !important;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+  .super-admin-design .sam-main :is(.sam-breadcrumb, .attendance-breadcrumb, .sd-eyebrow, .td-eyebrow, .mb-eyebrow, .mc-eyebrow, .ct-eyebrow, .reports-eyebrow, .tn-eyebrow, .fs-eyebrow, .ml-eyebrow, .ui-page-eyebrow) > strong {
+    color: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    letter-spacing: normal;
+  }
+  .super-admin-design .sam-main :is(.sam-page-heading > p, .td-description, .sd-description, .ui-page-description, .mb-description, .mc-description, .tn-description, .ml-description, .fs-description, .reports-description) {
+    margin-top: 8px;
+    color: #646c78;
+  }
+  .super-admin-design .sam-main :is(.ui-panel, .mb-filters, .aal-filters, .attendance-metric, .mb-stat-card, .ac-metric) {
+    border: 1px solid #dce3df;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 3px 12px #173d2810;
+  }
+  .super-admin-design .sam-main :is(.sam-stats > .ui-panel:first-child, .attendance-metric:first-child, .mb-stat-card-0) {
+    background: #f1f7f3;
+    border-color: #cddfd3;
+  }
+  .super-admin-design .sam-main :is(.td-chart-panel, .sd-panel, .bw-setting) { border-radius: 12px; }
+  .super-admin-design .sam-main .ui-panel-heading {
+    border-color: #dce3df;
+    padding: 20px 24px;
+  }
+  .super-admin-design .sam-main .ui-button:not([data-ui-size="icon"]) {
+    min-height: 44px;
+    height: auto;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: normal;
+    box-shadow: none;
+  }
+  .ui-button.audit-details-button,
+  .super-admin-design .sam-main .ui-button.audit-details-button {
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 12px;
+    width: max-content;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .ui-button.audit-details-button > svg { flex-shrink: 0; }
+  .super-admin-design .sam-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+    border-color: #ccd2db;
+    border-radius: 6px;
+    background: #fff;
+    min-height: 44px;
+  }
+  .super-admin-design .sam-main :is(th, td) { border-color: #e2e7e3; }
+  .super-admin-design .sam-main th { background: #f8faf8; color: #526058; }
+  .super-admin-design .sam-main tbody tr:hover { background: #f8fbf8; }
+  .super-admin-design .sam-main :is(button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid #528369;
+    outline-offset: 3px;
+  }
+  @media (max-width: 640px) {
+    .super-admin-design .sam-main .ui-panel-heading { padding: 16px; }
+    .super-admin-design .sam-main :is(.sam-page-heading, .ui-page-header, .td-header) { margin-bottom: 24px; }
+  }
+}

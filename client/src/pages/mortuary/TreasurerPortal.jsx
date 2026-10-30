@@ -94,7 +94,7 @@ const PortalSkeleton = () => (
   </div>
 );
 
-const TreasurerPortal = ({ user, onBack }) => {
+const TreasurerPortal = ({ user, onBack, embedded = false }) => {
   // State management
 
   const [requestedTab, setActiveTab] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'notices', 'claims', 'ledger', 'contributions', 'reports', 'settings']);
@@ -555,7 +555,7 @@ const TreasurerPortal = ({ user, onBack }) => {
       )}
 
       {/* Sidebar */}
-      <Motion.aside
+      {!embedded && <Motion.aside
         initial={false}
         animate={{
           width: isDesktop
@@ -623,11 +623,11 @@ const TreasurerPortal = ({ user, onBack }) => {
             {navigationCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         )}
-      </Motion.aside>
+      </Motion.aside>}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="mt-mobile-bar lg:hidden flex items-center justify-between shrink-0 print:hidden">
+        {!embedded && <div className="mt-mobile-bar lg:hidden flex items-center justify-between shrink-0 print:hidden">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             aria-label="Open menu"
@@ -642,7 +642,7 @@ const TreasurerPortal = ({ user, onBack }) => {
             <p className="text-xs">Mortuary management</p>
           </div>
           <div className="w-10 h-10" />
-        </div>
+        </div>}
 
         <main className="mt-main flex-1 overflow-y-auto custom-scrollbar" data-view={activeTab}>
           {Object.entries(loadErrors).filter(([, message]) => message).map(([key, message]) => (

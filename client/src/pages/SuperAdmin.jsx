@@ -8,12 +8,18 @@ import { importHeaderLabel } from '../utils/importHeaders';
 import { parseMemberUpload, memberUploadError } from '../utils/memberBulkUpload';
 import { showBulkUploadResult, showBulkUploadError } from '../utils/bulkUploadAlerts';
 import useUrlState from '../hooks/useUrlState';
+import { UrlStateContext } from '../hooks/urlStateContext';
+import MortuaryAdminPortal from './mortuary/AdminPortal';
+import MortuaryTreasurerPortal from './mortuary/TreasurerPortal';
+import AttendanceSecretaryPortal from './attendance/SecretaryPortal';
+import AttendanceOperatorPortal from './attendance/OperatorPortal';
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
   MapPin, Calendar, Key, ArrowLeft, X, Plus, LockKeyhole,
   CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack, Eye, EyeOff,
-  ClipboardList, Database, ChevronRight, Menu
+  ClipboardList, Database, ChevronRight, ChevronLeft, Menu, LogOut, UserRound
 } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../services/api';
@@ -32,6 +38,8 @@ import { sanitizePhoneInput } from '../utils/validation';
 import CreateMemberModal, { MemberFormField as FormField } from '../components/shared/CreateMemberModal';
 import { validateMemberField } from '../utils/memberValidation';
 import './SuperAdmin.css';
+import './SuperAdminTypography.css';
+import './SuperAdminDesign.css';
 
 const ADMIN_SECTIONS = [
   { group: 'Administration', items: [
@@ -40,19 +48,49 @@ const ADMIN_SECTIONS = [
     { id: 'auditlogs', label: 'Staff Audit Logs', icon: ClipboardList, title: 'Staff audit logs', description: 'Review changes to staff accounts and access.' },
   ] },
   { group: 'Mortuary', items: [
-    { id: 'mortuary-audit', label: 'Mortuary Audit Logs', icon: ClipboardList },
-    { id: 'mortuary-backup', label: 'Mortuary Backup & Restore', icon: Database },
+    { id: 'mortuary-claims', label: 'Claims workspace', icon: HeartCrack, path: '/mortuary/claims_officer', features: [['dashboard', 'Dashboard'], ['members', 'Members'], ['claims', 'Claims'], ['beneficiaries', 'Beneficiaries']] },
+    { id: 'mortuary-finance', label: 'Finance workspace', icon: Database, path: '/mortuary/finance_officer', features: [['dashboard', 'Dashboard'], ['members', 'Member Balances'], ['notices', 'Notices'], ['claims', 'Claims'], ['ledger', 'Members Ledger'], ['reports', 'Reports'], ['settings', 'Settings']] },
+    { id: 'mortuary-audit', label: 'Audit Logs', icon: ClipboardList },
+    { id: 'mortuary-backup', label: 'Backup & Restore', icon: Database },
   ] },
   { group: 'Attendance', items: [
-    { id: 'attendance-audit', label: 'Attendance Audit Logs', icon: ClipboardList },
-    { id: 'attendance-backup', label: 'Attendance Backup & Restore', icon: Database },
+    { id: 'attendance-workspace', label: 'Secretary workspace', icon: Calendar, path: '/attendance/secretary', features: [['dashboard', 'Dashboard'], ['live', 'Live Attendance'], ['events', 'Event Management'], ['members', 'QR Management'], ['reports', 'Reports']] },
+    { id: 'attendance-scanner', label: 'Scanner workspace', icon: CheckCircle, path: '/attendance/scanner_operator', features: [['home', 'Dashboard'], ['scanner', 'Scan Attendance'], ['live', 'Live Attendance'], ['myscans', 'My Scans']] },
+    { id: 'attendance-audit', label: 'Audit Logs', icon: ClipboardList },
+    { id: 'attendance-backup', label: 'Backup & Restore', icon: Database },
   ] },
 ];
 
-const SuperAdmin = ({ onAuthenticated }) => {
-  const [section, setSection] = useUrlState('tab', 'members', ['members', 'staff', 'auditlogs', 'mortuary-audit', 'mortuary-backup', 'attendance-audit', 'attendance-backup']);
+const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
+  const [expandedWorkspaces, setExpandedWorkspaces] = useState({});
+  const closeOtherWorkspaces = id => setExpandedWorkspaces(previous => Object.fromEntries(
+    ADMIN_SECTIONS.flatMap(group => group.items).filter(item => item.path).map(item => [
+      item.id, item.id === id && (previous[item.id] ?? section === item.id),
+    ]),
+  ));
+  const toggleWorkspace = id => {
+    if (sidebarCollapsed) {
+      setSidebarCollapsed(false);
+      window.localStorage.setItem('superAdminSidebarCollapsed', 'false');
+    }
+    setExpandedWorkspaces(previous => Object.fromEntries(
+      ADMIN_SECTIONS.flatMap(group => group.items).filter(item => item.path).map(item => [
+        item.id, item.id === id && !(previous[id] ?? section === id),
+      ]),
+    ));
+  };
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem('superAdminSidebarCollapsed') === 'true');
+  const toggleSidebar = () => setSidebarCollapsed(previous => {
+    window.localStorage.setItem('superAdminSidebarCollapsed', String(!previous));
+    return !previous;
+  });
+  const [section, setSection] = useUrlState('tab', 'members', ADMIN_SECTIONS.flatMap(group => group.items.map(item => item.id)));
   const [navigationOpen, setNavigationOpen] = useState(false);
   const currentSection = ADMIN_SECTIONS.flatMap(group => group.items).find(item => item.id === section);
+  const [feature] = useUrlState('feature', currentSection.features?.[0][0], currentSection.features?.map(([id]) => id));
+  const Workspace = { 'mortuary-claims': MortuaryAdminPortal, 'mortuary-finance': MortuaryTreasurerPortal, 'attendance-workspace': AttendanceSecretaryPortal, 'attendance-scanner': AttendanceOperatorPortal }[section];
+  const isModuleSection = section.startsWith('mortuary-') || section.startsWith('attendance-');
+  const workspaceExpanded = item => expandedWorkspaces[item.id] ?? section === item.id;
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
   const [showAuthPassword, setShowAuthPassword] = useState(false);
@@ -426,19 +464,30 @@ const SuperAdmin = ({ onAuthenticated }) => {
 
   // Main Super Admin Dashboard
   return (
-    <div className="super-admin-theme min-h-screen bg-slate-50">
-      <div className="sam-shell">
-      <aside className="sam-sidebar">
-        <div className="sam-brand"><span><Shield size={23} aria-hidden="true" /></span><div><strong>Super Admin</strong><p>Cooperative management</p></div></div>
+    <div className={`${isModuleSection ? 'super-admin-modules' : 'super-admin-theme'}${Workspace ? '' : ' super-admin-design'} min-h-screen bg-slate-50`}>
+      <div className={`sam-shell${sidebarCollapsed ? ' sam-shell-collapsed' : ''}`}>
+      <aside className="sam-sidebar super-admin-design super-admin-theme">
+        <div className="sam-brand"><img src="/SVPMPC-LOGO(MAIN).png" alt="SVPMPC logo" /><div><strong>SVPMPC</strong><p>Saint Vincent Parish<br />Multi-Purpose Cooperative</p></div></div>
         <button type="button" className="sam-mobile-navigation" aria-expanded={navigationOpen} aria-controls="sam-navigation" onClick={() => setNavigationOpen(open => !open)}><Menu size={18} aria-hidden="true" />{currentSection.label}<ChevronRight size={16} aria-hidden="true" /></button>
         <nav id="sam-navigation" className={`sam-navigation${navigationOpen ? ' is-open' : ''}`} aria-label="Administration sections">
-          {ADMIN_SECTIONS.map(group => <div className="sam-nav-group" key={group.group}><p>{group.group}</p>{group.items.map(item => <button type="button" key={item.id} aria-current={section === item.id ? 'page' : undefined} onClick={() => { setSection(item.id); setNavigationOpen(false); }}><item.icon size={18} aria-hidden="true" /><span>{item.label}</span>{section === item.id && <ChevronRight size={14} aria-hidden="true" />}</button>)}</div>)}
+          {ADMIN_SECTIONS.map(group => <div className="sam-nav-group" key={group.group}><p>{group.group}</p>{group.items.map(item => item.path
+            ? <div key={item.id} className="sam-workspace">
+              <button type="button" aria-label={item.label} title={sidebarCollapsed ? item.label : undefined} aria-expanded={workspaceExpanded(item)} aria-controls={`${item.id}-features`} onClick={() => toggleWorkspace(item.id)}><item.icon size={18} aria-hidden="true" /><span>{item.label}</span><ChevronRight className="sam-workspace-chevron" size={14} aria-hidden="true" /></button>
+              <div id={`${item.id}-features`} className="sam-submenu" hidden={!workspaceExpanded(item)}>
+                {item.features.map(([tab, label]) => <Link key={tab} to={`/super-admin?tab=${item.id}&feature=${tab}`} aria-current={section === item.id && feature === tab ? 'page' : undefined} onClick={() => setNavigationOpen(false)}>{label}</Link>)}
+              </div>
+            </div>
+            : <button type="button" key={item.id} aria-label={item.label} title={sidebarCollapsed ? item.label : undefined} aria-current={section === item.id ? 'page' : undefined} onClick={() => { closeOtherWorkspaces(); setSection(item.id); setNavigationOpen(false); }}><item.icon size={18} aria-hidden="true" /><span>{item.label}</span></button>)}</div>)}
         </nav>
-        <div className="sam-sidebar-note"><LockKeyhole size={16} aria-hidden="true" /><div><strong>Administrator workspace</strong><p>Members, access, and system records in one place.</p></div></div>
+        <div className="sam-account"><div><UserRound size={22} aria-hidden="true" /><span>Super Admin</span></div>{onLogout && <button type="button" onClick={onLogout} aria-label="Sign Out" title="Sign Out"><LogOut size={18} aria-hidden="true" /><span>Sign Out</span></button>}</div>
+        <button type="button" className="sam-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button>
       </aside>
-      <main className="sam-main">
-        <div className="sam-breadcrumb"><span>Super admin</span><ChevronRight size={14} aria-hidden="true" /><strong>{currentSection.label}</strong></div>
+      <main className={`sam-main${Workspace ? ' sam-main-module' : ''}`}>
+        {!isModuleSection && <nav className="sam-breadcrumb" aria-label="Breadcrumb"><span>Super admin</span><span aria-hidden="true">/</span><strong aria-current="page">{currentSection.label}</strong></nav>}
         {currentSection.title && <header className="sam-page-heading"><h1>{currentSection.title}</h1><p>{currentSection.description}</p></header>}
+        {Workspace && <div className="sam-embedded-workspace" key={section}>
+          <UrlStateContext.Provider value={{ tab: 'feature' }}><Workspace embedded user={user} token={token} onBack={onLogout} /></UrlStateContext.Provider>
+        </div>}
         {section === 'staff' && <StaffAccounts />}
         {section === 'auditlogs' && <StaffAuditLog />}
         {section === 'mortuary-audit' && <MortuaryAuditLogs />}

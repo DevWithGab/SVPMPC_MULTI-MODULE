@@ -65,7 +65,9 @@ export default function SystemSelector({ onModuleSelect, notice }) {
       if (!response.ok) { setLoginError(data.message || 'Invalid credentials'); return; }
       window.sessionStorage.setItem('token', data.token);
       window.sessionStorage.setItem('user', JSON.stringify(data.user));
-      const role = selectedSystem === 'mortuary' && data.user.role === 'super_admin' ? 'claims_officer' : data.user.role;
+      const role = data.user.role === 'super_admin'
+        ? selectedSystem === 'mortuary' ? 'claims_officer' : 'secretary'
+        : data.user.role;
       onModuleSelect?.(selectedSystem, role, data.user, data.token);
       clearForm();
     } catch {
