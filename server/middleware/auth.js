@@ -1,6 +1,7 @@
 const { moduleRoles, claimsRoles, financeRoles } = require('../shared/utils/staffRoles');
 const jwt = require('jsonwebtoken');
 const User = require('../shared/models/User');
+const { isRetiredAttendanceAdmin } = require('../shared/utils/retiredAccounts');
 
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
@@ -23,6 +24,10 @@ const authenticateToken = async (req, res, next) => {
         success: false, 
         message: 'Invalid token - user not found' 
       });
+    }
+
+    if (isRetiredAttendanceAdmin(user)) {
+      return res.status(403).json({ success: false, message: 'This Attendance admin account has been retired.' });
     }
 
     if (user.role === 'member') {

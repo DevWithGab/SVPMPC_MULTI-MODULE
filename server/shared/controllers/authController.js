@@ -1,4 +1,5 @@
 const { moduleRoles } = require('../utils/staffRoles');
+const { isRetiredAttendanceAdmin } = require('../utils/retiredAccounts');
 const User = require('../models/User');
 const CredentialLog = require('../models/CredentialLog');
 const jwt = require('jsonwebtoken');
@@ -52,10 +53,8 @@ const login = async (req, res) => {
       });
     }
 
-    // Retire attendance-only admin accounts while preserving their credentials.
-    if (user.role === 'admin' && user.modules?.includes('attendance') && !user.modules.includes('mortuary')) {
-      user.role = 'secretary';
-      user.sessionVersion = (user.sessionVersion || 0) + 1;
+    if (isRetiredAttendanceAdmin(user)) {
+      return res.status(403).json({ message: 'This Attendance admin account has been retired. Please contact the Super Admin for a staff account.' });
     }
 
     // Optional role gate to prevent cross-role logins from specific login forms
@@ -253,6 +252,7 @@ const verifyToken = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findOne({ userId: decoded.userId });
     if (!user || user.status !== 'active' || (decoded.sessionVersion || 0) !== (user.sessionVersion || 0)) return res.status(401).json({ message: 'Please sign in again' });
+    if (isRetiredAttendanceAdmin(user)) return res.status(403).json({ message: 'This Attendance admin account has been retired.' });
 
     if (decoded.role === 'member') {
       return res.status(403).json({ message: 'Member self-service access is no longer available.' });

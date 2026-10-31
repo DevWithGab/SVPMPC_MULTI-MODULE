@@ -334,7 +334,7 @@ test('staff deletion removes the account, keeps an audit record, and cannot targ
 });
 
 
-test('attendance admin credentials become secretary credentials at login, with old sessions revoked', async () => {
+test('attendance admin credentials are retired instead of converted to secretary', async () => {
   const user = { userId: 'legacy', username: 'attendance.admin', role: 'admin', status: 'active', modules: ['attendance'], sessionVersion: 2,
     comparePassword: async () => true, save: async () => {} };
   let payload;
@@ -344,10 +344,35 @@ test('attendance admin credentials become secretary credentials at login, with o
   });
   const res = response();
   await controller.login({ body: { username: user.username, password: 'existing-password', module: 'attendance', expectedRole: 'secretary' } }, res);
-  assert.equal(res.code, 200);
-  assert.equal(res.data.user.role, 'secretary');
-  assert.equal(payload.role, 'secretary');
-  assert.equal(payload.sessionVersion, 3);
+  assert.equal(res.code, 403);
+  assert.match(res.data.message, /retired/);
+  assert.equal(user.role, 'admin');
+  assert.equal(payload, undefined);
+  user.role = 'secretary';
+  const converted = response();
+  await controller.login({ body: { username: 'legacy@example.com', password: 'existing-password', module: 'attendance', expectedRole: 'secretary' } }, converted);
+  assert.equal(converted.code, 403);
+  assert.equal(payload, undefined);
+});
+
+test('retired attendance admin sessions are denied by authentication and token verification', async () => {
+  for (const role of ['admin', 'secretary']) {
+    const user = { userId: 'legacy', username: 'attendance.admin', role, status: 'active', modules: ['attendance'] };
+    const jwt = { verify: () => ({ userId: user.userId }) };
+    const auth = load('../middleware/auth', {
+      '../shared/models/User': { findOne: () => ({ select: async () => user }) },
+      jsonwebtoken: jwt,
+    });
+    const res = response();
+    await auth.authenticateToken({ headers: { authorization: 'Bearer old-token' } }, res, () => assert.fail('Retired session passed'));
+    assert.equal(res.code, 403);
+    const controller = load('../shared/controllers/authController', {
+      '../models/User': { findOne: async () => user }, jsonwebtoken: jwt,
+    });
+    const verified = response();
+    await controller.verifyToken({ headers: { authorization: 'Bearer old-token' } }, verified);
+    assert.equal(verified.code, 403);
+  }
 });
 
 test('attendance admin is no longer assignable and secretary retains attendance-only access', () => {
