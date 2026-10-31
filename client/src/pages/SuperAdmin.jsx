@@ -4,7 +4,6 @@ import MortuaryBackup from '../components/mortuary/admin/DatabaseBackup';
 import AttendanceAuditLogs from '../components/attendance/admin/AuditLogs';
 import AttendanceBackup from '../components/attendance/admin/DatabaseBackup';
 import '../components/attendance/shared/AttendanceWorkspace.css';
-import { importHeaderLabel } from '../utils/importHeaders';
 import { parseMemberUpload, memberUploadError } from '../utils/memberBulkUpload';
 import { showBulkUploadResult, showBulkUploadError } from '../utils/bulkUploadAlerts';
 import useUrlState from '../hooks/useUrlState';
@@ -17,11 +16,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Shield, Users, UserPlus, Upload, Download, Search,
-  MapPin, Calendar, Key, ArrowLeft, X, Plus, LockKeyhole,
+  MapPin, Calendar, Key, ArrowLeft, Plus, LockKeyhole,
   CheckCircle, AlertCircle, Loader, Power, Pencil, HeartCrack, Eye, EyeOff,
   ClipboardList, Database, ChevronRight, ChevronLeft, Menu, LogOut, UserRound
 } from 'lucide-react';
-import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { adminAPI } from '../services/api';
 import StaffAccounts from '../components/shared/StaffAccounts';
 import StaffAuditLog from '../components/shared/StaffAuditLog';
@@ -33,7 +32,8 @@ import { Toast } from '../components/ui/toast';
 import { Modal } from '../components/ui/modal';
 import { Pagination, PaginationInfo } from '../components/ui/pagination';
 import { usePagination } from '../hooks/usePagination';
-import { UploadFilePicker, UploadTemplateCard } from '../components/mortuary/shared/BulkUploadDialog';
+import { BulkUploadDialog, UploadFilePicker, UploadTemplateCard } from '../components/mortuary/shared/BulkUploadDialog';
+import { Table as DataTable } from '../components/ui/table';
 import { sanitizePhoneInput } from '../utils/validation';
 import CreateMemberModal, { MemberFormField as FormField } from '../components/shared/CreateMemberModal';
 import { validateMemberField } from '../utils/memberValidation';
@@ -290,28 +290,29 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
     event.target.value = '';
     resetBulkUpload();
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      setBulkError('Choose a CSV file. Save your spreadsheet as CSV UTF-8 before uploading.');
+    if (!file.name.toLowerCase().endsWith('.csv') || file.size > 1024 * 1024) {
+      setBulkError('Choose a CSV file of 1 MB or less. Save your spreadsheet as CSV UTF-8 before uploading.');
       return;
     }
+    setCsvFile(file);
+  };
+
+  const previewMembers = async () => {
+    if (!csvFile || loading || bulkResult) return;
+    setCsvPreview([]);
+    setBulkError('');
     setLoading(true);
     try {
-      setCsvFile(file);
-      const parsed = parseMemberUpload(await file.text(), csvDateOrder);
-      setCsvPreview(parsed.preview);
-      setCsvFile(file);
+      const parsed = parseMemberUpload(await csvFile.text(), csvDateOrder);
+      if (parsed.members.length > 1000) throw new Error('Maximum 1,000 members per upload.');
+      setCsvPreview(parsed.members.map((member, index) => ({ ...member, csvRow: parsed.rowNumbers[index] })));
     } catch (error) {
       setBulkError(error.message || 'Unable to read this file. Please choose it again.');
     } finally { setLoading(false); }
   };
 
-  const changeCsvDateOrder = async value => {
+  const changeCsvDateOrder = value => {
     setCsvDateOrder(value); setCsvPreview([]); setBulkError(''); setBulkResult(null);
-    if (!csvFile) return;
-    setLoading(true);
-    try { setCsvPreview(parseMemberUpload(await csvFile.text(), value).preview); }
-    catch (error) { setBulkError(error.message); }
-    finally { setLoading(false); }
   };
 
   const handleBulkUpload = async () => {
@@ -785,30 +786,15 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
       </Modal>
 
       {/* Bulk Upload Modal */}
-      <AnimatePresence>
         {showBulkModal && (
-          <div ref={bulkDialog} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-            <Motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col"
-            >
-              <div className="p-6 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-                <h3 className="text-xl font-black text-slate-900">Bulk Upload Members</h3>
-                <button
-                  disabled={loading}
-                  aria-label="Close bulk member upload"
-                  onClick={() => {
-                    setShowBulkModal(false);
-                    resetBulkUpload();
-                  }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <BulkUploadDialog dialogRef={bulkDialog} title="Bulk Upload Members"
+            description="Preview every member before importing into Attendance and Mortuary."
+            busy={loading} onClose={() => { setShowBulkModal(false); resetBulkUpload(); }}
+            footer={<>
+              <Button type="button" variant="outline" disabled={loading} onClick={() => { setShowBulkModal(false); resetBulkUpload(); }}>{bulkResult ? 'Done' : 'Cancel'}</Button>
+              <Button type="button" variant="outline" disabled={!csvFile || loading || !!bulkResult} onClick={previewMembers}>{csvPreview.length ? 'Preview Again' : 'Preview Entries'}</Button>
+              {!!csvPreview.length && !bulkResult && <Button type="button" disabled={loading} onClick={handleBulkUpload} className="gap-2 bg-coop-green text-white hover:bg-coop-darkGreen"><Upload className="h-4 w-4" aria-hidden="true" />Import {csvPreview.length} {csvPreview.length === 1 ? 'Member' : 'Members'}</Button>}
+            </>}>
                 <UploadTemplateCard onDownload={downloadMemberTemplate} disabled={loading}>
                   <p>Replace the sample row with your members. Keep the column headers and save as CSV UTF-8.</p>
                   <p><strong>Required:</strong> memberName, barangay, address.</p>
@@ -817,7 +803,17 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
                   <p>Format Passbook No. and phone columns as Text in your spreadsheet to keep leading zeros (for example, 000123 and 09123456789). Enclose addresses containing commas in double quotes.</p>
                   <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>
                 </UploadTemplateCard>
-                <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading} hint="Upload your completed member CSV, then review the first five rows below." />
+                <section aria-label="Member field requirements" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <h4 className="font-semibold text-slate-900">Field requirements</h4>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <li><strong>Required:</strong> memberName, barangay, address. Enter a value for every member.</li>
+                    <li><strong>Passbook No. — optional:</strong> enter a unique number and keep leading zeros, or leave blank to generate one.</li>
+                    <li><strong>Contact — optional:</strong> email must be valid and unique if supplied. phoneNumber must contain 11 digits starting with 09.</li>
+                    <li><strong>dateOfBirth and gender — optional:</strong> use a valid date (YYYY-MM-DD recommended) and male, female, or other. Blank gender defaults to male.</li>
+                    <li><strong>Beneficiary — optional:</strong> supply beneficiaries, beneficiaryRelationship, and beneficiaryContactNumber together to register a beneficiary. Use an 11-digit contact number starting with 09.</li>
+                  </ul>
+                </section>
+                <UploadFilePicker filename={csvFile?.name} onChange={handleCSVUpload} disabled={loading} hint="CSV only · Up to 1,000 members · Maximum 1 MB" />
                 <CsvDateOrder value={csvDateOrder} onChange={changeCsvDateOrder} disabled={loading || !!bulkResult} />
                 {bulkError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{bulkError}</div>}
                 {bulkResult && <div role="status" className="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
@@ -835,58 +831,30 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
                     </tr>)}</tbody>
                   </table>
                 </div>}
-                {csvPreview.length > 0 && (
-                  <div>
-                    <p className="text-sm font-bold text-slate-700 mb-2">Preview (first 5 rows):</p>
-                    <div className="border border-slate-200 rounded-lg overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-slate-50">
-                          <tr>
-                            {Object.keys(csvPreview[0]).map(key => (
-                              <th key={key} className="px-3 py-2 text-left font-bold text-slate-600 whitespace-nowrap">{importHeaderLabel(key)}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {csvPreview.map((row, idx) => (
-                            <tr key={idx} className="border-t border-slate-200">
-                              {Object.values(row).map((val, i) => (
-                                <td key={i} className="px-3 py-2 text-slate-600 whitespace-nowrap">{val}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-6 border-t border-slate-200 flex gap-4 flex-shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={loading}
-                  onClick={() => {
-                    setShowBulkModal(false);
-                    resetBulkUpload();
-                  }}
-                  className="flex-1"
-                >
-                  {bulkResult ? 'Done' : 'Cancel'}
-                </Button>
-                <Button
-                  onClick={handleBulkUpload}
-                  disabled={!csvFile || !csvPreview.length || loading || !!bulkResult}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {loading ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-                  {bulkResult ? 'Choose a new file to upload again' : 'Upload Members'}
-                </Button>
-              </div>
-            </Motion.div>
-          </div>
+                {!!csvPreview.length && !bulkResult && <div role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <p><strong>{csvPreview.length} members to import</strong> · All rows shown below</p>
+                  <p className="mt-2">Review all entries below. Member details and existing passbook numbers or emails are checked when importing.</p>
+                </div>}
+                {!!csvPreview.length && !bulkResult && <div className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white">
+                  <DataTable className="w-full text-left text-sm">
+                    <caption className="sr-only">Member entries to import</caption>
+                    <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>
+                      {['Row', 'Member', 'Barangay', 'Address', 'Contact', 'Birth date', 'Gender', 'Beneficiary'].map(label => <th key={label} scope="col" className="px-3 py-3">{label}</th>)}
+                    </tr></thead>
+                    <tbody className="divide-y divide-slate-100">{csvPreview.map(row => <tr key={row.csvRow}>
+                      <td className="px-3 py-3">{row.csvRow}</td>
+                      <td className="px-3 py-3"><p className="font-medium">{row.memberName || 'Name missing'}</p><p className="text-xs text-slate-500">Passbook No.: {row.passbookNo || 'Auto-generated'}</p></td>
+                      <td className="px-3 py-3">{row.barangay}</td>
+                      <td className="min-w-48 px-3 py-3">{row.address}</td>
+                      <td className="px-3 py-3 break-all"><p>{row.email || 'No email'}</p><p className="text-xs text-slate-500">{row.phoneNumber || 'No phone number'}</p></td>
+                      <td className="px-3 py-3 whitespace-nowrap">{row.dateOfBirth || 'Not provided'}</td>
+                      <td className="px-3 py-3">{row.gender}</td>
+                      <td className="px-3 py-3"><p>{row.beneficiaries || 'Not provided'}</p><p className="text-xs text-slate-500">{row.beneficiaryRelationship}</p><p className="text-xs text-slate-500">{row.beneficiaryContactNumber}</p></td>
+                    </tr>)}</tbody>
+                  </DataTable>
+                </div>}
+          </BulkUploadDialog>
         )}
-      </AnimatePresence>
 
       {/* Toast Notification */}
       {toast && (

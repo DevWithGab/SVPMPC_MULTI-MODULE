@@ -92,6 +92,15 @@ export default function BulkLedgerUpload({ onClose, onImported, onDownloadTempla
         <p>You can add daily transactions to the same CSV or upload a new file. Duplicates are skipped automatically; only new entries affect balances. Keep the original referenceId when re-uploading a transaction.</p>
         <p>A reference reused for the same member with different transaction details needs correction. Existing entries are never overwritten. Unknown passbook numbers and invalid values must be corrected before importing.</p>
       </UploadTemplateCard>
+      <section aria-label="Ledger field requirements" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+        <h4 className="font-semibold text-slate-900">Field requirements</h4>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li><strong>Passbook No. — required:</strong> must match an existing member. Keep leading zeros, such as 0001.</li>
+          <li><strong>transactionDate — required:</strong> enter a valid date; YYYY-MM-DD is recommended.</li>
+          <li><strong>credit and debit — required columns:</strong> enter a positive amount in one and 0 in the other. Use up to two decimal places without currency signs or commas.</li>
+          <li><strong>referenceId — optional:</strong> receipt or transaction reference. Keep the same reference when uploading the entry again.</li>
+        </ul>
+      </section>
       <UploadFilePicker filename={filename} onChange={chooseFile} disabled={busy} hint="CSV only · Up to 1,000 entries · Maximum 1 MB" />
       <CsvDateOrder value={dateOrder} disabled={busy} onChange={value => { setDateOrder(value); setResult(null); setCompleted(false); setError(''); }} />
       {error && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
