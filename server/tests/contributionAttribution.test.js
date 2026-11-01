@@ -1,3 +1,4 @@
+const { postingLedger } = require('./fixtures/postingLedger');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -27,14 +28,12 @@ function database() {
     },
     findOne: async query => state.contributions.find(row => row.contributionId === query.contributionId) || null,
   };
-  const Ledger = {
-    findOne: async query => state.ledgers.find(row => row.ledgerId === query.ledgerId) || null,
-    findOneAndUpdate: async (query, update) => {
-      let doc = state.ledgers.find(row => row.ledgerId === query.ledgerId);
-      if (!doc) { doc = { ...update.$setOnInsert }; state.ledgers.push(doc); }
-      return doc;
-    },
-  };
+  class Ledger {
+    constructor(data) { Object.assign(this, data); }
+    async save() { state.ledgers.push(this); return this; }
+    static async findOne(query) { return state.ledgers.find(row => row.ledgerId === query.ledgerId) || null; }
+  }
+  postingLedger(Ledger, state.ledgers);
   const Member = { findOne: async query => (query.memberId === state.member.memberId ? state.member : null) };
   return { state, Contribution, Ledger, Member };
 }

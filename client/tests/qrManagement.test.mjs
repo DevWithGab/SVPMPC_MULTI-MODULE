@@ -14,7 +14,7 @@ test('QR Management preserves the directory and supports creation, deactivation,
   try {
     const { default: QRManagement } = await vite.ssrLoadModule('/src/components/attendance/admin/MemberManagement.jsx');
     api = await vite.ssrLoadModule('/src/services/api.js');
-    const names = ['getAllMembers', 'generateMemberQR', 'getMemberQRStatus', 'deactivateMemberQR', 'reactivateMemberQR', 'regenerateMemberQR'];
+    const names = ['getAllMembers', 'generateMemberQR', 'getMemberQRStatus', 'deactivateMemberQR', 'reactivateMemberQR', 'regenerateMemberQR', 'getQRCodeCards'];
     originals = Object.fromEntries(names.map(name => [name, api.memberAPI[name]]));
     originals.getAllAttendance = api.attendanceAPI.getAllAttendance;
     let member = { memberId: '001', memberName: 'Ana Santos', email: 'ana@example.test', phoneNumber: '09123456789', barangay: 'San Vicente', status: 'active', qrCodeGenerated: false, qrCodeActive: false };
@@ -27,8 +27,13 @@ test('QR Management preserves the directory and supports creation, deactivation,
     api.memberAPI.deactivateMemberQR = async id => { calls.push(['deactivate', id]); member = { ...member, qrCodeActive: false }; return { member }; };
     api.memberAPI.reactivateMemberQR = async id => { calls.push(['activate', id]); member = { ...member, qrCodeActive: true }; return { member }; };
     api.memberAPI.regenerateMemberQR = async id => { calls.push(['regenerate', id]); member = { ...member, qrCodeUrl: '/uploads/regenerated.png' }; return { member }; };
+    const batches = [];
+    api.memberAPI.getQRCodeCards = async ids => {
+      batches.push(ids);
+      return { cards: ids.map(memberId => ({ ...member, memberId, rows: Array(21).fill('1'.repeat(21)) })) };
+    };
     let printed = '', printCount = 0;
-    window.open = () => ({ closed: false, focus() {}, print() { printCount++; }, document: { write(html) { printed = html; }, close() {}, images: [], getElementById() { return { textContent: '' }; } } });
+    window.open = () => ({ closed: false, focus() {}, print() { printCount++; }, document: { open() {}, write(html) { printed = html; }, close() {}, images: [], getElementById() { return { textContent: '' }; } } });
     await act(async () => root.render(React.createElement(QRManagement)));
     assert.equal(container.querySelector('h1').textContent, 'QR Management');
     assert.match(container.textContent, /ana@example.test/);
@@ -36,32 +41,40 @@ test('QR Management preserves the directory and supports creation, deactivation,
     assert.match(container.textContent, /San Vicente/);
     const dialog = () => container.querySelector('[role="dialog"]');
     const click = async text => {
-      const button = [...dialog().querySelectorAll('button')].find(button => button.textContent.trim() === text);
+      const button = [...dialog().querySelectorAll('button')].find(button => button.textContent.trim() === text || button.getAttribute('aria-label') === text);
       assert.ok(button, text); assert.equal(button.disabled, false, text);
       await act(async () => button.click());
+      if (text === 'Close dialog') await act(async () => new Promise(resolve => setTimeout(resolve, 200)));
     };
     await act(async () => container.querySelector('[aria-label="Manage QR for Ana Santos"]').click());
     await click('Create QR');
     assert.match(dialog().textContent, /QR status: Active/);
     await click('Deactivate QR');
     assert.match(dialog().textContent, /QR status: Inactive/);
-    assert.equal([...dialog().querySelectorAll('button')].find(button => button.textContent.trim() === 'Print QR card').disabled, true);
+    assert.equal(container.querySelector('[aria-label="Print QR card for Ana Santos"]').disabled, true);
     await click('Activate QR');
     await click('Regenerate QR');
     const image = dialog().querySelector('.md-qr-preview img');
     assert.match(image.src, /regenerated\.png/);
     await act(async () => image.dispatchEvent(new window.Event('load')));
-    await click('Print QR card');
+    await click('Close dialog');
+    await act(async () => container.querySelector('[aria-label="Print QR card for Ana Santos"]').click());
     assert.equal(printCount, 1);
     assert.match(printed, /regenerated\.png/);
     assert.match(printed, /Ana Santos/);
     assert.deepEqual(calls.map(call => call[0]), ['create', 'deactivate', 'activate', 'regenerate']);
-    await click('Close');
+    const bulkPrint = [...container.querySelectorAll('button')].find(button => button.textContent.trim().startsWith('Print QR cards'));
+    assert.ok(bulkPrint);
+    await act(async () => bulkPrint.click());
+    assert.equal(printCount, 2);
+    assert.deepEqual(batches, [['001']]);
+    assert.match(printed, /data:image\/svg\+xml/);
+    assert.doesNotMatch(printed, /blocked\.png/);
     for (const status of ['inactive', 'deceased']) {
       await act(async () => container.querySelector(`[aria-label="Manage QR for ${status} Member"]`).click());
       const controls = container.querySelector('[aria-label="QR controls"]');
       assert.ok([...controls.querySelectorAll('button')].every(button => button.disabled));
-      await click('Close');
+      await click('Close dialog');
     }
   } finally {
     await act(async () => root.unmount());

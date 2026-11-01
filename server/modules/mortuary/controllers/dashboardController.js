@@ -204,6 +204,7 @@ const getAdminDashboard = async (req, res) => {
     ]);
 
     const claimStatuses = [
+      'filing',
       'pending_requirements',
       'approved',
       'pending_deduction',

@@ -3,8 +3,8 @@ const Ledger = require('../models/Ledger');
 const { Member } = require('../../../shared/models');
 const { createHash } = require('node:crypto');
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
-const { getLatestBalance } = require('../utils/ledgerBalance');
-const { withMemberPaymentLock } = require('../utils/paymentLock');
+const { createLedgerPostingService } = require('../services/ledgerPostingService');
+const { postLedgerEntry } = createLedgerPostingService({ Ledger });
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { actorName } = require('../../../shared/utils/actorName');
 
@@ -24,7 +24,7 @@ const samePayment = (stored, entry) =>
   stored.paymentMethod === entry.paymentMethod;
 
 // Record contribution (admin)
-const recordContribution = async (req, res) => withMemberPaymentLock(String(req.body.memberId || req.body.member_id || ''), async () => {
+const recordContribution = async (req, res) => {
   try {
     const { memberId: memberIdParam, member_id, amount: rawAmount, paymentDate, payment_date, dueDate, due_date, paymentMethod, payment_method, referenceNumber, notes } = req.body;
     const amount = Number(rawAmount);
@@ -110,44 +110,12 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
       });
     }
 
-    /* Posting order - tingnan yung utils/ledgerBalance kung bakit hindi
-    dapat transactionDate ang magdesisyon dito. Shared ito ng lahat ng
-    balance lookup sa module na ito. */
-    const currentBalance = await getLatestBalance(memberId);
-    const computedBalance = Math.round((currentBalance + amount) * 100) / 100;
-
-    let ledgerEntry;
-    try {
-      ledgerEntry = await Ledger.findOneAndUpdate(
-        { ledgerId: id },
-        { $setOnInsert: {
-          ledgerId: id,
-          memberId,
-          transactionType: 'contribution',
-          description: `Contribution payment - ${finalPaymentMethod}`,
-          credit: amount,
-          balance: computedBalance,
-          referenceId: contribution.referenceNumber,
-          recordedBy,
-          paymentMethod: finalPaymentMethod,
-          /* Laging i-stamp yung actual posting time (tugma sa recordPayout,
-          processAutomaticDeduction, processDeductionBatch, etc). Yung paggamit sa
-          treasurer-editable payment date dito (madalas date lang na walang
-          time, e.g. "2026-08-16") ay nagiging dahilan para mag-sort *before*
-          yung bagong contributions kumpara sa same-day entries na may
-          totoong time-of-day, kaya yung "current balance" lookup (sorted by
-          transactionDate desc) ay laging sumulpot yung older entry at
-          mukhang stuck yung balance ng member. Yung user-chosen payment
-          date ay nakapreserve pa rin sa Contribution record mismo
-          (paymentDate, sa taas) para sa reporting. */
-          transactionDate: new Date(),
-        } },
-        { upsert: true, new: true, runValidators: true }
-      );
-    } catch (error) {
-      if (error.code !== 11000) throw error;
-      ledgerEntry = await Ledger.findOne({ ledgerId: id });
-    }
+    const { ledger: ledgerEntry } = await postLedgerEntry({
+      ledgerId: id, memberId, transactionType: 'contribution',
+      description: 'Contribution payment - ' + finalPaymentMethod,
+      credit: amount, debit: 0, referenceId: contribution.referenceNumber,
+      recordedBy, paymentMethod: finalPaymentMethod, transactionDate: new Date(),
+    });
 
     res.status(201).json({
       success: true,
@@ -157,9 +125,9 @@ const recordContribution = async (req, res) => withMemberPaymentLock(String(req.
       newBalance: ledgerEntry.balance,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error recording contribution', error: safeErrorMessage(error) });
+    res.status(error.status || 500).json({ message: error.status ? error.message : 'Error recording contribution', error: safeErrorMessage(error) });
   }
-});
+};
 
 // Get contribution history
 const getContributionHistory = async (req, res) => {

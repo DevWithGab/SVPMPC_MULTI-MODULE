@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { CLAIM_STATUSES, CLAIM_MEMBER_INDEX, CLAIM_MEMBER_INDEX_OPTIONS } = require('../utils/claimEligibility');
 
 const requirementItemSchema = new mongoose.Schema(
   {
@@ -67,25 +68,23 @@ const claimSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: [
-        'pending_requirements',
-        'approved',
-        'pending_deduction',
-        /* Transient lock state ito: nandito lang muna ang claim habang tumatakbo ang
-        sariling request ng processDeductionBatch - ang pag-claim nito
-        atomically (findOneAndUpdate gamit ang prior status bilang filter) ang
-        pumipigil sa dalawang concurrent request na magkasabay gumawa ng money math
-        para sa parehong claim. Ibabalik kapag nagfail; tingnan ang function na
-        iyon sa treasurerClaimController.js para malaman kung bakit ito existing.
-        Ang 'releasing'/'released' ay para na lang sa mga lumang claim na na-release
-        bago tinanggal ang release step. */
-        'deduction_processing',
-        'deduction_processed',
-        'releasing',
-        'released',
-        'rejected',
-      ],
+      enum: CLAIM_STATUSES,
+      required: true,
       default: 'pending_requirements',
+    },
+    // Filing is reserved before changing the shared member. This journal lets
+    // retries/restarts complete that change without filing a second claim.
+    registration: {
+      requestKey: String,
+      userId: String,
+      userName: String,
+      userRole: String,
+      ipAddress: String,
+      userAgent: String,
+      startedAt: Date,
+      completedAt: Date,
+      auditedAt: Date,
+      lastAttemptAt: Date,
     },
     // Each claim stores its own requirement labels and checklist state.
     requirements: {
@@ -110,8 +109,11 @@ const claimSchema = new mongoose.Schema(
     deduction: {
       deductionSettingId: { type: String },
       jvNumber: { type: String, trim: true },
-      // Claims processed together share one batchId and one JV number.
+      // Keep the original batch plan so a failed request can resume safely.
       batchId: { type: String },
+      claimIds: { type: [String], default: undefined },
+      memberIds: { type: [String], default: undefined },
+      startedAt: { type: Date },
       claimsInBatch: { type: Number },
       amountPerMember: { type: Number },
       membersCharged: { type: Number },
@@ -145,6 +147,11 @@ const claimSchema = new mongoose.Schema(
 
 claimSchema.index({ status: 1, dateFiled: -1 });
 claimSchema.index({ memberId: 1 });
+claimSchema.index(CLAIM_MEMBER_INDEX, CLAIM_MEMBER_INDEX_OPTIONS);
+claimSchema.index({ status: 1, 'registration.lastAttemptAt': 1, dateFiled: 1 });
+claimSchema.index({ 'registration.auditedAt': 1, 'registration.lastAttemptAt': 1, dateFiled: 1 }, {
+  partialFilterExpression: { 'registration.requestKey': { $type: 'string' } },
+});
 claimSchema.index({ beneficiaryId: 1 });
 
 module.exports = mongoose.model('Claim', claimSchema);

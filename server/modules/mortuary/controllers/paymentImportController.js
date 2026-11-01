@@ -5,7 +5,6 @@ const service = createPaymentImportService({
   Contribution: require('../models/Contribution'),
   Ledger: require('../models/Ledger'),
   PaymentImport: require('../models/PaymentImport'),
-  getLatestBalance: require('../utils/ledgerBalance').getLatestBalance,
 });
 
 const summarize = rows => ({

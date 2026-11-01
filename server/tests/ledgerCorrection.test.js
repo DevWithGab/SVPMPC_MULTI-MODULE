@@ -1,3 +1,4 @@
+const { postingLedger } = require('./fixtures/postingLedger');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createLedgerCorrectionService } = require('../modules/mortuary/services/ledgerCorrectionService');
@@ -24,7 +25,7 @@ function harness({ referenceId = 'OR-1', type = 'contribution' } = {}) {
     async save() {
       throwOnce('ledger');
       if (rows.some(row => row.ledgerId === this.ledgerId || this.correctionOf && row.correctionOf === this.correctionOf)) throw Object.assign(new Error('duplicate'), { code: 11000 });
-      this.createdAt = new Date(Date.UTC(2026, 9, 26, 0, 0, rows.length)); this._id = String(rows.length + 1); rows.push(this);
+      this.createdAt ||= new Date(Date.UTC(2026, 9, 26, 0, 0, rows.length)); this._id = String(rows.length + 1); rows.push(this);
     }
     static async find(query) { return rows.filter(row => match(row, query)); }
     static findOne(query) {
@@ -48,6 +49,7 @@ function harness({ referenceId = 'OR-1', type = 'contribution' } = {}) {
     },
   };
   const AuditLog = { updateOne: async (query, update) => { throwOnce('audit'); if (!audits.some(row => match(row, query))) audits.push(update.$setOnInsert); } };
+  postingLedger(Ledger, rows);
   const service = createLedgerCorrectionService({ Ledger, Contribution, AuditLog });
   const importer = createLedgerImportService({ Ledger, Contribution, Member: { find: async () => [{ memberId: 'M1' }] }, getLatestBalancesByMember: async () => new Map([['M1', rows.at(-1).balance]]) });
   return { rows, payments, audits, failures, service, importer };

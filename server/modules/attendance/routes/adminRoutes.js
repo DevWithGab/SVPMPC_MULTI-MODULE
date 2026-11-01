@@ -25,6 +25,7 @@ router.get('/members', memberController.getAllMembers);
 router.get('/members/:memberId', memberController.getMemberById);
 
 // Member QR management routes
+router.post('/members/qr-cards', memberController.getQRCodeCards);
 router.post('/members/generate-qr', memberController.generateQRCodes);
 router.post('/members/generate-all-qr', memberController.generateAllQRCodes);
 router.get('/members/:memberId/qr-status', memberController.getQRStatus);

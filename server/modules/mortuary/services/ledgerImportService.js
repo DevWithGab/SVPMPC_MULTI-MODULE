@@ -1,6 +1,7 @@
+const { processMemberBatches } = require('../../../shared/utils/memberImportBatches');
 const { createHash } = require('node:crypto');
 const { keyOf, referenceKey, sameEntry } = require('../utils/ledgerCsv');
-const { withMemberPaymentLocks } = require('../utils/paymentLock');
+const { createLedgerPostingService } = require('./ledgerPostingService');
 
 const importKeyOf = entry => `LEDGERCSV-${createHash('sha256').update(referenceKey(entry) || keyOf(entry)).digest('hex')}`;
 const isPayment = entry => entry.transactionType === 'contribution' && entry.credit > 0;
@@ -14,7 +15,8 @@ const summarize = rows => ({
   failed: rows.filter(row => row.status === 'failed').length,
 });
 
-function createLedgerImportService({ Member, Ledger, Contribution, getLatestBalancesByMember }) {
+function createLedgerImportService({ Member, Ledger, Contribution }) {
+  const { postLedgerEntry } = createLedgerPostingService({ Ledger });
   async function preview(rows) {
     const candidates = rows.filter(row => !row.errors.length);
     const memberIds = [...new Set(candidates.map(row => row.entry.memberId))];
@@ -88,56 +90,50 @@ function createLedgerImportService({ Member, Ledger, Contribution, getLatestBala
   }
 
   async function importRows(rows, recordedBy) {
-    return withMemberPaymentLocks(rows.filter(row => !row.errors.length).map(row => row.entry.memberId), async () => {
-      const checked = await preview(rows);
-      if (checked.some(row => row.errors.length)) return { blocked: true, rows: checked };
-      const ready = checked.filter(row => ['ready', 'resume'].includes(row.status));
-      const balances = ready.length ? await getLatestBalancesByMember([...new Set(ready.map(row => row.entry.memberId))]) : new Map();
-      for (const row of checked) {
-        if (row.status === 'duplicate') { row.status = 'skipped'; continue; }
-        const entry = row.entry;
-        try {
-          let ledger;
-          if (row.status === 'resume') {
-            ledger = await Ledger.findOne({ ledgerId: row.existingLedgerId });
-            if (!ledger) throw new Error('Saved ledger entry is no longer available.');
-          } else {
-            const balance = Math.round(((balances.get(entry.memberId) || 0) + entry.credit - entry.debit) * 100) / 100;
-            ledger = new Ledger({
-              ledgerId: entry.ledgerId || importKeyOf(entry), importKey: importKeyOf(entry),
+    const checked = await preview(rows);
+    if (checked.some(row => row.errors.length)) return { blocked: true, rows: checked };
+    await processMemberBatches(checked, async row => {
+      if (row.status === 'duplicate') { row.status = 'skipped'; return; }
+      const entry = row.entry;
+      try {
+        let ledger;
+        let replayed = false;
+        if (row.status === 'resume') {
+          ledger = await Ledger.findOne({ ledgerId: row.existingLedgerId });
+          if (!ledger) throw new Error('Saved ledger entry is no longer available.');
+        } else {
+          const ledgerId = entry.ledgerId || importKeyOf(entry);
+          try {
+            const result = await postLedgerEntry({
+              ledgerId, importKey: importKeyOf(entry),
               memberId: entry.memberId, transactionType: entry.transactionType,
               transactionDate: new Date(entry.transactionDate), description: entry.description,
-              credit: entry.credit, debit: entry.debit, balance, referenceId: entry.referenceId,
+              credit: entry.credit, debit: entry.debit, referenceId: entry.referenceId,
               paymentMethod: entry.paymentMethod, recordedBy,
             });
-            try {
-              await ledger.save();
-              // Failed saves must not affect the next row's running balance.
-              balances.set(entry.memberId, balance);
-            } catch (error) {
-              if (error.code !== 11000) throw error;
-              const stored = await Ledger.findOne({ $or: [{ importKey: importKeyOf(entry) }, { ledgerId: ledger.ledgerId }] });
-              if (!stored || !sameEntry(normalizedLedger(stored.toObject ? stored.toObject() : stored), entry)) throw error;
-              await reportPayment(stored);
-              row.status = 'skipped';
-              row.message = 'Already recorded by another upload. No duplicate was saved.';
-              const latest = await getLatestBalancesByMember([entry.memberId]);
-              balances.set(entry.memberId, latest.get(entry.memberId) || 0);
-              continue;
-            }
+            ledger = result.ledger;
+            replayed = !result.created;
+          } catch (error) {
+            if (error.code !== 11000) throw error;
+            const stored = await Ledger.findOne({ $or: [{ importKey: importKeyOf(entry) }, { ledgerId }] });
+            if (!stored || !sameEntry(normalizedLedger(stored.toObject ? stored.toObject() : stored), entry)) throw error;
+            await reportPayment(stored);
+            row.status = 'skipped';
+            row.message = 'Already recorded by another upload. No duplicate was saved.';
+            return;
           }
-          await reportPayment(ledger);
-          row.status = 'imported';
-          row.ledgerId = ledger.ledgerId;
-          row.balance = ledger.balance;
-        } catch (error) {
-          console.error('Ledger import row needs retry:', error.message);
-          row.status = 'failed';
-          row.errors.push('Could not complete this entry. Preview and upload the same CSV again; saved entries will not be recorded twice.');
         }
+        await reportPayment(ledger);
+        row.status = replayed ? 'skipped' : 'imported';
+        row.ledgerId = ledger.ledgerId;
+        row.balance = ledger.balance;
+      } catch (error) {
+        console.error('Ledger import row needs retry:', error.message);
+        row.status = 'failed';
+        row.errors.push('Could not complete this entry. Preview and upload the same CSV again; saved entries will not be recorded twice.');
       }
-      return { blocked: false, rows: checked };
     });
+    return { blocked: false, rows: checked };
   }
   return { preview, importRows };
 }

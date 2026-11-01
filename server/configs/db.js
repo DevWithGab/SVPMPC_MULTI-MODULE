@@ -15,6 +15,16 @@ const connectDB = async () => {
 
   try {
     await mongoose.connect(process.env.MONGODB_URI);
+    // Financial writes rely on this unique index, so do not accept traffic
+    // while Mongoose's asynchronous model index initialization is still running.
+    const Ledger = require('../modules/mortuary/models/Ledger');
+    const { POSTING_INDEX, POSTING_INDEX_OPTIONS, POSTING_HEAD_INDEX, POSTING_HEAD_INDEX_OPTIONS } = require('../modules/mortuary/services/ledgerPostingService');
+    await Ledger.collection.createIndex(POSTING_INDEX, POSTING_INDEX_OPTIONS);
+    await Ledger.collection.createIndex(POSTING_HEAD_INDEX, POSTING_HEAD_INDEX_OPTIONS);
+    const Claim = require('../modules/mortuary/models/Claim');
+    const { CLAIM_MEMBER_INDEX, CLAIM_MEMBER_INDEX_OPTIONS } = require('../modules/mortuary/utils/claimEligibility');
+    // Historical duplicates need review; never silently pick a winning claim.
+    await Claim.collection.createIndex(CLAIM_MEMBER_INDEX, CLAIM_MEMBER_INDEX_OPTIONS);
     await ensureRateLimitIndexes();
 
     console.log('✓ MongoDB connected successfully');

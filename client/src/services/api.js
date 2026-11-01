@@ -193,6 +193,11 @@ export const memberAPI = {
     return response.data;
   },
 
+  getQRCodeCards: async (memberIds) => {
+    const response = await api.post('/attendance/admin/members/qr-cards', { memberIds });
+    return response.data;
+  },
+
   regenerateMemberQR: async (memberId) => {
     const response = await api.post(`/attendance/admin/members/${memberId}/regenerate-qr`);
     return response.data;

@@ -104,6 +104,7 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 
 let httpServer;
+let claimRegistrationRecovery;
 
 const startServer = async () => {
   try {
@@ -117,6 +118,10 @@ const startServer = async () => {
 
     // Connect to MongoDB
     await connectDB();
+    const { recoverClaimRegistrations } = require('./modules/mortuary/controllers/claimController');
+    const { startClaimRegistrationRecovery } = require('./modules/mortuary/services/claimRegistrationService');
+    await recoverClaimRegistrations();
+    claimRegistrationRecovery = startClaimRegistrationRecovery(recoverClaimRegistrations);
     console.log('✓ Database connection established successfully.');
 
     // Start HTTP server
@@ -154,6 +159,7 @@ const shutdown = (signal) => {
   httpServer.close(async (err) => {
     if (err) console.error('Error while closing HTTP server:', err);
     try {
+      if (claimRegistrationRecovery) await claimRegistrationRecovery.stop();
       await mongoose.connection.close();
       console.log('✓ MongoDB connection closed.');
     } catch (closeError) {

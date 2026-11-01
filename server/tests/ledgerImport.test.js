@@ -1,3 +1,4 @@
+const { postingLedger } = require('./fixtures/postingLedger');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -66,6 +67,7 @@ function controller() {
     static async find(query) { return [...existing, ...saved].filter(row => matches(row, query)); }
     static async findOne(query) { return (await this.find(query))[0] || null; }
   }
+  postingLedger(Ledger, () => [...existing, ...saved]);
   const Contribution = {
     find: async query => payments.filter(row => matches(row, query)),
     updateOne: async (query, update) => {

@@ -1,3 +1,4 @@
+const { postingLedger } = require('./fixtures/postingLedger');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -70,6 +71,7 @@ function database(members) {
     });
   }
   const DeductionSetting = { findOne: async () => ({ amount: 25 }) };
+  postingLedger(Ledger, state.ledgers);
   return { state, Member, Ledger, DeductionSetting };
 }
 

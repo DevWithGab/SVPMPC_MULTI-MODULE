@@ -1,7 +1,9 @@
 const Claim = require('../models/Claim');
 const Beneficiary = require('../models/Beneficiary');
 const { Member } = require('../../../shared/models');
-const { v4: uuidv4 } = require('uuid');
+const AuditLog = require('../../../shared/models/AuditLog');
+const { createClaimRegistrationService } = require('../services/claimRegistrationService');
+const registration = createClaimRegistrationService({ Claim, Member, Beneficiary, AuditLog });
 const { getPaginationParams, buildPaginatedResponse } = require('../../../shared/utils/pagination');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
@@ -9,119 +11,21 @@ const { actorName } = require('../../../shared/utils/actorName');
 
 const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Register New Claim
+// Reserve and finish registration through the durable filing journal.
 const createClaim = async (req, res) => {
   try {
-    const { memberId, beneficiaryId, dateOfDeath, causeOfDeath, remarks } = req.body;
-    const createdBy = actorName(req.user, 'admin');
-
-    /* Isinasara ng typeof check yung NoSQL operator-injection hole: kung
-    crafted body gaya ng {"memberId":{"$ne":null},"beneficiaryId":{"$ne":null},...}
-    ay makakapasa sa !memberId truthiness check (truthy yung non-empty object)
-    at ginagawang real query operators yung findOne calls sa baba, matching
-    kung sino mang member/claim/beneficiary ibalik ng Mongo's query planner
-    first sa halip na yung talagang pinangalanan. Hindi naman talaga
-    legitimate na hindi string yung alinman sa dalawang fields, kaya tama
-    lang na i-reject din ang wrong type dito gaya ng pag-reject sa missing
-    one. */
-    if (
-      !memberId || !beneficiaryId || !dateOfDeath ||
-      typeof memberId !== 'string' || typeof beneficiaryId !== 'string'
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Member, beneficiary, and date of death are required',
-      });
-    }
-
-    const member = await Member.findOne({ memberId });
-    if (!member) {
-      return res.status(404).json({ success: false, message: 'Member not found' });
-    }
-
-    /* Puwedeng i-refile ulit yung rejected claim (yun naman talaga yung
-    point ng pag-reject - e.g. wrong requirements, filed sa wrong member),
-    pero kailangan i-block yung ibang still-live claim sa member na ito
-    kung magfile ulit: kung mag-approve/deduct/release ng dalawang claims
-    para sa isang kamatayan, magcharge ng doble sa every other member at
-    puwedeng magbayad ng doble. */
-    const existingClaim = await Claim.findOne({ memberId, status: { $ne: 'rejected' } });
-    if (existingClaim) {
-      return res.status(409).json({
-        success: false,
-        message: `This member already has an active claim (${existingClaim.claimId}, status: ${existingClaim.status}). Reject it before filing a new one.`,
-      });
-    }
-
-    const beneficiary = await Beneficiary.findOne({ beneficiaryId, memberId });
-    if (!beneficiary) {
-      return res.status(404).json({
-        success: false,
-        message: 'Beneficiary not found for this member',
-      });
-    }
-
-    const claim = new Claim({
-      claimId: uuidv4(),
-      memberId,
-      memberName: member.memberName,
-      beneficiaryId,
-      beneficiaryName: beneficiary.beneficiaryName,
-      beneficiaryRelationship: beneficiary.relationship,
-      beneficiaryContact: beneficiary.contactNumber,
-      dateOfDeath: new Date(dateOfDeath),
-      dateFiled: new Date(),
-      causeOfDeath,
-      remarks,
-      status: 'pending_requirements',
-      // Requirements are entered for this individual claim during review.
-      requirements: new Map(),
-      statusHistory: [
-        {
-          status: 'pending_requirements',
-          changedBy: createdBy,
-          changedAt: new Date(),
-          notes: 'Claim filed',
-        },
-      ],
-      createdBy,
+    const result = await registration.register(req.body, {
+      userId: req.user?.userId, userName: actorName(req.user, 'admin'), userRole: req.user?.role || 'admin',
+      ipAddress: req.ip, userAgent: req.get?.('user-agent'),
     });
-
-    await claim.save();
-
-    /* Ang pag-file ng claim ay senyales na namatay na yung member - kaya
-    flip yung status nila para naturally excluded sila sa death-assessment
-    deduction na magtrigger mismo ng claim nila (ang Treasurer ay nagcharge
-    lang sa {status:'active'} members). */
-    member.status = 'deceased';
-    await member.save();
-
-    await createAuditLog({
-      userId: req.user?.userId,
-      userName: createdBy,
-      userRole: req.user?.role || 'admin',
-      action: 'claim_created',
-      module: 'mortuary',
-      entityType: 'claim',
-      entityId: claim.claimId,
-      entityName: claim.memberName,
-      description: `Claim filed for ${claim.memberName}, beneficiary ${claim.beneficiaryName}`,
-      changes: { before: null, after: claim.toObject() },
-      status: 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Claim registered successfully',
-      data: claim,
+    return res.status(result.created ? 201 : 200).json({
+      success: true, message: 'Claim registered successfully', data: result.claim,
     });
   } catch (error) {
-    console.error('Error creating claim:', error);
-    res.status(500).json({
+    if (!error.status) console.error('Error creating claim:', error);
+    return res.status(error.status || 503).json({
       success: false,
-      message: 'Error creating claim',
+      message: error.status ? error.message : 'Could not finish registration. Retry with the same details; any saved registration will be resumed.',
       error: safeErrorMessage(error),
     });
   }
@@ -512,6 +416,7 @@ const rejectClaim = async (req, res) => {
 };
 
 module.exports = {
+  recoverClaimRegistrations: registration.recover,
   createClaim,
   getAllClaims,
   getClaimById,

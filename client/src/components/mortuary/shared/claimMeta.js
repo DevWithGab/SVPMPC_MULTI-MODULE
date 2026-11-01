@@ -2,6 +2,10 @@
 para ang list, details, at modals ay pareho ang labels/colors/order. */
 
 export const CLAIM_STATUS_META = {
+  filing: {
+    label: 'Registration Pending', dot: 'bg-amber-500', text: 'text-amber-700',
+    bg: 'bg-amber-50', border: 'border-amber-200', statColor: 'amber',
+  },
   pending_requirements: {
     label: 'Pending Requirements',
     dot: 'bg-amber-500',
@@ -57,6 +61,7 @@ export const CLAIM_STATUS_META = {
 diretso nang nagmo-move ng claim sa 'pending_deduction', kaya kung
 ioffer ito as a filter, laging walang resulta. */
 export const CLAIM_STATUS_ORDER = [
+  'filing',
   'pending_requirements',
   'pending_deduction',
   'deduction_processed',
@@ -74,6 +79,7 @@ na kailangan ng Admin imbes na ng Treasurer.
    actor 'treasurer' - handed off, the Admin can only look
    actor null        - settled, nothing left to do */
 export const CLAIM_STATUS_ACTION = {
+  filing: { actor: null, label: 'View Details', hint: 'Finishing registration' },
   pending_requirements: { actor: 'admin', label: 'Review Requirements', hint: 'Needs your review' },
   approved: { actor: 'admin', label: 'Review Claim', hint: 'Needs your review' },
   pending_deduction: { actor: 'treasurer', label: 'View', hint: 'With Treasurer' },

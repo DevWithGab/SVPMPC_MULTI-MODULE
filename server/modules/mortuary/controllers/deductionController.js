@@ -1,5 +1,7 @@
+const { createLedgerPostingService } = require('../services/ledgerPostingService');
 const Member = require('../../../shared/models/Member');
 const Ledger = require('../models/Ledger');
+const { postLedgerEntry } = createLedgerPostingService({ Ledger });
 const DeductionSetting = require('../models/DeductionSetting');
 const { v4: uuidv4 } = require('uuid');
 const { createHash } = require('node:crypto');
@@ -272,36 +274,20 @@ const processAutomaticDeduction = async (req, res) => {
     for (const member of members) {
       try {
         const id = autoDeductionId(deceasedMemberName, member.memberId);
-        const currentBalance = member.balance || 0;
-        const newBalance = Math.round((currentBalance - deductionAmount) * 100) / 100;
 
-        /* Parehong two-step check-then-reserve shape gaya ng
-        recordContribution: plain pre-check muna (cheap, covers yung common
-        case - admin na nag-re-run ng same deceased-member deduction
-        pagkatapos nitong matapos na), backed ng unique ledgerId index + isang
-        11000 catch para sa rare race kung sabay dumating ang dalawang
-        requests. */
         let ledgerEntry = await Ledger.findOne({ ledgerId: id });
         let alreadyProcessed = Boolean(ledgerEntry);
         if (!ledgerEntry) {
-          try {
-            ledgerEntry = await new Ledger({
-              ledgerId: id,
-              memberId: member.memberId,
-              transactionType: 'automatic_deduction',
-              description: `Automatic deduction for death of ${deceasedMemberName}`,
-              debit: deductionAmount,
-              credit: 0,
-              balance: newBalance,
-              transactionDate: new Date(),
-              recordedBy: actor,
-            }).save();
-          } catch (error) {
-            if (error.code !== 11000) throw error;
-            ledgerEntry = await Ledger.findOne({ ledgerId: id });
-            alreadyProcessed = true;
-          }
+          const result = await postLedgerEntry({
+            ledgerId: id, memberId: member.memberId,
+            transactionType: 'automatic_deduction',
+            description: 'Automatic deduction for death of ' + deceasedMemberName,
+            debit: deductionAmount, credit: 0, transactionDate: new Date(), recordedBy: actor,
+          });
+          ledgerEntry = result.ledger;
+          alreadyProcessed = !result.created;
         }
+        const currentBalance = Math.round((ledgerEntry.balance + ledgerEntry.debit - ledgerEntry.credit) * 100) / 100;
 
         const result = {
           memberId: member.memberId,

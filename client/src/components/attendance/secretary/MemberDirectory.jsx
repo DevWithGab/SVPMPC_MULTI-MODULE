@@ -10,6 +10,7 @@ import { memberAPI, attendanceAPI, resolveQrAssetUrl } from '../../../services/a
 import { loadDashboardRecords } from '../../../utils/attendanceDashboard';
 import { directoryDate, getQrUnavailableReason, normalizeDirectoryMembers, filterDirectoryMembers, directoryCsv, directoryPrintHtml, directoryBulkPrintHtml } from '../../../utils/memberDirectory';
 import { buildQrCardsPdf } from '../../../utils/qrCardsPdf';
+import { prepareQrCards } from '../../../utils/qrCardBatch';
 import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import './MemberDirectory.css';
 
@@ -91,7 +92,9 @@ export default function QRManagement() {
     setQrBusy('bulk'); setFeedback(null);
     try {
       const response = await memberAPI.generateAllMissingQR();
-      setReload(value => value + 1);
+      const issued = new Map((response.results || []).map(member => [member.memberId, member]));
+      setMembers(rows => rows.map(member => issued.has(member.memberId)
+        ? { ...member, ...issued.get(member.memberId), qrCodeGenerated: true, qrCodeActive: true } : member));
       setFeedback({ message: response.message || 'Missing QR codes created.' });
     } catch (error) {
       setFeedback({ error: true, message: error.response?.data?.message || 'Unable to create missing QR codes.' });
@@ -117,15 +120,17 @@ export default function QRManagement() {
 
   const printAllQr = () => {
     if (!printable.length) return;
-    const entries = printable.map(member => ({ member, qrUrl: resolveQrAssetUrl(member.qrCodeUrl) }));
-    printCards(directoryBulkPrintHtml(entries, `${window.location.origin}/SVPMPC-LOGO(MAIN).png`, printScope), `${printable.length.toLocaleString()} QR cards`);
+    printCards(async () => {
+      const entries = await prepareQrCards(printable, memberAPI.getQRCodeCards);
+      return directoryBulkPrintHtml(entries, `${window.location.origin}/SVPMPC-LOGO(MAIN).png`, printScope);
+    }, `${printable.length.toLocaleString()} QR cards`);
   };
 
   const downloadQrPdf = async () => {
     if (!ready || qrBusy || downloadingPdf || !printable.length) return;
     setDownloadingPdf(true); setFeedback(null);
     try {
-      const entries = printable.map(member => ({ member, qrUrl: resolveQrAssetUrl(member.qrCodeUrl) }));
+      const entries = await prepareQrCards(printable, memberAPI.getQRCodeCards);
       const doc = await buildQrCardsPdf(entries, { logoUrl: `${window.location.origin}/SVPMPC-LOGO(MAIN).png` });
       const slug = barangay !== 'all' ? barangay.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'all-barangays';
       doc.save(`member-qr-cards-${slug}-${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -141,6 +146,12 @@ export default function QRManagement() {
     if (!preview) { setFeedback({ error: true, message: 'The print window was blocked. Allow pop-ups for this site and try again.' }); return; }
     setPrinting(true); setFeedback(null);
     try {
+      if (typeof html === 'function') {
+        preview.document.write('<!doctype html><title>Preparing QR cards</title><p role="status">Preparing QR cards…</p>');
+        html = await html();
+        if (preview.closed) return;
+        preview.document.open();
+      }
       preview.document.write(html);
       preview.document.close();
       await Promise.all(Array.from(preview.document.images, img => new Promise((resolve, reject) => {
@@ -154,7 +165,10 @@ export default function QRManagement() {
       preview.document.getElementById('print-status').textContent = `${label} ready. Use your browser’s Print command to print again.`;
       preview.focus(); preview.print();
     } catch {
-      if (!preview.closed) preview.document.getElementById('print-status').textContent = `Some QR images could not load. Close this window and retry from the directory.`;
+      if (!preview.closed) {
+        const status = preview.document.getElementById('print-status') || preview.document.querySelector('[role="status"]');
+        if (status) status.textContent = 'Some QR cards could not load. Close this window, refresh the directory, and retry.';
+      }
       setFeedback({ error: true, message: `The ${label} could not load completely. Please retry printing.` });
     } finally { setPrinting(false); }
   };

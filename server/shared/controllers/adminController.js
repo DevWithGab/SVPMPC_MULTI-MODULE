@@ -1,3 +1,4 @@
+const { processMemberBatches } = require('../utils/memberImportBatches');
 const { parseCsvDate } = require('../utils/csvDate');
 const { Member } = require('../models');
 const Beneficiary = require('../../modules/mortuary/models/Beneficiary');
@@ -155,12 +156,17 @@ const bulkCreateMembers = async (req, res) => {
       return res.status(400).json({ message: 'Invalid members data' });
     }
 
+    if (members.length > 1000) {
+      return res.status(400).json({ message: 'Maximum 1000 members per upload' });
+    }
+
     const results = {
       success: [],
       failed: [],
     };
 
-    for (const [index, memberData] of members.entries()) {
+    const rowResults = await processMemberBatches(members, async (memberData, index) => {
+      const results = { success: [], failed: [] };
       try {
         if (memberData.dateOfBirth) {
           const parsed = parseCsvDate(memberData.dateOfBirth, req.body.dateOrder);
@@ -171,36 +177,32 @@ const bulkCreateMembers = async (req, res) => {
         memberData.phoneNumber = normalizeContact(memberData.phoneNumber);
         const invalidContact = contactError(memberData.email, memberData.phoneNumber);
         if (invalidContact) throw new Error(invalidContact);
-        console.log(`📝 Processing member: ${memberData.memberName} (${memberData.email})`);
         
         // Check if email already exists
         const existingMember = memberData.email ? await Member.findOne({ email: memberData.email }) : null;
         if (existingMember) {
-          console.log(`❌ Email already exists: ${memberData.email}`);
           results.failed.push({
             row: index + 2,
             email: memberData.email,
             memberName: memberData.memberName,
             reason: 'Email already exists',
           });
-          continue;
+          return results;
         }
 
         // Use provided memberId or generate unique one
         const memberId = normalizeContact(memberData.passbookNo ?? memberData.memberId) || `MEM-${uuidv4()}`;
-        console.log(`🆔 Using memberId: ${memberId}`);
 
         // Check if memberId already exists
         const existingMemberId = await Member.findOne({ memberId });
         if (existingMemberId) {
-          console.log(`❌ MemberId already exists: ${memberId}`);
           results.failed.push({
             row: index + 2,
             email: memberData.email,
             memberName: memberData.memberName,
             reason: `Passbook No. ${memberId} already exists`,
           });
-          continue;
+          return results;
         }
 
         // Create member
@@ -220,7 +222,6 @@ const bulkCreateMembers = async (req, res) => {
         });
 
         await member.save();
-        console.log(`✅ Member saved: ${member.memberId}`);
 
         await maybeRegisterBeneficiary({
           memberId,
@@ -255,6 +256,11 @@ const bulkCreateMembers = async (req, res) => {
           reason,
         });
       }
+      return results;
+    });
+    for (const row of rowResults) {
+      results.success.push(...row.success);
+      results.failed.push(...row.failed);
     }
 
     res.status(200).json({

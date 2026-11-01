@@ -23,14 +23,20 @@ printed cards. */
 const renderQRCodePng = (member, qrCodeId = member.qrCode) =>
   QRCode.toBuffer(JSON.stringify(buildMemberQRCodePayload(member, qrCodeId)), QR_OPTIONS);
 
+// Share the exact issued payload and error correction with the PNG renderer.
+// Compact rows avoid PNG compression and browser image/canvas work for bulk cards.
+const buildQRCodeMatrix = (member, qrCodeId = member.qrCode) => {
+  const { modules } = QRCode.create(JSON.stringify(buildMemberQRCodePayload(member, qrCodeId)), QR_OPTIONS);
+  return Array.from({ length: modules.size }, (_, row) =>
+    Array.from({ length: modules.size }, (_, col) => modules.get(row, col) ? '1' : '0').join(''));
+};
+
 const generateQRCode = async (member) => {
   try {
     const qrCodeId = uuidv4();
     const qrCodeFileName = `${member.memberId}_${qrCodeId}.png`;
-    /* Ginagamit para i-validate yung rendering bago i-save ng controller yung
-    issuance. On-demand naman i-serve yung image, kaya walang kailangang
-    persistent filesystem sa Render. */
-    await renderQRCodePng(member, qrCodeId);
+    // Validate QR capacity without rendering a PNG that would be discarded.
+    QRCode.create(JSON.stringify(buildMemberQRCodePayload(member, qrCodeId)), QR_OPTIONS);
 
     // Return QR code URL and ID
     const qrCodeUrl = `/uploads/qrcodes/${qrCodeFileName}`;
@@ -73,4 +79,5 @@ module.exports = {
   generateQRCode,
   generateQRCodeDataUrl,
   renderQRCodePng,
+  buildQRCodeMatrix,
 };

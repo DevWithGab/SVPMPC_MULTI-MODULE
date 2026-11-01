@@ -1,5 +1,8 @@
+const { createLedgerPostingService } = require('../services/ledgerPostingService');
+const { processMemberBatches } = require('../../../shared/utils/memberImportBatches');
 const { Member } = require('../../../shared/models');
 const { Ledger, Beneficiary, Claim } = require('../models');
+const { postLedgerEntry } = createLedgerPostingService({ Ledger });
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 /* Yung module na ito ang nagbibigay ng plain 6-digit sequential memberIds.
@@ -22,10 +25,10 @@ tumitry ulit kung na-claim na yung parehong ID ng concurrent request's insert.
 Yung memberId's unique index ang totoong guard; ito ay para lang hindi
 sumulpot yung benign race bilang ugly per-row error (bulkCreateMembers) sa halip na tahimik na mag-retry gamit yung next ID. */
 const MAX_MEMBER_ID_RETRIES = 5;
-const createMemberWithRetry = async (buildMemberDoc) => {
+const createMemberWithRetry = async (buildMemberDoc, allocateId = nextSequentialMemberId) => {
   let lastError;
   for (let attempt = 0; attempt < MAX_MEMBER_ID_RETRIES; attempt++) {
-    const memberId = await nextSequentialMemberId();
+    const memberId = await allocateId(attempt);
     const member = buildMemberDoc(memberId);
     try {
       await member.save();
@@ -232,18 +235,30 @@ const adminController = {
       const createdMembers = [];
       const errors = [];
 
-      /* Bawat row ay humihingi ng fresh ID kay createMemberWithRetry sa save time,
-      hindi nagre-reserve ng block of IDs up front - kung pre-computed na
-      nextId/nextId++ dito, go stale ito (at silently collide) laban sa isang
-      concurrent single member registration o ibang bulk upload na tumatakbo sa
-      same time, na walang paraan para ma-recover mid-loop. */
-      for (const memberData of members) {
+      // Allocate IDs in order within this request, and refresh on a unique-index
+      // collision. Keep the local high-water mark so retries cannot reuse an ID
+      // already assigned to another in-flight row.
+      let nextId;
+      let allocation = Promise.resolve();
+      const allocateId = attempt => {
+        const current = allocation.then(async () => {
+          if (nextId === undefined || attempt > 0) {
+            nextId = Math.max(nextId || 0, Number(await nextSequentialMemberId()));
+          }
+          return String(nextId++).padStart(6, '0');
+        });
+        allocation = current.catch(() => {});
+        return current;
+      };
+      const rowResults = await processMemberBatches(members, async memberData => {
+        const createdMembers = [];
+        const errors = [];
         try {
           const { name, contact, barangay, address, status = 'active' } = memberData;
 
           if (!name || !contact || !barangay || !address) {
             errors.push(`Missing name, contact, barangay or address for member: ${JSON.stringify(memberData)}`);
-            continue;
+            return { createdMembers, errors };
           }
 
           const member = await createMemberWithRetry((memberId) => new Member({
@@ -256,21 +271,19 @@ const adminController = {
             status,
             joinDate: new Date(),
             modules: ['attendance', 'mortuary']
-          }));
+          }), allocateId);
 
           // Create initial ledger entry
-          const ledger = new Ledger({
+          await postLedgerEntry({
             ledgerId: `L${Date.now()}_${member.memberId}`,
             memberId: member.memberId,
             transactionType: 'contribution',
             description: 'Initial member registration',
             credit: 0,
             debit: 0,
-            balance: 0,
             transactionDate: new Date()
           });
 
-          await ledger.save();
 
           createdMembers.push({
             id: member.memberId,
@@ -284,6 +297,11 @@ const adminController = {
         } catch (error) {
           errors.push(`Error creating member ${memberData.name}: ${error.message}`);
         }
+        return { createdMembers, errors };
+      });
+      for (const result of rowResults) {
+        createdMembers.push(...result.createdMembers);
+        errors.push(...result.errors);
       }
 
       res.json({

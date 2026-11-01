@@ -1,3 +1,4 @@
+const { postingLedger } = require('./fixtures/postingLedger');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -109,6 +110,7 @@ test('Mortuary single and bulk member creation save members and ledgers without 
     constructor(data) { Object.assign(this, data); }
     async save() { ledgers.push(this); }
   }
+  postingLedger(Ledger, ledgers);
   class ForbiddenAccount { constructor() { throw new Error('Member registration must not create a User'); } }
   const controller = load('../modules/mortuary/controllers/adminController', {
     '../../../shared/models': { Member, User: ForbiddenAccount }, '../models': { Ledger },

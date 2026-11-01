@@ -1,6 +1,7 @@
+const { processMemberBatches } = require('../../../shared/utils/memberImportBatches');
 const { Member } = require('../../../shared/models');
 const { parseCSV, validateMemberData } = require('../services/csvParserService');
-const { generateQRCode } = require('../services/qrCodeService');
+const { generateQRCode, buildQRCodeMatrix } = require('../services/qrCodeService');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
@@ -47,7 +48,7 @@ const uploadMembers = async (req, res) => {
     const savedMembers = [];
     const errors = [];
 
-    for (const memberData of members) {
+    const rowResults = await processMemberBatches(members, async memberData => {
       try {
         const newMember = new Member({
           memberId: memberData.memberId.trim(),
@@ -60,13 +61,17 @@ const uploadMembers = async (req, res) => {
         });
 
         const saved = await newMember.save();
-        savedMembers.push(saved);
+        return { saved };
       } catch (error) {
-        errors.push({
+        return { error: {
           memberId: memberData.memberId,
           error: safeErrorMessage(error),
-        });
+        } };
       }
+    });
+    for (const result of rowResults) {
+      if (result.saved) savedMembers.push(result.saved);
+      else errors.push(result.error);
     }
 
     // Clean up uploaded file
@@ -123,6 +128,31 @@ const uploadMembers = async (req, res) => {
   }
 };
 
+// Preserve response order while overlapping independent database saves.
+const issueMemberQRCodes = async members => {
+  const rows = await processMemberBatches(members, async member => {
+    try {
+      if (member.status === 'deceased' || member.status === 'inactive') {
+        return { error: { memberId: member.memberId, error: member.status === 'deceased' ? 'Member is recorded as deceased' : 'Member is inactive' } };
+      }
+      const issued = await generateQRCode(member);
+      if (!issued.success) return { error: { memberId: member.memberId, error: issued.error } };
+      member.qrCode = issued.qrCode;
+      member.qrCodeUrl = issued.qrCodeUrl;
+      member.qrCodeGenerated = true;
+      member.qrCodeActive = true;
+      await member.save();
+      return { result: { memberId: member.memberId, memberName: member.memberName, qrCodeUrl: member.qrCodeUrl } };
+    } catch (error) {
+      return { error: { memberId: member.memberId, error: safeErrorMessage(error) } };
+    }
+  });
+  return {
+    results: rows.filter(row => row.result).map(row => row.result),
+    errors: rows.filter(row => row.error).map(row => row.error),
+  };
+};
+
 // Generate QR codes for members
 const generateQRCodes = async (req, res) => {
   try {
@@ -151,48 +181,7 @@ const generateQRCodes = async (req, res) => {
       return res.status(404).json({ message: 'No members found' });
     }
 
-    const results = [];
-    const errors = [];
-
-    for (const member of members) {
-      /* Shared sa Mortuary module ang Member.status - hindi dapat bigyan ng
-      fresh QR para sa attendance ang member na naging 'deceased' doon. */
-      if (member.status === 'deceased') {
-        errors.push({ memberId: member.memberId, error: 'Member is recorded as deceased' });
-        continue;
-      }
-      if (member.status === 'inactive') {
-        errors.push({ memberId: member.memberId, error: 'Member is inactive' });
-        continue;
-      }
-      try {
-        const qrResult = await generateQRCode(member);
-
-        if (qrResult.success) {
-          member.qrCode = qrResult.qrCode;
-          member.qrCodeUrl = qrResult.qrCodeUrl;
-          member.qrCodeGenerated = true;
-          member.qrCodeActive = true;
-          await member.save();
-
-          results.push({
-            memberId: member.memberId,
-            memberName: member.memberName,
-            qrCodeUrl: member.qrCodeUrl,
-          });
-        } else {
-          errors.push({
-            memberId: member.memberId,
-            error: qrResult.error,
-          });
-        }
-      } catch (error) {
-        errors.push({
-          memberId: member.memberId,
-          error: safeErrorMessage(error),
-        });
-      }
-    }
+    const { results, errors } = await issueMemberQRCodes(members);
 
     // Log audit event
     await createAuditLog({
@@ -251,38 +240,7 @@ const generateAllQRCodes = async (req, res) => {
       return res.status(200).json({ message: 'All members already have QR codes' });
     }
 
-    const results = [];
-    const errors = [];
-
-    for (const member of members) {
-      try {
-        const qrResult = await generateQRCode(member);
-
-        if (qrResult.success) {
-          member.qrCode = qrResult.qrCode;
-          member.qrCodeUrl = qrResult.qrCodeUrl;
-          member.qrCodeGenerated = true;
-          member.qrCodeActive = true;
-          await member.save();
-
-          results.push({
-            memberId: member.memberId,
-            memberName: member.memberName,
-            qrCodeUrl: member.qrCodeUrl,
-          });
-        } else {
-          errors.push({
-            memberId: member.memberId,
-            error: qrResult.error,
-          });
-        }
-      } catch (error) {
-        errors.push({
-          memberId: member.memberId,
-          error: safeErrorMessage(error),
-        });
-      }
-    }
+    const { results, errors } = await issueMemberQRCodes(members);
 
     res.status(200).json({
       message: 'QR codes generated for all members',
@@ -506,7 +464,37 @@ const getQRStatus = async (req, res) => {
   }
 };
 
+// Fetch current, eligible issued QR data in one bounded database query.
+const getQRCodeCards = async (req, res) => {
+  const { memberIds } = req.body;
+  if (!Array.isArray(memberIds) || !memberIds.length || memberIds.length > 100 ||
+      !memberIds.every(id => typeof id === 'string' && id.trim())) {
+    return res.status(400).json({ message: 'Provide between 1 and 100 passbook numbers.' });
+  }
+  try {
+    const members = await Member.find({ memberId: { $in: memberIds } })
+      .select('memberId memberName barangay status joinDate qrCode qrCodeUrl qrCodeGenerated qrCodeActive').lean();
+    const byId = new Map(members.map(member => [member.memberId, member]));
+    const cards = [];
+    for (const id of memberIds) {
+      const member = byId.get(id);
+      if (!member || ['inactive', 'deceased'].includes(member.status) || !member.qrCodeGenerated ||
+          member.qrCodeActive === false || !member.qrCode) {
+        return res.status(409).json({ message: 'Some members no longer have an active QR code. Refresh the directory before printing.' });
+      }
+      cards.push({ memberId: id, memberName: member.memberName, barangay: member.barangay,
+        status: member.status, joinDate: member.joinDate, qrCodeUrl: member.qrCodeUrl,
+        rows: buildQRCodeMatrix(member) });
+    }
+    res.set('Cache-Control', 'no-store');
+    return res.json({ cards });
+  } catch (error) {
+    return res.status(500).json({ message: 'Unable to prepare QR cards', error: safeErrorMessage(error) });
+  }
+};
+
 module.exports = {
+  getQRCodeCards,
   uploadMembers,
   generateQRCodes,
   generateAllQRCodes,

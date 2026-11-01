@@ -77,7 +77,9 @@ export default function Claims({ user }) {
     setMembersError('');
     try {
       const records = await loadAllPages(page => mortuaryMemberAPI.getAllMembers({ page, limit: 100 }));
-      setMembers(records.filter(m => m.status !== 'deceased'));
+      // A rejected claim may be filed again while its member remains deceased.
+      // The API enforces eligibility against current, non-rejected claims.
+      setMembers(records);
     } catch {
       setMembersError('Unable to load members.');
     } finally {

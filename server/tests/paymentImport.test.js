@@ -1,3 +1,4 @@
+const { postingLedger } = require('./fixtures/postingLedger');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parsePaymentCsv } = require('../modules/mortuary/utils/paymentCsv');
@@ -28,8 +29,14 @@ function database() {
       if (!state[name].some(item => matches(item, query))) state[name].push({ ...query, ...update.$setOnInsert });
     },
   });
+  class Ledger {
+    constructor(data) { Object.assign(this, data); }
+    async save() { state.ledgers.push(this); return this; }
+  }
+  Object.assign(Ledger, model('ledgers'));
+  postingLedger(Ledger, state.ledgers);
   const dependencies = {
-    Member: model('members'), Contribution: model('contributions'), Ledger: model('ledgers'), PaymentImport: model('reservations'),
+    Member: model('members'), Contribution: model('contributions'), Ledger, PaymentImport: model('reservations'),
     getLatestBalance: async memberId => state.ledgers.filter(row => row.memberId === memberId).at(-1)?.balance || 0,
     checkAndNotify: async (...args) => { state.notifications.push(args); },
   };

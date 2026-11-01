@@ -1,3 +1,4 @@
+const { processMemberBatches } = require('../../../shared/utils/memberImportBatches');
 const { v4: uuidv4 } = require('uuid');
 
 /* Hindi ito parang payments na may double-credit risk - pag na-re-run ulit
@@ -52,19 +53,13 @@ function createBeneficiaryImportService({ Member, Beneficiary }) {
   async function importRows(rows, updatedBy) {
     const checked = await preview(rows);
     if (checked.some(row => row.errors.length)) return { blocked: true, rows: checked };
-    const results = [];
-    /* Sequential, hindi parallel - puwede pa ring magkaroon ng race ang dalawang
-    row sa parehong upload (kahit pumasa na sa CSV's duplicate-Passbook-No.
-    check) kung may concurrent edit mula sa Update Beneficiary screen; kaya
-    isa-isang row ang pinoproseso para atomic yung supersede-then-insert ng
-    bawat row kumpara sa iba pang row sa batch na ito. */
-    for (const row of rows) {
-      try { results.push(await record(row, updatedBy)); }
+    const results = await processMemberBatches(rows, async row => {
+      try { return await record(row, updatedBy); }
       catch (error) {
-        console.error('Bulk beneficiary row failed:', error.message);
-        results.push({ ...row, status: 'failed', errors: ['Could not register this beneficiary. Re-upload the same CSV to retry.'] });
+        console.error('Bulk beneficiary row needs retry:', error.message);
+        return { ...row, status: 'failed', errors: ['Could not register this beneficiary. Re-upload the same CSV to retry.'] };
       }
-    }
+    });
     return { blocked: false, rows: results };
   }
 

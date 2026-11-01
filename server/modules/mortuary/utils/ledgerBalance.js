@@ -23,6 +23,10 @@ order. */
 const POSTING_ORDER = { createdAt: 1, _id: 1 };
 const LATEST_FIRST = { createdAt: -1, _id: -1 };
 
+// New live writes go through ledgerPostingService: its unique predecessor
+// index and strictly increasing createdAt preserve this ordering across API
+// instances. The _id tie-breaker remains necessary for legacy/restored rows.
+
 // The most recent posted balance for a member, or 0 if they have no rows.
 const getLatestBalance = async (memberId) => {
   const latest = await Ledger.findOne({ memberId }).sort(LATEST_FIRST);

@@ -1,11 +1,13 @@
+const { processMemberBatches } = require('../utils/memberImportBatches');
 const { Member, ImportOperation } = require('../models');
 // Check for duplicates
 const checkDuplicates = async (memberId, email, phoneNumber) => {
-  const duplicates = {
-    memberId: await Member.findOne({ memberId }),
-    email: email ? await Member.findOne({ email }) : null,
-    phoneNumber: phoneNumber ? await Member.findOne({ phoneNumber }) : null,
-  };
+  const [existingId, existingEmail, existingPhone] = await Promise.all([
+    Member.findOne({ memberId }),
+    email ? Member.findOne({ email }) : null,
+    phoneNumber ? Member.findOne({ phoneNumber }) : null,
+  ]);
+  const duplicates = { memberId: existingId, email: existingEmail, phoneNumber: existingPhone };
 
   return duplicates;
 };
@@ -78,9 +80,10 @@ const processBulkImport = async (operationId, rowsData) => {
       rowErrors: [],
     };
 
-    // Process each row
-    for (let i = 0; i < rowsData.length; i++) {
-      const rowResult = await processRow(rowsData[i], i + 2); // +2 because row 1 is header
+    // Keep rows sharing any duplicate key in CSV order.
+    const processed = await processMemberBatches(rowsData, (row, index) => processRow(row, index + 2), row =>
+      ['memberId', 'email', 'phoneNumber'].filter(key => row[key]).map(key => key + ':' + row[key]));
+    for (const rowResult of processed) {
 
       if (rowResult.status === 'success') {
         results.successCount++;

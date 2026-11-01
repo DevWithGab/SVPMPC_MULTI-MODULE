@@ -102,7 +102,7 @@ export async function buildQrCardsPdf(entries, { logoUrl } = {}) {
   // instead of producing a PDF with blank cards.
   const [logo, ...qrCodes] = await Promise.all([
     logoUrl ? logoDataUrl(logoUrl).catch(() => null) : null,
-    ...entries.map(({ qrUrl }) => readQrMatrix(qrUrl)),
+    ...entries.map(({ qr, qrUrl }) => qr || readQrMatrix(qrUrl)),
   ]);
 
   const doc = new jsPDF({ unit: 'mm', format: PAGE.name.toLowerCase(), compress: true });
@@ -111,7 +111,9 @@ export async function buildQrCardsPdf(entries, { logoUrl } = {}) {
   const right = ORIGIN.x + QR_CARD_MM.width - PAD;
   const top = ORIGIN.y + PAD;
 
-  entries.forEach(({ member }, index) => {
+  for (const [index, { member }] of entries.entries()) {
+    // Let the browser paint and handle input during large PDF exports.
+    if (index && index % 20 === 0) await new Promise(resolve => setTimeout(resolve, 0));
     if (index > 0) doc.addPage(PAGE.name.toLowerCase());
 
     // Letterhead
@@ -148,7 +150,7 @@ export async function buildQrCardsPdf(entries, { logoUrl } = {}) {
       doc.setTextColor(100, 112, 105).text(label, left, rowY);
       doc.setTextColor(36, 54, 42).text(fitText(doc, value, inner - 30), right, rowY, { align: 'right' });
     });
-  });
+  }
 
   return doc;
 }

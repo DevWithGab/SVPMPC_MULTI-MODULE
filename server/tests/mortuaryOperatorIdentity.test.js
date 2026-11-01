@@ -25,12 +25,29 @@ function claimHarness() {
     async save() { stored = this; }
     toObject() { return { ...this }; }
     static async findOne(query) { return query.claimId ? stored : null; }
+    static async updateOne(query, changes) {
+      if (!stored || stored.claimId !== query.claimId) return { matchedCount: 0 };
+      for (const [path, value] of Object.entries(changes.$set || {})) {
+        const parts = path.split('.'), last = parts.pop();
+        let target = stored;
+        for (const part of parts) target = target[part] ||= {};
+        target[last] = value;
+      }
+      return { matchedCount: 1 };
+    }
+    static async findOneAndUpdate(query, changes) {
+      if (!stored || stored.claimId !== query.claimId || stored.status !== query.status) return null;
+      await this.updateOne(query, changes);
+      if (changes.$push?.statusHistory) stored.statusHistory.push(changes.$push.statusHistory);
+      return stored;
+    }
   }
   const member = { memberName: 'Member', async save() {} };
   const controller = load('claimController', {
     '../models/Claim': Claim,
-    '../models/Beneficiary': { findOne: async () => ({ beneficiaryName: 'Beneficiary', relationship: 'Spouse', contactNumber: '09171234567' }) },
-    '../../../shared/models': { Member: { findOne: async () => member } },
+    '../models/Beneficiary': { findOne: async () => ({ isActive: true, beneficiaryName: 'Beneficiary', relationship: 'Spouse', contactNumber: '09171234567' }) },
+    '../../../shared/models': { Member: { findOne: async () => member, updateOne: async () => ({ matchedCount: 1 }) } },
+    '../../../shared/models/AuditLog': { updateOne: async (query, changes) => audits.push(changes.$setOnInsert) },
     '../../../shared/services/auditLoggingService': { createAuditLog: async row => audits.push(row) },
   });
   const seed = () => { stored = new Claim({ claimId: 'C-1', status: 'pending_requirements', requirements: new Map([['id', { submitted: true }]]), statusHistory: [] }); return stored; };

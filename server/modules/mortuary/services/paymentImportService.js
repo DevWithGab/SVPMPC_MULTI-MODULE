@@ -1,5 +1,6 @@
+const { processMemberBatches } = require('../../../shared/utils/memberImportBatches');
 const { createHash } = require('node:crypto');
-const { withMemberPaymentLock } = require('../utils/paymentLock');
+const { createLedgerPostingService } = require('./ledgerPostingService');
 
 const paymentId = entry => `CSV-${createHash('sha256').update(JSON.stringify([entry.memberId, entry.referenceNumber])).digest('hex')}`;
 const samePayment = (stored, entry) =>
@@ -7,7 +8,8 @@ const samePayment = (stored, entry) =>
   new Date(stored.paymentDate).toISOString().slice(0, 10) === entry.paymentDate &&
   stored.paymentMethod === entry.paymentMethod;
 
-function createPaymentImportService({ Member, Contribution, Ledger, PaymentImport, getLatestBalance }) {
+function createPaymentImportService({ Member, Contribution, Ledger, PaymentImport }) {
+  const { postLedgerEntry } = createLedgerPostingService({ Ledger });
   async function preview(rows) {
     const valid = rows.filter(row => !row.errors.length);
     const memberIds = [...new Set(valid.map(row => row.entry.memberId))];
@@ -38,61 +40,53 @@ function createPaymentImportService({ Member, Contribution, Ledger, PaymentImpor
   }
 
   async function record(row, recordedBy) {
-    return withMemberPaymentLock(row.entry.memberId, async () => {
-      const [checked] = await preview([row]);
-      if (checked.errors.length) throw new Error(checked.errors.join('; '));
-      if (checked.status === 'duplicate') return { ...checked, status: 'skipped' };
-      const id = paymentId(row.entry);
-      /* Immutable yung reservation, kaya kahit mag-retry pa after process
-      restart, yung original payment at actor din pa rin ang gagamitin.
-      Yung _id index ng MongoDB ang nag-eenforce ng uniqueness. */
-      let reservation;
-      try {
-        reservation = await PaymentImport.findOneAndUpdate(
-          { _id: id }, { $setOnInsert: { ...row.entry, recordedBy } },
-          { upsert: true, new: true, runValidators: true },
-        );
-      } catch (error) {
-        if (error.code !== 11000) throw error;
-        reservation = await PaymentImport.findById(id);
-      }
-      if (!samePayment(reservation, row.entry)) throw new Error('This reference was just used for a different payment. Preview again.');
-      let ledger = await Ledger.findOne({ ledgerId: id });
-      if (!ledger) {
-        const balance = await getLatestBalance(reservation.memberId);
-        const newBalance = Math.round((balance + reservation.amount) * 100) / 100;
-        ledger = await Ledger.findOneAndUpdate({ ledgerId: id }, { $setOnInsert: {
-          ledgerId: id, memberId: reservation.memberId,
-          transactionType: 'contribution', description: `Contribution payment - cash (CSV: ${reservation.referenceNumber})`,
-          credit: reservation.amount, debit: 0, balance: newBalance,
-          referenceId: reservation.referenceNumber, paymentMethod: 'cash', recordedBy: reservation.recordedBy,
-          transactionDate: new Date(),
-        } }, { upsert: true, new: true, runValidators: true });
-      }
-      /* Ledger muna: kung mabigo ang write na ito, pag-re-upload ulit tatapusin
-      na lang yung contribution record gamit ang parehong IDs, hindi na
-      magagalaw yung existing credit. */
-      await Contribution.updateOne({ contributionId: id }, { $setOnInsert: {
-        contributionId: id, memberId: reservation.memberId, amount: reservation.amount,
-        paymentDate: new Date(reservation.paymentDate), dueDate: new Date(reservation.paymentDate),
-        status: 'paid', paymentMethod: 'cash', referenceNumber: reservation.referenceNumber,
-        notes: reservation.notes,
-      } }, { upsert: true, runValidators: true });
-      return { ...checked, status: 'imported', contributionId: id, balance: ledger.balance };
+    const [checked] = await preview([row]);
+    if (checked.errors.length) throw new Error(checked.errors.join('; '));
+    if (checked.status === 'duplicate') return { ...checked, status: 'skipped' };
+    const id = paymentId(row.entry);
+    /* Immutable yung reservation, kaya kahit mag-retry pa after process
+    restart, yung original payment at actor din pa rin ang gagamitin.
+    Yung _id index ng MongoDB ang nag-eenforce ng uniqueness. */
+    let reservation;
+    try {
+      reservation = await PaymentImport.findOneAndUpdate(
+        { _id: id }, { $setOnInsert: { ...row.entry, recordedBy } },
+        { upsert: true, new: true, runValidators: true },
+      );
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      reservation = await PaymentImport.findById(id);
+    }
+    if (!samePayment(reservation, row.entry)) throw new Error('This reference was just used for a different payment. Preview again.');
+    const { ledger } = await postLedgerEntry({
+      ledgerId: id, memberId: reservation.memberId,
+      transactionType: 'contribution', description: 'Contribution payment - cash (CSV: ' + reservation.referenceNumber + ')',
+      credit: reservation.amount, debit: 0,
+      referenceId: reservation.referenceNumber, paymentMethod: 'cash', recordedBy: reservation.recordedBy,
+      transactionDate: new Date(),
     });
+    /* Ledger muna: kung mabigo ang write na ito, pag-re-upload ulit tatapusin
+    na lang yung contribution record gamit ang parehong IDs, hindi na
+    magagalaw yung existing credit. */
+    await Contribution.updateOne({ contributionId: id }, { $setOnInsert: {
+      contributionId: id, memberId: reservation.memberId, amount: reservation.amount,
+      paymentDate: new Date(reservation.paymentDate), dueDate: new Date(reservation.paymentDate),
+      status: 'paid', paymentMethod: 'cash', referenceNumber: reservation.referenceNumber,
+      notes: reservation.notes,
+    } }, { upsert: true, runValidators: true });
+    return { ...checked, status: 'imported', contributionId: id, balance: ledger.balance };
   }
 
   async function importRows(rows, recordedBy) {
     const checked = await preview(rows);
     if (checked.some(row => row.errors.length)) return { blocked: true, rows: checked };
-    const results = [];
-    for (const row of rows) {
-      try { results.push(await record(row, recordedBy)); }
+    const results = await processMemberBatches(rows, async row => {
+      try { return await record(row, recordedBy); }
       catch (error) {
         console.error('Bulk payment row needs retry:', error.message);
-        results.push({ ...row, status: 'failed', errors: ['Could not complete this payment. Re-upload the same CSV to retry safely.'] });
+        return { ...row, status: 'failed', errors: ['Could not complete this payment. Re-upload the same CSV to retry safely.'] };
       }
-    }
+    });
     return { blocked: false, rows: results };
   }
   return { preview, importRows };

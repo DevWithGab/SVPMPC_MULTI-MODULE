@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { POSTING_INDEX, POSTING_INDEX_OPTIONS, POSTING_HEAD_INDEX, POSTING_HEAD_INDEX_OPTIONS } = require('../services/ledgerPostingService');
 
 const ledgerSchema = new mongoose.Schema(
   {
@@ -31,6 +32,8 @@ const ledgerSchema = new mongoose.Schema(
       required: true,
       ref: 'Member',
     },
+    // Legacy rows omit this field. Every live posting reserves its predecessor.
+    postingParent: { type: String, immutable: true },
     transactionType: {
       type: String,
       enum: ['contribution', 'payout', 'adjustment', 'penalty', 'automatic_deduction', 'claim_payout'],
@@ -76,6 +79,8 @@ const ledgerSchema = new mongoose.Schema(
 );
 
 // Indexes for better query performance
+ledgerSchema.index(POSTING_INDEX, POSTING_INDEX_OPTIONS);
+ledgerSchema.index(POSTING_HEAD_INDEX, POSTING_HEAD_INDEX_OPTIONS);
 ledgerSchema.index({ memberId: 1 });
 ledgerSchema.index({ 'correction.rootLedgerId': 1 });
 ledgerSchema.index({ transactionType: 1 });

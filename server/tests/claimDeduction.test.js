@@ -1,3 +1,4 @@
+const { postingLedger } = require('./fixtures/postingLedger');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,8 +20,7 @@ const response = () => ({ status(code) { this.code = code; return this; }, json(
 
 // processDeductionBatch (Flow A, a batch of claims) is the same blanket
 // per-member-charge mechanism as processAutomaticDeduction, but its
-// duplicate-prevention is a DIFFERENT mechanism: not a deterministic
-// ledgerId per member, but an atomic lock on every claim in the batch
+// concurrency guard is an atomic lock on every claim in the batch
 // (Claim.findOneAndUpdate({claimId, status:'pending_deduction'},
 // {$set:{status:'deduction_processing'}})) — only one caller can ever win
 // each status flip, and a batch that loses any of them gives back the ones
@@ -45,18 +45,34 @@ function database(members, { claims = [] } = {}) {
   // directly, since that's the one operation real MongoDB performs
   // atomically against the stored document itself.
   class ClaimDoc {
-    constructor(data) { Object.assign(this, { statusHistory: [], ...data }); }
+    constructor(data) { Object.assign(this, structuredClone({ statusHistory: [], ...data })); }
     async save() {
+      if (this.status === 'deduction_processed' && state.failClaimSaveId === this.claimId) {
+        state.failClaimSaveId = null;
+        throw new Error('Simulated final claim save failure');
+      }
+      if (this.status === 'deduction_processing' && state.failPlanSaveId === this.claimId) {
+        state.failPlanSaveId = null;
+        throw new Error('Simulated plan save failure');
+      }
       const stored = state.claims.find(c => c.claimId === this.claimId);
-      if (stored) Object.assign(stored, this);
+      if (stored) Object.assign(stored, this.toObject());
+      if (this.status === 'deduction_processed' && state.failAfterClaimSaveId === this.claimId) {
+        state.failAfterClaimSaveId = null;
+        throw new Error('Simulated lost claim acknowledgement');
+      }
       return this;
     }
-    toObject() { return { ...this }; }
+    toObject() { return structuredClone(Object.fromEntries(Object.entries(this))); }
   }
   const state = { members, ledgers: [], claims: claims.map(c => ({ statusHistory: [], ...c })), deductionRate: { amount: 25, settingId: 'DED-1' }, failForMemberId: null };
 
   const Claim = {
     findOneAndUpdate: async (query, update) => {
+      if (state.failLockOnClaimId === query.claimId) {
+        state.failLockOnClaimId = null;
+        throw new Error('Simulated lock acquisition failure');
+      }
       const stored = state.claims.find(c => c.claimId === query.claimId && c.status === query.status);
       if (!stored) return null;
       Object.assign(stored, update.$set);
@@ -85,11 +101,24 @@ function database(members, { claims = [] } = {}) {
       if (state.failForMemberId && this.memberId === state.failForMemberId) {
         throw new Error('Simulated ledger write failure');
       }
+      if (state.failOnReference === this.referenceId) throw new Error('Simulated mid-member failure');
+      if (state.ledgers.some(row => row.ledgerId === this.ledgerId)) throw Object.assign(new Error('Duplicate ledgerId'), { code: 11000 });
       state.ledgers.push(this);
+      if (state.failAfterLedgerSaveMemberId === this.memberId) {
+        state.failAfterLedgerSaveMemberId = null;
+        throw new Error('Simulated lost write acknowledgement');
+      }
       return this;
+    }
+    static async find(query) { return state.ledgers.filter(row => query.ledgerId.$in.includes(row.ledgerId)); }
+    static async findOne(query) {
+      return state.ledgers.find(row => query.ledgerId ? row.ledgerId === query.ledgerId :
+        row.transactionType === query.transactionType && query.$or.some(match =>
+          row.referenceId === match.referenceId && row.description === match.description)) || null;
     }
   }
 
+  postingLedger(LedgerDoc, state.ledgers, memberId => state.members.find(member => member.memberId === memberId)?.balance || 0);
   return {
     state,
     deps: {
@@ -98,10 +127,14 @@ function database(members, { claims = [] } = {}) {
       '../models/Ledger': LedgerDoc,
       '../../../shared/models': { Member: {} },
       '../../../shared/utils/pagination': {},
-      './deductionController': { getMemberBalanceSnapshots: async () => ({ members: state.members }) },
+      './deductionController': { getMemberBalanceSnapshots: async ({ includeAllStatuses = false } = {}) => ({ members: state.members.filter(member =>
+        includeAllStatuses || !member.status || member.status === 'active').map(member => ({
+        ...member, balance: state.ledgers.filter(row => row.memberId === member.memberId).at(-1)?.balance ?? member.balance,
+      })) }) },
       './dashboardController': { getClaimFinancialTotals: async () => ({}) },
       '../../../shared/services/auditLoggingService': { createAuditLog: async () => {} },
-      '../utils/ledgerBalance': { getLatestBalance: async () => 0 },
+      '../utils/ledgerBalance': { getLatestBalance: async memberId =>
+        state.ledgers.filter(row => row.memberId === memberId).at(-1)?.balance ?? state.members.find(member => member.memberId === memberId)?.balance ?? 0 },
     },
   };
 }
@@ -226,17 +259,23 @@ test('a failed operation releases every lock, and a retry then succeeds', async 
   assert.ok(db.state.claims.every(c => c.status === 'deduction_processed'));
 });
 
-test('a single member\'s ledger write failing does not abort the batch for everyone else', async () => {
+test('a member write failure keeps the batch pending and a retry resumes saved charges', async () => {
   const db = database(baseMembers(), { claims: twoClaims() });
   db.state.failForMemberId = '002';
   const res = response();
   await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'], jvNumber: 'JV-001' }), res);
 
-  assert.equal(res.code, 200);
-  assert.equal(res.data.data.membersCharged, 2);
-  assert.equal(res.data.data.totalCollected, 100);
-  assert.equal(db.state.claims[0].deduction.totalCollected, 50);
+  assert.equal(res.code, 500);
+  assert.ok(db.state.claims.every(claim => claim.status === 'pending_deduction'));
+  assert.equal(db.state.ledgers.length, 2);
   assert.ok(!db.state.ledgers.some(row => row.memberId === '002'));
+  db.state.failForMemberId = null;
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.length, 6);
+  assert.equal(retry.data.data.totalCollected, 150);
+  assert.ok(db.state.claims.every(claim => claim.deduction.totalCollected === 75));
 });
 
 test('claim deductions ignore supplied operator names in ledger, claim history and audit', async () => {
@@ -283,7 +322,7 @@ test('each deduction row is dated by when its claim was filed, not when it was d
   await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), res);
   assert.equal(res.code, 200);
   for (const row of db.state.ledgers) {
-    assert.equal(row.transactionDate, row.referenceId === 'REF-1' ? filed[0] : filed[1]);
+    assert.equal(new Date(row.transactionDate).getTime(), (row.referenceId === 'REF-1' ? filed[0] : filed[1]).getTime());
   }
 });
 
@@ -294,4 +333,185 @@ test('finance-supplied references cannot override the claim officer reference in
   assert.equal(res.code, 200);
   assert.ok(db.state.ledgers.every(entry => entry.referenceId === 'CLAIM-OFFICER-JV'));
   assert.equal(db.state.claims[0].deduction.jvNumber, 'CLAIM-OFFICER-JV');
+});
+
+test('a final claim save failure retries without another debit, even with a fresh controller instance', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim()] });
+  db.state.failClaimSaveId = 'CLM-1';
+  const failed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), failed);
+  assert.equal(failed.code, 500);
+  assert.equal(db.state.claims[0].status, 'pending_deduction');
+  assert.equal(db.state.ledgers.length, 3);
+  const originalIds = db.state.ledgers.map(row => row.ledgerId);
+  const batchId = db.state.claims[0].deduction.batchId;
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.deepEqual(db.state.ledgers.map(row => row.ledgerId), originalIds);
+  assert.equal(retry.data.data.batchId, batchId);
+  assert.equal(db.state.ledgers.find(row => row.memberId === '001').balance, 475);
+  assert.equal(db.state.claims[0].statusHistory.filter(row => row.status === 'deduction_processed').length, 1);
+});
+
+test('a partially finalized batch supports retrying only its unfinished claim and replaying the whole request', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  const audits = [];
+  db.deps['../../../shared/services/auditLoggingService'] = { createAuditLog: async row => audits.push(row) };
+  db.state.failClaimSaveId = 'CLM-2';
+  const failed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), failed);
+  assert.equal(failed.code, 500);
+  assert.deepEqual(db.state.claims.map(claim => claim.status), ['deduction_processed', 'pending_deduction']);
+  assert.equal(db.state.ledgers.length, 6);
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-2'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.length, 6);
+  assert.equal(db.state.claims[1].deduction.totalCollected, 75);
+  assert.equal(db.state.claims[1].deduction.claimsInBatch, 2);
+  const replay = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-2', 'CLM-1'] }), replay);
+  assert.equal(replay.code, 200);
+  assert.equal(db.state.ledgers.length, 6);
+  assert.equal(replay.data.data.totalCollected, 150);
+  assert.equal(audits.length, 2, 'completed claims must not create another completion audit on replay');
+});
+
+test('mid-member failures preserve posted rows and use the current balance when resuming after a payment', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  db.state.failOnReference = 'REF-2';
+  const failed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), failed);
+  assert.equal(failed.code, 500);
+  assert.equal(db.state.ledgers.length, 1);
+  assert.equal(db.state.ledgers[0].balance, 475);
+  db.state.ledgers.push({ ledgerId: 'INTERVENING-PAYMENT', memberId: '001', credit: 100, debit: 0, balance: 575,
+    createdAt: new Date(db.state.ledgers[0].createdAt.getTime() + 1) });
+  db.state.failOnReference = null;
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-2', 'CLM-1'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.filter(row => row.transactionType === 'automatic_deduction').length, 6);
+  assert.equal(db.state.ledgers.filter(row => row.memberId === '001').at(-1).balance, 550);
+});
+
+test('a lost ledger write acknowledgement can be retried without charging that member twice', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim()] });
+  db.state.failAfterLedgerSaveMemberId = '001';
+  const failed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), failed);
+  assert.equal(failed.code, 500);
+  assert.equal(db.state.ledgers.length, 1);
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.length, 3);
+  assert.equal(db.state.ledgers.find(row => row.memberId === '001').balance, 475);
+});
+
+test('resume and preview preserve the original rate, roster, actor, and references after settings change', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  db.state.failForMemberId = '002';
+  const failed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), failed);
+  assert.equal(failed.code, 500);
+  db.state.deductionRate = { amount: 100, settingId: 'NEW-RATE' };
+  db.state.members[1].status = 'inactive';
+  db.state.members.push({ memberId: 'NEW-MEMBER', balance: 1000, status: 'active' });
+  db.state.claims[0].referenceNumber = 'CHANGED-REFERENCE';
+  const preview = response();
+  await controller(db).previewDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), preview);
+  assert.equal(preview.code, 200);
+  assert.equal(preview.data.data.ratePerClaim, 25);
+  assert.equal(preview.data.data.totalCollected, 150);
+  assert.equal(preview.data.data.claims[0].referenceNumber, 'REF-1');
+  db.state.failForMemberId = null;
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }, { username: 'another.treasurer' }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.length, 6);
+  assert.ok(db.state.ledgers.every(row => row.debit === 25 && row.recordedBy === 'treasurer.jane'));
+  assert.ok(!db.state.ledgers.some(row => row.memberId === 'NEW-MEMBER'));
+  assert.equal(db.state.ledgers.filter(row => row.referenceId === 'REF-1').length, 3);
+});
+
+test('an incomplete plan save posts no money, and the saved plan remains authoritative on retry', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  db.state.failPlanSaveId = 'CLM-2';
+  const failed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), failed);
+  assert.equal(failed.code, 500);
+  assert.equal(db.state.ledgers.length, 0);
+  assert.ok(db.state.claims.every(claim => claim.status === 'pending_deduction'));
+  db.state.deductionRate = { amount: 100, settingId: 'NEW-RATE' };
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.length, 6);
+  assert.ok(db.state.ledgers.every(row => row.debit === 25));
+});
+
+test('an exception while acquiring a later claim releases earlier acquired locks', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  db.state.failLockOnClaimId = 'CLM-2';
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), res);
+  assert.equal(res.code, 500);
+  assert.equal(db.state.ledgers.length, 0);
+  assert.ok(db.state.claims.every(claim => claim.status === 'pending_deduction'));
+});
+
+test('a lost final claim acknowledgement can replay a completed request safely', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim()] });
+  db.state.failAfterClaimSaveId = 'CLM-1';
+  const failed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), failed);
+  assert.equal(failed.code, 500);
+  assert.equal(db.state.claims[0].status, 'deduction_processed');
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.length, 3);
+  assert.equal(db.state.claims[0].statusHistory.length, 1);
+});
+
+test('a pending saved batch cannot be mixed with a newly selected claim', async () => {
+  const db = database(baseMembers(), { claims: [...twoClaims(), pendingClaim({ claimId: 'CLM-3', referenceNumber: 'REF-3' })] });
+  db.state.failClaimSaveId = 'CLM-1';
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), response());
+  const before = db.state.ledgers.length;
+  const mixed = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-3'] }), mixed);
+  assert.equal(mixed.code, 409);
+  assert.equal(db.state.ledgers.length, before);
+  assert.ok(db.state.claims.every(claim => claim.status === 'pending_deduction'));
+});
+
+test('retrying the whole batch after partial finalization skips the completed claim', async () => {
+  const db = database(baseMembers(), { claims: twoClaims() });
+  db.state.failClaimSaveId = 'CLM-2';
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), response());
+  const preview = response();
+  await controller(db).previewDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), preview);
+  assert.equal(preview.code, 200);
+  const retry = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1', 'CLM-2'] }), retry);
+  assert.equal(retry.code, 200);
+  assert.equal(db.state.ledgers.length, 6);
+  assert.ok(db.state.claims.every(claim => claim.status === 'deduction_processed'));
+});
+
+test('legacy partial deductions require review rather than posting another charge', async () => {
+  const db = database(baseMembers(), { claims: [pendingClaim()] });
+  db.state.ledgers.push({
+    ledgerId: 'OLD-RANDOM-UUID', memberId: '001', transactionType: 'automatic_deduction',
+    description: 'Death fund assessment for Deceased Member', referenceId: 'REF-1', debit: 25, credit: 0, balance: 475,
+  });
+  const res = response();
+  await controller(db).processDeductionBatch(request({ claimIds: ['CLM-1'] }), res);
+  assert.equal(res.code, 409);
+  assert.match(res.data.message, /Review the existing ledger/);
+  assert.equal(db.state.ledgers.length, 1);
+  assert.equal(db.state.claims[0].status, 'pending_deduction');
 });
