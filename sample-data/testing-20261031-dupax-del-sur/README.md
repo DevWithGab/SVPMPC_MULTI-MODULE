@@ -3,6 +3,8 @@
 1. Upload 01-members-200.csv through SuperAdmin > Bulk Upload.
 2. Upload 02-opening-ledger-100.csv through Mortuary > Treasurer > Member Ledger > Bulk Upload.
 
+For a smaller test, use 03-opening-ledger-members-0001-0005.csv instead of the 100-entry ledger file. It contains one PHP 1,000.00 credit for each member from 0001 through 0005 (PHP 5,000.00 total). These are the same entries and references as the first five rows in the full file, so importing both skips those duplicate entries instead of adding another credit.
+
 The member file contains 200 fictional Filipino names with passbook numbers 0001 through 0200. Addresses use all 19 barangays supplied by the user, in Dupax del Sur, Nueva Vizcaya. Each barangay has 10 or 11 members. Emails use example.com; optional phone and beneficiary fields are blank.
 
 The ledger file has 100 opening credits dated 2026-10-31, for passbooks 0001 through 0100. Each has a PHP 1,000.00 credit and zero debit (PHP 100,000.00 total). On members with no existing transactions, this produces a PHP 1,000.00 balance each. Passbooks 0101 through 0200 have no opening ledger entries.
@@ -14,3 +16,9 @@ Required ledger fields: an existing Passbook No. (preserve leading zeros), a val
 Use a test dataset where these passbook numbers are available. The CSV adds credits to any existing balances; it does not reset balances. Import members first. Passbook numbers contain literal leading zeros; preserve the column as text if editing in Excel before saving as CSV UTF-8.
 
 Validated with the application's member CSV parser and ledger CSV validator: 200 unique members, all 19 barangays, and 100 matching ledger entries without validation errors.
+
+## Beneficiaries for members 0001 through 0050
+
+Upload 04-beneficiaries-members-0001-0050.csv through Mortuary > Claims > Beneficiaries > Bulk Upload after importing the members. The file contains 50 fictional Filipino beneficiaries, one spouse per member, with addresses matching each member's barangay in Dupax del Sur, Nueva Vizcaya. Contact numbers are synthetic test values in the required 11-digit format; they are not verified real contacts.
+
+Columns: Passbook No., beneficiary_name, relationship, contact_number (required); address, notes (optional). Passbooks preserve their leading zeros. Validated all 50 rows with the application's beneficiary CSV parser, with no errors. An import for a member with an existing beneficiary supersedes the active beneficiary and keeps the previous record in History.

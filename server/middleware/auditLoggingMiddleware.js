@@ -1,11 +1,6 @@
 const { createAuditLog } = require('../services/auditLoggingService');
 const { actorName } = require('../shared/utils/actorName');
 
-/**
- * Middleware to extract user info from request
- * @param {Object} req - Express request object
- * @returns {Object} User info
- */
 const extractUserInfo = (req) => {
   const userId = req.user?.id || req.user?.userId || null;
   const userName = actorName(req.user, 'Unknown');
@@ -16,9 +11,6 @@ const extractUserInfo = (req) => {
   return { userId, userName, userRole, ipAddress, userAgent };
 };
 
-/**
- * Middleware to log API audit events
- */
 const auditLoggingMiddleware = async (req, res, next) => {
   // Store original send method
   const originalSend = res.send;
@@ -44,11 +36,6 @@ const auditLoggingMiddleware = async (req, res, next) => {
   next();
 };
 
-/**
- * Helper function to log audit event from controller
- * @param {Object} req - Express request object
- * @param {Object} auditData - Audit log data
- */
 const logAuditEvent = async (req, auditData) => {
   const userInfo = extractUserInfo(req);
   const mergedData = {

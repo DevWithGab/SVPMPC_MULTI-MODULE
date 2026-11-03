@@ -8,6 +8,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  BookOpen,
+  BarChart3,
   Users,
   Menu,
   LogOut,
@@ -23,6 +25,7 @@ import {
   Claims,
   Beneficiaries,
 } from "../../components/mortuary/claims_officer";
+import FinancialRecords from '../../components/mortuary/claims_officer/FinancialRecords';
 import { ToastContainer } from "../../components/ui/toast";
 import { useToast } from "../../hooks/useToast";
 import {
@@ -75,7 +78,7 @@ const ClaimsOfficerPortal = ({ onBack, user, embedded = false }) => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
   );
-  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries']);
+  const [activeSection, setActiveSection] = useUrlState('tab', 'dashboard', ['dashboard', 'members', 'claims', 'beneficiaries', 'ledger', 'reports']);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -167,6 +170,8 @@ const ClaimsOfficerPortal = ({ onBack, user, embedded = false }) => {
     { id: "members", label: "Members", icon: Users },
     { id: "claims", label: "Claims", icon: ClipboardCheck },
     { id: "beneficiaries", label: "Beneficiaries", icon: HeartHandshake },
+    { id: "ledger", label: "Members Ledger", icon: BookOpen },
+    { id: "reports", label: "Reports", icon: BarChart3 },
   ];
 
 
@@ -195,6 +200,9 @@ const ClaimsOfficerPortal = ({ onBack, user, embedded = false }) => {
             onMemberAdded={fetchInitialData}
           />
         );
+      case "ledger":
+      case "reports":
+        return <FinancialRecords view={activeSection} user={user} stats={stats} showToast={addToast} />;
       case "claims":
         return <Claims user={user} />;
       case "beneficiaries":

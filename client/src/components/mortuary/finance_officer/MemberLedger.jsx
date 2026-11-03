@@ -117,6 +117,7 @@ const MemberLedger = ({
   showToast,
   refreshData
 }) => {
+  const canBulkUpload = ['claims_officer', 'admin', 'super_admin'].includes(user?.role);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [ledgerView, setLedgerView] = useState('register');
   const [summaryVersion, setSummaryVersion] = useState(0);
@@ -476,7 +477,7 @@ const MemberLedger = ({
 
   return (
     <div className="member-ledger treasurer-ledger ml-directory">
-      <header className="ml-header ml-list-header"><p className="ml-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Members ledger</strong></p><div className="ml-heading-row"><div><h1>Member ledgers</h1><p className="ml-description">Find a member to review their transaction history.</p></div><ActionButton tooltip="Upload a CSV and preview ledger entries before importing." variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={20} aria-hidden="true" />Bulk upload CSV</ActionButton></div></header>
+      <header className="ml-header ml-list-header"><p className="ml-eyebrow">Mortuary management <span aria-hidden="true">/</span> <strong>Members ledger</strong></p><div className="ml-heading-row"><div><h1>Member ledgers</h1><p className="ml-description">Find a member to review their transaction history.</p></div>{canBulkUpload && <ActionButton tooltip="Upload a CSV and preview ledger entries before importing." variant="default" type="button" className="ml-button ml-primary" onClick={() => setShowBulkModal(true)}><Upload size={20} aria-hidden="true" />Bulk upload CSV</ActionButton>}</div></header>
       <div role="group" aria-label="Member ledger views" className="ml-view-tabs">
         <ActionButton variant={ledgerView === 'register' ? 'default' : 'outline'} aria-pressed={ledgerView === 'register'} onClick={() => setLedgerView('register')}>Member Register</ActionButton>
         <ActionButton variant={ledgerView === 'daily' ? 'default' : 'outline'} aria-pressed={ledgerView === 'daily'} onClick={() => setLedgerView('daily')}>Daily Summary</ActionButton>
@@ -567,10 +568,10 @@ const MemberLedger = ({
         )}
       </section>
 
-      <p className="ml-upload-help">Upload daily transactions by CSV, then select a member to review or edit recorded amounts.</p>
+      <p className="ml-upload-help">{canBulkUpload ? 'Upload daily transactions by CSV, then select a member to review recorded amounts.' : 'Select a member to review or edit recorded amounts.'}</p>
       </>}
       {/* Bulk Upload Modal */}
-      {showBulkModal && <BulkLedgerUpload onClose={() => setShowBulkModal(false)} onImported={async () => { setSummaryVersion(value => value + 1); await refreshData?.(); }} onDownloadTemplate={downloadLedgerTemplate} />}
+      {canBulkUpload && showBulkModal && <BulkLedgerUpload onClose={() => setShowBulkModal(false)} onImported={async () => { setSummaryVersion(value => value + 1); await refreshData?.(); }} onDownloadTemplate={downloadLedgerTemplate} />}
     </div>
   );
 };

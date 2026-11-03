@@ -26,6 +26,15 @@ const ledger = members.slice(0, 100).map(row => [row.at(-1), '2026-10-31', '1000
 const csv = rows => '\uFEFF' + rows.map(row => row.map(value => /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value).join(',')).join('\r\n') + '\r\n';
 const memberCsv = csv([headers, ...members]);
 const ledgerCsv = csv([ledgerHeaders, ...ledger]);
+const fiveMemberLedgerCsv = csv([ledgerHeaders, ...ledger.slice(0, 5)]);
+const parsedFiveMemberLedger = parseLedgerCsv(fiveMemberLedgerCsv);
+assert.equal(parsedFiveMemberLedger.length, 5);
+assert.deepEqual(parsedFiveMemberLedger.map(row => row.entry.memberId), ['0001', '0002', '0003', '0004', '0005']);
+parsedFiveMemberLedger.forEach(row => {
+  assert.equal(row.status, 'ready');
+  assert.deepEqual(row.errors, []);
+  assert.equal(row.entry.credit - row.entry.debit, 1000);
+});
 const parsedMembers = parseMemberUpload(memberCsv).members;
 const parsedLedger = parseLedgerCsv(ledgerCsv);
 assert.equal(parsedMembers.length, 200);
@@ -45,10 +54,13 @@ const output = path.resolve('sample-data/testing-20261031-dupax-del-sur');
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, '01-members-200.csv'), memberCsv);
 fs.writeFileSync(path.join(output, '02-opening-ledger-100.csv'), ledgerCsv);
+fs.writeFileSync(path.join(output, '03-opening-ledger-members-0001-0005.csv'), fiveMemberLedgerCsv);
 fs.writeFileSync(path.join(output, 'README.md'), `# Dupax del Sur sample import data
 
 1. Upload 01-members-200.csv through SuperAdmin > Bulk Upload.
 2. Upload 02-opening-ledger-100.csv through Mortuary > Treasurer > Member Ledger > Bulk Upload.
+
+For a smaller test, use 03-opening-ledger-members-0001-0005.csv instead of the 100-entry ledger file. It contains one PHP 1,000.00 credit for each member from 0001 through 0005 (PHP 5,000.00 total). These are the same entries and references as the first five rows in the full file, so importing both skips those duplicate entries instead of adding another credit.
 
 The member file contains 200 fictional Filipino names with passbook numbers 0001 through 0200. Addresses use all 19 barangays supplied by the user, in Dupax del Sur, Nueva Vizcaya. Each barangay has 10 or 11 members. Emails use example.com; optional phone and beneficiary fields are blank.
 

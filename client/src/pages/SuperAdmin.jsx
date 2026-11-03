@@ -48,7 +48,7 @@ const ADMIN_SECTIONS = [
     { id: 'auditlogs', label: 'Staff Audit Logs', icon: ClipboardList, title: 'Staff audit logs', description: 'Review changes to staff accounts and access.' },
   ] },
   { group: 'Mortuary', items: [
-    { id: 'mortuary-claims', label: 'Claims workspace', icon: HeartCrack, path: '/mortuary/claims_officer', features: [['dashboard', 'Dashboard'], ['members', 'Members'], ['claims', 'Claims'], ['beneficiaries', 'Beneficiaries']] },
+    { id: 'mortuary-claims', label: 'Claims workspace', icon: HeartCrack, path: '/mortuary/claims_officer', features: [['dashboard', 'Dashboard'], ['members', 'Members'], ['claims', 'Claims'], ['beneficiaries', 'Beneficiaries'], ['ledger', 'Members Ledger'], ['reports', 'Reports']] },
     { id: 'mortuary-finance', label: 'Finance workspace', icon: Database, path: '/mortuary/finance_officer', features: [['dashboard', 'Dashboard'], ['members', 'Member Balances'], ['notices', 'Notices'], ['claims', 'Claims'], ['ledger', 'Members Ledger'], ['reports', 'Reports'], ['settings', 'Settings']] },
     { id: 'mortuary-audit', label: 'Audit Logs', icon: ClipboardList },
     { id: 'mortuary-backup', label: 'Backup & Restore', icon: Database },
