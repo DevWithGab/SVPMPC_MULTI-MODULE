@@ -264,8 +264,8 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
 
   const downloadMemberTemplate = () => {
     const csv = [
-      'memberName,email,phoneNumber,barangay,address,beneficiaries,beneficiaryRelationship,beneficiaryContactNumber,dateOfBirth,gender,Passbook No.',
-      'Juan Dela Cruz,juan.delacruz@example.com,09123456789,Sample Barangay,"123 Sample Street, Sample Barangay",Maria Dela Cruz,Spouse,09987654321,1990-01-15,male,000123',
+      'memberName,email,phoneNumber,barangay,address,beneficiaries,beneficiaryRelationship,beneficiaryContactNumber,dateOfBirth,gender,Passbook No.,beginningBalance',
+      'Juan Dela Cruz,juan.delacruz@example.com,09123456789,Sample Barangay,"123 Sample Street, Sample Barangay",Maria Dela Cruz,Spouse,09987654321,1990-01-15,male,000123,1000.00',
     ].join('\r\n') + '\r\n';
     const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
@@ -798,7 +798,8 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
                 <UploadTemplateCard onDownload={downloadMemberTemplate} disabled={loading}>
                   <p>Replace the sample row with your members. Keep the column headers and save as CSV UTF-8.</p>
                   <p><strong>Required:</strong> memberName, barangay, address.</p>
-                  <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, Passbook No. Email and phone number may be blank. Any email supplied must be unique. Enter a unique passbook number, or leave Passbook No. blank to generate one automatically. Older member templates are also accepted.</p>
+                  <p><strong>Optional:</strong> email, phoneNumber, beneficiaries, beneficiaryRelationship, beneficiaryContactNumber, dateOfBirth, gender, Passbook No., beginningBalance. Email and phone number may be blank. Any email supplied must be unique. Enter a unique passbook number, or leave Passbook No. blank to generate one automatically. Older member templates are also accepted.</p>
+                  <p><strong>Beginning balance:</strong> optional opening ledger amount in pesos, with up to two decimal places and no currency symbols or commas. Positive values add credit; negative values record an opening debit. Blank starts at zero. This is an opening balance, not a new payment.</p>
                   <p>YYYY-MM-DD is the recommended date format. Use male, female, or other for gender. Blank gender defaults to male.</p>
                   <p>Format Passbook No. and phone columns as Text in your spreadsheet to keep leading zeros (for example, 000123 and 09123456789). Enclose addresses containing commas in double quotes.</p>
                   <p>Provide the beneficiary name, relationship, and contact number together to auto-register a beneficiary. Members are enrolled in Attendance and Mortuary.</p>
@@ -807,6 +808,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
                   <h4 className="font-semibold text-slate-900">Field requirements</h4>
                   <ul className="mt-2 list-disc space-y-1 pl-5">
                     <li><strong>Required:</strong> memberName, barangay, address. Enter a value for every member.</li>
+                    <li><strong>Beginning balance (optional):</strong> use beginningBalance, for example 1000.00 or -250.50. Blank starts at zero.</li>
                     <li><strong>Passbook No. — optional:</strong> enter a unique number and keep leading zeros, or leave blank to generate one.</li>
                     <li><strong>Contact — optional:</strong> email must be valid and unique if supplied. phoneNumber must contain 11 digits starting with 09.</li>
                     <li><strong>dateOfBirth and gender — optional:</strong> use a valid date (YYYY-MM-DD recommended) and male, female, or other. Blank gender defaults to male.</li>
@@ -819,6 +821,10 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
                 {bulkResult && <div role="status" className="rounded-lg border border-slate-200 p-4 text-sm text-slate-700">
                   <p className="font-semibold">{bulkResult.summary.successful} members created. {bulkResult.summary.failed} members could not be created.</p>
                   <p className="mt-2">{bulkResult.summary.failed ? 'Correct the rows listed below and upload a new CSV containing only those failed members. Members created successfully must not be uploaded again.' : 'All members were created successfully. You can close this window or choose another file.'}</p>
+                </div>}
+                {bulkResult?.results?.success?.some(row => row.ledgerWarning) && <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                  <p className="font-semibold">Beginning balances need review</p>
+                  <ul className="mt-2 list-disc pl-5">{bulkResult.results.success.filter(row => row.ledgerWarning).map(row => <li key={row.memberId}>{row.memberName} (Passbook No. {row.memberId}, beginning balance {Number(row.beginningBalance).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}): {row.ledgerWarning}</li>)}</ul>
                 </div>}
                 {!!bulkResult?.results?.failed?.length && <div className="overflow-x-auto rounded-lg border border-red-200">
                   <table className="w-full text-left text-sm">
@@ -839,7 +845,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
                   <DataTable className="w-full text-left text-sm">
                     <caption className="sr-only">Member entries to import</caption>
                     <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr>
-                      {['Row', 'Member', 'Barangay', 'Address', 'Contact', 'Birth date', 'Gender', 'Beneficiary'].map(label => <th key={label} scope="col" className="px-3 py-3">{label}</th>)}
+                      {['Row', 'Member', 'Barangay', 'Address', 'Contact', 'Birth date', 'Gender', 'Beneficiary', 'Beginning balance'].map(label => <th key={label} scope="col" className="px-3 py-3">{label}</th>)}
                     </tr></thead>
                     <tbody className="divide-y divide-slate-100">{csvPreview.map(row => <tr key={row.csvRow}>
                       <td className="px-3 py-3">{row.csvRow}</td>
@@ -850,6 +856,7 @@ const SuperAdmin = ({ onAuthenticated, onLogout, user, token }) => {
                       <td className="px-3 py-3 whitespace-nowrap">{row.dateOfBirth || 'Not provided'}</td>
                       <td className="px-3 py-3">{row.gender}</td>
                       <td className="px-3 py-3"><p>{row.beneficiaries || 'Not provided'}</p><p className="text-xs text-slate-500">{row.beneficiaryRelationship}</p><p className="text-xs text-slate-500">{row.beneficiaryContactNumber}</p></td>
+                      <td className="px-3 py-3 whitespace-nowrap">{Number(row.beginningBalance || 0).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</td>
                     </tr>)}</tbody>
                   </DataTable>
                 </div>}

@@ -2,6 +2,9 @@ const { processMemberBatches } = require('../utils/memberImportBatches');
 const { parseCsvDate } = require('../utils/csvDate');
 const { Member } = require('../models');
 const Beneficiary = require('../../modules/mortuary/models/Beneficiary');
+const Ledger = require('../../modules/mortuary/models/Ledger');
+const { createLedgerPostingService } = require('../../modules/mortuary/services/ledgerPostingService');
+const { postLedgerEntry } = createLedgerPostingService({ Ledger });
 const { v4: uuidv4 } = require('uuid');
 const { safeErrorMessage } = require('../../middleware/errorHandler');
 
@@ -168,6 +171,16 @@ const bulkCreateMembers = async (req, res) => {
     const rowResults = await processMemberBatches(members, async (memberData, index) => {
       const results = { success: [], failed: [] };
       try {
+        const rawBalance = memberData.beginningBalance;
+        const hasBeginningBalance = rawBalance != null && String(rawBalance).trim() !== '';
+        let beginningBalance = 0;
+        if (hasBeginningBalance) {
+          const amount = String(rawBalance).trim();
+          if (!['string', 'number'].includes(typeof rawBalance) || !/^-?\d+(?:\.\d{1,2})?$/.test(amount) || !Number.isSafeInteger(Math.round(Number(amount) * 100))) {
+            throw new Error('Beginning balance must be a valid amount with at most two decimal places, without currency symbols or commas.');
+          }
+          beginningBalance = Number(amount);
+        }
         if (memberData.dateOfBirth) {
           const parsed = parseCsvDate(memberData.dateOfBirth, req.body.dateOrder);
           if (parsed.error) throw new Error('Date of birth: ' + parsed.error);
@@ -223,6 +236,31 @@ const bulkCreateMembers = async (req, res) => {
 
         await member.save();
 
+        let ledgerWarning;
+        if (hasBeginningBalance) {
+          const entry = {
+            ledgerId: `MEMBER-OPENING-${memberId}`,
+            memberId,
+            transactionType: 'adjustment',
+            description: 'Beginning balance at member registration',
+            credit: Math.max(beginningBalance, 0),
+            debit: Math.max(-beginningBalance, 0),
+            transactionDate: new Date(),
+            recordedBy: req.user?.userId,
+          };
+          // Retry the same identity after a transient failure or lost acknowledgement.
+          // A saved member must stay successful so the CSV cannot register them twice.
+          try {
+            await postLedgerEntry(entry);
+          } catch {
+            try { await postLedgerEntry(entry); }
+            catch (error) {
+              console.error(`Beginning balance needs review for member ${memberId}:`, error.message);
+              ledgerWarning = 'Member created, but the beginning balance could not be confirmed. Review this member\'s ledger before adding the opening balance. Do not register this member again.';
+            }
+          }
+        }
+
         await maybeRegisterBeneficiary({
           memberId,
           memberName: memberData.memberName,
@@ -236,6 +274,8 @@ const bulkCreateMembers = async (req, res) => {
           memberId: member.memberId,
           memberName: member.memberName,
           email: member.email,
+          ...(hasBeginningBalance ? { beginningBalance } : {}),
+          ...(ledgerWarning ? { ledgerWarning } : {}),
         });
       } catch (error) {
         console.error(`❌ Error processing ${memberData.email}:`, error.message);

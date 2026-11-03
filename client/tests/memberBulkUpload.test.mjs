@@ -26,3 +26,13 @@ test('member upload displays server messages and advises reconciliation after un
   assert.equal(memberUploadError({ response: { data: { message: 'Too many bulk upload attempts. Please try again in 15 minutes.' } } }), 'Too many bulk upload attempts. Please try again in 15 minutes.');
   assert.match(memberUploadError(new Error('Network error')), /refresh the member list before retrying/);
 });
+
+test('beginning balances support credits, debits, zero, and older CSV templates', () => {
+  const header = 'memberName,barangay,address,beginningBalance\n';
+  const { members } = parseMemberUpload(header + 'Positive,B,A,1000.25\nNegative,B,A,-250.50\nZero,B,A,0\nBlank,B,A,');
+  assert.deepEqual(members.map(row => row.beginningBalance), [1000.25, -250.5, 0, '']);
+  assert.equal(parseMemberUpload('memberName,barangay,address\nOld,B,A').members[0].beginningBalance, undefined);
+  for (const amount of ['abc', 'NaN', 'Infinity', '1e3', '12.345', '₱100', '9007199254740992']) {
+    assert.throws(() => parseMemberUpload(header + `Invalid,B,A,${amount}`), /Row 2, beginningBalance/);
+  }
+});

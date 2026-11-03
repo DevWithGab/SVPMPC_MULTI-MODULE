@@ -40,6 +40,13 @@ export function parseMemberUpload(text, dateOrder = 'auto') {
   const members = rows.map((values, index) => {
     if (values.length !== headers.length) throw new Error(`Row ${rowNumbers[index + 1]} has ${values.length} values; expected ${headers.length}. Put addresses containing commas inside double quotes.`);
     const entry = Object.fromEntries(headers.map((header, i) => [isPassbookHeader(header) ? 'passbookNo' : header, values[i]]));
+    if (entry.beginningBalance?.trim()) {
+      const amount = entry.beginningBalance.trim();
+      if (!/^-?\d+(?:\.\d{1,2})?$/.test(amount) || !Number.isSafeInteger(Math.round(Number(amount) * 100))) {
+        throw new Error(`Row ${rowNumbers[index + 1]}, beginningBalance: enter a valid amount with at most two decimal places, without currency symbols or commas.`);
+      }
+      entry.beginningBalance = Number(amount);
+    }
     if (entry.dateOfBirth) {
       const date = parseCsvDate(entry.dateOfBirth, dateOrder);
       if (date.error) throw new Error('Row ' + rowNumbers[index + 1] + ', dateOfBirth: ' + date.error);

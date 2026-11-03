@@ -26,9 +26,11 @@ test('Super Admin keeps failed rows visible and shows request errors inside the 
     original = { getAllMembers: api.getAllMembers, bulkCreateMembers: api.bulkCreateMembers };
     api.getAllMembers = async () => ({ members: [], pagination: { total: 0 } });
     let calls = 0;
-    api.bulkCreateMembers = async () => {
+    api.bulkCreateMembers = async members => {
       calls++;
-      return { summary: { successful: 1, failed: 1 }, results: { success: [{}], failed: [{ row: 3, memberName: 'Jose Reyes', reason: 'Passbook No. 000124 already exists' }] } };
+      assert.equal(members[0].beginningBalance, 1250.75);
+      assert.equal(members[1].beginningBalance, -250.5);
+      return { summary: { successful: 1, failed: 1 }, results: { success: [{ memberId: '000123', memberName: 'Maria Santos', beginningBalance: 1250.75, ledgerWarning: 'Member created, but the beginning balance could not be confirmed. Review the ledger.' }], failed: [{ row: 3, memberName: 'Jose Reyes', reason: 'Passbook No. 000124 already exists' }] } };
     };
     window.sessionStorage.setItem('token', 'test');
     window.sessionStorage.setItem('user', JSON.stringify({ role: 'super_admin' }));
@@ -41,7 +43,7 @@ test('Super Admin keeps failed rows visible and shows request errors inside the 
       Object.defineProperty(input, 'files', { configurable: true, value: [{ name: 'members.csv', text: async () => text }] });
       await act(async () => input.dispatchEvent(new window.Event('change', { bubbles: true })));
     };
-    const csv = 'memberName,barangay,address\nMaria Santos,Centro,Street\nJose Reyes,Centro,Street';
+    const csv = 'memberName,barangay,address,beginningBalance\nMaria Santos,Centro,Street,1250.75\nJose Reyes,Centro,Street,-250.50';
     const sampleCsv = 'memberName,barangay,address,Passbook No.\n' + Array.from({ length: 200 }, (_, i) => `Maria Santos ${i + 1},Abaca,Street,${String(i + 1).padStart(4, '0')}`).join('\n');
     await choose(sampleCsv);
     assert.equal(calls, 0);
@@ -57,6 +59,8 @@ test('Super Admin keeps failed rows visible and shows request errors inside the 
     await act(async () => button('Preview Entries').click());
     await act(async () => button('Import 2 Members').click());
     assert.match(container.textContent, /1 members created. 1 members could not be created/);
+    assert.match(container.querySelector('[role="alert"]').textContent, /Beginning balances need review/);
+    assert.match(container.querySelector('[role="alert"]').textContent, /000123/);
     assert.match(container.textContent, /Passbook No. 000124 already exists/);
     assert.match(container.textContent, /only those failed members/);
     assert.equal(button('Preview Again').disabled, true);
