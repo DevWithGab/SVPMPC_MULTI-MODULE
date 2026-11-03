@@ -66,7 +66,8 @@ test('claim creation ignores forged createdBy in claim, history and audit', asyn
 });
 
 for (const [action, supplied, field, payload] of [
-  ['approveClaim', 'approvedBy', 'approval', {}],
+  // Approval requires the death reference number.
+  ['approveClaim', 'approvedBy', 'approval', { referenceNumber: 'REF-2026-001' }],
   ['rejectClaim', 'rejectedBy', 'rejection', { reason: 'Missing documents' }],
 ]) {
   test(`${action} ignores forged operator in claim, history and audit`, async () => {

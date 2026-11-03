@@ -94,6 +94,14 @@ export const getClaimAction = (status) =>
 export const getClaimStatusMeta = (status) =>
   CLAIM_STATUS_META[status] || CLAIM_STATUS_META.pending_requirements;
 
+/* Members a new claim can be filed for: anyone without a claim in progress or
+already processed. Only a rejected claim frees the member to be filed again,
+matching the server's one_non_rejected_claim_per_member rule. */
+export const membersEligibleForClaim = (members, claims) => {
+  const claimed = new Set((claims || []).filter((c) => c?.status !== 'rejected').map((c) => String(c.memberId)));
+  return (members || []).filter((m) => !claimed.has(String(m.id)));
+};
+
 /* Pinapasok ang requirements sa each claim dahil magkaiba ang physical
 requirements ng bawat individual. Sinadyang incomplete ang empty checklist
 at kinakailangan din ng server ng at least one item bago mag-approve. */

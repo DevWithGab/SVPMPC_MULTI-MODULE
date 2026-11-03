@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useClaimQueue } from '../src/components/mortuary/treasurer/claimWorkflowUtils.js';
+import { useClaimQueue } from '../src/components/mortuary/finance_officer/claimWorkflowUtils.js';
 import { CLAIMS_UPDATED_KEY, notifyClaimsUpdated } from '../src/utils/claimUpdates.js';
 
 test('pending deductions refresh after approvals and across tabs while preserving rows during background requests', async () => {

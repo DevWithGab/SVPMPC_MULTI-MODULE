@@ -101,7 +101,8 @@ app.use((req, res) => {
 });
 
 // Database connection and server start
-const PORT = process.env.PORT || 5000;
+// Matches PORT in .env.example and the client's default VITE_API_BASE_URL.
+const PORT = process.env.PORT || 5001;
 
 let httpServer;
 let claimRegistrationRecovery;

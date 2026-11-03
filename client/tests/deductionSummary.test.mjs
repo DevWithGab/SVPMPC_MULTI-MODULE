@@ -37,7 +37,7 @@ test('Deduction Summary shows month-end records with each deceased member', asyn
     });
     let location;
     const Spy = () => { location = useLocation(); return null; };
-    const { default: DeductionSummary } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/DeductionSummary.jsx');
+    const { default: DeductionSummary } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/DeductionSummary.jsx');
     await act(async () => root.render(React.createElement(MemoryRouter, { initialEntries: ['/treasurer?tab=claims&claimsView=deduction-summary'] },
       React.createElement(DeductionSummary), React.createElement(Spy))));
     await act(async () => new Promise(resolve => setTimeout(resolve, 350)));

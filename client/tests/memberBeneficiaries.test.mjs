@@ -13,7 +13,7 @@ test('member beneficiary action opens only the selected member and returns to th
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   let api, original;
   try {
-    const { default: MemberManagement } = await vite.ssrLoadModule('/src/components/mortuary/admin/MemberManagement.jsx');
+    const { default: MemberManagement } = await vite.ssrLoadModule('/src/components/mortuary/claims_officer/MemberManagement.jsx');
     ({ beneficiaryAPI: api } = await vite.ssrLoadModule('/src/services/api.js'));
     original = api.getHistory;
     const requests = [], destinations = [];
@@ -39,7 +39,8 @@ test('member beneficiary action opens only the selected member and returns to th
     assert.deepEqual(destinations, []);
     assert.match(container.textContent, /Selected Beneficiary/);
     assert.match(container.textContent, /Passbook No\. 00101/);
-    assert.match(container.textContent, /Mortuary management \/ Members/);
+    // The breadcrumb renders each part in its own span, so textContent has no spaces around "/".
+    assert.match(container.textContent, /Mortuary management\s*\/\s*Members/);
     const back = () => [...container.querySelectorAll('button')].find(button => button.textContent.includes('Back to members'));
     await act(async () => back().click());
     assert.equal(container.querySelector('[aria-current="page"]').getAttribute('aria-label'), 'Page 2');

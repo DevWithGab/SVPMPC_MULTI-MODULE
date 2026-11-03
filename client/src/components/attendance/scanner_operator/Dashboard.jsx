@@ -6,7 +6,7 @@ import { Activity, ArrowRight, CalendarDays, CheckCircle2, ChevronDown, Clock3, 
 import AttendanceMetricGrid from '../shared/AttendanceMetricGrid';
 import useScannerDashboardEvents from '../../../hooks/useScannerDashboardEvents';
 import { formatDate, formatDateTime, formatLongDate, formatTimeRange, formatTimeString, getManilaHour } from '../../../utils/date';
-import '../secretary/Dashboard.css';
+import '../shared/WorkspacePage.css';
 import './Dashboard.css';
 
 const getTimestamp = record => record.timestamp || record.date || record.scanTime || record.createdAt || '';

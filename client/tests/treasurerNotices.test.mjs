@@ -29,7 +29,7 @@ test('notices has its own treasurer tab with barangay counts and background PDF 
       alerts.push(options);
       return { isConfirmed: confirmAction, value: confirmAction ? options.preConfirm?.() : undefined };
     } });
-    const { default: Portal } = await vite.ssrLoadModule('/src/pages/mortuary/TreasurerPortal.jsx');
+    const { default: Portal } = await vite.ssrLoadModule('/src/pages/mortuary/FinanceOfficerPortal.jsx');
     const service = await vite.ssrLoadModule('/src/services/api.js');
     api = service.default;
     treasurer = service.treasurerAPI;

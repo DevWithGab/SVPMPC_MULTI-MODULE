@@ -27,7 +27,7 @@ test('ledger date order invalidates preview and is sent for both preview and imp
       calls.push({action, order});
       return { summary: {ready: 1, invalid: 0, total: 1}, rows: [], results: {success: [{}], failed: failed ? [{}] : []} };
     };
-    const { default: Upload } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/BulkLedgerUpload.jsx');
+    const { default: Upload } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/BulkLedgerUpload.jsx');
     await act(async () => root.render(React.createElement(Upload, {onClose() {}, onDownloadTemplate() {}})));
     const button = text => [...container.querySelectorAll('button')].find(node => node.textContent.trim() === text);
     const input = container.querySelector('input[type="file"]');

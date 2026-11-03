@@ -61,17 +61,18 @@ test('Mortuary route permissions separate claims, finance, and Super Admin opera
   }
 });
 
-test('Mortuary audit logs are Super Admin only, including legacy admins assigned both systems', () => {
+// Audit history for every module became Super Admin only in ce57a32; the audit screens live only in the Super Admin page.
+test('audit logs for every module are Super Admin only, including legacy admins assigned both systems', () => {
   const router = load('../shared/routes/auditLogRoutes', { '../../middleware': { ...auth, authenticateToken: (req, res, next) => next() } });
-  for (const role of roles) for (const query of [{ module: 'mortuary' }, {}]) {
+  for (const role of roles) for (const query of [{ module: 'mortuary' }, { module: 'attendance' }, {}]) {
     const req = { user: { role, modules: ['attendance', 'mortuary'] }, query };
     let passed = true;
     for (const layer of router.stack.filter(layer => !layer.route)) {
       let next = false; layer.handle(req, response(), () => { next = true; });
       if (!next) { passed = false; break; }
     }
-    assert.equal(passed, role === 'super_admin' || !query.module && ['admin', 'secretary'].includes(role));
-    if (passed && role !== 'super_admin') assert.deepEqual(Array.from(req.auditModule), ['attendance']);
+    assert.equal(passed, role === 'super_admin', `${role}/${query.module || 'all'}`);
+    if (passed) assert.equal(req.auditModule, query.module);
   }
 });
 

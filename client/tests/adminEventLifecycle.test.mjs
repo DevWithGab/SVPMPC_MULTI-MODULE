@@ -11,7 +11,7 @@ test('secretary scheduled-events table closes on time despite a stale server sta
   const root = createRoot(container);
   const original = { now: Date.now, interval: globalThis.setInterval, clear: globalThis.clearInterval, act: globalThis.IS_REACT_ACT_ENVIRONMENT };
   try {
-    const { default: EventManagement } = await vite.ssrLoadModule('/src/components/attendance/admin/EventManagement.jsx');
+    const { default: EventManagement } = await vite.ssrLoadModule('/src/components/attendance/secretary/EventManagement.jsx');
     const event = { eventId: 'TIMED', eventName: 'Timed assembly', eventDate: '2026-10-21', startTime: '09:00', endTime: '10:00', status: 'active', location: 'Hall' };
     let now = Date.parse('2026-10-21T09:59:59+08:00');
     Date.now = () => now;

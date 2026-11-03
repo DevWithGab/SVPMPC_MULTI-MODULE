@@ -3,7 +3,8 @@ import { notifyAttendanceUpdated } from '../utils/attendanceUpdates';
 import { notifyClaimsUpdated } from '../utils/claimUpdates';
 import { clearAuthSession } from '../utils/authSession';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+// Defaults to the PORT in server/.env.example; set VITE_API_BASE_URL for any other API address.
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -27,9 +28,8 @@ api.interceptors.request.use((config) => {
 });
 
 /* Hinahandle dito yung 401 errors by clearing yung invalid session at
-pinapabalik yung user sa login - tugma sa interceptor ng
-services/attendance/secretary.js (yun lang yung ibang service module na
-ginagamit pa; tignan yung sariling axios instance nito). Kung walang
+pinapabalik yung user sa login. Ito lang ang axios instance ng client, kaya
+dito dumadaan ang bawat API call. Kung walang
 redirect, yung missing/expired token iniiwan yung portal na half-working
 lang: nagrender pa rin yung read-only screens (ilan pa rin dumadaan sa
 legacy unauthenticated endpoints) pero yung bawat authenticated action,
@@ -177,7 +177,8 @@ export const memberAPI = {
     return response.data;
   },
 
-  /* Admin-only, authenticated (/attendance/admin/members/...) - ito yung
+  /* Secretary and Super Admin only (/attendance/admin/members/... - legacy
+  ang "admin" sa URL; retired na ang Attendance admin role) - ito yung
   single-member QR lifecycle actions. Iniwan na separate functions imbes
   na baguhin yung calls sa taas, kasi yung getAllMembers/generateQRCodes
   sa taas ay shared ng Secretary at Scanner screens na walang admin auth. */

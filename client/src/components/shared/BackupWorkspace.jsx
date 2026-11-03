@@ -4,7 +4,7 @@ import { Table as DataTable } from '../ui/table';
 import React, { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { BACKUP_COLLECTIONS, restoreSummaryLines } from "../../utils/moduleBackup";
-import "../attendance/secretary/Dashboard.css";
+import "../attendance/shared/WorkspacePage.css";
 import "./BackupWorkspace.css";
 
 export default function BackupWorkspace({

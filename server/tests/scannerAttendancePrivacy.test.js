@@ -142,8 +142,10 @@ test('scanner cannot retrieve contact-bearing snapshots through any audit endpoi
       assert.equal(result.status, 403);
     }
     assert.equal(calls, 0);
+    // Only Super Admin reads audit history (see auditLogRoutes.js).
     for (const role of ['admin', 'secretary', 'treasurer', 'super_admin']) {
-      assert.equal((await fetch(base + '/logs', { headers: { 'x-test-role': role } })).status, 200);
+      assert.equal((await fetch(base + '/logs', { headers: { 'x-test-role': role } })).status, role === 'super_admin' ? 200 : 403, role);
     }
+    assert.equal(calls, 1);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

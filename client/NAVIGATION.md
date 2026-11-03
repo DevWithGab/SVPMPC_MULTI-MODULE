@@ -1,8 +1,9 @@
 # Portal navigation and recovery
 
-Portal URLs are `/mortuary/admin`, `/mortuary/treasurer`, `/attendance/admin`,
-`/attendance/secretary`, and `/attendance/scanner_operator`. The existing
-`/super-admin` entry remains available.
+Portal URLs are `/mortuary/claims_officer`, `/mortuary/finance_officer`,
+`/attendance/secretary`, and `/attendance/scanner_operator`, plus `/super-admin`.
+The retired `/mortuary/admin`, `/mortuary/treasurer` and `/attendance/admin`
+URLs redirect to their replacements, so old bookmarks keep working.
 
 The `tab` query parameter selects a screen. Mortuary claim details use `claim`;
 treasurer member ledgers use `member`; treasurer claim tabs use `claimsView`.

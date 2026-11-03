@@ -4,8 +4,12 @@ const {
 
   authorizeRoles,
 } = require('../../../middleware');
+const { secretaryRoles } = require('../../../shared/utils/staffRoles');
 
-const authorizeAttendanceManager = authorizeRoles('secretary', 'super_admin');
+/* Mounted at /api/attendance/admin. The Attendance admin role is retired; the
+"admin" path is kept so existing clients keep working, but only Secretary and
+Super Admin may use it (backup routes below are Super Admin only). */
+const authorizeAttendanceManager = authorizeRoles(...secretaryRoles);
 
 // Import existing controllers
 const memberController = require('../controllers/memberController');
@@ -29,9 +33,9 @@ router.post('/members/qr-cards', memberController.getQRCodeCards);
 router.post('/members/generate-qr', memberController.generateQRCodes);
 router.post('/members/generate-all-qr', memberController.generateAllQRCodes);
 router.get('/members/:memberId/qr-status', memberController.getQRStatus);
-router.post('/members/:memberId/regenerate-qr', authorizeAttendanceManager, memberController.regenerateQRCode);
-router.post('/members/:memberId/deactivate-qr', authorizeAttendanceManager, memberController.deactivateQRCode);
-router.post('/members/:memberId/reactivate-qr', authorizeAttendanceManager, memberController.reactivateQRCode);
+router.post('/members/:memberId/regenerate-qr', memberController.regenerateQRCode);
+router.post('/members/:memberId/deactivate-qr', memberController.deactivateQRCode);
+router.post('/members/:memberId/reactivate-qr', memberController.reactivateQRCode);
 
 // Secretary event management
 router.get('/events', eventController.getAllEvents);

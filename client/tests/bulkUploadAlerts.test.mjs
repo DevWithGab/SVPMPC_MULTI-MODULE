@@ -19,8 +19,8 @@ test('payments and beneficiaries show modal-contained alerts for success, partia
   try {
     const api=await vite.ssrLoadModule('/src/services/api.js');
     for(const [path,service,method,previewLabel,importLabel] of [
-      ['/src/components/mortuary/treasurer/BulkPaymentUpload.jsx',api.treasurerAPI,'bulkUploadPayments','Preview Payments','Import 2 Payments'],
-      ['/src/components/mortuary/admin/modals/BulkBeneficiaryUpload.jsx',api.beneficiaryAPI,'bulkUploadBeneficiaries','Preview Beneficiaries','Register 2 Beneficiaries'],
+      ['/src/components/mortuary/finance_officer/BulkPaymentUpload.jsx',api.treasurerAPI,'bulkUploadPayments','Preview Payments','Import 2 Payments'],
+      ['/src/components/mortuary/claims_officer/modals/BulkBeneficiaryUpload.jsx',api.beneficiaryAPI,'bulkUploadBeneficiaries','Preview Beneficiaries','Register 2 Beneficiaries'],
     ]) {
       const saved=service[method];restores.push(()=>{service[method]=saved;});
       let mode='partial';

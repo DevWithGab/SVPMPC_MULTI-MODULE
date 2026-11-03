@@ -5,9 +5,8 @@ import BrandingPanel from '../components/shared/BrandingPanel';
 import ModuleSelection from '../components/shared/ModuleSelection';
 import LoginForm from '../components/shared/LoginForm';
 import TerminalFooter from '../components/shared/TerminalFooter';
+import { API_BASE_URL } from '../services/api';
 import './SystemSelector.css';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
 export default function SystemSelector({ onModuleSelect, notice }) {
   const { selectedSystem, step, selectSystem, back } = useLoginNavigation();

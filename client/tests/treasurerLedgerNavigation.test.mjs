@@ -23,7 +23,7 @@ test('Contributions bookmarks open Member Ledger and the Contributions sidebar t
       if (url.includes('/claims')) return { data: { success: true, data: [], pagination: { total: 0, totalPages: 1 } } };
       return { data: { success: true, data: {} } };
     };
-    const { default: TreasurerPortal } = await vite.ssrLoadModule('/src/pages/mortuary/TreasurerPortal.jsx');
+    const { default: TreasurerPortal } = await vite.ssrLoadModule('/src/pages/mortuary/FinanceOfficerPortal.jsx');
     await act(async () => root.render(React.createElement(MemoryRouter, {
       initialEntries: ['/mortuary/treasurer?tab=contributions'],
     }, React.createElement(TreasurerPortal, { user: { name: 'Test Treasurer', role: 'treasurer' }, onBack() {} }))));

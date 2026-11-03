@@ -9,7 +9,7 @@ import { Pagination, PaginationInfo } from '../../ui/pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { attendanceAPI } from '../../../services/api';
 import { formatDate, formatTime } from '../../../utils/date';
-import '../secretary/Dashboard.css';
+import '../shared/WorkspacePage.css';
 import './MyScans.css';
 
 const PAGE_SIZE = 100;

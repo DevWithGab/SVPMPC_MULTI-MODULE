@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { createDeductionSummaryPdf } from '../src/components/mortuary/treasurer/deductionSummary.js';
+import { createDeductionSummaryPdf } from '../src/components/mortuary/finance_officer/deductionSummary.js';
 
 const logo = new Uint8Array(readFileSync(new URL('../public/SVPMPC-LOGO-PRINT.png', import.meta.url)));
 for (const count of [2, 60]) {

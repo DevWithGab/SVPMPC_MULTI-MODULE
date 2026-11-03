@@ -19,7 +19,7 @@ test('amount editing needs no reason, previews balances and retries unchanged', 
     ({ default: api } = await vite.ssrLoadModule('/src/services/api.js')); originalPost = api.post;
     const requests = []; let saved = 0;
     api.post = async (url, body) => { requests.push({ url, body }); if (requests.length === 1) throw { response: { data: { message: 'Balance saved; retry to finish audit.' } } }; return { data: { success: true } }; };
-    const { default: Dialog } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/LedgerCorrectionDialog.jsx');
+    const { default: Dialog } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/LedgerCorrectionDialog.jsx');
     const member = { id: 'M 1', name: 'Test Member', balance: 1500 };
     const entry = { id: 'ORIGINAL', sourceLedgerId: 'ORIGINAL', received: 1000, ref_no: 'OR-1' };
     const button = text => [...container.querySelectorAll('button')].find(node => node.textContent === text);

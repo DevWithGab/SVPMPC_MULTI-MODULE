@@ -15,7 +15,7 @@ for (const [component, apiName, method, inputId] of [
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   let api, original;
   try {
-    const { default: Modal } = await vite.ssrLoadModule(`/src/components/mortuary/treasurer/modals/${component}.jsx`);
+    const { default: Modal } = await vite.ssrLoadModule(`/src/components/mortuary/finance_officer/modals/${component}.jsx`);
     api = (await vite.ssrLoadModule('/src/services/api.js'))[apiName];
     original = api[method];
     const calls = [];

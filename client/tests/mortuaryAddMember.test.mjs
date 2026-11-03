@@ -23,7 +23,7 @@ test('Mortuary Members uses the Super Admin create-member form against the Mortu
     };
     let added = 0;
     const members = [{ id: '000001', name: 'Existing Member', barangay: 'Poblacion', status: 'active', currentBalance: 0 }];
-    const { default: MemberManagement } = await vite.ssrLoadModule('/src/components/mortuary/admin/MemberManagement.jsx');
+    const { default: MemberManagement } = await vite.ssrLoadModule('/src/components/mortuary/claims_officer/MemberManagement.jsx');
     await act(async () => root.render(React.createElement(MemberManagement, {
       filteredMembers: members, members, statusFilter: 'all', setStatusFilter() {}, searchQuery: '', setSearchQuery() {},
       onMemberAdded: () => { added += 1; },

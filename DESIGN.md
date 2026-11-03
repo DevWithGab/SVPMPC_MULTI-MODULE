@@ -76,7 +76,7 @@ These values describe the visual direction; do not globally overwrite existing s
 
 ## Shared portal navigation
 
-Attendance uses the implemented mortuary treasurer portal as its visual basis. Refer to `client/src/pages/mortuary/TreasurerPortal.css` for navigation and `client/src/components/mortuary/treasurer/Dashboard.css` for white workspaces, quiet metric dividers, typography, and forest-green actions. Apply this language consistently to the attendance Admin, Secretary, and Scanner Operator portals while preserving each role's destinations and controls. Attendance-specific screen styles live in `client/src/components/attendance/shared/AttendanceWorkspace.css`; keep them scoped there so mortuary and printable records retain their own presentation.
+Attendance uses the implemented Mortuary Finance Officer portal as its visual basis. Refer to `client/src/components/shared/layout/PortalShell.css` for navigation and `client/src/components/mortuary/finance_officer/Dashboard.css` for white workspaces, quiet metric dividers, typography, and forest-green actions. Apply this language consistently to the Attendance Secretary and Scanner Operator portals while preserving each role's destinations and controls. Attendance-specific screen styles live in `client/src/components/attendance/shared/AttendanceWorkspace.css`; keep them scoped there so mortuary and printable records retain their own presentation.
 
 For the treasurer portal, keep a pale sage sidebar with the cooperative logo/name, consistent row spacing and icons, and one solid forest-green selected item with white text/icon.
 

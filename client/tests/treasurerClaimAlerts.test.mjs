@@ -50,7 +50,7 @@ test('batch claim deductions show success and error alerts inside the claim dial
     const button = label => [...container.querySelectorAll('button')].find(el => el.textContent.trim() === label);
     const click = label => act(async () => button(label).click());
     const submit = selector => act(async () => container.querySelector(selector).dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
-    const { default: Pending } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/ClaimsPendingDeduction.jsx');
+    const { default: Pending } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/ClaimsPendingDeduction.jsx');
     await act(async () => root.render(React.createElement(Pending, { user: { name: 'Treasurer' } })));
     assert.equal(button('Review deduction'), undefined, 'review action stays hidden until claims are selected');
     assert.equal(container.querySelector('.mc-selection'), null);

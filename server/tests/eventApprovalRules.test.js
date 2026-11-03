@@ -93,7 +93,8 @@ const phtDateString = (date) => date.toISOString().slice(0, 10);
 const phtTimeString = (date) => date.toISOString().slice(11, 16);
 
 test('reopenEvent only accepts a closed event, and requires a reason plus a new date/start/end time', async () => {
-  const notClosed = database([event({ status: 'upcoming' })]);
+  // A week ahead, so refreshEventStatus can't close it when the suite runs after today's end time.
+  const notClosed = database([event({ status: 'upcoming', eventDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) })]);
   const res = response();
   await controller(notClosed).reopenEvent({ params: { eventId: 'EVT-1' }, body: { reason: 'x', eventDate: '2030-01-01', startTime: '09:00', endTime: '17:00' }, user: {}, ip: '', get: () => '' }, res);
   assert.equal(res.code, 400);
@@ -169,6 +170,17 @@ test('secretary creates an event without approval and forged statuses are ignore
   assert.equal(res.code, 201);
   assert.equal(res.data.event.status, 'upcoming');
   assert.equal(db.state.auditLogs[0].userId, 'SEC-1');
+});
+
+test('event audit entries record the signed-in staff name, role, IP and user agent', async () => {
+  const db = database();
+  const req = { ...request({ eventName: 'Assembly', eventDate: '2035-01-01', startTime: '09:00', endTime: '17:00', location: 'Hall', createdBy: 'forged.name' }),
+    user: { userId: 'SEC-1', username: 'secretary', fullName: '  Ana Cruz ', role: 'secretary' }, ip: '10.0.0.5', get: name => name === 'user-agent' ? 'TestAgent/1' : '' };
+  await controller(db).createEvent(req, response());
+  assert.equal(db.state.auditLogs[0].action, 'event_created');
+  assert.deepEqual(
+    Object.fromEntries(['userId', 'userName', 'userRole', 'ipAddress', 'userAgent'].map(key => [key, db.state.auditLogs[0][key]])),
+    { userId: 'SEC-1', userName: 'Ana Cruz', userRole: 'secretary', ipAddress: '10.0.0.5', userAgent: 'TestAgent/1' });
 });
 
 test('events open at the start boundary and close at the end boundary in Philippine time', async () => {

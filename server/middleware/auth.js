@@ -1,4 +1,4 @@
-const { moduleRoles, claimsRoles, financeRoles } = require('../shared/utils/staffRoles');
+const { moduleRoles, claimsRoles, financeRoles, secretaryRoles, attendanceRoles } = require('../shared/utils/staffRoles');
 const jwt = require('jsonwebtoken');
 const User = require('../shared/models/User');
 const { isRetiredAttendanceAdmin } = require('../shared/utils/retiredAccounts');
@@ -98,10 +98,10 @@ const authorizeModule = (module) => {
 const authorizeMortuaryRoles = authorizeRoles(...new Set([...claimsRoles, ...financeRoles]));
 /* Wala na self-service access ang Members sa attendance system - yung
 QR codes nila ay physically issued and used na lang. */
-const authorizeAttendanceRoles = authorizeRoles('secretary', 'scanner_operator', 'super_admin');
+const authorizeAttendanceRoles = authorizeRoles(...attendanceRoles);
 const authorizeTreasurerOnly = authorizeRoles(...financeRoles);
 const authorizeClaimsOnly = authorizeRoles(...claimsRoles);
-const authorizeSecretaryOnly = authorizeRoles('secretary', 'super_admin');
+const authorizeSecretaryOnly = authorizeRoles(...secretaryRoles);
 /* Parang admin-or-above ang treatment ng super_admin saanman ginagamit ang
 authorizeAdminOnly - yung login gate (authController's expectedRole check)
 pumapayag na naman na mag-sign in ang super_admin account sa "admin" login

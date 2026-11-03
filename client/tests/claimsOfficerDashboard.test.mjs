@@ -17,7 +17,7 @@ test('claims dashboard renders fund cards and member graph while retaining claim
     ({ mortuaryDashboardAPI: api } = await vite.ssrLoadModule('/src/services/api.js'));
     original = api.getAdminDashboard;
     api.getAdminDashboard = async () => ({ data: { claims: { pending_requirements: 2, pending_deduction: 1 }, recentClaimActivities: [{ claimId: 'CLM-001', memberName: 'Sample Member', status: 'pending_deduction', changedBy: 'Claims Officer', changedAt: '2026-10-27T14:06:00Z' }], claimsNeedingAttention: [], monthlyDeductions: [{ month: deductionTrend([]).at(-1).fullKey, totalCollected: 2500, claimCount: 2 }] } });
-    const { default: Dashboard } = await vite.ssrLoadModule('/src/components/mortuary/admin/Dashboard.jsx');
+    const { default: Dashboard } = await vite.ssrLoadModule('/src/components/mortuary/claims_officer/Dashboard.jsx');
     const destinations = [];
     const props = { stats: { fundBalance: -100, totalCollected: 500, activeMembers: 1 }, contributions: [],
       members: [{ id: 1, name: 'Sample', status: 'active', currentBalance: -100 }, { id: 2, status: 'deceased' }],

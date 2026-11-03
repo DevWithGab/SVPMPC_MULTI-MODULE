@@ -8,7 +8,9 @@ const { authorizeTreasurerOnly } = require('../../../middleware/auth');
 const treasurerRoutes = require('./treasurerRoutes');
 const adminRoutes = require('./adminRoutes');
 
-// Route organization by role
+/* Route organization by role. The path names predate the officer roles:
+/treasurer serves the Finance Officer and /admin the Claims Officer (each file
+sets its own guards). They are kept so existing clients keep working. */
 router.use('/treasurer', treasurerRoutes);
 router.use('/admin', adminRoutes);
 

@@ -12,7 +12,7 @@ test('QR Management preserves the directory and supports creation, deactivation,
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   let api, originals;
   try {
-    const { default: QRManagement } = await vite.ssrLoadModule('/src/components/attendance/admin/MemberManagement.jsx');
+    const { default: QRManagement } = await vite.ssrLoadModule('/src/components/attendance/secretary/QRManagement.jsx');
     api = await vite.ssrLoadModule('/src/services/api.js');
     const names = ['getAllMembers', 'generateMemberQR', 'getMemberQRStatus', 'deactivateMemberQR', 'reactivateMemberQR', 'regenerateMemberQR', 'getQRCodeCards'];
     originals = Object.fromEntries(names.map(name => [name, api.memberAPI[name]]));

@@ -27,7 +27,7 @@ export const useAttendance = () => {
       try {
         /* Yung getAllAttendance() lang, naka-cap sa default page size ng server
         (10) - si loadDashboardRecords ang nag-page through sa lahat ng record,
-        same fix na ginawa sa AdminPortal.jsx at sa Dashboard/Reports screens
+        same fix na ginawa sa SecretaryPortal.jsx at sa Dashboard/Reports screens
         ng Secretary. Kung wala nito, lahat ng gumagamit ng hook na ito
         (Secretary at Scanner Operator portals) ay mali yung count ng
         attendance pag lumagpas na ng 10 total scans ang event system-wide. */

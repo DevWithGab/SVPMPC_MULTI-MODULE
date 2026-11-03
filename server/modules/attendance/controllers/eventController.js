@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Event = require('../models/Event');
 const { v4: uuidv4 } = require('uuid');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
+const { auditRequestFields } = require('../../../shared/utils/auditRequestFields');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 
 const getPhtParts = (date = new Date()) => {
@@ -112,9 +113,8 @@ const handleCreateEvent = async (req, res) => {
 
     // log the audit event
     await createAuditLog({
+      ...auditRequestFields(req, { role: 'secretary', name: createdBy }),
       userId: req.user?.userId || req.user?.id || createdBy,
-      userName: req.user?.fullName || req.user?.name || req.user?.username || createdBy,
-      userRole: req.user?.role || 'secretary',
       action: 'event_created',
       module: 'attendance',
       entityType: 'event',
@@ -126,8 +126,6 @@ const handleCreateEvent = async (req, res) => {
         after: saved.toObject(),
       },
       status: 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
     });
 
     res.status(201).json({
@@ -137,9 +135,7 @@ const handleCreateEvent = async (req, res) => {
   } catch (error) {
     // log the failed attempt
     await createAuditLog({
-      userId: req.user?.userId || req.user?.id,
-      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-      userRole: req.user?.role || 'admin',
+      ...auditRequestFields(req, { role: 'admin' }),
       action: 'event_created',
       module: 'attendance',
       entityType: 'event',
@@ -147,8 +143,6 @@ const handleCreateEvent = async (req, res) => {
       description: `Failed to create event "${req.body.eventName}"`,
       status: 'failed',
       errorMessage: error.message,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
     });
 
     res.status(500).json({ message: 'Error creating event', error: safeErrorMessage(error) });
@@ -250,9 +244,7 @@ const updateEvent = async (req, res) => {
 
     // log the audit event
     await createAuditLog({
-      userId: req.user?.userId || req.user?.id,
-      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-      userRole: req.user?.role || 'admin',
+      ...auditRequestFields(req, { role: 'admin' }),
       action: 'event_updated',
       module: 'attendance',
       entityType: 'event',
@@ -264,8 +256,6 @@ const updateEvent = async (req, res) => {
         after: event.toObject(),
       },
       status: 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
     });
 
     res.status(200).json({
@@ -275,17 +265,13 @@ const updateEvent = async (req, res) => {
   } catch (error) {
     // log the failed attempt
     await createAuditLog({
-      userId: req.user?.userId || req.user?.id,
-      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-      userRole: req.user?.role || 'admin',
+      ...auditRequestFields(req, { role: 'admin' }),
       action: 'event_updated',
       module: 'attendance',
       entityType: 'event',
       description: `Failed to update event`,
       status: 'failed',
       errorMessage: error.message,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
     });
 
     res.status(500).json({ message: 'Error updating event', error: safeErrorMessage(error) });
@@ -324,9 +310,7 @@ const reopenEvent = async (req, res) => {
   await event.save();
 
   await createAuditLog({
-    userId: req.user?.userId || req.user?.id,
-    userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-    userRole: req.user?.role || 'admin',
+    ...auditRequestFields(req, { role: 'admin' }),
     action: 'event_status_changed',
     module: 'attendance',
     entityType: 'event',
@@ -335,8 +319,6 @@ const reopenEvent = async (req, res) => {
     description: `Event "${event.eventName}" reopened: ${reason.trim()}`,
     changes: { before, after: event.toObject() },
     status: 'success',
-    ipAddress: req.ip,
-    userAgent: req.get('user-agent'),
   });
 
   return res.json({ message: 'Event reopened successfully', event });
@@ -357,9 +339,7 @@ const deleteEvent = async (req, res) => {
 
     // log the audit event
     await createAuditLog({
-      userId: req.user?.userId || req.user?.id,
-      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-      userRole: req.user?.role || 'admin',
+      ...auditRequestFields(req, { role: 'admin' }),
       action: 'event_deleted',
       module: 'attendance',
       entityType: 'event',
@@ -371,8 +351,6 @@ const deleteEvent = async (req, res) => {
         after: null,
       },
       status: 'success',
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
     });
 
     res.status(200).json({
@@ -381,17 +359,13 @@ const deleteEvent = async (req, res) => {
   } catch (error) {
     // log the failed attempt
     await createAuditLog({
-      userId: req.user?.userId || req.user?.id,
-      userName: req.user?.fullName || req.user?.name || req.user?.username || 'Unknown',
-      userRole: req.user?.role || 'admin',
+      ...auditRequestFields(req, { role: 'admin' }),
       action: 'event_deleted',
       module: 'attendance',
       entityType: 'event',
       description: `Failed to delete event`,
       status: 'failed',
       errorMessage: error.message,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
     });
 
     res.status(500).json({ message: 'Error deleting event', error: safeErrorMessage(error) });

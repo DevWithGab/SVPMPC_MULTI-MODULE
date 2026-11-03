@@ -6,6 +6,7 @@ const AuditLog = require('../../../shared/models/AuditLog');
 const { createAuditLog } = require('../../../shared/services/auditLoggingService');
 const { safeErrorMessage } = require('../../../middleware/errorHandler');
 const { actorName } = require('../../../shared/utils/actorName');
+const { auditRequestFields } = require('../../../shared/utils/auditRequestFields');
 const { exportModule, restoreModule, summaryTotals } = require('../../../shared/utils/moduleBackup');
 
 /* Everything the Attendance module owns. Members are always included (shared
@@ -22,13 +23,9 @@ const COLLECTIONS = [
 ];
 
 const audit = (req, fields) => createAuditLog({
-  userId: req.user?.userId,
-  userName: actorName(req.user, 'Unknown'),
-  userRole: req.user?.role || 'admin',
+  ...auditRequestFields(req, { role: 'admin' }),
   module: 'attendance',
   entityType: 'backup',
-  ipAddress: req.ip,
-  userAgent: req.get('user-agent'),
   ...fields,
 });
 

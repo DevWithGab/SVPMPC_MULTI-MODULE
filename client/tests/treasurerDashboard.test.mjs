@@ -14,7 +14,7 @@ test('dashboard actions keep their destinations and preserve configured totals a
   const navigations = [];
   let refreshes = 0;
   try {
-    const { default: Dashboard } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/Dashboard.jsx');
+    const { default: Dashboard } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/Dashboard.jsx');
     const props = {
       user: { name: 'Finance Staff' },
       stats: { fundBalance: -1234.56, activeMembers: 10, totalMembers: 12, lowBalanceMembers: 3, minimumBalance: 1500,

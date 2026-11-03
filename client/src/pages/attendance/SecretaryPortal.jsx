@@ -13,8 +13,8 @@ import {
 import {
   Dashboard,
   EventManagement,
-  MemberManagement,
-} from "../../components/attendance/admin";
+  QRManagement,
+} from "../../components/attendance/secretary";
 import { LiveAttendanceList } from "../../components/attendance/shared";
 import { memberAPI, eventAPI, attendanceAPI } from "../../services/api";
 import { loadDashboardRecords } from "../../utils/attendanceDashboard";
@@ -283,7 +283,7 @@ const SecretaryPortal = ({ onBack, user }) => {
                 )}
 
                 {activeSection === "reports" && <AttendanceReports user={user} attendanceLogs={attendanceLogs} events={events} />}
-                {["members", "directory"].includes(activeSection) && <MemberManagement />}
+                {["members", "directory"].includes(activeSection) && <QRManagement />}
 
                 {activeSection === "live" && (
                   <LiveAttendanceList

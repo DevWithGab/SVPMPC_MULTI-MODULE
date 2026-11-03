@@ -16,7 +16,7 @@ test('claim review renders a new empty checklist and can mark a requirement subm
   let api;
   let original;
   try {
-    const { default: ClaimDetails } = await vite.ssrLoadModule('/src/components/mortuary/admin/ClaimDetails.jsx');
+    const { default: ClaimDetails } = await vite.ssrLoadModule('/src/components/mortuary/claims_officer/ClaimDetails.jsx');
     ({ claimAPI: api } = await vite.ssrLoadModule('/src/services/api.js'));
     original = { getClaimById: api.getClaimById, updateRequirements: api.updateRequirements };
     let claim = {

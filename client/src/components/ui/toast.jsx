@@ -74,21 +74,7 @@ export const ToastContainer = ({ toasts, removeToast }) => {
   );
 };
 
-// Hook for managing toasts
-export const useToast = () => {
-  const [toasts, setToasts] = useState([]);
-
-  const addToast = (message, type = 'info', duration = 3000) => {
-    const id = Date.now() + Math.random();
-    setToasts(prev => [...prev, { id, message, type, duration }]);
-  };
-
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  };
-
-  return { toasts, addToast, removeToast };
-};
+// Manage the list passed to ToastContainer with hooks/useToast.js.
 
 // Export Toast as both named and default export
 export { Toast };

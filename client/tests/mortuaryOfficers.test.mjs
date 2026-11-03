@@ -25,7 +25,7 @@ test('one Mortuary sign-in routes each account by its server role; staff forms o
         return { ok: true, json: async () => ({ token: 'test-token', user: { role, modules: ['mortuary'] } }) };
       };
       await act(async () => root.render(React.createElement(MemoryRouter, { key: role, initialEntries: ['/?module=mortuary'] }, React.createElement(SystemSelector, { onModuleSelect: (...args) => { result = args; } }))));
-      assert.ok(container.textContent.includes('Mortuary sign in'));
+      assert.equal(container.querySelector('form')?.getAttribute('aria-label'), 'Mortuary Services sign in');
       assert.equal(container.textContent.includes('Select Your Role'), false);
       await act(async () => container.querySelector('form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
       assert.equal(body.module, 'mortuary'); assert.equal(body.expectedRole, undefined);
@@ -49,13 +49,14 @@ test('one Mortuary sign-in routes each account by its server role; staff forms o
     assert.equal(selects[0].value, 'mortuary');
     assert.deepEqual([...selects[1].options].map(option => option.value), ['claims_officer', 'finance_officer']);
     await act(async () => { selects[0].value = 'attendance'; selects[0].dispatchEvent(new window.Event('change', { bubbles: true })); });
-    assert.deepEqual([...container.querySelectorAll('form select')[1].options].map(option => option.value), ['admin', 'secretary', 'scanner_operator']);
+    // Attendance admin accounts are retired; the server only creates these two (server/shared/utils/staffRoles.js).
+    assert.deepEqual([...container.querySelectorAll('form select')[1].options].map(option => option.value), ['secretary', 'scanner_operator']);
 
     api.get = async url => {
       if (url.endsWith('/members') || url.endsWith('/contributions')) return { data: { success: true, data: [], pagination: { totalPages: 1 } } };
       return { data: { success: true, data: { members: [], claims: {} } } };
     };
-    const { default: ClaimsPortal } = await vite.ssrLoadModule('/src/pages/mortuary/AdminPortal.jsx');
+    const { default: ClaimsPortal } = await vite.ssrLoadModule('/src/pages/mortuary/ClaimsOfficerPortal.jsx');
     await act(async () => root.render(React.createElement(MemoryRouter, { initialEntries: ['/mortuary/claims_officer?tab=backup'] }, React.createElement(ClaimsPortal, { user: { role: 'claims_officer', name: 'Test Staff' }, onBack() {} }))));
     const names = [...container.querySelectorAll('button[aria-current]')].map(button => button.getAttribute('aria-label'));
     assert.ok(container.textContent.includes('Claims Officer'));

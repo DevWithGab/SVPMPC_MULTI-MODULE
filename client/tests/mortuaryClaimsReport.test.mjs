@@ -31,7 +31,7 @@ test('Deduction Report includes deductions and filters by the month a claim was 
     URL.revokeObjectURL = () => {};
     window.HTMLAnchorElement.prototype.click = () => {};
 
-    const { default: Reports } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/Reports.jsx');
+    const { default: Reports } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/Reports.jsx');
     await act(async () => root.render(React.createElement(Reports, { contributions: [], members: [], stats: {} })));
     const button = label => [...container.querySelectorAll('button')].find(el => el.textContent.trim() === label);
     assert.ok(button('Export CSV'), 'the export icon and button render without crashing');

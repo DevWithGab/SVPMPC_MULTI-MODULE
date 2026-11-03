@@ -26,7 +26,7 @@ test('ledger upload rejects non-CSV files and requires a valid preview before im
       alerts.push(options);
       return { isConfirmed: true };
     };
-    const { default: BulkLedgerUpload } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/BulkLedgerUpload.jsx');
+    const { default: BulkLedgerUpload } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/BulkLedgerUpload.jsx');
     ({ treasurerAPI: api } = await vite.ssrLoadModule('/src/services/api.js'));
     original = api.bulkUploadLedger;
     let invalid = true;

@@ -4,8 +4,8 @@ import { withDisplayName } from "./utils/authSession";
 import SystemSelector from "./pages/SystemSelector";
 import SuperAdmin from "./pages/SuperAdmin";
 import RequiredPasswordChange from './components/shared/RequiredPasswordChange';
-import MortuaryAdminPortal from "./pages/mortuary/AdminPortal";
-import MortuaryTreasurerPortal from "./pages/mortuary/TreasurerPortal";
+import MortuaryClaimsOfficerPortal from "./pages/mortuary/ClaimsOfficerPortal";
+import MortuaryFinanceOfficerPortal from "./pages/mortuary/FinanceOfficerPortal";
 import AttendanceSecretaryPortal from "./pages/attendance/SecretaryPortal";
 import AttendanceOperatorPortal from "./pages/attendance/OperatorPortal";
 
@@ -19,8 +19,8 @@ pair. Yung mismong listahan ng mga pair na valid ay naka-define na sa constants.
 (ROLE_MODULES) - dito lang kailangan sabihin kung ANO ang ipapakita sa bawat isa,
 hindi kung alin sa mga pair ang valid. */
 const PORTAL_COMPONENTS = {
-  '/mortuary/claims_officer': MortuaryAdminPortal,
-  '/mortuary/finance_officer': MortuaryTreasurerPortal,
+  '/mortuary/claims_officer': MortuaryClaimsOfficerPortal,
+  '/mortuary/finance_officer': MortuaryFinanceOfficerPortal,
   '/attendance/secretary': AttendanceSecretaryPortal,
   '/attendance/scanner_operator': AttendanceOperatorPortal,
 

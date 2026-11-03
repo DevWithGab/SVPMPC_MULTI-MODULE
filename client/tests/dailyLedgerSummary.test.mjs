@@ -53,7 +53,7 @@ test('daily screen paginates, changes dates, hides failed results and retries wi
       if (fail) throw new Error('Summary unavailable');
       return { data: { success: true, data: data(options.params.date, options.params.date === '2026-10-27' ? 65 : 0) } };
     };
-    const { default: DailyLedgerSummary } = await vite.ssrLoadModule('/src/components/mortuary/treasurer/DailyLedgerSummary.jsx');
+    const { default: DailyLedgerSummary } = await vite.ssrLoadModule('/src/components/mortuary/finance_officer/DailyLedgerSummary.jsx');
     await act(async () => root.render(React.createElement(MemoryRouter, { initialEntries: ['/?dailyDate=2026-10-27'] }, React.createElement(DailyLedgerSummary))));
     assert.equal(container.querySelectorAll('tbody tr').length, 50);
     assert.match(container.textContent, /6,500\.00/);
